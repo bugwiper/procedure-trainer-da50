@@ -19,6 +19,9 @@ A live GitHub Pages site where a responsive DA50 RG panel can be operated by mou
 - **D-03:** Region data model = `{ id, name, bounds (viewBox rect), controlIds[] }`; renderer iterates regions. Enough for later region zoom without a rewrite.
 - **D-04:** Regions present in Phase 1: PFD (static placeholder), Engine page/MFD (frame), Switch bank, Pedestal/quadrant.
 
+- **D-04a:** The MFD region has two static pages: Map with a small engine-gauge strip on the left, and the full Engine page. A registry control (MFD page button/softkey) toggles between them; the page is panel state (gradable later). Live gauge values still come in Phase 3.
+- **D-04b:** Reference photos of the real aircraft are in `.input/` (git-ignored, private). Use them only as visual reference for layout, gauge set/order/colour bands and annunciation wording; redraw as original functional SVG, never embed or trace them (Garmin/Diamond IP, public repo).
+
 ### Control set & interaction
 - **D-05:** Detented levers (throttle, prop, cowl flap) are operated by pointer-drag along a track with snap to nearest detent on release, using Pointer Events + setPointerCapture; tapping a detent marker jumps to it.
 - **D-06:** Guarded switch: the guard is a separate control with its own state. Tap guard to lift, then tap the switch. Guard stays up until tapped again (no auto-close). Switch cannot actuate while guard is closed.
