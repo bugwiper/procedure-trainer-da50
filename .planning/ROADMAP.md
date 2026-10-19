@@ -50,7 +50,7 @@ Plans:
 - [ ] 01-08-PLAN.md — Registry and store contract pinned test-first for every control kind, incl. the guard interlock (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-07-PLAN.md — Guarded ELECT. MASTER and ELT, START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 4)
+- [ ] 01-07-PLAN.md — Guarded de-ice ALTERNATE switch, ELECT. MASTER and ELT toggles, START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 4)
 
 **UI hint**: yes
 
