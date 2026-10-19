@@ -24,6 +24,8 @@ A live GitHub Pages site where a responsive DA50 RG panel can be operated by mou
 
 ### Control set & interaction
 - **D-05:** Detented levers (throttle, prop, cowl flap) are operated by pointer-drag along a track with snap to nearest detent on release, using Pointer Events + setPointerCapture; tapping a detent marker jumps to it.
+- **D-05a (amends D-05, 2026-10-19 after research):** The DA50 RG has no prop lever (single POWER lever; ECU governs prop). Demo detent levers are: POWER (ground idle behind a detent / flight idle / max), FLAPS selector, landing gear selector, and COWL FLAP modelled as a detent lever (real actuation type to be confirmed later). No prop lever on the panel. Roadmap success criterion 3's "(throttle, prop, cowl flap)" is read as this set.
+- **D-07a (refines D-07):** Demo guarded-toggles are the ELT switch and ELECT. MASTER (red toggles in reference photos); whether the real aircraft guards them is confirmed later.
 - **D-06:** Guarded switch: the guard is a separate control with its own state. Tap guard to lift, then tap the switch. Guard stays up until tapped again (no auto-close). Switch cannot actuate while guard is closed.
 - **D-07:** Phase 1 ships only a small demonstrative set of guarded/confirm-to-actuate controls; the real safety-control set is scoped by Phase 2/3 scenarios.
 - **D-08:** Registry uses typed control kinds: toggle, guarded-toggle, detent-lever, momentary-button. Each entry has id, kind, label, region, position, legal states, default. Renderer picks widget by kind; controls can only reach their defined legal states.
