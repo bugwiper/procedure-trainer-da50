@@ -34,6 +34,14 @@ A live GitHub Pages site where a responsive DA50 RG panel can be operated by mou
   - Pedestal: COWL FLAP is a pedestal lever with OPEN/CLOSED (resolves the D-05a open point); POWER lever on the pedestal.
   - Planner assumptions to flag (confirm later with the user/AFM): alternate static and alternate air as 2-position levers (CLOSED/OPEN or NORMAL/ALTERNATE); emergency gear extension as a 2-position lever (NORMAL/EMERGENCY) treated as a safety-consequence control under PNL-06 (confirm-to-actuate or deliberate pull, no stray-tap actuation).
   - Photos remain visual reference only (D-04b): redraw schematically, never embed/trace.
+- **D-07d (user answers to planner assumptions, 2026-10-19):**
+  - Confirmed: ALTERNATE STATIC and ALTERNATE AIR are 2-position pull levers, CLOSED (stowed, default) / OPEN (pulled). EMERGENCY GEAR EXTENSION is 2-position NORMAL (default) / EMERGENCY.
+  - Correction: FLAPS and GEAR selectors are on the front instrument panel, low (gear lever in the LANDING GEAR block right of PITOT/STALL HEAT; FLAPS selector below the MFD, right of centre), NOT on the centre pedestal. Pedestal holds POWER and COWL FLAP (plus parking brake, environmental, rudder trim — not in Phase 1 scope).
+  - Correction: the ENGINE area (FADEC, ALTERNATOR 1/2) sits BELOW the DE-ICE panel at the left edge of the panel, not beside it.
+  - Correction: the default panel state is the normal IN-FLIGHT configuration, not cold-and-dark. ALTERNATOR 1 and 2 default ON; every switch defaults to its normal in-flight position (planner derives each from the reference photos, which show the aircraft in flight, and flags uncertain ones). Scenarios start in flight from predefined positions.
+  - Correction: POWER lever is a 0–100 % load control. The real ground-idle gate is disregarded in the simulator (no gate, no ground-idle detent). Keep the existing lever kind; planner chooses the step granularity (e.g. 5 % or 1 % steps) and flags it.
+- **D-19 (essential requirement, PNL-08):** Positional accuracy is a core value: the panel must reproduce where each control is on the real DA50 RG (relative position, grouping, left-to-right order, top/bottom, under-panel), because the trainer builds position memory for emergencies. Touch-target sizing must NEVER relocate or regroup a control. Use IMG_0650.JPG (real, in flight) as the primary reference for the front panel and DA50_virtual.jpg for the left panel and under-panel (accurate there). Redraw schematically (D-04b). Proportions should follow the real panel (viewBox aspect may change to match).
+- **D-20 (PNL-09, pulled from PNL-V2-01):** Phone region zoom is in Phase 1. On phones, the user can zoom into a region (region tap and/or pinch, via viewBox manipulation per CLAUDE.md) so its controls reach full tap size, and zoom back out to the whole panel. The true layout is unchanged by zoom. At full-panel view on phones, controls may be smaller than 44 px; hit areas may grow only up to the neighbour gap. Zoom/pan gestures must never emit control events (PNL-06). Desktop/tablet should work at full-panel view without zoom.
 - **D-06:** Guarded switch: the guard is a separate control with its own state. Tap guard to lift, then tap the switch. Guard stays up until tapped again (no auto-close). Switch cannot actuate while guard is closed.
 - **D-07:** Phase 1 ships only a small demonstrative set of guarded/confirm-to-actuate controls; the real safety-control set is scoped by Phase 2/3 scenarios.
 - **D-08:** Registry uses typed control kinds: toggle, guarded-toggle, detent-lever, momentary-button. Each entry has id, kind, label, region, position, legal states, default. Renderer picks widget by kind; controls can only reach their defined legal states.
@@ -97,7 +105,8 @@ No specific references beyond the decisions above.
 <deferred>
 ## Deferred Ideas
 
-- Phone region zoom/pan (already PNL-V2-01).
+- ~~Phone region zoom/pan (PNL-V2-01)~~ → pulled into Phase 1 as PNL-09 (D-20).
+- Scenario initial states that differ from the normal in-flight configuration (e.g. one alternator inadvertently switched OFF, e.g. while handling an iPad; PFD warning; pilot restores it). Scenario data in Phase 2+.
 - Live gauge binding (Phase 3).
 - Full de-ice (TKS/FIKI) panel controls and FIKI emergency scenarios. Source: FIKI supplement `.input/FIKI_AFM.pdf` (private, git-ignored; paraphrase per content policy). Highly relevant for later scenario phases.
 

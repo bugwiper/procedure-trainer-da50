@@ -25,13 +25,14 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Goal**: Users can open the deployed site on desktop, tablet or phone and operate a DA50 RG panel (switches, guarded switches, levers, buttons) by mouse or touch.
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
-**Requirements**: PLT-01, CNT-03, PNL-01, PNL-02, PNL-05, PNL-06
+**Requirements**: PLT-01, CNT-03, PNL-01, PNL-02, PNL-05, PNL-06, PNL-08, PNL-09
 **Success Criteria** (what must be TRUE):
   1. A push to main deploys the app through GitHub Actions to a public GitHub Pages URL that loads correctly at its subpath, and the build takes its base path from the environment so the same build works on another host.
   2. User opens the site on a desktop, a tablet and a phone and sees the whole panel scaled to fit with no horizontal page scroll; the panel regions (e.g. PFD, engine page, switch bank, pedestal) exist as data, not hard-coded layout.
   3. User can flip switches, lift a guard before actuating a guarded switch, step levers (POWER, flaps, gear, cowl flap; the DA50 RG has a single power lever and no prop lever, per D-05a) between detents and press buttons by mouse or touch (including real iOS Safari and Android), and every control visibly shows its new state; each control comes from the control registry with a stable id and can only reach its defined legal states.
   4. Controls with safety consequences are guarded or require confirmation, and tapping or clicking neutral panel areas changes nothing and produces no control event that could ever be graded.
   5. A written content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is in the repo before any procedure text is committed.
+  6. The panel layout matches the real DA50 RG: every control sits where it is in the aircraft (relative position and grouping, incl. under-panel controls), and on a phone the user can zoom into any region to operate its controls at full tap size without the layout changing.
 
 **Plans:** 8 plans
 

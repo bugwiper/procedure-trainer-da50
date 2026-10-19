@@ -15,6 +15,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **PNL-04**: Engine gauges and displays respond to simulated aircraft state
 - [ ] **PNL-05**: Panel scales to desktop, tablet and phone screens without horizontal page scroll; panel regions (e.g. PFD, engine page, switch bank, pedestal) are part of the data model so region zoom can be added later without a rewrite
 - [ ] **PNL-06**: Controls with safety consequences are guarded or confirm-to-actuate, and stray touches on neutral areas are never graded as forbidden actions
+- [ ] **PNL-08**: Panel layout reproduces the real DA50 RG positions (which control is where, relative placement and grouping, incl. under-panel controls) closely enough to build position memory for emergencies; touch sizing must never relocate a control
+- [ ] **PNL-09**: On phones, the user can zoom into a panel region (pinch or region tap) with enlarged hit targets, without changing the true layout (promoted from PNL-V2-01)
 - [ ] **PNL-07**: A simplified transponder section lets the user enter a squawk code (no full G1000 menu structure)
 
 ### Scenario Engine
@@ -56,7 +58,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### Panel
 
-- **PNL-V2-01**: Phone region zoom/pan (pinch or zoom control) with enlarged hit targets
+- ~~**PNL-V2-01**: Phone region zoom/pan~~ → promoted to v1 as PNL-09 (2026-10-19)
 - **PNL-V2-02**: Keyboard operation and ARIA accessibility
 
 ### Session
@@ -98,6 +100,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PNL-02 | Phase 1 | Pending |
 | PNL-05 | Phase 1 | Pending |
 | PNL-06 | Phase 1 | Pending |
+| PNL-08 | Phase 1 | Pending |
+| PNL-09 | Phase 1 | Pending |
 | SCN-01 | Phase 2 | Pending |
 | SCN-02 | Phase 2 | Pending |
 | SCN-03 | Phase 2 | Pending |
@@ -122,8 +126,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLT-02 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 28 total (previously stated as 30; the defined IDs total 28)
-- Mapped to phases: 28
+- v1 requirements: 30 total (28 + PNL-08, PNL-09 added 2026-10-19)
+- Mapped to phases: 30
 - Unmapped: 0 ✓
 
 ---
