@@ -48,7 +48,7 @@ Filled from the PLAN.md task IDs (2026-10-19). Requirement → test mapping foll
 | 01-02-T1 | CNT-03 | Policy headings, README link, repo hygiene | shell | grep/git commands in 01-02 Task 1 | ❌ (created in 01-02) | ⬜ pending |
 | 01-02-T3 | CNT-03 | Owner-approved countable verbatim limit | shell | grep command in 01-02 Task 3 | ❌ | ⬜ pending |
 | 01-03-T1 | PNL-01, PNL-02 | ENGINE MASTER and MFD PAGE by mouse and tap; one event per flip | e2e | `npx playwright test e2e/toggle.spec.ts` | ❌ W0 | ⬜ pending |
-| 01-03-T2 | PNL-05 | Region/control geometry for all eight regions, hit rects don't overlap, 44 px floor | unit | `npx vitest run tests/layout.test.ts` | ❌ W0 | ⬜ pending |
+| 01-03-T2 | PNL-05, PNL-08 | Eleven regions inside the viewBox, hit rects never overlap, desktop/tablet full-view 44 px floor (94 units), reference ordering table of real positions | unit | `npx vitest run tests/layout.test.ts` | ❌ W0 | ⬜ pending |
 | 01-03-T2 | PNL-01 | Every plain toggle (engine area, lower switch row, ELT) flips by mouse and tap | e2e | `npx playwright test e2e/toggle.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-08-T1 | PNL-06 | Guard interlock, blocked attempts emit no event | unit | `npx vitest run tests/store.test.ts -t guard` | ❌ W0 | ⬜ pending |
 | 01-08-T2 | PNL-02 | Registry invariants | unit | `npx vitest run tests/registry.test.ts` | ❌ W0 | ⬜ pending |
@@ -61,10 +61,13 @@ Filled from the PLAN.md task IDs (2026-10-19). Requirement → test mapping foll
 | 01-05-T3 | PNL-01, PNL-06 | Under-panel levers; EMERGENCY GEAR EXTENSION ignores taps and moves only by deliberate drag | e2e + unit | `npx playwright test e2e/lever.spec.ts` and `npx vitest run tests/detents.test.ts` | ❌ W0 | ⬜ pending |
 | 01-06-T1 | PNL-01 | MFD page softkey switches Map/Engine pages | e2e | `npx playwright test e2e/glass.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-06-T3 | CNT-03 | Content policy present, linked, `.input` ignored, no raw HTML | unit | `npx vitest run tests/content-policy.test.ts` | ❌ W0 | ⬜ pending |
-| 01-06-T3 | PNL-05 | No horizontal scroll, regions visible, 44 px targets, rotate hint | e2e | `npx playwright test e2e/layout.spec.ts e2e/about.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-06-T3 | PNL-05 | No horizontal scroll, eleven regions visible, 44 px targets at the desktop/tablet full view, rotate hint | e2e | `npx playwright test e2e/layout.spec.ts e2e/about.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-07-T1 | PNL-01, PNL-06 | De-ice ALTERNATE (the only guarded switch, D-07b): guard must be lifted; guard stays up | e2e | `npx playwright test e2e/guard.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-07-T2 | PNL-01 | Momentary buttons (ENGINE START, FADEC TEST) never stick | e2e | `npx playwright test e2e/button.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-07-T2 | PNL-06 | Neutral taps emit no event | e2e | `npx playwright test e2e/neutral.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-07-T2 | PNL-08 | Reference ordering table complete: layout suite reports 0 skipped relations | unit | `npx vitest run tests/layout.test.ts` | ❌ W0 | ⬜ pending |
+| 01-09-T1 | PNL-09 | Phone region tap zooms in; controls reach 44 px and operate; Full panel zooms out; no zoom on desktop/tablet | e2e | `npx playwright test e2e/zoom.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-09-T2 | PNL-09, PNL-06 | View geometry and per-region phone zoom floor; pinch, pan, double tap; gestures emit no events and never hijack lever drags | unit + e2e | `npx vitest run tests/zoom.test.ts` and `npx playwright test e2e/zoom.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-07-T4 | PLT-01 | Full panel live (after the Task 3 publish confirmation); all non-hook specs pass against Pages URL | e2e (live) | `PW_BASE_URL=<live> npx playwright test` | ❌ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*

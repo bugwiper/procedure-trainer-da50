@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. A written content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is in the repo before any procedure text is committed.
   6. The panel layout matches the real DA50 RG: every control sits where it is in the aircraft (relative position and grouping, incl. under-panel controls), and on a phone the user can zoom into any region to operate its controls at full tap size without the layout changing.
 
-**Plans:** 8 plans
+**Plans:** 9 plans
 
 Plans:
 **Wave 1**
@@ -42,16 +42,19 @@ Plans:
 - [ ] 01-02-PLAN.md — Content policy for AFM-derived text with the owner-decided verbatim limit, linked from README (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-03-PLAN.md — Registry-driven panel: ENGINE MASTER and MFD PAGE through the pure store; all plain toggles of the engine area and lower switch row; eight-region layout gate (wave 2)
+- [ ] 01-03-PLAN.md — Registry-driven panel: ENGINE MASTER and MFD PAGE through the pure store; all plain toggles at their real positions with in-flight defaults; layout gate with the reference ordering table (PNL-08) (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-04-PLAN.md — CI and Deploy workflow, public repository, skeleton live on GitHub Pages (wave 3)
-- [ ] 01-05-PLAN.md — Pedestal levers POWER, FLAPS, GEAR, COWL FLAP and under-panel levers ALTERNATE STATIC, EMERGENCY GEAR EXTENSION (drag-only), ALTERNATE AIR (wave 3)
+- [ ] 01-05-PLAN.md — Levers at their real positions: pedestal POWER (0-100 %) and COWL FLAP, front-panel GEAR and FLAPS, under-panel ALTERNATE STATIC, EMERGENCY GEAR EXTENSION (drag-only), ALTERNATE AIR (wave 3)
 - [ ] 01-06-PLAN.md — PFD and two-page MFD frames, B612 fonts, About/content policy in app, responsive layout and rotate hint (wave 3)
 - [ ] 01-08-PLAN.md — Registry and store contract pinned test-first for every control kind, incl. the guard interlock (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-07-PLAN.md — Guarded de-ice ALTERNATE switch, ENGINE START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 4)
+- [ ] 01-09-PLAN.md — Phone region zoom (PNL-09): region tap, pinch, pan, Full panel; gestures never emit control events or hijack lever drags (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 01-07-PLAN.md — Guarded de-ice ALTERNATE switch, ENGINE START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 5)
 
 **UI hint**: yes
 
@@ -122,7 +125,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Deployed Playable Panel | 0/8 | Planned | - |
+| 1. Deployed Playable Panel | 0/9 | Planned | - |
 | 2. First Gradable Scenario | 0/TBD | Not started | - |
 | 3. Reactive Scenarios and Initial Pack | 0/TBD | Not started | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
