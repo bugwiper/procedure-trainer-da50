@@ -17,7 +17,7 @@ Built by plan 01 (toolchain, panel stage, subpath production build verified in C
 | Data layer | No database. Pure-TS `PanelStore` (`src/engine/store.ts`) holds the control-state map and an append-only `ControlEvent` log; `defineRegistry` (`src/engine/registry.ts`) validates control definitions; aircraft data lives in `src/aircraft/da50rg/` | State lives in the model, not the DOM (D-09); the event log is the input Phase 2's grader reads; the engine reads no clock (callers pass `t`), so Phase 2 can add a virtual clock (SCN-08) |
 | Engine boundary | ESLint bans Preact/UI imports, DOM globals, timers, `Date.now` and `performance.now` in `src/engine/**` and `src/aircraft/**` | Keeps grading deterministic and the UI framework replaceable |
 | Control model | Typed kinds `toggle`, `guarded-toggle` (with a derived `guard` control `<id>.guard`), `detent-lever`, `momentary-button`; ids match `^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$` with prefixes `sw.`, `lv.`, `btn.`; every control declares its legal states and a default | D-06, D-08, PNL-02; stable ids are the contract Phase 2 scenario YAML references; the `ControlDef` union stays open for a later `circuit-breaker` kind (Research Open Question 5) |
-| Panel geometry | One root SVG, viewBox 1600x800, regions `{ id, name, bounds, controlIds }` with region-local control coordinates; `controlIds` derived, never hand-maintained; minimum touch footprint 112 units (44 CSS px on the smallest landscape phone) | D-01, D-03, D-02; later region zoom only animates the viewBox to a region's bounds |
+| Panel geometry | One root SVG, viewBox 1600x800, regions `{ id, name, bounds, controlIds }` (Phase 1: DE-ICE at the far left, PFD, MFD, SWITCH BANK, PEDESTAL) with region-local control coordinates; `controlIds` derived, never hand-maintained; minimum touch footprint 112 units (44 CSS px on the smallest landscape phone) | D-01, D-03, D-02; later region zoom only animates the viewBox to a region's bounds |
 | Input | Pointer Events with `setPointerCapture`, `touch-action: none` on the root SVG only, no `click` listeners, widgets emit `actuate(id, state)` intents only, background and frames have no handlers | Research Pitfall 1 (touch-action on SVG children is ignored), D-05, D-09 |
 | Auth | None. Static public site; no accounts or secrets | v1 constraint; the PackProvider/AccessPolicy seam arrives in Phase 2 |
 | Deployment target | GitHub Pages via GitHub Actions (`.github/workflows/deploy.yml`, all actions SHA-pinned); base path from `BASE_PATH` (default `/`), CI derives it from the repository name | PLT-01 host-agnostic build; hosting moves off Pages before any sale |
@@ -42,6 +42,7 @@ Built by plan 01 (toolchain, panel stage, subpath production build verified in C
 - PWA install and offline use (Phase 5)
 - Phone region zoom/pan, keyboard and screen-reader operation (deferred requirements)
 - Circuit breakers and the full aircraft switch inventory beyond the demonstration set (added when scenarios need them)
+- The full de-ice (TKS/FIKI) panel: Phase 1 has only its guarded ALTERNATE switch (D-07b), the cockpit's single guarded switch
 - Paid packs, private content repository, licence checks, hosting migration
 
 ## Subsequent Slice Plan

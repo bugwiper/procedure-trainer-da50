@@ -60,7 +60,7 @@ Filled from the PLAN.md task IDs (2026-10-19). Requirement → test mapping foll
 | 01-06-T1 | PNL-01 | MFD page softkey switches Map/Engine pages | e2e | `npx playwright test e2e/glass.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-06-T3 | CNT-03 | Content policy present, linked, `.input` ignored, no raw HTML | unit | `npx vitest run tests/content-policy.test.ts` | ❌ W0 | ⬜ pending |
 | 01-06-T3 | PNL-05 | No horizontal scroll, regions visible, 44 px targets, rotate hint | e2e | `npx playwright test e2e/layout.spec.ts e2e/about.spec.ts` | ❌ W0 | ⬜ pending |
-| 01-07-T1 | PNL-01, PNL-06 | Guard must be lifted; guard stays up | e2e | `npx playwright test e2e/guard.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-07-T1 | PNL-01, PNL-06 | De-ice ALTERNATE (the only guarded switch, D-07b): guard must be lifted; guard stays up | e2e | `npx playwright test e2e/guard.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-07-T2 | PNL-01 | Momentary buttons never stick | e2e | `npx playwright test e2e/button.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-07-T2 | PNL-06 | Neutral taps emit no event | e2e | `npx playwright test e2e/neutral.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-07-T4 | PLT-01 | Full panel live (after the Task 3 publish confirmation); all non-hook specs pass against Pages URL | e2e (live) | `PW_BASE_URL=<live> npx playwright test` | ❌ | ⬜ pending |
