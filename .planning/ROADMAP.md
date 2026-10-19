@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Deployed Playable Panel
+
 **Goal**: Users can open the deployed site on desktop, tablet or phone and operate a DA50 RG panel (switches, guarded switches, levers, buttons) by mouse or touch.
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
@@ -31,20 +32,30 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can flip switches, lift a guard before actuating a guarded switch, step levers (POWER, flaps, gear, cowl flap; the DA50 RG has a single power lever and no prop lever, per D-05a) between detents and press buttons by mouse or touch (including real iOS Safari and Android), and every control visibly shows its new state; each control comes from the control registry with a stable id and can only reach its defined legal states.
   4. Controls with safety consequences are guarded or require confirmation, and tapping or clicking neutral panel areas changes nothing and produces no control event that could ever be graded.
   5. A written content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is in the repo before any procedure text is committed.
+
 **Plans:** 8 plans
 
 Plans:
+**Wave 1**
 - [ ] 01-01-PLAN.md — Walking skeleton shell: pinned toolchain, panel stage served at the Pages subpath on every device project, engine purity lint (wave 1)
 - [ ] 01-02-PLAN.md — Content policy for AFM-derived text with the owner-decided verbatim limit, linked from README (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-03-PLAN.md — Registry-driven panel: ENGINE MASTER and MFD PAGE through the pure store; data-driven layout gate (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-04-PLAN.md — CI and Deploy workflow, public repository, skeleton live on GitHub Pages (wave 3)
 - [ ] 01-05-PLAN.md — Pedestal detent levers POWER, FLAPS, GEAR, COWL FLAP by drag-and-snap and detent tap (wave 3)
 - [ ] 01-06-PLAN.md — PFD and two-page MFD frames, B612 fonts, About/content policy in app, responsive layout and rotate hint (wave 3)
-- [ ] 01-07-PLAN.md — Guarded ELECT. MASTER and ELT, START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 4)
 - [ ] 01-08-PLAN.md — Registry and store contract pinned test-first for every control kind, incl. the guard interlock (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 01-07-PLAN.md — Guarded ELECT. MASTER and ELT, START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 4)
+
 **UI hint**: yes
 
 ### Phase 2: First Gradable Scenario
+
 **Goal**: Users can start one real emergency (Oil Temp High), run the procedure by operating the panel, finish with "Procedure complete" and receive an objective PASS/FAIL debrief.
 **Mode:** mvp
 **Depends on**: Phase 1
@@ -55,10 +66,12 @@ Plans:
   3. User performs the procedure by operating controls, the app stays silent (Exam behaviour), and the user ends the run with "Procedure complete"; actions count by the resulting control state, not by raw clicks (toggling a switch back and forth does not change what is credited).
   4. The debrief shows PASS/FAIL (a missed critical step fails), a verdict per step (critical, standard, optional), order violations in ordered groups and harmful (forbidden) actions; replaying the same recorded run gives identical verdicts, and golden, do-nothing, wrong-order and forbidden-action replays each grade as expected.
   5. The scenario is a YAML file loaded only through the PackProvider/AccessPolicy seam (open in v1); the validate command reports a malformed file with line-numbered errors and rejects any control id not in the registry.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 3: Reactive Scenarios and Initial Pack
+
 **Goal**: Users can run all three initial emergencies (Oil Temp High, Electrical Failure, Engine Fire) and see each one react to what they do: gauges move, ignored failures escalate, handled failures recover.
 **Mode:** mvp
 **Depends on**: Phase 2
@@ -68,10 +81,12 @@ Plans:
   2. If the user ignores a scenario or lets a value pass its red line, the scenario escalates to a named outcome (e.g. engine failure), and that outcome appears in the debrief.
   3. The "New situation" flow offers Oil Temp High, Electrical Failure and Engine Fire, each with its own initial state, annunciations and procedure, and each passes golden, do-nothing, wrong-order and forbidden-action replay tests and registry validation.
   4. User can enter a squawk code (e.g. 7700) in a simplified transponder section, and the entered code counts as graded panel state.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 4: Training Mode, Further Actions and Repeat Loop
+
 **Goal**: Users can learn from a scenario with a checklist and hints, make non-panel decisions such as MAYDAY and the landing choice, and retry or move on to improve their debrief; authors can add scenarios by following a guide.
 **Mode:** mvp
 **Depends on**: Phase 3
@@ -81,10 +96,12 @@ Plans:
   2. A "Further actions" section lets the user pick from a fixed list of non-panel actions (e.g. monitor oil pressure, declare MAYDAY, brief passengers) and choose a landing decision from the ladder (continue flight, safety landing on a suitable field, emergency landing on the next field, outlanding if necessary); both are graded in the debrief.
   3. From the debrief the user can retry the same scenario from a clean initial state or move straight to the next situation.
   4. Following only the authoring guide, a non-developer can add a new scenario YAML file, validate it and play it in the app without any code change.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 5: Offline PWA and Real-Device Hardening
+
 **Goal**: Users can install the trainer on their phone, tablet or desktop and run scenarios offline, with the full flow confirmed on real devices and surviving new deploys.
 **Mode:** mvp
 **Depends on**: Phase 4
@@ -94,6 +111,7 @@ Plans:
   2. After one online load, with the device in airplane mode, the user can start, play, finish and debrief every scenario.
   3. After a new version is deployed, a returning user gets the new version without a blank screen or stale-asset errors, and the installed app still resolves its assets under the GitHub Pages base path.
   4. The full flow (acknowledgment, new situation, operating the panel, debrief, retry) works by touch on a real iPhone, an iPad and an Android phone.
+
 **Plans**: TBD
 
 ## Progress
