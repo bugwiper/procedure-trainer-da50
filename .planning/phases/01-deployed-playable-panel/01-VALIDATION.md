@@ -38,22 +38,32 @@ created: "2026-10-19"
 
 ## Per-Task Verification Map
 
-To be filled from PLAN.md task IDs. Requirement → test mapping (from RESEARCH.md § Validation Architecture):
+Filled from the PLAN.md task IDs (2026-10-19). Requirement → test mapping follows RESEARCH.md § Validation Architecture; the research's single `e2e/controls.spec.ts` is split per control kind (`toggle`, `guard`, `lever`, `button`) so parallel plans own separate spec files.
 
-| Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
-|-------------|----------|-----------|-------------------|-------------|--------|
-| PLT-01 | Build honours `BASE_PATH` | unit/script | `npx vitest run tests/build-base.test.ts` | ❌ W0 | ⬜ pending |
-| PLT-01 | Actions SHA-pinned | unit | `npx vitest run tests/workflow.test.ts` | ❌ W0 | ⬜ pending |
-| PLT-01 | App loads at subpath | e2e | `npx playwright test e2e/smoke.spec.ts` | ❌ W0 | ⬜ pending |
-| CNT-03 | Content policy present, `.input` ignored | unit | `npx vitest run tests/content-policy.test.ts` | ❌ W0 | ⬜ pending |
-| PNL-02 | Registry invariants | unit | `npx vitest run tests/registry.test.ts` | ❌ W0 | ⬜ pending |
-| PNL-02 | Store reaches only legal states | unit | `npx vitest run tests/store.test.ts` | ❌ W0 | ⬜ pending |
-| PNL-06 | Guard interlock, blocked attempts emit no event | unit | `npx vitest run tests/store.test.ts -t guard` | ❌ W0 | ⬜ pending |
-| PNL-01 | Detent snap math | unit | `npx vitest run tests/detents.test.ts` | ❌ W0 | ⬜ pending |
-| PNL-05 | Region/control geometry, hit rects don't overlap | unit | `npx vitest run tests/layout.test.ts` | ❌ W0 | ⬜ pending |
-| PNL-05 | No horizontal scroll across viewports | e2e | `npx playwright test e2e/layout.spec.ts` | ❌ W0 | ⬜ pending |
-| PNL-01/06 | Toggle, guard, lever, button by mouse and tap | e2e | `npx playwright test e2e/controls.spec.ts` | ❌ W0 | ⬜ pending |
-| PNL-06 | Neutral taps emit no event | e2e | `npx playwright test e2e/neutral.spec.ts` | ❌ W0 | ⬜ pending |
+| Task ID | Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
+|---------|-------------|----------|-----------|-------------------|-------------|--------|
+| 01-01-T2 | PLT-01, PNL-05 | App loads at subpath, no horizontal scroll, viewport meta | e2e | `npx playwright test e2e/smoke.spec.ts` | ❌ W0 (created in 01-01) | ⬜ pending |
+| 01-01-T2 | PLT-01 | Exact pins, no unexpected install scripts | script | pin-check `node -e` command in 01-01 Task 2 | n/a | ⬜ pending |
+| 01-01-T3 | (boundary) | Engine/aircraft purity lint fires | lint | `npm run lint` + boundary probe in 01-01 Task 3 | ❌ W0 | ⬜ pending |
+| 01-02-T1 | CNT-03 | Policy headings, README link, repo hygiene | shell | grep/git commands in 01-02 Task 1 | ❌ (created in 01-02) | ⬜ pending |
+| 01-02-T3 | CNT-03 | Owner-approved countable verbatim limit | shell | grep command in 01-02 Task 3 | ❌ | ⬜ pending |
+| 01-03-T1 | PNL-01, PNL-02 | ENGINE MASTER and MFD PAGE by mouse and tap; one event per flip | e2e | `npx playwright test e2e/toggle.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-03-T2 | PNL-02 | Registry invariants | unit | `npx vitest run tests/registry.test.ts` | ❌ W0 | ⬜ pending |
+| 01-03-T2 | PNL-02 | Store reaches only legal states | unit | `npx vitest run tests/store.test.ts` | ❌ W0 | ⬜ pending |
+| 01-03-T2 | PNL-06 | Guard interlock, blocked attempts emit no event | unit | `npx vitest run tests/store.test.ts -t guard` | ❌ W0 | ⬜ pending |
+| 01-03-T3 | PNL-05 | Region/control geometry, hit rects don't overlap, 44 px floor | unit | `npx vitest run tests/layout.test.ts` | ❌ W0 | ⬜ pending |
+| 01-04-T1 | PLT-01 | Actions SHA-pinned, token scope | unit | `npx vitest run tests/workflow.test.ts` | ❌ W0 | ⬜ pending |
+| 01-04-T1 | PLT-01 | Build honours `BASE_PATH`; deploy build has no test hook | unit/script | `npx vitest run tests/build-base.test.ts` | ❌ W0 | ⬜ pending |
+| 01-04-T3 | PLT-01 | Deployed Pages URL loads and operates | e2e (live) | `PW_BASE_URL=<live> npx playwright test e2e/smoke.spec.ts e2e/toggle.spec.ts` | ❌ | ⬜ pending |
+| 01-05-T1 | PNL-01 | POWER lever drag-snap and detent tap (mouse, Chromium touch) | e2e | `npx playwright test e2e/lever.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-05-T2 | PNL-01, PNL-02 | Detent snap math, tie rule, lever inventory | unit | `npx vitest run tests/detents.test.ts` | ❌ W0 | ⬜ pending |
+| 01-06-T1 | PNL-01 | MFD page softkey switches Map/Engine pages | e2e | `npx playwright test e2e/glass.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-06-T3 | CNT-03 | Content policy present, linked, `.input` ignored, no raw HTML | unit | `npx vitest run tests/content-policy.test.ts` | ❌ W0 | ⬜ pending |
+| 01-06-T3 | PNL-05 | No horizontal scroll, regions visible, 44 px targets, rotate hint | e2e | `npx playwright test e2e/layout.spec.ts e2e/about.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-07-T1 | PNL-01, PNL-06 | Guard must be lifted; guard stays up | e2e | `npx playwright test e2e/guard.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-07-T2 | PNL-01 | Momentary buttons never stick | e2e | `npx playwright test e2e/button.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-07-T2 | PNL-06 | Neutral taps emit no event | e2e | `npx playwright test e2e/neutral.spec.ts` | ❌ W0 | ⬜ pending |
+| 01-07-T3 | PLT-01 | Full panel live; all non-hook specs pass against Pages URL | e2e (live) | `PW_BASE_URL=<live> npx playwright test` | ❌ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
