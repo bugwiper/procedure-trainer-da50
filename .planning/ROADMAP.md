@@ -41,16 +41,16 @@ Plans:
 - [ ] 01-02-PLAN.md — Content policy for AFM-derived text with the owner-decided verbatim limit, linked from README (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-03-PLAN.md — Registry-driven panel: ENGINE MASTER and MFD PAGE through the pure store; data-driven layout gate (wave 2)
+- [ ] 01-03-PLAN.md — Registry-driven panel: ENGINE MASTER and MFD PAGE through the pure store; all plain toggles of the engine area and lower switch row; eight-region layout gate (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-04-PLAN.md — CI and Deploy workflow, public repository, skeleton live on GitHub Pages (wave 3)
-- [ ] 01-05-PLAN.md — Pedestal detent levers POWER, FLAPS, GEAR, COWL FLAP by drag-and-snap and detent tap (wave 3)
+- [ ] 01-05-PLAN.md — Pedestal levers POWER, FLAPS, GEAR, COWL FLAP and under-panel levers ALTERNATE STATIC, EMERGENCY GEAR EXTENSION (drag-only), ALTERNATE AIR (wave 3)
 - [ ] 01-06-PLAN.md — PFD and two-page MFD frames, B612 fonts, About/content policy in app, responsive layout and rotate hint (wave 3)
 - [ ] 01-08-PLAN.md — Registry and store contract pinned test-first for every control kind, incl. the guard interlock (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-07-PLAN.md — Guarded de-ice ALTERNATE switch, ELECT. MASTER and ELT toggles, START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 4)
+- [ ] 01-07-PLAN.md — Guarded de-ice ALTERNATE switch, ENGINE START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 4)
 
 **UI hint**: yes
 
