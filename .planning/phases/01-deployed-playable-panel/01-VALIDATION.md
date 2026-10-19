@@ -48,10 +48,10 @@ Filled from the PLAN.md task IDs (2026-10-19). Requirement → test mapping foll
 | 01-02-T1 | CNT-03 | Policy headings, README link, repo hygiene | shell | grep/git commands in 01-02 Task 1 | ❌ (created in 01-02) | ⬜ pending |
 | 01-02-T3 | CNT-03 | Owner-approved countable verbatim limit | shell | grep command in 01-02 Task 3 | ❌ | ⬜ pending |
 | 01-03-T1 | PNL-01, PNL-02 | ENGINE MASTER and MFD PAGE by mouse and tap; one event per flip | e2e | `npx playwright test e2e/toggle.spec.ts` | ❌ W0 | ⬜ pending |
-| 01-03-T2 | PNL-02 | Registry invariants | unit | `npx vitest run tests/registry.test.ts` | ❌ W0 | ⬜ pending |
-| 01-03-T2 | PNL-02 | Store reaches only legal states | unit | `npx vitest run tests/store.test.ts` | ❌ W0 | ⬜ pending |
-| 01-03-T2 | PNL-06 | Guard interlock, blocked attempts emit no event | unit | `npx vitest run tests/store.test.ts -t guard` | ❌ W0 | ⬜ pending |
-| 01-03-T3 | PNL-05 | Region/control geometry, hit rects don't overlap, 44 px floor | unit | `npx vitest run tests/layout.test.ts` | ❌ W0 | ⬜ pending |
+| 01-03-T2 | PNL-05 | Region/control geometry, hit rects don't overlap, 44 px floor | unit | `npx vitest run tests/layout.test.ts` | ❌ W0 | ⬜ pending |
+| 01-08-T1 | PNL-06 | Guard interlock, blocked attempts emit no event | unit | `npx vitest run tests/store.test.ts -t guard` | ❌ W0 | ⬜ pending |
+| 01-08-T2 | PNL-02 | Registry invariants | unit | `npx vitest run tests/registry.test.ts` | ❌ W0 | ⬜ pending |
+| 01-08-T2 | PNL-02 | Store reaches only legal states | unit | `npx vitest run tests/store.test.ts` | ❌ W0 | ⬜ pending |
 | 01-04-T1 | PLT-01 | Actions SHA-pinned, token scope | unit | `npx vitest run tests/workflow.test.ts` | ❌ W0 | ⬜ pending |
 | 01-04-T1 | PLT-01 | Build honours `BASE_PATH`; deploy build has no test hook | unit/script | `npx vitest run tests/build-base.test.ts` | ❌ W0 | ⬜ pending |
 | 01-04-T3 | PLT-01 | Deployed Pages URL loads and operates | e2e (live) | `PW_BASE_URL=<live> npx playwright test e2e/smoke.spec.ts e2e/toggle.spec.ts` | ❌ | ⬜ pending |

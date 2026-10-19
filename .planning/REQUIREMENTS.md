@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Panel & Interaction
 
-- [ ] **PNL-01**: User can operate switches, guarded switches, detented levers (e.g. throttle, prop, cowl flap) and buttons by mouse or touch
+- [ ] **PNL-01**: User can operate switches, guarded switches, detented levers (e.g. power lever, flaps, gear, cowl flap) and buttons by mouse or touch
 - [ ] **PNL-02**: Panel is generated from a control registry; every control has a stable id and defined legal states
 - [ ] **PNL-03**: Alert/annunciation area shows scenario-driven messages (e.g. "OIL TEMP HIGH")
 - [ ] **PNL-04**: Engine gauges and displays respond to simulated aircraft state

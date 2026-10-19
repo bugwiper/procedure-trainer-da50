@@ -28,19 +28,20 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Success Criteria** (what must be TRUE):
   1. A push to main deploys the app through GitHub Actions to a public GitHub Pages URL that loads correctly at its subpath, and the build takes its base path from the environment so the same build works on another host.
   2. User opens the site on a desktop, a tablet and a phone and sees the whole panel scaled to fit with no horizontal page scroll; the panel regions (e.g. PFD, engine page, switch bank, pedestal) exist as data, not hard-coded layout.
-  3. User can flip switches, lift a guard before actuating a guarded switch, step levers (throttle, prop, cowl flap) between detents and press buttons by mouse or touch (including real iOS Safari and Android), and every control visibly shows its new state; each control comes from the control registry with a stable id and can only reach its defined legal states.
+  3. User can flip switches, lift a guard before actuating a guarded switch, step levers (POWER, flaps, gear, cowl flap; the DA50 RG has a single power lever and no prop lever, per D-05a) between detents and press buttons by mouse or touch (including real iOS Safari and Android), and every control visibly shows its new state; each control comes from the control registry with a stable id and can only reach its defined legal states.
   4. Controls with safety consequences are guarded or require confirmation, and tapping or clicking neutral panel areas changes nothing and produces no control event that could ever be graded.
   5. A written content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is in the repo before any procedure text is committed.
-**Plans:** 7 plans
+**Plans:** 8 plans
 
 Plans:
 - [ ] 01-01-PLAN.md — Walking skeleton shell: pinned toolchain, panel stage served at the Pages subpath on every device project, engine purity lint (wave 1)
 - [ ] 01-02-PLAN.md — Content policy for AFM-derived text with the owner-decided verbatim limit, linked from README (wave 1)
-- [ ] 01-03-PLAN.md — Registry-driven panel: ENGINE MASTER and MFD PAGE through the pure store; registry, store and layout contracts (wave 2)
+- [ ] 01-03-PLAN.md — Registry-driven panel: ENGINE MASTER and MFD PAGE through the pure store; data-driven layout gate (wave 2)
 - [ ] 01-04-PLAN.md — CI and Deploy workflow, public repository, skeleton live on GitHub Pages (wave 3)
 - [ ] 01-05-PLAN.md — Pedestal detent levers POWER, FLAPS, GEAR, COWL FLAP by drag-and-snap and detent tap (wave 3)
 - [ ] 01-06-PLAN.md — PFD and two-page MFD frames, B612 fonts, About/content policy in app, responsive layout and rotate hint (wave 3)
 - [ ] 01-07-PLAN.md — Guarded ELECT. MASTER and ELT, START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 4)
+- [ ] 01-08-PLAN.md — Registry and store contract pinned test-first for every control kind, incl. the guard interlock (wave 3)
 **UI hint**: yes
 
 ### Phase 2: First Gradable Scenario
@@ -102,7 +103,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Deployed Playable Panel | 0/7 | Planned | - |
+| 1. Deployed Playable Panel | 0/8 | Planned | - |
 | 2. First Gradable Scenario | 0/TBD | Not started | - |
 | 3. Reactive Scenarios and Initial Pack | 0/TBD | Not started | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |

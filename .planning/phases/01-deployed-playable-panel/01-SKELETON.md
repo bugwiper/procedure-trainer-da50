@@ -7,7 +7,7 @@
 
 A visitor opens the public GitHub Pages site at its subpath on a desktop, tablet or phone and flips the ENGINE MASTER switch by mouse or tap; the switch comes from the control registry, its change goes through the pure panel store as exactly one control event, and the panel visibly shows the new state.
 
-Built by plan 01 (toolchain, panel stage, subpath production build verified in Chromium and WebKit), plan 03 (registry -> store -> signals -> SVG widget for ENGINE MASTER) and plan 04 (GitHub Actions deploy, verified live). Plans 05 to 07 add vertical slices on this skeleton without changing any decision below.
+Built by plan 01 (toolchain, panel stage, subpath production build verified in Chromium and WebKit), plan 03 (registry -> store -> signals -> SVG widget for ENGINE MASTER) and plan 04 (GitHub Actions deploy, verified live). Plans 05 to 07 add vertical slices on this skeleton, and plan 08 pins the registry and store contract with tests, without changing any decision below.
 
 ## Architectural Decisions
 
