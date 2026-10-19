@@ -92,13 +92,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmapper) | | Pending |
+| PLT-01 | Phase 1 | Pending |
+| CNT-03 | Phase 1 | Pending |
+| PNL-01 | Phase 1 | Pending |
+| PNL-02 | Phase 1 | Pending |
+| PNL-05 | Phase 1 | Pending |
+| PNL-06 | Phase 1 | Pending |
+| SCN-01 | Phase 2 | Pending |
+| SCN-02 | Phase 2 | Pending |
+| SCN-03 | Phase 2 | Pending |
+| SCN-04 | Phase 2 | Pending |
+| SCN-05 | Phase 2 | Pending |
+| SCN-07 | Phase 2 | Pending |
+| SCN-08 | Phase 2 | Pending |
+| PNL-03 | Phase 2 | Pending |
+| SES-01 | Phase 2 | Pending |
+| SES-03 | Phase 2 | Pending |
+| SES-04 | Phase 2 | Pending |
+| PLT-03 | Phase 2 | Pending |
+| PLT-04 | Phase 2 | Pending |
+| SCN-06 | Phase 3 | Pending |
+| PNL-04 | Phase 3 | Pending |
+| PNL-07 | Phase 3 | Pending |
+| CNT-01 | Phase 3 | Pending |
+| SES-02 | Phase 4 | Pending |
+| SES-05 | Phase 4 | Pending |
+| SES-06 | Phase 4 | Pending |
+| CNT-02 | Phase 4 | Pending |
+| PLT-02 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 30 total
-- Mapped to phases: 0
-- Unmapped: 30 ⚠️
+- v1 requirements: 28 total (previously stated as 30; the defined IDs total 28)
+- Mapped to phases: 28
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-19*
-*Last updated: 2026-10-19 after initial definition*
+*Last updated: 2026-10-19 after roadmap creation*
