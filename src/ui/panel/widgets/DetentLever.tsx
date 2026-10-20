@@ -132,7 +132,7 @@ export function LeverBody({
     art !== undefined && vertical
       ? Math.max(def.hit.h / 2 - 3, reach + (compact ? 6 : 8))
       : art !== undefined
-        ? def.hit.h / 2 - 1
+        ? def.hit.h / 2
         : def.hit.h / 2 - 3;
 
   const tick = art?.tick ?? 4;

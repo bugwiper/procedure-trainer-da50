@@ -30,6 +30,8 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     // Tap targets only at 0, 50 and 100 %; every 5 % step stays a snap position.
     markers: ['p0', 'p50', 'p100'],
     default: 'p70', // cruise load, D-07d in-flight default
+    // Carbon-hatched palm grip, no emblem (PED, COCK, SIM; D-05).
+    skin: 'power-grip',
   },
   {
     // Aft of POWER, left of the centreline; OPEN is fore, as on the real pedestal.
@@ -47,6 +49,8 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
       { id: 'open', label: 'OPEN', pos: 1 },
     ],
     default: 'closed', // cruise setting assumed (D-07d)
+    // Black handle in a slot (PED, SIM).
+    skin: 'cowl-slider',
   },
   // Environmental-control plate (COCK, SIM). The slider kinds and their positions are layout
   // facts; the end-icon meanings are unconfirmed (UI-SPEC unconfirmed items 9 and 10).
@@ -67,6 +71,7 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
       { id: 'defrost', label: 'DEFROST', pos: 1 },
     ],
     default: 'face',
+    skin: 'env-slider', // black handle in a slot with original icons (COCK, SIM)
   },
   {
     // TEMPERATURE: continuous on the aircraft, modelled in five steps COLD, 25, 50, 75, WARM
@@ -89,6 +94,7 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
       { id: 'warm', label: 'WARM', pos: 1 },
     ],
     default: 't50',
+    skin: 'env-slider',
   },
   {
     // CIRCULATING AIR: the only horizontal slider, FRESH at the left, RECIRC at the right. The
@@ -107,6 +113,7 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
       { id: 'recirc', label: 'RECIRC', pos: 1 },
     ],
     default: 'fresh',
+    skin: 'env-slider', // horizontal; COCK, SIM
   },
   {
     // Parking brake between COWL FLAP and POWER (PED, SIM). SET is the aft/lower end here;
@@ -125,5 +132,7 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
       { id: 'off', label: 'OFF', pos: 1 },
     ],
     default: 'off', // in flight the brake is released (D-07d)
+    // Black wedge latch with two stops (PED, SIM); how it is actuated is unconfirmed.
+    skin: 'parking-lever',
   },
 ];

@@ -122,3 +122,45 @@ test('ALTERNATE STATIC and ALTERNATE AIR pull by marker tap, EMERGENCY GEAR EXTE
   await expect(control(page, 'lv.alt_air')).toHaveAttribute('data-state', 'open');
   await expect(page.locator('[data-detent^="lv.emerg_gear:"]')).toHaveCount(0);
 });
+
+const CONSOLE_SKINS: Record<string, string> = {
+  'lv.power': 'power-grip',
+  'lv.cowl_flap': 'cowl-slider',
+  'lv.parking_brake': 'parking-lever',
+  'lv.env_direction': 'env-slider',
+  'lv.env_temp': 'env-slider',
+  'lv.env_circ': 'env-slider',
+};
+
+test('every pedestal and environmental lever carries its skin', async ({ page }) => {
+  for (const [id, skin] of Object.entries(CONSOLE_SKINS)) {
+    await expect(control(page, id), id).toHaveAttribute('data-skin', skin);
+  }
+});
+
+test('the POWER grip carries no emblem or text of its own', async ({ page }) => {
+  const power = control(page, 'lv.power');
+  await expect(power.locator('[fill="url(#p-carbon)"]')).toHaveCount(1);
+  const texts = await power.locator('text').allTextContents();
+  expect(texts.filter((t) => t === 'MAX')).toHaveLength(1);
+  for (const t of texts) expect(t).not.toMatch(/DIAMOND|RUBIN|DA50/i);
+});
+
+test('POWER still drags from p70 to p90 by mouse', async ({ page, hasTouch }) => {
+  test.skip(hasTouch, 'Mouse drag; the touch drag is covered in lever.spec.ts');
+  const power = control(page, 'lv.power');
+  const handle = await centre(page.locator('[data-hit="lv.power"]'));
+  const a = await centre(page.locator('[data-detent="lv.power:p0"]'));
+  const b = await centre(page.locator('[data-detent="lv.power:p100"]'));
+  await mouseDrag(page, handle, { x: handle.x, y: a.y + (b.y - a.y) * 0.9 });
+  await expect(power).toHaveAttribute('data-state', 'p90');
+});
+
+test('CIRCULATING AIR moves to RECIRC and back by marker tap', async ({ page, hasTouch }) => {
+  const circ = control(page, 'lv.env_circ');
+  await activate(page.locator('[data-detent="lv.env_circ:recirc"]'), hasTouch);
+  await expect(circ).toHaveAttribute('data-state', 'recirc');
+  await expect(circ.locator('[data-state-text]')).toHaveText('RECIRC');
+  await activate(page.locator('[data-detent="lv.env_circ:fresh"]'), hasTouch);
+  await expect(circ).toHaveAttribute('data-state', 'fresh');
+});
