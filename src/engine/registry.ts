@@ -153,6 +153,57 @@ function checkKindPrefix(def: ControlDef): void {
   }
 }
 
+function checkDistinctStates(def: ControlDef): void {
+  const ids = legalStates(def);
+  if (ids.length < 2) {
+    throw new RegistryError(`control "${def.id}" needs at least two states (got ${ids.length})`);
+  }
+  const seenStates = new Set<StateId>();
+  for (const sid of ids) {
+    if (seenStates.has(sid)) {
+      throw new RegistryError(`control "${def.id}" has duplicate state id "${sid}"`);
+    }
+    seenStates.add(sid);
+  }
+}
+
+function checkDetents(def: DetentLeverDef): void {
+  let previous = -Infinity;
+  for (const d of def.detents) {
+    if (!(d.pos >= 0 && d.pos <= 1)) {
+      throw new RegistryError(`lever "${def.id}" detent "${d.id}" pos ${d.pos} is outside 0..1`);
+    }
+    if (d.pos <= previous) {
+      throw new RegistryError(
+        `lever "${def.id}" detent "${d.id}" pos ${d.pos} is not strictly greater than the previous detent`,
+      );
+    }
+    previous = d.pos;
+  }
+  const markers = def.markers ?? [];
+  if (def.dragOnly === true && markers.length > 0) {
+    throw new RegistryError(`lever "${def.id}" is drag-only and cannot have tap markers`);
+  }
+  const seenMarkers = new Set<StateId>();
+  for (const m of markers) {
+    if (!def.detents.some((d) => d.id === m)) {
+      throw new RegistryError(`lever "${def.id}" marker "${m}" is not one of its detents`);
+    }
+    if (seenMarkers.has(m)) {
+      throw new RegistryError(`lever "${def.id}" has duplicate marker "${m}"`);
+    }
+    seenMarkers.add(m);
+  }
+}
+
+function checkMomentaryRest(def: MomentaryButtonDef): void {
+  if (def.default !== def.states[0].id) {
+    throw new RegistryError(
+      `button "${def.id}" must rest in its first state "${def.states[0].id}" (default "${def.default}")`,
+    );
+  }
+}
+
 function checkDefaultLegal(def: ControlDef): void {
   if (!legalStates(def).includes(def.default)) {
     throw new RegistryError(`control "${def.id}" default "${def.default}" is not a legal state`);
@@ -202,6 +253,9 @@ export function defineRegistry(input: {
     checkIdPattern(def.id);
     checkKindPrefix(def);
     checkUniqueId(def.id, seen);
+    checkDistinctStates(def);
+    if (spec.kind === 'detent-lever') checkDetents(spec);
+    if (spec.kind === 'momentary-button') checkMomentaryRest(spec);
     checkDefaultLegal(def);
     checkRegionExists(def, regionIds);
     controls.push(def);
