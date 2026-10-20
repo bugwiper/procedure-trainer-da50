@@ -1,0 +1,351 @@
+import { describe, expect, it } from 'vitest';
+import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
+import type { ControlDef, Rect } from '../src/engine/registry';
+
+// Layout gate (PNL-02, PNL-08, D-19, D-21). Pure geometry over the registry: controls added
+// by later plans are checked automatically. Positions in the two tables below are layout
+// facts read from the private reference photos IMG_0650 (front panel) and DA50_virtual
+// (left panel, under-panel); they are never copied or traced (D-04b).
+
+/** Reference measurement table (D-21): id, global centre x, global centre y. */
+const REFERENCE_POSITIONS: readonly (readonly [string, number, number])[] = [
+  ['sw.deice_alternate', 203, 162],
+  ['sw.fadec', 126, 326],
+  ['btn.fadec_test', 206, 326],
+  ['sw.alternator_1', 134, 390],
+  ['sw.alternator_2', 210, 390],
+  ['sw.prop_deice', 114, 484],
+  ['sw.fuel_trans', 189, 484],
+  ['sw.emerg_fuel_pump', 276, 484],
+  ['btn.engine_start', 386, 484],
+  ['sw.engine_master', 470, 484],
+  ['sw.ess_bus', 572, 484],
+  ['sw.elect_master', 656, 484],
+  ['sw.av_master', 731, 484],
+  ['sw.pitot_stall_heat', 801, 484],
+  ['sw.mfd_page', 1288, 409],
+  ['lv.gear', 997, 476.5],
+  ['lv.flaps', 1366, 490.5],
+  ['sw.elt', 1776, 476],
+  ['lv.alt_static', 51, 625],
+  ['lv.emerg_gear', 907, 625],
+  ['lv.alt_air', 1205, 625],
+  ['lv.power', 1110, 780],
+  ['lv.cowl_flap', 1010, 930],
+];
+const POSITION_TOLERANCE = 3;
+
+type Relation =
+  | 'left-of'
+  | 'right-of'
+  | 'above'
+  | 'below'
+  | 'x-within'
+  | 'same-row'
+  | 'x-greater-than'
+  | 'under-left-quarter-of';
+
+/**
+ * Reference ordering table (PNL-08, D-19): subject, relation, object. A subject is a control
+ * id or "region:<id>"; the object of x-greater-than is a number. A relation whose control is
+ * not in DA50RG yet is skipped, so a later plan can require zero skipped rows.
+ */
+const SWITCH_ROW = [
+  'sw.prop_deice',
+  'sw.fuel_trans',
+  'sw.emerg_fuel_pump',
+  'btn.engine_start',
+  'sw.engine_master',
+  'sw.ess_bus',
+  'sw.elect_master',
+  'sw.av_master',
+  'sw.pitot_stall_heat',
+] as const;
+
+const ORDERING: readonly (readonly [string, Relation, string | number])[] = [
+  ['sw.deice_alternate', 'above', 'sw.fadec'],
+  ['sw.fadec', 'above', 'sw.alternator_1'],
+  ['sw.fadec', 'left-of', 'btn.fadec_test'],
+  ['sw.alternator_1', 'left-of', 'sw.alternator_2'],
+  ['sw.alternator_1', 'above', 'sw.prop_deice'],
+  ['region:deice', 'left-of', 'region:pfd'],
+  ['region:engine_controls', 'left-of', 'region:pfd'],
+  ...SWITCH_ROW.slice(1).map((id, i): [string, Relation, string] => [
+    SWITCH_ROW[i] ?? '',
+    'left-of',
+    id,
+  ]),
+  ...SWITCH_ROW.slice(1).map((id, i): [string, Relation, string] => [
+    SWITCH_ROW[i] ?? '',
+    'same-row',
+    id,
+  ]),
+  ...SWITCH_ROW.map((id): [string, Relation, string] => [id, 'below', 'region:pfd']),
+  ['sw.pitot_stall_heat', 'x-within', 'region:pfd'],
+  ['sw.pitot_stall_heat', 'left-of', 'lv.gear'],
+  ['lv.gear', 'left-of', 'lv.flaps'],
+  ['lv.flaps', 'below', 'region:mfd'],
+  ['lv.flaps', 'x-within', 'region:mfd'],
+  ['lv.flaps', 'x-greater-than', 1000],
+  ['lv.flaps', 'left-of', 'sw.elt'],
+  ['sw.elt', 'below', 'region:mfd'],
+  ['sw.mfd_page', 'under-left-quarter-of', 'region:mfd'],
+  ['lv.alt_static', 'left-of', 'lv.emerg_gear'],
+  ['lv.emerg_gear', 'left-of', 'region:pedestal'],
+  ['lv.alt_air', 'right-of', 'region:pedestal'],
+  ['lv.power', 'above', 'lv.cowl_flap'],
+];
+
+const FRONT_PANEL_REGIONS = [
+  'deice',
+  'engine_controls',
+  'pfd',
+  'mfd',
+  'mfd_softkeys',
+  'switch_bank',
+  'landing_gear',
+  'flaps',
+  'right_panel',
+];
+const UNDER_PANEL_REGIONS = [
+  'under_panel_left',
+  'under_panel_centre',
+  'pedestal',
+  'under_panel_right',
+];
+
+function overlaps(a: Rect, b: Rect): boolean {
+  // Strict inequality on both axes: shared edges do not overlap.
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+function inside(inner: Rect, outer: Rect): boolean {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.w <= outer.x + outer.w &&
+    inner.y + inner.h <= outer.y + outer.h
+  );
+}
+
+function footprint(def: ControlDef): Rect {
+  return { x: def.x - def.hit.w / 2, y: def.y - def.hit.h / 2, w: def.hit.w, h: def.hit.h };
+}
+
+function regionBounds(id: string): Rect {
+  const region = DA50RG.regions.find((r) => r.id === id);
+  if (region === undefined) throw new Error(`unknown region ${id}`);
+  return region.bounds;
+}
+
+function globalCentre(def: ControlDef): { x: number; y: number } {
+  const b = regionBounds(def.region);
+  return { x: b.x + def.x, y: b.y + def.y };
+}
+
+interface Subject {
+  readonly isRegion: boolean;
+  readonly cx: number;
+  readonly cy: number;
+  readonly x1: number;
+  readonly x2: number;
+  readonly y1: number;
+  readonly y2: number;
+}
+
+function subject(ref: string): Subject | undefined {
+  if (ref.startsWith('region:')) {
+    const b = regionBounds(ref.slice('region:'.length));
+    return {
+      isRegion: true,
+      cx: b.x + b.w / 2,
+      cy: b.y + b.h / 2,
+      x1: b.x,
+      x2: b.x + b.w,
+      y1: b.y,
+      y2: b.y + b.h,
+    };
+  }
+  const def = DA50RG.get(ref);
+  if (def === undefined) return undefined;
+  const c = globalCentre(def);
+  return { isRegion: false, cx: c.x, cy: c.y, x1: c.x, x2: c.x, y1: c.y, y2: c.y };
+}
+
+function holds(a: Subject, relation: Relation, b: Subject | number): boolean {
+  if (relation === 'x-greater-than') return typeof b === 'number' && a.cx > b;
+  if (typeof b === 'number') throw new Error(`relation ${relation} needs a subject`);
+  switch (relation) {
+    case 'left-of':
+      return a.x2 <= b.x1 && a.cx < b.cx;
+    case 'right-of':
+      return a.x1 >= b.x2 && a.cx > b.cx;
+    case 'above':
+      return a.y2 <= b.y1 && a.cy < b.cy;
+    case 'below':
+      return a.y1 >= b.y2 && a.cy > b.cy;
+    case 'x-within':
+      return a.cx >= b.x1 && a.cx <= b.x2;
+    case 'same-row':
+      return Math.abs(a.cy - b.cy) <= 10;
+    case 'under-left-quarter-of':
+      // Just below the display, within the leftmost quarter of its x-span.
+      return a.cx >= b.x1 && a.cx <= b.x1 + (b.x2 - b.x1) / 4 && a.cy >= b.y2 && a.cy <= b.y2 + 60;
+  }
+}
+
+describe('viewBox and regions', () => {
+  it('uses the true panel proportions (D-21)', () => {
+    expect(VIEWBOX).toEqual({ w: 2000, h: 1010 });
+  });
+
+  it('PFD and MFD are the same display: 495x367, aspect 1.35, starting at y 20', () => {
+    for (const id of ['pfd', 'mfd']) {
+      const b = regionBounds(id);
+      expect([b.w, b.h, b.y]).toEqual([495, 367, 20]);
+    }
+    expect(495 / 367).toBeCloseTo(1.35, 2);
+  });
+
+  it('region ids are unique', () => {
+    const ids = DA50RG.regions.map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('every region lies inside the viewBox', () => {
+    const box: Rect = { x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h };
+    for (const r of DA50RG.regions) expect(inside(r.bounds, box), r.id).toBe(true);
+  });
+
+  it('no two regions overlap with positive area', () => {
+    const regions = DA50RG.regions;
+    for (let i = 0; i < regions.length; i++) {
+      for (let j = i + 1; j < regions.length; j++) {
+        const a = regions[i];
+        const b = regions[j];
+        if (a === undefined || b === undefined) continue;
+        expect(overlaps(a.bounds, b.bounds), `${a.id} / ${b.id}`).toBe(false);
+      }
+    }
+  });
+});
+
+describe('control footprints', () => {
+  it('every footprint lies inside its region', () => {
+    for (const def of DA50RG.controls) {
+      const b = regionBounds(def.region);
+      expect(inside(footprint(def), { x: 0, y: 0, w: b.w, h: b.h }), def.id).toBe(true);
+    }
+  });
+
+  it('footprints of different controls in a region never overlap (touching is allowed)', () => {
+    for (const region of DA50RG.regions) {
+      const defs = region.controlIds.flatMap((id) => DA50RG.get(id) ?? []);
+      for (let i = 0; i < defs.length; i++) {
+        for (let j = i + 1; j < defs.length; j++) {
+          const a = defs[i];
+          const b = defs[j];
+          if (a === undefined || b === undefined) continue;
+          // A guard covers its own switch by design.
+          if (a.kind === 'guard' && a.guards === b.id) continue;
+          if (b.kind === 'guard' && b.guards === a.id) continue;
+          expect(overlaps(footprint(a), footprint(b)), `${a.id} / ${b.id}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('every lifted-guard area lies inside the region and overlaps no footprint', () => {
+    for (const def of DA50RG.controls) {
+      if (def.kind !== 'guard') continue;
+      const b = regionBounds(def.region);
+      const open: Rect = {
+        x: def.x + def.openHit.x,
+        y: def.y + def.openHit.y,
+        w: def.openHit.w,
+        h: def.openHit.h,
+      };
+      expect(inside(open, { x: 0, y: 0, w: b.w, h: b.h }), `${def.id} inside`).toBe(true);
+      const region = DA50RG.regions.find((r) => r.id === def.region);
+      for (const id of region?.controlIds ?? []) {
+        const other = DA50RG.get(id);
+        if (other === undefined) continue;
+        expect(overlaps(open, footprint(other)), `${def.id} open area / ${id}`).toBe(false);
+      }
+    }
+  });
+
+  it('detent levers have positive, non-overlapping handle and marker squares that fit', () => {
+    for (const def of DA50RG.controls) {
+      if (def.kind !== 'detent-lever') continue;
+      const along = def.track.axis === 'v' ? def.hit.h : def.hit.w;
+      const across = def.track.axis === 'v' ? def.hit.w : def.hit.h;
+      const markerIds = def.dragOnly === true ? [] : (def.markers ?? def.detents.map((d) => d.id));
+      const positions = def.detents
+        .filter((d) => markerIds.includes(d.id))
+        .map((d) => d.pos * def.track.length)
+        .sort((p, q) => p - q);
+      let spacing = Infinity;
+      for (let i = 1; i < positions.length; i++) {
+        spacing = Math.min(spacing, (positions[i] ?? 0) - (positions[i - 1] ?? 0));
+      }
+      const s = Math.min(across, along - def.track.length, spacing);
+      expect(s, `${def.id} square side`).toBeGreaterThan(0);
+      expect(def.track.length + s, `${def.id} track plus handle`).toBeLessThanOrEqual(along);
+      for (let i = 1; i < positions.length; i++) {
+        expect(
+          (positions[i] ?? 0) - (positions[i - 1] ?? 0),
+          `${def.id} marker ${i}`,
+        ).toBeGreaterThanOrEqual(s);
+      }
+    }
+  });
+});
+
+describe('true-proportion reference positions (D-21)', () => {
+  for (const [id, x, y] of REFERENCE_POSITIONS) {
+    const def = DA50RG.get(id);
+    (def === undefined ? it.skip : it)(
+      `${id} sits at ${x}, ${y} within ${POSITION_TOLERANCE}`,
+      () => {
+        if (def === undefined) return;
+        const c = globalCentre(def);
+        expect(Math.abs(c.x - x)).toBeLessThanOrEqual(POSITION_TOLERANCE);
+        expect(Math.abs(c.y - y)).toBeLessThanOrEqual(POSITION_TOLERANCE);
+      },
+    );
+  }
+
+  it('every non-guard control appears in the reference table', () => {
+    const known = new Set(REFERENCE_POSITIONS.map(([id]) => id));
+    for (const def of DA50RG.controls) {
+      if (def.kind === 'guard') continue;
+      expect(known.has(def.id), `${def.id} has no reference position`).toBe(true);
+    }
+  });
+});
+
+describe('reference ordering (PNL-08, D-19)', () => {
+  for (const [a, relation, b] of ORDERING) {
+    const sa = subject(a);
+    const sb = typeof b === 'number' ? b : subject(b);
+    const present = sa !== undefined && sb !== undefined;
+    (present ? it : it.skip)(`${a} ${relation} ${String(b)}`, () => {
+      if (sa === undefined || sb === undefined) return;
+      expect(holds(sa, relation, sb)).toBe(true);
+    });
+  }
+
+  it('under-panel and pedestal controls sit below every front-panel region', () => {
+    const frontBottom = Math.max(
+      ...FRONT_PANEL_REGIONS.map((id) => {
+        const b = regionBounds(id);
+        return b.y + b.h;
+      }),
+    );
+    for (const def of DA50RG.controls) {
+      if (!UNDER_PANEL_REGIONS.includes(def.region)) continue;
+      expect(globalCentre(def).y, def.id).toBeGreaterThan(frontBottom);
+    }
+  });
+});
