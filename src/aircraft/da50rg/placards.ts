@@ -45,6 +45,26 @@ export const PLACARDS: readonly PlacardDef[] = [
     anchor: 'start',
     size: 6,
   },
+  // PARKING / BRAKE (two lines) centred above the brake lever, above its top (SET) handle position.
+  {
+    id: 'parking_brake.name',
+    near: 'lv.parking_brake',
+    dx: 0,
+    dy: -49,
+    lines: ['PARKING', 'BRAKE'],
+    anchor: 'middle',
+    size: 6,
+  },
+  // THROTTLE centred above the slot of lv.power, above its 100 % handle position.
+  {
+    id: 'throttle.name',
+    near: 'lv.power',
+    dx: 0,
+    dy: -96,
+    lines: ['THROTTLE'],
+    anchor: 'middle',
+    size: 6,
+  },
   {
     id: 'cowl_flap.name',
     near: 'lv.cowl_flap',

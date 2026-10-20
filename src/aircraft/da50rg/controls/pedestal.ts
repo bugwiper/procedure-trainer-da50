@@ -2,8 +2,8 @@ import type { ControlSpec, DetentDef } from '../../../engine/registry';
 
 // Centre-console controls (D-05a, D-07c, D-07d, D-10). The environmental-control plate sits in
 // region env_control (DIRECTION, TEMPERATURE, CIRCULATING AIR sliders; the FAN knob is in
-// knobs.ts); POWER, PARKING BRAKE and COWL FLAP sit in region pedestal. Control inventory: AFM
-// section 7-23 and the private reference photos PED, COCK, SIM and DA50_virtual (layout facts
+// knobs.ts); the THROTTLE (id lv.power), PARKING BRAKE and COWL FLAP sit in region pedestal.
+// Control inventory: AFM section 7-23 and the private reference photos PED, COCK, SIM and DA50_virtual (layout facts
 // only, no AFM wording, D-04b). The DA50 RG has one power lever: the ECU governs engine and
 // propeller speed, so there is no propeller or mixture lever (P1 D-05a), and the POWER range
 // is a plain 0 to 100 % load with no ground-idle gate.
@@ -19,7 +19,10 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
   {
     id: 'lv.power',
     kind: 'detent-lever',
-    label: 'POWER',
+    // The plate says THROTTLE although the id stays lv.power (Q-04); the name is the plate
+    // placard THROTTLE, so the widget draws none. Legends 0 %, 50 %, 100 % and MAX stay.
+    label: 'THROTTLE',
+    nameless: true,
     region: 'pedestal',
     // Global 1115, 1160 in the 2000 x 1300 space. Handle square min(60, 200 - 154) = 46.
     x: 158,
@@ -119,11 +122,14 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     skin: 'env-slider', // horizontal; COCK, SIM
   },
   {
-    // Parking brake between COWL FLAP and POWER (PED, SIM). SET is the aft/lower end here;
-    // how the real lever is actuated (pull, rotate) is unconfirmed (UI-SPEC unconfirmed item 10).
+    // Parking brake, upper left of the pedestal (owner photo, G-3): a small lever that is pulled
+    // up to set the brake, so OFF is the bottom position and SET the top one. Only the placard
+    // PARKING / BRAKE names it; no legends, no state text.
     id: 'lv.parking_brake',
     kind: 'detent-lever',
     label: 'PARKING BRAKE',
+    nameless: true,
+    legends: [],
     region: 'pedestal',
     // Global 1008, 1110. Handle square min(44, 88 - 44) = 44.
     x: 51,
@@ -131,11 +137,11 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     hit: { w: 44, h: 88 },
     track: { length: 44, axis: 'v' },
     detents: [
-      { id: 'set', label: 'SET', pos: 0 },
-      { id: 'off', label: 'OFF', pos: 1 },
+      { id: 'off', label: 'OFF', pos: 0 },
+      { id: 'set', label: 'SET', pos: 1 },
     ],
     default: 'off', // in flight the brake is released (D-07d)
-    // Black wedge latch with two stops (PED, SIM); how it is actuated is unconfirmed.
+    // Small black lever with two stops (PED, SIM, owner photo).
     skin: 'parking-lever',
   },
 ];

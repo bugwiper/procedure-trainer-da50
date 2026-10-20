@@ -254,6 +254,25 @@ describe('plate placards', () => {
     for (const p of elt) expect(p.dx, p.id).toBeGreaterThan(hit.w / 2);
   });
 
+  it('PARKING / BRAKE (two lines) and THROTTLE are centred above their levers, COWL FLAP above its group', () => {
+    const by = (id: string) => PLACARDS.find((p) => p.id === id);
+    const brake = by('parking_brake.name');
+    const throttle = by('throttle.name');
+    const cowl = by('cowl_flap.name');
+    expect(brake?.near).toBe('lv.parking_brake');
+    expect(brake?.lines).toEqual(['PARKING', 'BRAKE']);
+    expect(throttle?.near).toBe('lv.power');
+    expect(throttle?.lines).toEqual(['THROTTLE']);
+    expect(cowl?.near).toBe('lv.cowl_flap');
+    expect(cowl?.lines).toEqual(['COWL FLAP']);
+    for (const p of [brake, throttle, cowl]) {
+      expect(p?.anchor).toBe('middle');
+      expect(p?.size).toBe(6);
+    }
+    expect(brake?.dx).toBe(0);
+    expect(throttle?.dx).toBe(0);
+  });
+
   it('the pedestal sits on one plate below the environmental control plate', () => {
     const pedestal = PLATES.find((pl) => pl.id === 'pedestal');
     const env = PLATES.find((pl) => pl.id === 'environmental');
@@ -264,18 +283,21 @@ describe('plate placards', () => {
   });
 
   /** Each pedestal placard is printed above the highest handle position of its lever. */
-  it.each(['lv.cowl_flap'])('the placard of %s lies above the highest handle position', (id) => {
-    const def = DA50RG.get(id);
-    expect(def?.kind).toBe('detent-lever');
-    if (def?.kind !== 'detent-lever' || def.skin === undefined) return;
-    const own = PLACARDS.filter((p) => p.near === id);
-    expect(own.length, id).toBeGreaterThan(0);
-    const handleTop = -def.track.length / 2 - LEVER_ART[def.skin].along;
-    for (const p of own) {
-      const last = placardLineY(p, p.lines.length - 1);
-      expect(last, p.id).toBeLessThanOrEqual(handleTop);
-    }
-  });
+  it.each(['lv.cowl_flap', 'lv.parking_brake', 'lv.power'])(
+    'the placard of %s lies above the highest handle position',
+    (id) => {
+      const def = DA50RG.get(id);
+      expect(def?.kind).toBe('detent-lever');
+      if (def?.kind !== 'detent-lever' || def.skin === undefined) return;
+      const own = PLACARDS.filter((p) => p.near === id);
+      expect(own.length, id).toBeGreaterThan(0);
+      const handleTop = -def.track.length / 2 - LEVER_ART[def.skin].along;
+      for (const p of own) {
+        const last = placardLineY(p, p.lines.length - 1);
+        expect(last, p.id).toBeLessThanOrEqual(handleTop);
+      }
+    },
+  );
 });
 
 // Typography contract (UI-SPEC "Typography"): panel text uses exactly four sizes.

@@ -290,6 +290,64 @@ describe('nameless levers and chosen legends (plan 19, G-3)', () => {
   });
 });
 
+describe('pedestal levers (plan 19, G-3)', () => {
+  it('PARKING BRAKE is pulled up to set: OFF at the bottom (pos 0), SET at the top (pos 1)', () => {
+    const brake = lever('lv.parking_brake');
+    expect(brake.detents.map((d) => [d.id, d.pos])).toEqual([
+      ['off', 0],
+      ['set', 1],
+    ]);
+    expect(brake.default).toBe('off');
+    expect(brake.track.axis).toBe('v');
+    // Both positions stay tap markers (ids and state ids unchanged).
+    expect(brake.markers).toBeUndefined();
+    expect(brake.dragOnly).not.toBe(true);
+    const tree = body(brake, 'off');
+    expect(findElements(tree, (el) => 'data-detent' in el.props)).toHaveLength(2);
+  });
+
+  it('PARKING BRAKE prints nothing: no name, no legends, no state text, in either position', () => {
+    const brake = lever('lv.parking_brake');
+    expect(brake.nameless).toBe(true);
+    expect(brake.legends).toEqual([]);
+    for (const d of brake.detents) {
+      expect(texts(body(brake, d.id)), d.id).toEqual([]);
+      expect(stateTexts(body(brake, d.id)), d.id).toHaveLength(0);
+    }
+  });
+
+  it('the handle of PARKING BRAKE rises when the brake is set', () => {
+    const brake = lever('lv.parking_brake');
+    const handleY = (state: string) => {
+      const handle = findElements(
+        body(brake, state),
+        (el) =>
+          el.tag === 'g' &&
+          el.props['pointer-events'] === 'none' &&
+          typeof el.props['transform'] === 'string' &&
+          !('data-control-id' in el.props),
+      ).find((g) => /^translate\(/.test(String(g.props['transform'])));
+      const match = /translate\(\S+ (-?[\d.]+)\)/.exec(String(handle?.props['transform']));
+      return Number(match?.[1]);
+    };
+    expect(handleY('set')).toBeLessThan(handleY('off'));
+  });
+
+  it('the throttle is the POWER lever under its plate name THROTTLE (Q-04): id, steps, default and MAX kept', () => {
+    const power = lever('lv.power');
+    expect(power.label).toBe('THROTTLE');
+    expect(power.nameless).toBe(true);
+    expect(power.detents).toHaveLength(21);
+    expect(power.markers).toEqual(['p0', 'p50', 'p100']);
+    expect(power.default).toBe('p70');
+    const all = texts(body(power, 'p70'));
+    expect(all).not.toContain('THROTTLE');
+    expect(all).not.toContain('POWER');
+    expect(all.filter((t) => t === 'MAX')).toHaveLength(1);
+    expect(all).toEqual(expect.arrayContaining(['0 %', '50 %', '100 %']));
+  });
+});
+
 describe('POWER grip, COWL FLAP, PARKING BRAKE and the environmental sliders', () => {
   const EXPECTED: Record<string, string> = {
     'lv.power': 'power-grip',

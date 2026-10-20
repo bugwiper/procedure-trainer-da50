@@ -160,3 +160,31 @@ test('CIRCULATING AIR moves to RECIRC and back by marker tap', async ({ page, ha
   await activate(page.locator('[data-detent="lv.env_circ:fresh"]'), hasTouch);
   await expect(circ).toHaveAttribute('data-state', 'fresh');
 });
+
+test('PARKING BRAKE is pulled up to set: SET is the upper marker, OFF the lower one', async ({
+  page,
+  hasTouch,
+}) => {
+  const brake = control(page, 'lv.parking_brake');
+  await expect(brake).toHaveAttribute('data-state', 'off');
+  const off = await centre(page.locator('[data-detent="lv.parking_brake:off"]'));
+  const set = await centre(page.locator('[data-detent="lv.parking_brake:set"]'));
+  expect(set.y).toBeLessThan(off.y);
+  await activate(page.locator('[data-detent="lv.parking_brake:set"]'), hasTouch);
+  await expect(brake).toHaveAttribute('data-state', 'set');
+  // Nothing is printed on the lever: the plate placard names it.
+  await expect(brake.locator('text')).toHaveCount(0);
+  await activate(page.locator('[data-detent="lv.parking_brake:off"]'), hasTouch);
+  await expect(brake).toHaveAttribute('data-state', 'off');
+});
+
+test('the pedestal levers print no name of their own, the plate placards name them', async ({
+  page,
+}) => {
+  await expect(control(page, 'lv.cowl_flap').locator('text')).toHaveCount(0);
+  const power = await control(page, 'lv.power').locator('text').allTextContents();
+  expect(power).not.toContain('THROTTLE');
+  expect(power).not.toContain('POWER');
+  const placards = await page.locator('[data-placard]').allTextContents();
+  expect(placards).toEqual(expect.arrayContaining(['PARKING', 'BRAKE', 'THROTTLE', 'COWL FLAP']));
+});
