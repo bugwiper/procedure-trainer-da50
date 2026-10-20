@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG, VIEWBOX, VIEW_PROFILES } from '../src/aircraft/da50rg/panel';
 import type { ControlDef, Rect } from '../src/engine/registry';
 import {
+  SUPPRESS_MS,
+  SUPPRESS_PX,
+  TAP_MAX_MS,
+  TAP_SLOP_PX,
+  isBackgroundTap,
+  tapIntent,
+} from '../src/ui/panel/tap-intent';
+import {
   MIN_VIEW_WIDTH,
   ZOOM_PAD,
   fitScale,
@@ -242,5 +250,60 @@ describe('zoomed tap-size guarantee (D-21)', () => {
     const view = { w: MIN_VIEW_WIDTH, h: (MIN_VIEW_WIDTH * screen.h) / screen.w };
     const smallest = Math.min(...DA50RG.controls.map(targetSide));
     expect(smallest * fitScale(view, screen)).toBeGreaterThanOrEqual(MIN_TAP_PX);
+  });
+});
+
+describe('isBackgroundTap (D-12)', () => {
+  const tap = { travelPx: 0, durationMs: 100, maxPointers: 1, startedOnTarget: false };
+
+  it('accepts a short, still, single-pointer gesture on the background', () => {
+    expect(isBackgroundTap(tap)).toBe(true);
+    expect(isBackgroundTap({ ...tap, travelPx: TAP_SLOP_PX, durationMs: TAP_MAX_MS })).toBe(true);
+    expect(isBackgroundTap({ ...tap, durationMs: 0 })).toBe(true);
+  });
+
+  it('rejects a drag, a slow press, a second pointer and a start on a target', () => {
+    expect(isBackgroundTap({ ...tap, travelPx: TAP_SLOP_PX + 1 })).toBe(false);
+    expect(isBackgroundTap({ ...tap, durationMs: TAP_MAX_MS + 1 })).toBe(false);
+    expect(isBackgroundTap({ ...tap, maxPointers: 2 })).toBe(false);
+    expect(isBackgroundTap({ ...tap, startedOnTarget: true })).toBe(false);
+  });
+});
+
+describe('tapIntent (D-12)', () => {
+  const at = { x: 500, y: 400, at: 10_000 };
+
+  it('zooms fully out at once while zoomed, and in from the full view', () => {
+    expect(tapIntent({ zoomed: true, lastChange: null }, at)).toBe('zoom-out');
+    expect(tapIntent({ zoomed: false, lastChange: null }, at)).toBe('zoom-in');
+  });
+
+  it('ignores a tap just after a tap-driven change near the same place', () => {
+    const last = { x: at.x + 20, y: at.y, at: at.at - 349 };
+    expect(tapIntent({ zoomed: true, lastChange: last }, at)).toBe('none');
+    expect(tapIntent({ zoomed: false, lastChange: last }, at)).toBe('none');
+  });
+
+  it('acts again once the window or the distance is exceeded', () => {
+    const late = { x: at.x, y: at.y, at: at.at - (SUPPRESS_MS + 1) };
+    expect(tapIntent({ zoomed: true, lastChange: late }, at)).toBe('zoom-out');
+    const far = { x: at.x + SUPPRESS_PX + 1, y: at.y, at: at.at - 100 };
+    expect(tapIntent({ zoomed: true, lastChange: far }, at)).toBe('zoom-out');
+    expect(tapIntent({ zoomed: false, lastChange: far }, at)).toBe('zoom-in');
+  });
+
+  it('a double tap from the full view stays zoomed, from zoomed ends at the full view', () => {
+    // Full view: first tap zooms in, the second is suppressed.
+    expect(tapIntent({ zoomed: false, lastChange: null }, at)).toBe('zoom-in');
+    const afterIn = { x: at.x, y: at.y, at: at.at };
+    expect(tapIntent({ zoomed: true, lastChange: afterIn }, { ...at, at: at.at + 150 })).toBe(
+      'none',
+    );
+    // Zoomed: first tap zooms out, the second is suppressed.
+    expect(tapIntent({ zoomed: true, lastChange: null }, at)).toBe('zoom-out');
+    const afterOut = { x: at.x, y: at.y, at: at.at };
+    expect(tapIntent({ zoomed: false, lastChange: afterOut }, { ...at, at: at.at + 150 })).toBe(
+      'none',
+    );
   });
 });

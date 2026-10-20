@@ -149,6 +149,10 @@ async function frameCentre(page: Page, regionId: string): Promise<Point> {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
+function pointArgs(p: Point): [number, number] {
+  return [p.x, p.y];
+}
+
 function centreOf(b: Box): Point {
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 }
@@ -298,11 +302,55 @@ test('pinch zooms and pans the view', async ({ page }, testInfo) => {
   expect(out.w).toBeGreaterThan(panned.w);
 });
 
-test('mouse drag on the background pans while zoomed', async ({ page }, testInfo) => {
+/** Lets the tap suppression window (350 ms) of an earlier tap-driven zoom change pass. */
+async function afterSuppression(page: Page): Promise<void> {
+  await page.waitForTimeout(450);
+}
+
+test('a single tap or click on the background while zoomed zooms fully out', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
+  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await afterSuppression(page);
+  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
+  await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await expect(page.getByTestId('zoom-out')).toHaveCount(0);
+});
+
+test('a double tap while zoomed ends at the full view', async ({ page, hasTouch }, testInfo) => {
+  test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
+  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await afterSuppression(page);
+  await doubleActivateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
+  await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  // The second tap of the double tap is suppressed: the view stays at the full panel.
+  await page.waitForTimeout(300);
+  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
+});
+
+test('from an intermediate pinch level a single tap zooms fully out', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
+  await pinch(page, await frameCentre(page, 'mfd'), 30, 100);
+  const mid = await viewNumbers(page);
+  expect(mid.w).toBeLessThan(2000);
+  expect(mid.w).toBeGreaterThan(300);
+  await expect(page.getByTestId('zoom-out')).toBeVisible();
+  await page.touchscreen.tap(...pointArgs(await backgroundPoint(page, 'mfd')));
+  await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+});
+
+test('a background drag while zoomed pans and does not zoom out', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop mouse path');
   const click = await backgroundPoint(page, 'mfd');
   await page.mouse.click(click.x, click.y);
   await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await afterSuppression(page);
   const zoomed = await viewNumbers(page);
   const from = await backgroundPoint(page, 'mfd');
   await page.mouse.move(from.x, from.y);
@@ -310,19 +358,9 @@ test('mouse drag on the background pans while zoomed', async ({ page }, testInfo
   await page.mouse.move(from.x - 60, from.y - 20, { steps: 6 });
   await page.mouse.up();
   const panned = await viewNumbers(page);
-  expect(panned.x !== zoomed.x || panned.y !== zoomed.y).toBe(true);
   expect(panned.w).toBeCloseTo(zoomed.w);
-});
-
-test('a double tap or double click on the background zooms out', async ({
-  page,
-  hasTouch,
-}, testInfo) => {
-  test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
-  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
-  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
-  await doubleActivateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
-  await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  expect(panned.x !== zoomed.x || panned.y !== zoomed.y).toBe(true);
+  await expect(page.getByTestId('zoom-out')).toBeVisible();
 });
 
 test('a lever drag while zoomed is never hijacked', async ({ page }, testInfo) => {
@@ -394,9 +432,10 @@ test('@hooks zoom gestures emit no control events', async ({ page }, testInfo) =
     await page.mouse.up();
   }
 
-  // Double tap or double click.
-  await doubleActivateAt(page, await backgroundPoint(page, 'mfd'), touch);
+  // A single tap or click while zoomed zooms fully out.
+  await activateAt(page, await backgroundPoint(page, 'mfd'), touch);
   await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await afterSuppression(page);
 
   // Zoom in again and out with the button.
   await activateAt(page, await backgroundPoint(page, 'mfd'), touch);

@@ -7,15 +7,12 @@ import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { VIEWBOX } from '../../aircraft/da50rg/panel';
 import type { Rect, Region, Registry, Size } from '../../engine/registry';
+import { TAP_SLOP_PX, isBackgroundTap, tapIntent } from './tap-intent';
+import type { TapPoint } from './tap-intent';
 import { fitScale, panRect, pinchRect, screenToView, zoomRect } from './viewport';
 
 /** A pointer that starts on one of these elements belongs to that control for its whole life. */
 const TAP_TARGET_SELECTOR = '[data-hit], [data-detent]';
-
-const TAP_SLOP_PX = 10;
-const TAP_MAX_MS = 300;
-const DOUBLE_TAP_MS = 300;
-const DOUBLE_TAP_PX = 24;
 
 const fullView = signal<Rect>({ x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h });
 
@@ -54,6 +51,8 @@ interface BackgroundPointer {
   /** Still a candidate for a tap: no travel, no second finger. */
   tapOk: boolean;
   panning: boolean;
+  /** Largest number of background pointers down at once while this pointer was down. */
+  maxPointers: number;
 }
 
 interface Midpoint {
@@ -73,8 +72,9 @@ interface Midpoint {
  *  (b) while any control pointer is active every new pointer is ignored, so no pinch or pan
  *      can start during a control drag and the viewBox never moves under a dragging pointer;
  *  (c) two background pointers pinch; (d) one background pointer pans while zoomed;
- *  (e) two quick background taps while zoomed zoom out; (f) a background tap from the full
- *      view zooms to the tapped region.
+ *  (e) a single background tap while zoomed, at any zoom level, zooms fully out at once;
+ *  (f) a background tap from the full view zooms to the tapped region; the second tap of a
+ *      double tap, within SUPPRESS_MS and SUPPRESS_PX of a tap-driven change, is ignored.
  */
 export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registry }): () => void {
   const { registry } = opts;
@@ -84,7 +84,9 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   const controlPointers = new Set<number>();
   const background = new Map<number, BackgroundPointer>();
   let pinchPrev: Midpoint | null = null;
-  let lastTap: { x: number; y: number; at: number } | null = null;
+  let lastChange: TapPoint | null = null;
+  /** The view that tap-driven change produced; any later view change (button, pinch, pan) ends the suppression. */
+  let lastChangeView: Rect | null = null;
 
   const screenSize = (): Size => {
     const box = svg.getBoundingClientRect();
@@ -147,6 +149,7 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
       downAt: e.timeStamp,
       tapOk: true,
       panning: false,
+      maxPointers: 1,
     });
     try {
       svg.setPointerCapture(e.pointerId);
@@ -154,7 +157,10 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
       // The pointer may already be gone; the release is still handled on pointerup.
     }
     if (background.size === 2) {
-      for (const p of background.values()) p.tapOk = false;
+      for (const p of background.values()) {
+        p.tapOk = false;
+        p.maxPointers = 2;
+      }
       pinchPrev = midpointOfTwo();
     }
   };
@@ -196,8 +202,15 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   };
 
   const onTap = (e: PointerEvent) => {
-    if (!isZoomed.peek()) {
-      lastTap = null;
+    const tap: TapPoint = { x: e.clientX, y: e.clientY, at: e.timeStamp };
+    const zoomed = isZoomed.peek();
+    if (lastChangeView !== viewRect.peek()) lastChange = null;
+    const intent = tapIntent({ zoomed, lastChange }, tap);
+    if (intent === 'zoom-out') {
+      zoomOut(viewBox);
+      lastChange = tap;
+      lastChangeView = viewRect.peek();
+    } else if (intent === 'zoom-in') {
       const at = toViewPoint(e.clientX, e.clientY);
       const hit = registry.regions.find(
         (r) =>
@@ -206,31 +219,27 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
           at.y >= r.bounds.y &&
           at.y <= r.bounds.y + r.bounds.h,
       );
-      if (hit !== undefined) zoomToRegion(hit, viewBox);
-      return;
+      if (hit !== undefined) {
+        zoomToRegion(hit, viewBox);
+        lastChange = tap;
+        lastChangeView = viewRect.peek();
+      }
     }
-    const prev = lastTap;
-    if (
-      prev !== null &&
-      e.timeStamp - prev.at <= DOUBLE_TAP_MS &&
-      Math.hypot(e.clientX - prev.x, e.clientY - prev.y) <= DOUBLE_TAP_PX
-    ) {
-      lastTap = null;
-      zoomOut(viewBox);
-      return;
-    }
-    lastTap = { x: e.clientX, y: e.clientY, at: e.timeStamp };
   };
 
   const onUp = (e: PointerEvent) => {
     if (controlPointers.delete(e.pointerId)) return;
     const p = background.get(e.pointerId);
     if (p === undefined) return;
+    // Control pointers never enter the background map, so a gesture here never starts on a target.
     const wasTap =
       p.tapOk &&
-      background.size === 1 &&
-      Math.hypot(e.clientX - p.downX, e.clientY - p.downY) <= TAP_SLOP_PX &&
-      e.timeStamp - p.downAt <= TAP_MAX_MS;
+      isBackgroundTap({
+        travelPx: Math.hypot(e.clientX - p.downX, e.clientY - p.downY),
+        durationMs: e.timeStamp - p.downAt,
+        maxPointers: Math.max(p.maxPointers, background.size),
+        startedOnTarget: false,
+      });
     dropBackground(e.pointerId);
     if (wasTap) onTap(e);
   };
