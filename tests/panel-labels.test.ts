@@ -33,47 +33,8 @@ const REMOVED_IDS: readonly string[] = [
   'btn.deice_annun_test', // plan 22
 ];
 
-/** Ids still to be documented; Task 2 empties the list. */
-const NOT_YET_DOCUMENTED: readonly string[] = [
-  'sw.instr_light',
-  'sw.flood_light',
-  'sw.fadec',
-  'btn.fadec_test',
-  'sw.alternator_1',
-  'sw.alternator_2',
-  'sw.prop_deice',
-  'sw.emerg_fuel_pump',
-  'sw.av_master',
-  'sw.pitot_stall_heat',
-  'sw.fuel_trans',
-  'btn.engine_start',
-  'sw.engine_master',
-  'sw.ess_bus',
-  'sw.elect_master',
-  'sw.mfd_page',
-  'lv.flaps',
-  'lt.flap_up',
-  'lt.flap_to',
-  'lt.flap_ldg',
-  'sw.elt',
-  'lv.alt_static',
-  'lv.emerg_gear',
-  'lv.alt_air',
-  'sw.env_fan',
-  'lv.env_direction',
-  'lv.env_temp',
-  'lv.env_circ',
-  'lv.parking_brake',
-  'lv.power',
-  'lv.cowl_flap',
-  'lv.deice_mode',
-  'sw.deice_alternate',
-  'sw.deice_windshield',
-  'sw.deice_ice_light',
-  'sw.deice_pump1',
-  'sw.deice_pump2',
-  'btn.deice_annun_test',
-];
+/** Ids still to be documented; empty now that every area is written. */
+const NOT_YET_DOCUMENTED: readonly string[] = [];
 
 const ID_PATTERN = /^(sw|btn|lv|lt)\.[a-z_0-9]+$/;
 
@@ -134,5 +95,88 @@ describe('panel label table: hygiene (D-06, T-01.1-26)', () => {
 
   it('does not name a real maker brand', () => {
     expect(doc).not.toMatch(/garmin|diamond/i);
+  });
+});
+
+/** Plan that creates each planned id (Table P1 of plan 12). */
+const PLANNED_BY_PLAN: Readonly<Record<string, number>> = {
+  'lt.elt': 18,
+  'lt.cowl_open': 19,
+  'lt.cowl_closed': 19,
+  'sw.deice_mode': 21,
+  'btn.deice_max': 21,
+  'lt.deice_max': 21,
+  'lt.deice_high': 21,
+  'lt.deice_norm': 21,
+  'btn.deice_windshield': 22,
+  'sw.deice_pump': 22,
+};
+
+const STATE_WORDS = [
+  'RELEASED',
+  'PRESSED',
+  'NEUTRAL',
+  'GUARD OPEN',
+  'GUARD CLOSED',
+  'GEAR DOWN LOCKED',
+  'FLAPS UP',
+];
+
+describe('panel label table: planned and removed ids', () => {
+  it.each(Object.entries(PLANNED_BY_PLAN))(
+    'marks %s as planned with the number of the plan that creates it',
+    (id, plan) => {
+      const row = doc
+        .split('\n')
+        .find((line) => line.startsWith('|') && line.includes(`\`${id}\``));
+      expect(row, `${id} has no table row`).toBeDefined();
+      expect(row).toContain(`planned, plan ${String(plan)}`);
+    },
+  );
+
+  it('lists the five removed ids in the section "Superseded by the owner findings"', () => {
+    const start = doc.indexOf('## Superseded by the owner findings');
+    expect(start).toBeGreaterThan(-1);
+    const section = doc.slice(start);
+    for (const id of REMOVED_IDS) expect(section, id).toContain(`\`${id}\``);
+  });
+});
+
+describe('panel label table: questions for the owner', () => {
+  it.each(Array.from({ length: 14 }, (_, i) => `Q-${String(i + 1).padStart(2, '0')}`))(
+    'has the question %s with a default',
+    (label) => {
+      const line = doc.split('\n').find((l) => l.includes(`**${label}**`)) ?? '';
+      expect(line, `${label} missing`).not.toBe('');
+      expect(line).toMatch(/Default taken:/);
+    },
+  );
+
+  it('says the questions block nothing', () => {
+    expect(doc).toMatch(/do not block anything/);
+  });
+});
+
+describe('panel label table: static text only (G-0.1)', () => {
+  it('has no label or placard cell that is only a state word', () => {
+    const offenders: string[] = [];
+    let columns: number[] = [];
+    for (const line of doc.split('\n')) {
+      if (!line.startsWith('|')) {
+        columns = [];
+        continue;
+      }
+      const cells = line.split('|').map((cell) => cell.trim());
+      const labelAt = cells.indexOf('Static label(s)');
+      if (labelAt > -1) {
+        columns = [labelAt, cells.indexOf('Position placards')];
+        continue;
+      }
+      for (const at of columns) {
+        const cell = (cells[at] ?? '').toUpperCase();
+        if (STATE_WORDS.includes(cell)) offenders.push(`${line.slice(0, 40)}: ${cell}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });
