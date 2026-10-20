@@ -11,8 +11,7 @@ import type { Page } from '@playwright/test';
  * entry. deice (21), deice_switches (22).
  */
 const KNOWN_OPEN: readonly string[] = [
-  // Rebuilt by plans 20 to 22.
-  'env_control',
+  // Rebuilt by plans 21 and 22.
   'deice',
   'deice_switches',
 ];

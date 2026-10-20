@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import type { ControlDef, DetentLeverDef } from '../src/engine/registry';
+import { ENV_ICONS, LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
 import { LeverBody } from '../src/ui/panel/widgets/DetentLever';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
@@ -399,15 +400,48 @@ describe('POWER grip, COWL FLAP, PARKING BRAKE and the environmental sliders', (
 
   it('draws the environmental icons as original path glyphs beside the slot', () => {
     const direction = body(lever('lv.env_direction'), 'face');
-    const icons = findElements(direction, (el) => 'data-icon' in el.props).map(
-      (e) => e.props['data-icon'],
-    );
-    expect(icons.sort()).toEqual(['defrost', 'face', 'feet']);
+    const icons = findElements(direction, (el) => 'data-icon' in el.props);
+    expect(icons.map((e) => e.props['data-icon']).sort()).toEqual(['defrost', 'face', 'feet']);
     const circ = body(lever('lv.env_circ'), 'fresh');
-    const circIcons = findElements(circ, (el) => 'data-icon' in el.props).map(
-      (e) => e.props['data-icon'],
-    );
-    expect(circIcons.sort()).toEqual(['fresh', 'recirc']);
+    const circIcons = findElements(circ, (el) => 'data-icon' in el.props);
+    expect(circIcons.map((e) => e.props['data-icon']).sort()).toEqual(['fresh', 'recirc']);
+    // One path element per glyph, no text inside it.
+    for (const icon of [...icons, ...circIcons]) expect(icon.tag).toBe('path');
+  });
+
+  it('DIRECTION prints its three pictograms right of the slot, never under the handle, no words', () => {
+    const def = lever('lv.env_direction');
+    const art = LEVER_ART['env-slider'];
+    for (const d of def.detents) {
+      const tree = body(def, d.id);
+      expect(texts(tree), d.id).toEqual([]);
+      for (const icon of findElements(tree, (el) => 'data-icon' in el.props)) {
+        const m = /translate\((-?[\d.]+) (-?[\d.]+)\)/.exec(String(icon.props['transform']));
+        // The pictogram's left edge (glyphs reach 6 units left of their origin) clears the handle.
+        expect(Number(m?.[1]) - 6, String(icon.props['data-icon'])).toBeGreaterThan(art.across);
+      }
+    }
+  });
+
+  it('the fresh-air glyph is a rectangle with an inward arrow, recirculation a rectangle with a circling arrow', () => {
+    // Fresh: three subpaths (open rectangle, arrow shaft, arrow head); recirc: rectangle, arc, head.
+    expect(ENV_ICONS['fresh']?.split('M').length).toBe(4);
+    expect(ENV_ICONS['recirc']?.split('M').length).toBe(4);
+    expect(ENV_ICONS['recirc']).toContain('A');
+    expect(ENV_ICONS['recirc']).toContain('Z');
+    expect(ENV_ICONS['fresh']).not.toContain('A');
+  });
+
+  it('no environmental control prints a number or a state word in any state', () => {
+    for (const id of ['lv.env_direction', 'lv.env_temp', 'lv.env_circ']) {
+      const def = lever(id);
+      for (const d of def.detents) {
+        for (const t of texts(body(def, d.id))) {
+          expect(t, `${id}/${d.id}`).not.toMatch(/\d/);
+          expect(['COLD', 'WARM'], `${id}/${d.id}`).toContain(t);
+        }
+      }
+    }
   });
 
   it('lays CIRCULATING AIR out horizontally inside its region: pictograms only, no text', () => {

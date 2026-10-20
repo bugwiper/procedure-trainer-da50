@@ -153,12 +153,35 @@ test('POWER still drags from p70 to p90 by mouse', async ({ page, hasTouch }) =>
   await expect(power).toHaveAttribute('data-state', 'p90');
 });
 
-test('CIRCULATING AIR moves to RECIRC and back by marker tap', async ({ page, hasTouch }) => {
+test('CIRCULATING AIR moves between its two ends by marker tap and prints no word', async ({
+  page,
+  hasTouch,
+}) => {
   const circ = control(page, 'lv.env_circ');
+  await expect(circ.locator('text')).toHaveCount(0);
+  await expect(circ.locator('[data-icon]')).toHaveCount(2);
   await activate(page.locator('[data-detent="lv.env_circ:recirc"]'), hasTouch);
   await expect(circ).toHaveAttribute('data-state', 'recirc');
+  await expect(circ.locator('text')).toHaveCount(0);
   await activate(page.locator('[data-detent="lv.env_circ:fresh"]'), hasTouch);
   await expect(circ).toHaveAttribute('data-state', 'fresh');
+});
+
+test('DIRECTION draws pictograms only and TEMPERATURE prints only COLD and WARM', async ({
+  page,
+  hasTouch,
+}) => {
+  const direction = control(page, 'lv.env_direction');
+  await expect(direction.locator('[data-icon]')).toHaveCount(3);
+  await expect(direction.locator('text')).toHaveCount(0);
+  const temp = control(page, 'lv.env_temp');
+  for (const step of ['cold', 't25', 'warm', 't50']) {
+    await activate(page.locator(`[data-detent="lv.env_temp:${step}"]`), hasTouch);
+    await expect(temp).toHaveAttribute('data-state', step);
+    expect((await temp.locator('text').allTextContents()).sort()).toEqual(['COLD', 'WARM']);
+  }
+  await expect(page.locator('[data-shell="temp-triangle"]')).toHaveCount(1);
+  await expect(page.locator('[data-shell="group-box"]')).toHaveCount(4);
 });
 
 test('PARKING BRAKE is pulled up to set: SET is the upper marker, OFF the lower one', async ({

@@ -186,7 +186,9 @@ export function LeverBody({
               .filter((d) => ENV_ICONS[d.id] !== undefined)
               .map((d) => {
                 const at = detentOffset(d.pos, def.track);
-                const x = vertical ? -((art?.across ?? 11) + 9) : at.dx + (at.dx < 0 ? -14 : 14);
+                // Vertical sliders print their pictograms right of the slot (owner photo), horizontal
+                // ones at the slot ends; neither lies under the handle.
+                const x = vertical ? (art?.across ?? 11) + 9 : at.dx + (at.dx < 0 ? -14 : 14);
                 return <EnvIcon key={d.id} detent={d.id} x={x} y={vertical ? at.dy : 0} />;
               })
           : null}

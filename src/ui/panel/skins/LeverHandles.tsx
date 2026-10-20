@@ -360,8 +360,9 @@ export function LeverTrack({ skin, length, axis, handleAt }: LeverTrackProps) {
 }
 
 /**
- * Original simple glyphs for the environmental sliders (lines and arcs, 10 x 10, centred on
- * the origin), keyed by detent id. Their meaning is unconfirmed (UI-SPEC unconfirmed item 9).
+ * Original simple glyphs for the environmental sliders (lines and arcs, about 10 x 10, centred on
+ * the origin), keyed by detent id: no words, one path each. Their meaning is unconfirmed
+ * (UI-SPEC unconfirmed item 9).
  */
 export const ENV_ICONS: Readonly<Record<string, string>> = {
   // Windshield with two warm-air lines rising into it.
@@ -370,10 +371,10 @@ export const ENV_ICONS: Readonly<Record<string, string>> = {
   face: 'M-2.2 -3a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0 M-5 5q5 -7 10 0',
   // A shoe sole seen from the side.
   feet: 'M-3 -5V1L-5 3V5H4V3H0V-5Z',
-  // Outside air entering the cabin outline.
-  fresh: 'M-6 0H0 M-3 -3L0 0L-3 3 M1.5 -4H6V4H1.5',
-  // A loop arrow, the cabin air going round.
-  recirc: 'M-3.5 -1a4 4 0 1 1 1.4 3.6 M-3.5 -4.5V-1H-0.5',
+  // Fresh air: a rectangle open on the left with an arrow pointing into it.
+  fresh: 'M-3 -4H5V4H-3 M-8 0H1 M-2.5 -2.5L1 0L-2.5 2.5',
+  // Recirculation: a rectangle with a circling arrow inside it.
+  recirc: 'M-5 -4H5V4H-5Z M2.2 0A2.2 2.2 0 1 1 0 -2.2 M-1 -3.7L0.7 -2.2L-1 -0.7',
 };
 
 /** Icon placement is the widget's concern; this renders one glyph at a point. */
