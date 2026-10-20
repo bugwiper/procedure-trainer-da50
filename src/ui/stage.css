@@ -1,3 +1,8 @@
+:root {
+  --font-placard: 'B612', system-ui, sans-serif;
+  --font-glass: 'B612 Mono', ui-monospace, monospace;
+}
+
 html,
 body,
 #app {
@@ -30,16 +35,128 @@ body,
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Placard face for every panel text, so widgets need no per-file font settings (D-10, D-12).
+   Fill is only a default: texts that set their own fill keep it. */
+.panel-svg text {
+  font-family: var(--font-placard);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.panel-svg text:not([fill]) {
+  fill: #e6e9ed;
+}
+
+/* Display digits of the glass areas and gauges. */
+.panel-svg text.glass-digits {
+  font-family: var(--font-glass);
+  font-weight: 400;
+}
+
 .footer {
+  font-family: var(--font-placard);
+  font-weight: 400;
   flex: 0 0 auto;
-  height: 28px;
+  /* One 28 px line when it fits; wraps to a second line on a narrow portrait phone. */
+  min-height: 28px;
   line-height: 28px;
   font-size: 12px;
   padding: 0 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   touch-action: manipulation;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: 16px;
+}
+
+.footer-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-height: 28px;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: #8fb8e6;
+  text-decoration: underline;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* About overlay over the whole stage (D-16); long policy text scrolls by finger. */
+.about {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  box-sizing: border-box;
+  padding: 16px;
+  overflow: auto;
+  touch-action: pan-y;
+  background: rgba(11, 13, 16, 0.96);
+  color: #e6e9ed;
+  font-family: var(--font-placard);
+}
+
+.about h2,
+.about h3 {
+  margin: 0 0 12px;
+}
+
+.about p {
+  max-width: 70ch;
+  line-height: 1.5;
+}
+
+.about-close {
+  min-height: 44px;
+  padding: 0 20px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.policy-text {
+  white-space: pre-wrap;
+  font-family: var(--font-placard);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 80ch;
+}
+
+/* Rotate hint (D-02): portrait phones only, never blocks the panel. */
+.rotate-hint {
+  display: none;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 10;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(27, 31, 37, 0.92);
+  border: 1px solid #3a424b;
+  font-family: var(--font-placard);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.rotate-hint button {
+  pointer-events: auto;
+  min-height: 28px;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+@media (orientation: portrait) and (max-width: 700px) {
+  .rotate-hint {
+    display: flex;
+  }
 }
