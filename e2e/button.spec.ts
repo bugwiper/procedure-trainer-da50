@@ -33,16 +33,13 @@ test('ENGINE START shows PRESSED while held and RELEASED after release', async (
   test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
   const button = control(page, START);
   await expect(button).toHaveAttribute('data-state', 'released');
-  await expect(button.locator('[data-state-text]')).toHaveText('RELEASED');
 
   await page.locator(`[data-hit="${START}"]`).hover();
   await page.mouse.down();
   await expect(button).toHaveAttribute('data-state', 'pressed');
-  await expect(button.locator('[data-state-text]')).toHaveText('PRESSED');
 
   await page.mouse.up();
   await expect(button).toHaveAttribute('data-state', 'released');
-  await expect(button.locator('[data-state-text]')).toHaveText('RELEASED');
 });
 
 test('releasing outside the button still releases ENGINE START', async ({ page, hasTouch }) => {
@@ -66,7 +63,6 @@ test('a tap leaves FADEC TEST RELEASED', async ({ page, hasTouch }) => {
   await expect(button).toHaveAttribute('data-state', 'released');
   await activate(page.locator(`[data-hit="${FADEC_TEST}"]`), hasTouch);
   await expect(button).toHaveAttribute('data-state', 'released');
-  await expect(button.locator('[data-state-text]')).toHaveText('RELEASED');
 });
 
 test('@hooks one press appends exactly pressed then released', async ({ page, hasTouch }) => {
@@ -103,15 +99,12 @@ test('holding the left half of the spring toggle shows STALL TEST, release retur
   test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
   const toggle = control(page, SPRING);
   await expect(toggle).toHaveAttribute('data-state', 'neutral');
-  await expect(toggle.locator('[data-state-text]')).toHaveText('NEUTRAL');
 
   await pressAt(page, SPRING, 0.25);
   await expect(toggle).toHaveAttribute('data-state', 'stall_test');
-  await expect(toggle.locator('[data-state-text]')).toHaveText('STALL TEST');
 
   await page.mouse.up();
   await expect(toggle).toHaveAttribute('data-state', 'neutral');
-  await expect(toggle.locator('[data-state-text]')).toHaveText('NEUTRAL');
 });
 
 test('holding the right half of the spring toggle shows GEAR TEST', async ({ page, hasTouch }) => {
@@ -119,7 +112,6 @@ test('holding the right half of the spring toggle shows GEAR TEST', async ({ pag
   const toggle = control(page, SPRING);
   await pressAt(page, SPRING, 0.75);
   await expect(toggle).toHaveAttribute('data-state', 'gear_test');
-  await expect(toggle.locator('[data-state-text]')).toHaveText('GEAR TEST');
   await page.mouse.up();
   await expect(toggle).toHaveAttribute('data-state', 'neutral');
 });

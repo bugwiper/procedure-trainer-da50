@@ -50,7 +50,6 @@ test('de-ice MODE reaches NORM, HIGH, MAX and OFF by marker tap', async ({ page,
   for (const detent of ['norm', 'high', 'max', 'off']) {
     await activate(page.locator(`[data-detent="lv.deice_mode:${detent}"]`), hasTouch);
     await expect(mode, detent).toHaveAttribute('data-state', detent);
-    await expect(mode.locator('[data-state-text]'), detent).toHaveText(detent.toUpperCase());
   }
 });
 
@@ -67,11 +66,9 @@ test('ANNUN TEST and LEVEL show PRESSED while held and RELEASED after release', 
     await page.locator(`[data-hit="${id}"]`).hover();
     await page.mouse.down();
     await expect(button, id).toHaveAttribute('data-state', 'pressed');
-    await expect(button.locator('[data-state-text]'), id).toHaveText('PRESSED');
 
     await page.mouse.up();
     await expect(button, id).toHaveAttribute('data-state', 'released');
-    await expect(button.locator('[data-state-text]'), id).toHaveText('RELEASED');
   }
 });
 

@@ -34,37 +34,21 @@ export interface ButtonTextLayout {
   readonly labelSize: 6 | 8;
   /** Baselines, last line closest to the bezel. */
   readonly labelYs: readonly number[];
-  readonly stateSize: 8 | 10;
-  readonly stateY: number;
-  /** Widest state label, for the footprint test. */
-  readonly stateWidth: number;
 }
 
 /**
- * Label above and state text below the bezel. Both live in the control's own footprint where
- * it is tall enough and spill only into free panel space otherwise: a label wider than the
- * footprint drops to one Micro 6 line (ANNUN TEST); state text steps down to 8 when 10
- * would not fit the footprint width or the footprint is under 36 wide (UI-SPEC Typography).
+ * Label above the bezel. A label wider than the footprint drops to one Micro 6 line (ANNUN
+ * TEST). A button prints no state text (G-0.1): it shows its state by the cap position only.
  */
 export function buttonTextLayout(
-  def: Pick<MomentaryButtonDef, 'label' | 'hit' | 'states'>,
+  def: Pick<MomentaryButtonDef, 'label' | 'hit'>,
   bezelR: number,
 ): ButtonTextLayout {
   const labelLines = [def.label];
   const labelSize = textWidth(def.label, 8) > def.hit.w ? 6 : 8;
   const lastY = -(bezelR + 2.5);
   const labelYs = labelLines.map((_, i) => lastY - (labelLines.length - 1 - i) * 7);
-  const widest = def.states.reduce((w, st) => Math.max(w, st.label.length), 0);
-  const fits10 = def.hit.w >= 36 && widest * 10 * 0.62 <= def.hit.w;
-  const stateSize = fits10 ? 10 : 8;
-  return {
-    labelLines,
-    labelSize,
-    labelYs,
-    stateSize,
-    stateY: bezelR + 1.5 + 0.72 * stateSize,
-    stateWidth: widest * stateSize * 0.62,
-  };
+  return { labelLines, labelSize, labelYs };
 }
 
 /**
@@ -78,17 +62,11 @@ export function PushButtonBody(props: PushButtonBodyProps) {
   return <LegacyBody {...props} />;
 }
 
-function stateLabelOf(props: PushButtonBodyProps): string {
-  const found = props.def.states.find((s) => s.id === props.state);
-  return (found ?? props.def.states[0]).label;
-}
-
 function RoundBody(props: PushButtonBodyProps & { skin: RoundSkin }) {
   const { def, skin } = props;
   const pressed = props.state !== def.states[0].id;
   const bezelR = BEZEL_RADIUS[skin];
   const text = buttonTextLayout(def, bezelR);
-  const label = stateLabelOf(props);
   return (
     <g pointer-events="none">
       {text.labelLines.map((line, i) => (
@@ -110,20 +88,6 @@ function RoundBody(props: PushButtonBodyProps & { skin: RoundSkin }) {
       {skin === 'chrome-round' ? <ChromeCap pressed={pressed} /> : null}
       {skin === 'blue-dome' ? <BlueCap pressed={pressed} /> : null}
       {skin === 'small-black' ? <SmallCap pressed={pressed} /> : null}
-      <text
-        data-state-text
-        x={0}
-        y={text.stateY}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={text.stateSize}
-        font-weight={700}
-        fill="#d8dde3"
-        textLength={Math.max(textWidth(label, text.stateSize), 1)}
-        lengthAdjust="spacingAndGlyphs"
-      >
-        {label}
-      </text>
     </g>
   );
 }
@@ -227,18 +191,6 @@ function LegacyBody(props: PushButtonBodyProps) {
         fill={isPressed ? '#2f353c' : '#4a525c'}
         stroke="#6b7580"
       />
-      <text
-        data-state-text
-        x={0}
-        y={textY}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={8}
-        font-weight={700}
-        fill="#d8dde3"
-      >
-        {stateLabelOf(props)}
-      </text>
     </g>
   );
 }
@@ -312,20 +264,6 @@ function SpringBatBody(props: PushButtonBodyProps) {
         stroke-linejoin="round"
       />
       <circle cx={tipX} cy={tipY} r={2.4} fill={paint('g-chrome')} stroke="#1b1d21" />
-      <text
-        data-state-text
-        x={0}
-        y={half - 3}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={8}
-        font-weight={700}
-        fill="#d8dde3"
-        textLength={Math.min(stateLabelOf(props).length * 5.4, def.hit.w - 4)}
-        lengthAdjust="spacingAndGlyphs"
-      >
-        {stateLabelOf(props)}
-      </text>
     </g>
   );
 }

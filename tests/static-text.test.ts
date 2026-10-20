@@ -4,10 +4,13 @@ import type {
   ControlDef,
   DetentLeverDef,
   GuardedToggleDef,
+  MomentaryButtonDef,
   ToggleDef,
 } from '../src/engine/registry';
 import { BatBody } from '../src/ui/panel/skins/Bat';
 import { RockerBody } from '../src/ui/panel/skins/Rocker';
+import { PushButtonBody } from '../src/ui/panel/skins/PushButton';
+import type { PressedSide } from '../src/ui/panel/skins/PushButton';
 import { LeverBody } from '../src/ui/panel/widgets/DetentLever';
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
 import { SoftkeyBody } from '../src/ui/panel/widgets/Toggle';
@@ -116,5 +119,39 @@ describe('lever family text is state-independent', () => {
         expect(countElements(tree), id).toBeLessThanOrEqual(40);
       }
     }
+  });
+});
+
+describe('push button family text is state-independent', () => {
+  const buttons = DA50RG.controls.filter(
+    (c): c is MomentaryButtonDef => c.kind === 'momentary-button',
+  );
+
+  it('every button in every state: no state text, the same text strings', () => {
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const def of buttons) {
+      const sideOf = (i: number): PressedSide =>
+        def.states.length === 3 ? (i === 1 ? 'left' : i === 2 ? 'right' : null) : null;
+      const renders = def.states.map((st, i) => ({ state: st.id, side: sideOf(i) }));
+      const trees = renders.map(({ state, side }) =>
+        expand(PushButtonBody({ def, state, pressedSide: side })),
+      );
+      const first = textStrings(trees[0]!);
+      expect(first.length, def.id).toBeGreaterThan(0);
+      for (const tree of trees) {
+        expect(
+          findElements(tree, (el) => 'data-state-text' in el.props),
+          def.id,
+        ).toHaveLength(0);
+        expect(textStrings(tree), def.id).toEqual(first);
+      }
+    }
+  });
+
+  it('the spring toggle keeps exactly its two captions STALL TEST and GEAR TEST', () => {
+    const def = buttons.find((b) => b.skin === 'spring-bat');
+    expect(def).toBeDefined();
+    const tree = expand(PushButtonBody({ def: def!, state: 'neutral', pressedSide: null }));
+    expect(textStrings(tree)).toEqual(['GEAR', 'STALL', 'TEST', 'TEST']);
   });
 });

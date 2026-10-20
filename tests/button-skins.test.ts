@@ -10,7 +10,7 @@ import {
   textWidth,
 } from '../src/ui/panel/skins/PushButton';
 import type { PressedSide } from '../src/ui/panel/skins/PushButton';
-import { countElements, expand, findElements, textOf } from './vnode-walk';
+import { countElements, expand, findElements } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
 
 // Push-button skins (PNL-11, D-09, UI-SPEC 8.3). Pure geometry and vnode checks, no DOM.
@@ -26,10 +26,9 @@ function regionOf(id: string): Rect {
 }
 
 /** Every state of a button with the side the widget would pass for it. */
-function renders(def: MomentaryButtonDef): { state: string; side: PressedSide; label: string }[] {
+function renders(def: MomentaryButtonDef): { state: string; side: PressedSide }[] {
   return def.states.map((st, i) => ({
     state: st.id,
-    label: st.label,
     side: def.states.length === 3 ? (i === 1 ? 'left' : i === 2 ? 'right' : null) : null,
   }));
 }
@@ -73,15 +72,14 @@ describe('momentary button inventory', () => {
 });
 
 describe('push-button bodies', () => {
-  it('stay within 40 nodes and show exactly one state text equal to the state label', () => {
+  it('stay within 40 nodes and draw no state text (G-0.1)', () => {
     for (const def of BUTTONS) {
-      for (const { state, side, label } of renders(def)) {
+      for (const { state, side } of renders(def)) {
         const tree = body(def, state, side);
         const id = `${def.id}/${state}`;
         expect(countElements(tree), id).toBeLessThanOrEqual(40);
         const texts = findElements(tree, (el) => 'data-state-text' in el.props);
-        expect(texts, id).toHaveLength(1);
-        expect(texts[0] === undefined ? '' : textOf(texts[0]), id).toBe(label);
+        expect(texts, id).toHaveLength(0);
       }
     }
   });
@@ -130,7 +128,7 @@ describe('push-button fit', () => {
   it('the spring bat with its throw fits inside its 56 x 30 footprint', () => {
     const def = BUTTONS.find((b) => b.id === 'btn.stall_gear_test');
     expect(def?.hit).toEqual({ w: 56, h: 30 });
-    // Bat throw 10 plus half the 5-wide bat, and the pivot bezel r 7 above the state text.
+    // Bat throw 10 plus half the 5-wide bat, and the pivot bezel r 7.
     expect(10 + 2.5).toBeLessThanOrEqual(28);
     for (const side of ['left', 'right'] as const) {
       const tree = body(
@@ -149,7 +147,7 @@ describe('push-button fit', () => {
     }
   });
 
-  it('label and state text of every button stay clear of other controls and inside the region', () => {
+  it('the label of every button stays clear of other controls and inside the region', () => {
     for (const def of BUTTONS) {
       if (def.skin === 'spring-bat') continue;
       const skin = def.skin as keyof typeof BEZEL_RADIUS;
@@ -167,15 +165,6 @@ describe('push-button fit', () => {
             h: layout.labelSize * 0.95,
           },
         };
-      });
-      boxes.push({
-        name: `${def.id} state`,
-        r: {
-          x: def.x - layout.stateWidth / 2,
-          y: def.y + layout.stateY - layout.stateSize * 0.75,
-          w: layout.stateWidth,
-          h: layout.stateSize * 0.95,
-        },
       });
       for (const { name, r } of boxes) {
         expect(r.x, `${name} left`).toBeGreaterThanOrEqual(0);
