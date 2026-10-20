@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 18/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
+**Plans:** 19/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
 
 Plans:
 **Wave 1**
@@ -120,7 +120,7 @@ Plans:
 - [x] 01.1-18-PLAN.md — Three-position toggle, plate placards, ELT with lamp
 
 **Wave 13**
-- [ ] 01.1-19-PLAN.md — Pedestal rebuild: parking brake, throttle, cowl flap with lamps
+- [x] 01.1-19-PLAN.md — Pedestal rebuild: parking brake, throttle, cowl flap with lamps
 
 **Wave 14**
 - [ ] 01.1-20-PLAN.md — Environmental control rebuild: temperature, direction, fan, circulating air
