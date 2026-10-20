@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
-current_plan: 14 (complete)
+current_plan: 15 (complete)
 status: executing
-stopped_at: Completed 01.1-14-PLAN.md
-last_updated: "2026-10-20T22:34:48.426Z"
+stopped_at: Completed 01.1-15-PLAN.md
+last_updated: "2026-10-20T22:39:03.505Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 180f847108da9a3a74c21362933525da33cc7634
+state_head: 8c961ac0e5e39eb94da0dbc388e48b810f017b9b
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 32
-  completed_plans: 23
+  completed_plans: 24
   percent: 14
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.1 (Panel shape, controls and indicator lights) — GAP CLOSURE IN PROGRESS (plans 12 to 23 from the owner first-render review)
-Current Plan: 14 (complete)
+Current Plan: 15 (complete)
 Total Plans in Phase: 23
-Status: Plans 01.1-01 to 01.1-13 complete; plan 13 made the toggle family static (no state text, no status dot) and drew rockers in side perspective; plans 14 to 23 pending
-Last activity: 2026-10-21 — Plan 01.1-13 complete (static rockers, bats, softkey, guard cover; text gate)
+Status: Plans 01.1-01 to 01.1-15 complete; plan 15 removed the lamp group readouts and the knob state text and added e2e/static-text.spec.ts (built-panel text gate); plans 16 to 23 pending
+Last activity: 2026-10-21 — Plan 01.1-15 complete (static knobs, no lamp readouts, built-panel text gate)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -72,6 +72,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P12 | 20min | 3 tasks | 4 files |
 | Phase 01.1 P13 | 25min | 2 tasks | 13 files |
 | Phase 01.1 P14 | 20min | 2 tasks | 9 files |
+| Phase 01.1 P15 | 10min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T22:34:48.334Z
-Stopped at: Completed 01.1-14-PLAN.md
+Last session: 2026-10-20T22:39:03.416Z
+Stopped at: Completed 01.1-15-PLAN.md
 Resume file: None
