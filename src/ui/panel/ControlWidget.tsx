@@ -3,6 +3,7 @@ import type { PanelBridge } from '../bridge';
 import { DetentLever } from './widgets/DetentLever';
 import { GuardedToggle } from './widgets/GuardedToggle';
 import { MomentaryButton } from './widgets/MomentaryButton';
+import { Rotary } from './widgets/Rotary';
 import { Toggle } from './widgets/Toggle';
 
 export interface WidgetProps<D extends ControlDef = ControlDef> {
@@ -23,6 +24,8 @@ export function ControlWidget({ def, bridge }: WidgetProps) {
       return <DetentLever def={def} bridge={bridge} />;
     case 'momentary-button':
       return <MomentaryButton def={def} bridge={bridge} />;
+    case 'rotary':
+      return <Rotary def={def} bridge={bridge} />;
     case 'guard':
       // The guard is drawn by its guarded-toggle widget.
       return null;

@@ -92,14 +92,21 @@ export function screenToView(
 
 /**
  * Smallest tap-target side of a control in viewBox units. Mirrors the widgets: toggles and
- * buttons use their footprint, a guard also its lifted-guard area, and a lever the handle and
- * marker squares min(across, along - track length, smallest marker spacing).
+ * buttons use their footprint, a knob its whole footprint (two stops) or each tap half, a guard
+ * also its lifted-guard area, and a lever the handle and marker squares
+ * min(across, along - track length, smallest marker spacing).
  */
 export function targetSide(def: ControlDef): number {
   switch (def.kind) {
     case 'toggle':
     case 'momentary-button':
       return Math.min(def.hit.w, def.hit.h);
+    case 'rotary':
+      // Two stops: any tap toggles, so the whole footprint is the target. More stops: the
+      // right and left halves are separate targets.
+      return def.stops.length === 2
+        ? Math.min(def.hit.w, def.hit.h)
+        : Math.min(def.hit.w / 2, def.hit.h);
     case 'guarded-toggle':
       return Math.min(def.hit.w, def.hit.h, def.guardOpenHit.w, def.guardOpenHit.h);
     case 'guard':

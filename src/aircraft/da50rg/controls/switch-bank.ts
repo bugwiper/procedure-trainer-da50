@@ -34,7 +34,23 @@ function rowSwitch(id: string, label: string, x: number, initial: 'on' | 'off'):
 
 export const SWITCH_BANK_CONTROLS: readonly ControlSpec[] = [
   rowSwitch('sw.prop_deice', 'PROP DE-ICE', 44, 'off'),
-  rowSwitch('sw.fuel_trans', 'FUEL TRANS', 119, 'off'),
+  // Round knob with OFF and ON, not a toggle (UI-SPEC row 19; pointer angles unconfirmed).
+  {
+    id: 'sw.fuel_trans',
+    kind: 'rotary',
+    label: 'FUEL TRANS',
+    region: 'switch_bank',
+    x: 119,
+    y: 39,
+    hit: { w: 66, h: 70 },
+    r: 16,
+    scale: 'none',
+    stops: [
+      { id: 'off', label: 'OFF', angle: -60 },
+      { id: 'on', label: 'ON', angle: 60 },
+    ],
+    default: 'off',
+  },
   rowSwitch('sw.emerg_fuel_pump', 'EMERG FUEL PUMP', 206, 'off'),
   // Slot 3 (x 316) is the ENGINE START push button, defined in buttons.ts.
   rowSwitch('sw.engine_master', 'ENGINE MASTER', 400, 'on'),

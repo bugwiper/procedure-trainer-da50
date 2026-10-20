@@ -89,8 +89,27 @@ export interface MomentaryButtonDef extends ControlBase {
   readonly default: StateId;
 }
 
+export interface RotaryStopDef {
+  readonly id: StateId;
+  readonly label: string;
+  /** Degrees clockwise from 12 o'clock; strictly increasing, values above 180 may pass 6 o'clock. */
+  readonly angle: number;
+}
+
+/** Round knob with 2 to 5 stops (D-07, D-09). Only the committed stop reaches the store. */
+export interface RotaryDef extends ControlBase {
+  readonly kind: 'rotary';
+  /** In clockwise order. */
+  readonly stops: readonly RotaryStopDef[];
+  readonly default: StateId;
+  /** Radius of the visible knob; the knob lies inside the hit footprint. */
+  readonly r: number;
+  /** Printed scale around the knob. */
+  readonly scale?: 'arc' | 'dots' | 'none';
+}
+
 export type ControlDef =
-  ToggleDef | GuardedToggleDef | GuardDef | DetentLeverDef | MomentaryButtonDef;
+  ToggleDef | GuardedToggleDef | GuardDef | DetentLeverDef | MomentaryButtonDef | RotaryDef;
 export type ControlKind = ControlDef['kind'];
 /** What aircraft data authors write. */
 export type ControlSpec = Exclude<ControlDef, GuardDef>;
@@ -121,6 +140,7 @@ export function guardIdFor(switchId: ControlId): ControlId {
 
 export function legalStates(def: ControlDef): readonly StateId[] {
   if (def.kind === 'detent-lever') return def.detents.map((d) => d.id);
+  if (def.kind === 'rotary') return def.stops.map((s) => s.id);
   return def.states.map((s) => s.id);
 }
 
@@ -142,6 +162,7 @@ const KIND_PREFIX: Readonly<Record<ControlKind, string>> = {
   guard: 'sw.',
   'detent-lever': 'lv.',
   'momentary-button': 'btn.',
+  rotary: 'sw.',
 };
 
 function checkKindPrefix(def: ControlDef): void {
@@ -204,6 +225,36 @@ function checkMomentaryRest(def: MomentaryButtonDef): void {
   }
 }
 
+function checkRotary(def: RotaryDef): void {
+  if (def.stops.length < 2 || def.stops.length > 5) {
+    throw new RegistryError(`knob "${def.id}" needs 2 to 5 stops (got ${def.stops.length})`);
+  }
+  let previous = -Infinity;
+  for (const stop of def.stops) {
+    if (!Number.isFinite(stop.angle)) {
+      throw new RegistryError(`knob "${def.id}" stop "${stop.id}" angle is not a finite number`);
+    }
+    if (stop.angle <= previous) {
+      throw new RegistryError(
+        `knob "${def.id}" stop "${stop.id}" angle ${stop.angle} is not strictly greater than the previous stop`,
+      );
+    }
+    previous = stop.angle;
+  }
+  const first = def.stops[0];
+  const last = def.stops[def.stops.length - 1];
+  if (first !== undefined && last !== undefined && last.angle - first.angle >= 360) {
+    throw new RegistryError(
+      `knob "${def.id}" sweeps ${last.angle - first.angle} degrees, which must stay below 360`,
+    );
+  }
+  if (!(def.r > 0) || 2 * def.r > Math.min(def.hit.w, def.hit.h)) {
+    throw new RegistryError(
+      `knob "${def.id}" radius ${def.r} does not fit inside its ${def.hit.w} x ${def.hit.h} hit footprint`,
+    );
+  }
+}
+
 function checkDefaultLegal(def: ControlDef): void {
   if (!legalStates(def).includes(def.default)) {
     throw new RegistryError(`control "${def.id}" default "${def.default}" is not a legal state`);
@@ -256,6 +307,7 @@ export function defineRegistry(input: {
     checkDistinctStates(def);
     if (spec.kind === 'detent-lever') checkDetents(spec);
     if (spec.kind === 'momentary-button') checkMomentaryRest(spec);
+    if (spec.kind === 'rotary') checkRotary(spec);
     checkDefaultLegal(def);
     checkRegionExists(def, regionIds);
     controls.push(def);
