@@ -1,0 +1,38 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Deployed Playable Panel",
+      "status": "complete"
+    },
+    {
+      "number": "2",
+      "name": "First Gradable Scenario",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Reactive Scenarios and Initial Pack",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Training Mode, Further Actions and Repeat Loop",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Offline PWA and Real-Device Hardening",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 2 of 7 · 14% · executing"
+  },
+  "updated_at": "2026-10-20T14:25:35.537Z"
+}
