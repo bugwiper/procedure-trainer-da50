@@ -51,7 +51,7 @@ Plans:
 - [ ] 01-08-PLAN.md — Registry and store contract pinned test-first for every control kind, incl. the guard interlock (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-09-PLAN.md — Phone region zoom (PNL-09): region tap, pinch, pan, Full panel; gestures never emit control events or hijack lever drags (wave 4)
+- [ ] 01-09-PLAN.md — Region zoom on all devices (PNL-09, D-21): region tap or click, pinch, pan, Full panel; every control reaches 44 px when zoomed; gestures never emit control events or hijack lever drags (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-07-PLAN.md — Guarded de-ice ALTERNATE switch, ENGINE START and FADEC TEST buttons, neutral-area guarantee, final publish and real-device UAT (wave 5)
