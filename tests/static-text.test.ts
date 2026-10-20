@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
-import type { ControlDef, GuardedToggleDef, ToggleDef } from '../src/engine/registry';
+import type {
+  ControlDef,
+  DetentLeverDef,
+  GuardedToggleDef,
+  ToggleDef,
+} from '../src/engine/registry';
 import { BatBody } from '../src/ui/panel/skins/Bat';
 import { RockerBody } from '../src/ui/panel/skins/Rocker';
+import { LeverBody } from '../src/ui/panel/widgets/DetentLever';
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
 import { SoftkeyBody } from '../src/ui/panel/widgets/Toggle';
-import { expand, findElements, textOf } from './vnode-walk';
+import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { Tree } from './vnode-walk';
 
 // State-independent text gate (owner findings G-0.1, G-0.3): what a control prints must not
@@ -79,6 +85,35 @@ describe('toggle family text is state-independent', () => {
     for (const def of guarded) {
       for (const guardOpen of [false, true]) {
         expect(textStrings(expand(GuardCover({ def, guardOpen }))), def.id).toEqual([]);
+      }
+    }
+  });
+});
+
+describe('lever family text is state-independent', () => {
+  const levers = DA50RG.controls.filter((c): c is DetentLeverDef => c.kind === 'detent-lever');
+
+  it('every lever at every detent: no state text, the same text strings, at most 40 elements', () => {
+    expect(levers.length).toBeGreaterThanOrEqual(12);
+    for (const def of levers) {
+      const region = DA50RG.regions.find((r) => r.id === def.region);
+      const regionWidth = region?.bounds.w ?? def.hit.w;
+      const first = textStrings(
+        expand(
+          LeverBody({ def, state: def.detents[0]!.id, handlePos: 0, dragging: false, regionWidth }),
+        ),
+      );
+      for (const detent of def.detents) {
+        const tree = expand(
+          LeverBody({ def, state: detent.id, handlePos: detent.pos, dragging: false, regionWidth }),
+        );
+        const id = `${def.id}/${detent.id}`;
+        expect(
+          findElements(tree, (el) => 'data-state-text' in el.props),
+          id,
+        ).toHaveLength(0);
+        expect(textStrings(tree), id).toEqual(first);
+        expect(countElements(tree), id).toBeLessThanOrEqual(40);
       }
     }
   });

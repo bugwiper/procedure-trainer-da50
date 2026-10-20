@@ -52,11 +52,10 @@ test('GEAR is the silver fluted knob and a marker tap moves it between UP and DO
   await expect(gear).toHaveAttribute('data-skin', 'gear-knob');
   await expect(gear).toHaveAttribute('role', 'img');
   await expect(gear).toHaveAttribute('aria-label', 'GEAR: UP');
-  await expect(gear.locator('[data-state-text]')).toHaveText('UP');
+  await expect(gear).toHaveAttribute('data-state', 'up');
 
   await activate(page.locator('[data-detent="lv.gear:down"]'), hasTouch);
   await expect(gear).toHaveAttribute('data-state', 'down');
-  await expect(gear.locator('[data-state-text]')).toHaveText('DOWN');
   await expect(gear).toHaveAttribute('aria-label', 'GEAR: DOWN');
 
   await activate(page.locator('[data-detent="lv.gear:up"]'), hasTouch);
@@ -106,10 +105,8 @@ test('FLAPS, de-ice MODE and the pull handles carry their skins', async ({ page 
 test('FLAPS and de-ice MODE move by marker tap', async ({ page, hasTouch }) => {
   await activate(page.locator('[data-detent="lv.flaps:ldg"]'), hasTouch);
   await expect(control(page, 'lv.flaps')).toHaveAttribute('data-state', 'ldg');
-  await expect(control(page, 'lv.flaps').locator('[data-state-text]')).toHaveText('LDG');
   await activate(page.locator('[data-detent="lv.deice_mode:high"]'), hasTouch);
   await expect(control(page, 'lv.deice_mode')).toHaveAttribute('data-state', 'high');
-  await expect(control(page, 'lv.deice_mode').locator('[data-state-text]')).toHaveText('HIGH');
 });
 
 test('ALTERNATE STATIC and ALTERNATE AIR pull by marker tap, EMERGENCY GEAR EXTENSION gets no marker', async ({
@@ -160,7 +157,6 @@ test('CIRCULATING AIR moves to RECIRC and back by marker tap', async ({ page, ha
   const circ = control(page, 'lv.env_circ');
   await activate(page.locator('[data-detent="lv.env_circ:recirc"]'), hasTouch);
   await expect(circ).toHaveAttribute('data-state', 'recirc');
-  await expect(circ.locator('[data-state-text]')).toHaveText('RECIRC');
   await activate(page.locator('[data-detent="lv.env_circ:fresh"]'), hasTouch);
   await expect(circ).toHaveAttribute('data-state', 'fresh');
 });

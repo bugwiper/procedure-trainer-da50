@@ -68,7 +68,6 @@ test('POWER starts at the in-flight 70 %', async ({ page }) => {
   const power = control(page, 'lv.power');
   await expect(power).toHaveCount(1);
   await expect(power).toHaveAttribute('data-state', 'p70');
-  await expect(power.locator('[data-state-text]')).toHaveText('70 %');
   await expect(page.locator('[data-detent^="lv.power:"]')).toHaveCount(3);
 });
 
@@ -76,11 +75,9 @@ test('tapping a marker jumps POWER there', async ({ page, hasTouch }) => {
   const power = control(page, 'lv.power');
   await activate(page.locator('[data-detent="lv.power:p100"]'), hasTouch);
   await expect(power).toHaveAttribute('data-state', 'p100');
-  await expect(power.locator('[data-state-text]')).toHaveText('100 %');
 
   await activate(page.locator('[data-detent="lv.power:p50"]'), hasTouch);
   await expect(power).toHaveAttribute('data-state', 'p50');
-  await expect(power.locator('[data-state-text]')).toHaveText('50 %');
 });
 
 test('dragging the POWER handle snaps to the nearest 5 % step', async ({ page, hasTouch }) => {
@@ -96,7 +93,6 @@ test('dragging the POWER handle snaps to the nearest 5 % step', async ({ page, h
     await trackPoint(page, 'lv.power', POWER_ENDS, 0.605),
   );
   await expect(power).toHaveAttribute('data-state', 'p60');
-  await expect(power.locator('[data-state-text]')).toHaveText('60 %');
 
   await mouseDrag(page, await centre(handle), await trackPoint(page, 'lv.power', POWER_ENDS, 0.9));
   await expect(power).toHaveAttribute('data-state', 'p90');
@@ -204,7 +200,6 @@ test('ALTERNATE STATIC and ALTERNATE AIR open and close by marker tap', async ({
     await expect(group).toHaveAttribute('data-state', 'closed');
     await activate(page.locator(`[data-detent="${id}:open"]`), hasTouch);
     await expect(group).toHaveAttribute('data-state', 'open');
-    await expect(group.locator('[data-state-text]')).toHaveText('OPEN');
     await activate(page.locator(`[data-detent="${id}:closed"]`), hasTouch);
     await expect(group).toHaveAttribute('data-state', 'closed');
   }
@@ -273,11 +268,9 @@ test('EMERGENCY GEAR EXTENSION moves only by a deliberate drag', async ({ page, 
     y: normal.y + 0.3 * (emergency.y - normal.y),
   });
   await expect(group).toHaveAttribute('data-state', 'normal');
-  await expect(group.locator('[data-state-text]')).toHaveText('NORMAL');
 
   await mouseDrag(page, normal, emergency);
   await expect(group).toHaveAttribute('data-state', 'emergency');
-  await expect(group.locator('[data-state-text]')).toHaveText('EMERGENCY');
 
   await mouseDrag(page, await centre(page.locator('[data-hit="lv.emerg_gear"]')), normal);
   await expect(group).toHaveAttribute('data-state', 'normal');

@@ -53,7 +53,7 @@ function sourceOf(path: string): string {
 }
 
 describe('LeverBody', () => {
-  it('stays within 40 nodes with exactly one state text equal to the detent label, in every state', () => {
+  it('stays within 40 nodes with no state text, in every state (G-0.1)', () => {
     expect(LEVERS.length).toBeGreaterThanOrEqual(12);
     for (const def of LEVERS) {
       for (const detent of def.detents) {
@@ -61,9 +61,7 @@ describe('LeverBody', () => {
           const tree = body(def, detent.id, dragging);
           const id = `${def.id}/${detent.id}/${String(dragging)}`;
           expect(countElements(tree), id).toBeLessThanOrEqual(40);
-          const found = stateTexts(tree);
-          expect(found, id).toHaveLength(1);
-          expect(textOf(found[0] as El), id).toBe(detent.label);
+          expect(stateTexts(tree), id).toHaveLength(0);
         }
       }
     }
@@ -310,13 +308,16 @@ describe('POWER grip, COWL FLAP, PARKING BRAKE and the environmental sliders', (
     const name = all.find((t) => textOf(t) === 'CIRCULATING AIR');
     expect(name).toBeDefined();
     expect(Number(name?.props['y'])).toBeLessThan(0);
-    const state = stateTexts(tree)[0] as El;
-    expect(Number(state.props['y'])).toBeGreaterThan(Number(name?.props['y']));
-    // The legend of the end the handle is not on sits under its slot end.
+    expect(stateTexts(tree)).toHaveLength(0);
+    // Both legends sit under their slot ends, below the handle's cross extent.
     const legend = all.find((t) => textOf(t) === 'FRESH');
     expect(legend).toBeDefined();
     expect(Number(legend?.props['x'])).toBeCloseTo(-def.track.length / 2);
-    expect(Number(legend?.props['y'])).toBeGreaterThan(0);
+    expect(Number(legend?.props['y'])).toBeGreaterThan(11);
+    const other = all.find((t) => textOf(t) === 'RECIRC');
+    expect(other).toBeDefined();
+    expect(Number(other?.props['x'])).toBeCloseTo(def.track.length / 2);
+    expect(Number(other?.props['y'])).toBeGreaterThan(11);
     for (const t of all) {
       const half = Number(t.props['textLength'] ?? 20) / 2;
       const x = def.x + Number(t.props['x']);
@@ -328,13 +329,13 @@ describe('POWER grip, COWL FLAP, PARKING BRAKE and the environmental sliders', (
     }
   });
 
-  it('keeps every console lever body at most 40 elements with one state text', () => {
+  it('keeps every console lever body at most 40 elements with no state text', () => {
     for (const id of Object.keys(EXPECTED)) {
       const def = lever(id);
       for (const d of def.detents) {
         const tree = body(def, d.id);
         expect(countElements(tree), `${id}/${d.id}`).toBeLessThanOrEqual(40);
-        expect(stateTexts(tree), `${id}/${d.id}`).toHaveLength(1);
+        expect(stateTexts(tree), `${id}/${d.id}`).toHaveLength(0);
       }
     }
   });
@@ -352,7 +353,7 @@ describe('lever sources', () => {
       );
       expect(sizes.length, path).toBeGreaterThan(0);
       for (const size of sizes) {
-        expect(['6', '8', '10', '14', 'compact ? 8 : 10'], `${path} ${size}`).toContain(size);
+        expect(['6', '8', '10', '14'], `${path} ${size}`).toContain(size);
       }
     }
   });

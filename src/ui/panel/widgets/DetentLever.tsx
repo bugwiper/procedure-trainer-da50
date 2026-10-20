@@ -64,7 +64,7 @@ export interface LeverBodyProps {
 
 /**
  * Pure body of a detent lever (D-09, UI-SPEC 8.5): name, track art, one tick path, detent
- * legends, state text, marker targets, handle and the handle hit, all from props. No hooks, no
+ * legends (static, no state readout, G-0.1), marker targets, handle and the handle hit, all from props. No hooks, no
  * state, so node tests expand it and count nodes. The handle hit spans the full footprint width
  * by one handle square along the track, so the whole visible grip can be grabbed.
  */
@@ -113,27 +113,15 @@ export function LeverBody({
       : top + 6;
 
   // Legends. A skinned vertical lever keeps them clear of the handle, to its right; a skinned
-  // horizontal one prints them under the slot ends; the Phase 1 handle keeps the old rule.
+  // horizontal one prints them below the handle's cross extent, under the slot ends.
   const labelX = art !== undefined && vertical ? art.across + 4 : 10;
   const labelRoom = Math.max(14, regionWidth - def.x - labelX - 3);
   const knobW = vertical ? Math.min(34, side) : 16;
   const knobH = vertical ? 16 : Math.min(34, side);
-  const hideDist = art === undefined ? (vertical ? knobH : knobW) / 2 + 3 : art.along + 10;
   const legendDetents = dragOnly ? def.detents : markerDetents;
-  const labelled = legendDetents.filter(
-    (d) => !(art !== undefined && vertical) && Math.abs(d.pos - handlePos) * length > hideDist,
-  );
+  // Legends are static placards: none is hidden or moved by the handle position.
+  const labelled = art !== undefined && vertical ? [] : legendDetents;
   const skinnedLegends = art !== undefined && vertical ? legendDetents : [];
-
-  // State text: inside the footprint, but below a handle that reaches further down.
-  const compact = skin === 'bat-small';
-  const reach = art === undefined ? 0 : length / 2 + (art.under ?? art.along);
-  const stateY =
-    art !== undefined && vertical
-      ? Math.max(def.hit.h / 2 - 3, reach + (compact ? 6 : 8))
-      : art !== undefined
-        ? def.hit.h / 2
-        : def.hit.h / 2 - 3;
 
   const tick = art?.tick ?? 4;
   const tickPath = def.detents
@@ -212,13 +200,15 @@ export function LeverBody({
         })}
         {labelled.map((d) => {
           const at = detentOffset(d.pos, def.track);
-          // A skinned horizontal slider prints the legend under its end, centred.
+          // A skinned horizontal slider prints the legend under its end, centred and below the
+          // handle's cross extent so the handle never covers it.
           const centred = art !== undefined;
+          const legendY = art !== undefined ? art.across + 8 : at.dy + 2;
           return (
             <text
               key={d.id}
               x={centred ? at.dx : at.dx + labelX}
-              y={centred ? 10 : at.dy + 2}
+              y={legendY}
               text-anchor={centred ? 'middle' : undefined}
               font-family={FONT}
               font-size={6}
@@ -230,18 +220,6 @@ export function LeverBody({
             </text>
           );
         })}
-        <text
-          data-state-text
-          x={compact ? -9 : 0}
-          y={compact ? 3 : stateY}
-          text-anchor={compact ? 'end' : 'middle'}
-          font-family={FONT}
-          font-size={compact ? 8 : 10}
-          font-weight={700}
-          fill="#d8dde3"
-        >
-          {current.label}
-        </text>
       </g>
       {markerDetents.map((d) => {
         const at = detentOffset(d.pos, def.track);
