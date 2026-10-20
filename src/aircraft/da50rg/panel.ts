@@ -14,6 +14,7 @@
 
 import { defineRegistry } from '../../engine/registry';
 import type { RegionDef, Size } from '../../engine/registry';
+import { BUTTON_CONTROLS } from './controls/buttons';
 import { DEICE_CONTROLS } from './controls/deice';
 import { ENGINE_CONTROLS } from './controls/engine';
 import { LIGHTS_CONTROLS } from './controls/lights';
@@ -103,6 +104,7 @@ export const DA50RG = defineRegistry({
     ...DEICE_CONTROLS,
     ...ENGINE_CONTROLS,
     ...SWITCH_BANK_CONTROLS,
+    ...BUTTON_CONTROLS,
     ...MFD_CONTROLS,
     ...PEDESTAL_CONTROLS,
     ...GEAR_FLAPS_CONTROLS,
