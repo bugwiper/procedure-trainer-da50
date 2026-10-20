@@ -1,8 +1,10 @@
 import { useSignal } from '@preact/signals';
+import type { Ref } from 'preact';
 import { useRef } from 'preact/hooks';
 import { detentOffset, projectToTrack, snapToDetent } from '../../../engine/detents';
 import type { DetentDef, DetentLeverDef } from '../../../engine/registry';
 import type { WidgetProps } from '../ControlWidget';
+import { EnvIcon, ENV_ICONS, LEVER_ART, LeverHandle, LeverTrack } from '../skins/LeverHandles';
 
 const MIN_DRAG_PX = 4;
 const TAP_SLOP_PX = 10;
@@ -36,23 +38,51 @@ function placardLines(label: string): string[] {
   return [label.slice(0, best), label.slice(best + 1)];
 }
 
-/**
- * Lever widget (D-05). The handle drags along the track and snaps to the nearest detent on
- * release; tapping a marker jumps there. In-progress positions live in a UI-local signal and
- * never reach the store: only the committed detent is dispatched (T-01-13). A dragOnly lever
- * has no marker targets, so a tap cannot move it (PNL-06, T-01-21).
- */
-export function DetentLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
-  const groupRef = useRef<SVGGElement>(null);
-  const drag = useSignal<DragStart | null>(null);
-  const dragPos = useSignal<number | null>(null);
-  const tap = useSignal<TapStart | null>(null);
+/** Pointer handlers of one lever; absent in static renders (tests), present in the widget. */
+export interface LeverHandlers {
+  readonly onHandleDown: (e: PointerEvent) => void;
+  readonly onHandleMove: (e: PointerEvent) => void;
+  readonly onHandleUp: (e: PointerEvent) => void;
+  readonly clearDrag: () => void;
+  readonly onMarkerDown: (detent: string) => (e: PointerEvent) => void;
+  readonly onMarkerUp: (e: PointerEvent) => void;
+  readonly clearTap: () => void;
+}
 
-  const state = bridge.stateOf(def.id).value;
+export interface LeverBodyProps {
+  readonly def: DetentLeverDef;
+  /** Committed detent id. */
+  readonly state: string;
+  /** Track fraction of the handle, the drag position while dragging. */
+  readonly handlePos: number;
+  readonly dragging: boolean;
+  /** Width of the lever's region, to keep placards inside it. */
+  readonly regionWidth: number;
+  readonly handlers?: LeverHandlers;
+  readonly groupRef?: Ref<SVGGElement>;
+}
+
+/**
+ * Pure body of a detent lever (D-09, UI-SPEC 8.5): name, track art, one tick path, detent
+ * legends, state text, marker targets, handle and the handle hit, all from props. No hooks, no
+ * state, so node tests expand it and count nodes. The handle hit spans the full footprint width
+ * by one handle square along the track, so the whole visible grip can be grabbed.
+ */
+export function LeverBody({
+  def,
+  state,
+  handlePos,
+  dragging,
+  regionWidth,
+  handlers,
+  groupRef,
+}: LeverBodyProps) {
   const current: DetentDef = def.detents.find((d) => d.id === state) ?? def.detents[0]!;
   const dragOnly = def.dragOnly === true;
   const markerIds = dragOnly ? [] : (def.markers ?? def.detents.map((d) => d.id));
   const markerDetents = def.detents.filter((d) => markerIds.includes(d.id));
+  const skin = def.skin;
+  const art = skin === undefined ? undefined : LEVER_ART[skin];
 
   const { length } = def.track;
   const vertical = def.track.axis === 'v';
@@ -65,8 +95,237 @@ export function DetentLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
   const across = vertical ? def.hit.w : def.hit.h;
   const side = Math.min(across, along - length, spacing);
 
-  const handlePos = dragPos.value ?? current.pos;
   const handleAt = detentOffset(handlePos, def.track);
+  const top = -def.hit.h / 2;
+
+  // Name: one line when it fits the region around the lever, else two balanced lines.
+  const room = Math.min(regionWidth - 8, 2 * Math.min(def.x, regionWidth - def.x) - 4);
+  const lines =
+    art !== undefined && def.label.length * 4.2 <= room ? [def.label] : placardLines(def.label);
+  // A skinned vertical lever prints its name above the highest handle position when the
+  // footprint top would be covered by the stowed handle, but never above the region.
+  const nameTop =
+    art !== undefined && vertical
+      ? Math.max(
+          Math.min(top + 6, -(length / 2 + art.along) - 3 - 7 * (lines.length - 1)),
+          -def.y + 4,
+        )
+      : top + 6;
+
+  // Legends. A skinned vertical lever keeps them clear of the handle, to its right; a skinned
+  // horizontal one prints them under the slot ends; the Phase 1 handle keeps the old rule.
+  const labelX = art !== undefined && vertical ? art.across + 4 : 10;
+  const labelRoom = Math.max(14, regionWidth - def.x - labelX - 3);
+  const knobW = vertical ? Math.min(34, side) : 16;
+  const knobH = vertical ? 16 : Math.min(34, side);
+  const hideDist = art === undefined ? (vertical ? knobH : knobW) / 2 + 3 : art.along + 10;
+  const legendDetents = dragOnly ? def.detents : markerDetents;
+  const labelled = legendDetents.filter(
+    (d) => !(art !== undefined && vertical) && Math.abs(d.pos - handlePos) * length > hideDist,
+  );
+  const skinnedLegends = art !== undefined && vertical ? legendDetents : [];
+
+  // State text: inside the footprint, but below a handle that reaches further down.
+  const compact = skin === 'bat-small';
+  const reach = art === undefined ? 0 : length / 2 + art.along;
+  const stateY =
+    art !== undefined && vertical
+      ? Math.max(def.hit.h / 2 - 3, reach + (compact ? 6 : 8))
+      : art !== undefined
+        ? def.hit.h / 2 - 1
+        : def.hit.h / 2 - 3;
+
+  const tick = art?.tick ?? 4;
+  const tickPath = def.detents
+    .map((d) => {
+      const at = detentOffset(d.pos, def.track);
+      return vertical ? `M${-tick} ${at.dy}H${tick}` : `M${at.dx} ${-tick}V${tick}`;
+    })
+    .join('');
+
+  return (
+    <g
+      ref={groupRef}
+      data-control-id={def.id}
+      data-kind={def.kind}
+      data-skin={skin}
+      data-state={state}
+      role="img"
+      aria-label={`${def.label}: ${current.label}`}
+      transform={`translate(${def.x} ${def.y})`}
+    >
+      <g pointer-events="none">
+        {lines.map((line, i) => (
+          <text
+            key={line}
+            x={0}
+            y={nameTop + i * 7}
+            text-anchor="middle"
+            font-family={FONT}
+            font-size={6}
+            fill="#aab3bd"
+            textLength={Math.min(line.length * 4.2, regionWidth - 8)}
+            lengthAdjust="spacingAndGlyphs"
+          >
+            {line}
+          </text>
+        ))}
+        {skin !== undefined ? (
+          <LeverTrack skin={skin} length={length} axis={def.track.axis} handleAt={handleAt} />
+        ) : (
+          <line
+            x1={vertical ? 0 : -length / 2}
+            y1={vertical ? -length / 2 : 0}
+            x2={vertical ? 0 : length / 2}
+            y2={vertical ? length / 2 : 0}
+            stroke="#4a525c"
+            stroke-width={3}
+            stroke-linecap="round"
+          />
+        )}
+        <path d={tickPath} fill="none" stroke={art?.tickColour ?? '#6b7580'} stroke-width={1} />
+        {skin === 'env-slider'
+          ? def.detents
+              .filter((d) => ENV_ICONS[d.id] !== undefined)
+              .map((d) => {
+                const at = detentOffset(d.pos, def.track);
+                const x = vertical ? -((art?.across ?? 11) + 9) : at.dx + (at.dx < 0 ? -14 : 14);
+                return <EnvIcon key={d.id} detent={d.id} x={x} y={vertical ? at.dy : 0} />;
+              })
+          : null}
+        {skinnedLegends.map((d) => {
+          const at = detentOffset(d.pos, def.track);
+          return (
+            <text
+              key={d.id}
+              x={labelX}
+              y={at.dy + 2}
+              font-family={FONT}
+              font-size={6}
+              fill="#aab3bd"
+              textLength={Math.min(d.label.length * 4.2, labelRoom)}
+              lengthAdjust="spacingAndGlyphs"
+            >
+              {d.label}
+            </text>
+          );
+        })}
+        {labelled.map((d) => {
+          const at = detentOffset(d.pos, def.track);
+          // A skinned horizontal slider prints the legend under its end, centred.
+          const centred = art !== undefined;
+          return (
+            <text
+              key={d.id}
+              x={centred ? at.dx : at.dx + labelX}
+              y={centred ? 10 : at.dy + 2}
+              text-anchor={centred ? 'middle' : undefined}
+              font-family={FONT}
+              font-size={6}
+              fill={centred ? '#c9d0d8' : '#aab3bd'}
+              textLength={Math.min(d.label.length * 4.2, centred ? 30 : labelRoom)}
+              lengthAdjust="spacingAndGlyphs"
+            >
+              {d.label}
+            </text>
+          );
+        })}
+        <text
+          data-state-text
+          x={0}
+          y={stateY}
+          text-anchor="middle"
+          font-family={FONT}
+          font-size={compact ? 8 : 10}
+          font-weight={700}
+          fill="#d8dde3"
+        >
+          {current.label}
+        </text>
+      </g>
+      {markerDetents.map((d) => {
+        const at = detentOffset(d.pos, def.track);
+        return (
+          <rect
+            key={d.id}
+            data-detent={`${def.id}:${d.id}`}
+            x={at.dx - side / 2}
+            y={at.dy - side / 2}
+            width={side}
+            height={side}
+            fill="transparent"
+            pointer-events="all"
+            onPointerDown={handlers?.onMarkerDown(d.id)}
+            onPointerUp={handlers?.onMarkerUp}
+            onPointerCancel={handlers?.clearTap}
+            onLostPointerCapture={handlers?.clearTap}
+          />
+        );
+      })}
+      <g transform={`translate(${handleAt.dx} ${handleAt.dy})`} pointer-events="none">
+        {skin !== undefined ? (
+          <LeverHandle skin={skin} axis={def.track.axis} dragging={dragging} />
+        ) : (
+          <>
+            <rect
+              x={-knobW / 2}
+              y={-knobH / 2}
+              width={knobW}
+              height={knobH}
+              rx={3}
+              fill={dragOnly ? '#c62828' : dragging ? '#56606b' : '#3a424b'}
+              stroke={dragOnly ? '#ff8a80' : '#d8dde3'}
+              stroke-width={1.5}
+            />
+            {dragOnly ? (
+              <text
+                x={0}
+                y={2.2}
+                text-anchor="middle"
+                font-family={FONT}
+                font-size={6}
+                font-weight={700}
+                fill="#ffffff"
+              >
+                PULL
+              </text>
+            ) : null}
+          </>
+        )}
+      </g>
+      <rect
+        data-hit={def.id}
+        x={vertical ? -across / 2 : handleAt.dx - side / 2}
+        y={vertical ? handleAt.dy - side / 2 : -across / 2}
+        width={vertical ? across : side}
+        height={vertical ? side : across}
+        fill="transparent"
+        pointer-events="all"
+        onPointerDown={handlers?.onHandleDown}
+        onPointerMove={handlers?.onHandleMove}
+        onPointerUp={handlers?.onHandleUp}
+        onPointerCancel={handlers?.clearDrag}
+        onLostPointerCapture={handlers?.clearDrag}
+      />
+    </g>
+  );
+}
+
+/**
+ * Lever widget (D-05). The handle drags along the track and snaps to the nearest detent on
+ * release; tapping a marker jumps there. In-progress positions live in a UI-local signal and
+ * never reach the store: only the committed detent is dispatched (T-01-13). A dragOnly lever
+ * has no marker targets, so a tap cannot move it (PNL-06, T-01-21). The art is the pure
+ * LeverBody; this wrapper owns the signals, the ref and the pointer handlers.
+ */
+export function DetentLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
+  const groupRef = useRef<SVGGElement>(null);
+  const drag = useSignal<DragStart | null>(null);
+  const dragPos = useSignal<number | null>(null);
+  const tap = useSignal<TapStart | null>(null);
+
+  const state = bridge.stateOf(def.id).value;
+  const current: DetentDef = def.detents.find((d) => d.id === state) ?? def.detents[0]!;
 
   const toLocal = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const g = groupRef.current;
@@ -147,152 +406,24 @@ export function DetentLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
   };
 
   const region = bridge.registry.regions.find((r) => r.id === def.region);
-  const labelX = vertical ? 10 : 0;
-  const labelRoom = Math.max(14, (region?.bounds.w ?? def.hit.w) - def.x - labelX - 3);
-  const knobW = vertical ? Math.min(34, side) : 16;
-  const knobH = vertical ? 16 : Math.min(34, side);
-  // A label under the knob would be half hidden; the state text already names that detent.
-  const labelled = (dragOnly ? def.detents : markerDetents).filter(
-    (d) => Math.abs(d.pos - handlePos) * length > (vertical ? knobH : knobW) / 2 + 3,
-  );
-  const lines = placardLines(def.label);
-  const top = -def.hit.h / 2;
 
   return (
-    <g
-      ref={groupRef}
-      data-control-id={def.id}
-      data-kind={def.kind}
-      data-state={state}
-      transform={`translate(${def.x} ${def.y})`}
-    >
-      <g pointer-events="none">
-        {lines.map((line, i) => (
-          <text
-            key={line}
-            x={0}
-            y={top + 6 + i * 7}
-            text-anchor="middle"
-            font-family={FONT}
-            font-size={6.5}
-            fill="#aab3bd"
-            textLength={Math.min(line.length * 4.2, (region?.bounds.w ?? def.hit.w) - 8)}
-            lengthAdjust="spacingAndGlyphs"
-          >
-            {line}
-          </text>
-        ))}
-        <line
-          x1={vertical ? 0 : -length / 2}
-          y1={vertical ? -length / 2 : 0}
-          x2={vertical ? 0 : length / 2}
-          y2={vertical ? length / 2 : 0}
-          stroke="#4a525c"
-          stroke-width={3}
-          stroke-linecap="round"
-        />
-        {def.detents.map((d) => {
-          const at = detentOffset(d.pos, def.track);
-          return (
-            <line
-              key={d.id}
-              x1={vertical ? -4 : at.dx}
-              y1={vertical ? at.dy : -4}
-              x2={vertical ? 4 : at.dx}
-              y2={vertical ? at.dy : 4}
-              stroke="#6b7580"
-              stroke-width={1}
-            />
-          );
-        })}
-        {labelled.map((d) => {
-          const at = detentOffset(d.pos, def.track);
-          return (
-            <text
-              key={d.id}
-              x={at.dx + labelX}
-              y={at.dy + 2}
-              font-family={FONT}
-              font-size={6}
-              fill="#aab3bd"
-              textLength={Math.min(d.label.length * 4.2, labelRoom)}
-              lengthAdjust="spacingAndGlyphs"
-            >
-              {d.label}
-            </text>
-          );
-        })}
-        <text
-          data-state-text
-          x={0}
-          y={def.hit.h / 2 - 3}
-          text-anchor="middle"
-          font-family={FONT}
-          font-size={9}
-          font-weight={700}
-          fill="#d8dde3"
-        >
-          {current.label}
-        </text>
-      </g>
-      {markerDetents.map((d) => {
-        const at = detentOffset(d.pos, def.track);
-        return (
-          <rect
-            key={d.id}
-            data-detent={`${def.id}:${d.id}`}
-            x={at.dx - side / 2}
-            y={at.dy - side / 2}
-            width={side}
-            height={side}
-            fill="transparent"
-            pointer-events="all"
-            onPointerDown={onMarkerDown(d.id)}
-            onPointerUp={onMarkerUp}
-            onPointerCancel={clearTap}
-            onLostPointerCapture={clearTap}
-          />
-        );
-      })}
-      <g transform={`translate(${handleAt.dx} ${handleAt.dy})`} pointer-events="none">
-        <rect
-          x={-knobW / 2}
-          y={-knobH / 2}
-          width={knobW}
-          height={knobH}
-          rx={3}
-          fill={dragOnly ? '#c62828' : drag.value !== null ? '#56606b' : '#3a424b'}
-          stroke={dragOnly ? '#ff8a80' : '#d8dde3'}
-          stroke-width={1.5}
-        />
-        {dragOnly ? (
-          <text
-            x={0}
-            y={2.2}
-            text-anchor="middle"
-            font-family={FONT}
-            font-size={6}
-            font-weight={700}
-            fill="#ffffff"
-          >
-            PULL
-          </text>
-        ) : null}
-      </g>
-      <rect
-        data-hit={def.id}
-        x={handleAt.dx - side / 2}
-        y={handleAt.dy - side / 2}
-        width={side}
-        height={side}
-        fill="transparent"
-        pointer-events="all"
-        onPointerDown={onHandleDown}
-        onPointerMove={onHandleMove}
-        onPointerUp={onHandleUp}
-        onPointerCancel={clearDrag}
-        onLostPointerCapture={clearDrag}
-      />
-    </g>
+    <LeverBody
+      def={def}
+      state={state}
+      handlePos={dragPos.value ?? current.pos}
+      dragging={drag.value !== null}
+      regionWidth={region?.bounds.w ?? def.hit.w}
+      groupRef={groupRef}
+      handlers={{
+        onHandleDown,
+        onHandleMove,
+        onHandleUp,
+        clearDrag,
+        onMarkerDown,
+        onMarkerUp,
+        clearTap,
+      }}
+    />
   );
 }

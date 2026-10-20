@@ -22,6 +22,8 @@ export const GEAR_FLAPS_CONTROLS: readonly ControlSpec[] = [
       { id: 'up', label: 'UP', pos: 1 },
     ],
     default: 'up',
+    // Silver fluted knob on a bat stem (P650, P386, PED, SIM; UI-SPEC 8.5).
+    skin: 'gear-knob',
   },
   {
     id: 'lv.flaps',
