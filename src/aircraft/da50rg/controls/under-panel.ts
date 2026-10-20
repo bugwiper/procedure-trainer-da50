@@ -21,6 +21,8 @@ export const UNDER_PANEL_CONTROLS: readonly ControlSpec[] = [
       { id: 'closed', label: 'CLOSED', pos: 1 },
     ],
     default: 'closed',
+    // Red T-knob on a stem (P650, PED, SIM). The handle look is unconfirmed (UI-SPEC row 33).
+    skin: 'pull-t',
   },
   {
     // Left of the pedestal. Safety-consequence control (PNL-06): dragOnly means no tap
@@ -40,6 +42,8 @@ export const UNDER_PANEL_CONTROLS: readonly ControlSpec[] = [
     ],
     default: 'normal',
     dragOnly: true,
+    // Flat red tab with a vertical placard (P386, P807, SIM).
+    skin: 'pull-tab',
   },
   {
     // Just right of the pedestal.
@@ -56,5 +60,7 @@ export const UNDER_PANEL_CONTROLS: readonly ControlSpec[] = [
       { id: 'closed', label: 'CLOSED', pos: 1 },
     ],
     default: 'closed',
+    // Black rubber pad with vertical text (PED, COCK, SIM).
+    skin: 'pull-boot',
   },
 ];

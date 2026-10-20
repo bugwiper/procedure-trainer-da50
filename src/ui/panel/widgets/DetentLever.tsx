@@ -108,7 +108,7 @@ export function LeverBody({
     art !== undefined && vertical
       ? Math.max(
           Math.min(top + 6, -(length / 2 + art.along) - 3 - 7 * (lines.length - 1)),
-          -def.y + 4,
+          -def.y + (art.nameInset ?? 4),
         )
       : top + 6;
 
@@ -127,7 +127,7 @@ export function LeverBody({
 
   // State text: inside the footprint, but below a handle that reaches further down.
   const compact = skin === 'bat-small';
-  const reach = art === undefined ? 0 : length / 2 + art.along;
+  const reach = art === undefined ? 0 : length / 2 + (art.under ?? art.along);
   const stateY =
     art !== undefined && vertical
       ? Math.max(def.hit.h / 2 - 3, reach + (compact ? 6 : 8))
@@ -155,6 +155,19 @@ export function LeverBody({
       transform={`translate(${def.x} ${def.y})`}
     >
       <g pointer-events="none">
+        {skin !== undefined ? (
+          <LeverTrack skin={skin} length={length} axis={def.track.axis} handleAt={handleAt} />
+        ) : (
+          <line
+            x1={vertical ? 0 : -length / 2}
+            y1={vertical ? -length / 2 : 0}
+            x2={vertical ? 0 : length / 2}
+            y2={vertical ? length / 2 : 0}
+            stroke="#4a525c"
+            stroke-width={3}
+            stroke-linecap="round"
+          />
+        )}
         {lines.map((line, i) => (
           <text
             key={line}
@@ -170,19 +183,6 @@ export function LeverBody({
             {line}
           </text>
         ))}
-        {skin !== undefined ? (
-          <LeverTrack skin={skin} length={length} axis={def.track.axis} handleAt={handleAt} />
-        ) : (
-          <line
-            x1={vertical ? 0 : -length / 2}
-            y1={vertical ? -length / 2 : 0}
-            x2={vertical ? 0 : length / 2}
-            y2={vertical ? length / 2 : 0}
-            stroke="#4a525c"
-            stroke-width={3}
-            stroke-linecap="round"
-          />
-        )}
         <path d={tickPath} fill="none" stroke={art?.tickColour ?? '#6b7580'} stroke-width={1} />
         {skin === 'env-slider'
           ? def.detents
@@ -232,9 +232,9 @@ export function LeverBody({
         })}
         <text
           data-state-text
-          x={0}
-          y={stateY}
-          text-anchor="middle"
+          x={compact ? -9 : 0}
+          y={compact ? 3 : stateY}
+          text-anchor={compact ? 'end' : 'middle'}
           font-family={FONT}
           font-size={compact ? 8 : 10}
           font-weight={700}

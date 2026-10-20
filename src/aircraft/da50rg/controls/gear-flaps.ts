@@ -41,6 +41,8 @@ export const GEAR_FLAPS_CONTROLS: readonly ControlSpec[] = [
       { id: 'up', label: 'UP', pos: 1 },
     ],
     default: 'up',
+    // Black matte block in a notched slot (P650, PED, COCK; UI-SPEC 8.5).
+    skin: 'flaps-block',
   },
   {
     // Four-position selector, MAX at the top as on the placard. Position names and the
@@ -63,5 +65,7 @@ export const GEAR_FLAPS_CONTROLS: readonly ControlSpec[] = [
       { id: 'max', label: 'MAX', pos: 1 },
     ],
     default: 'off',
+    // Small bat over four stops (P650, COCK; UI-SPEC 8.5, 8.2 at compact scale).
+    skin: 'bat-small',
   },
 ];

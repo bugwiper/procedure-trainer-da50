@@ -29,17 +29,21 @@ const METAL_EDGE = '#5d646c';
 export interface SkinArt {
   readonly along: number;
   readonly across: number;
+  /** Visible extent beneath the state text's column, where it is less than `along` (a round knob). */
+  readonly under?: number;
+  /** Smallest gap between the region top and the name baseline, 4 unless the tab needs less. */
+  readonly nameInset?: number;
   /** Half length of the detent tick, across the track. */
   readonly tick: number;
   readonly tickColour: string;
 }
 
 export const LEVER_ART: Readonly<Record<LeverSkin, SkinArt>> = {
-  'gear-knob': { along: 22, across: 22, tick: 9, tickColour: '#6b7580' },
+  'gear-knob': { along: 22, across: 22, under: 17, tick: 9, tickColour: '#6b7580' },
   'flaps-block': { along: 18, across: 27, tick: 27, tickColour: '#4a525c' },
   'bat-small': { along: 8, across: 7, tick: 7, tickColour: '#6b7580' },
   'pull-t': { along: 11, across: 11, tick: 8, tickColour: '#6b7580' },
-  'pull-tab': { along: 20, across: 7, tick: 8, tickColour: '#6b7580' },
+  'pull-tab': { along: 20, across: 7, nameInset: 2, tick: 8, tickColour: '#6b7580' },
   'pull-boot': { along: 22, across: 12, tick: 8, tickColour: '#6b7580' },
   'power-grip': { along: 15, across: 22, tick: 7, tickColour: '#4a525c' },
   'cowl-slider': { along: 8, across: 10, tick: 4, tickColour: '#4a525c' },
@@ -260,7 +264,7 @@ export interface LeverTrackProps {
   readonly handleAt: { readonly dx: number; readonly dy: number };
 }
 
-/** Stem from the panel entry (stowed end, top) to a pulled handle: cable and entry plate. */
+/** Stem from the panel entry (stowed end, top) to a pulled handle: the cable. */
 function PullTrack({
   length,
   handleAt,
@@ -275,16 +279,6 @@ function PullTrack({
   return (
     <g>
       <rect x={-2} y={plateY} width={4} height={Math.max(0, stemEnd - plateY)} fill={STEM} />
-      <rect
-        x={-7}
-        y={plateY - 3}
-        width={14}
-        height={3}
-        rx={1}
-        fill={SLOT}
-        stroke={SLOT_RIM}
-        stroke-width={0.8}
-      />
     </g>
   );
 }
@@ -316,7 +310,7 @@ function Slot({
   );
 }
 
-/** The track art under the handle: stems, slots, entry plates and the MAX placard of POWER. */
+/** The track art under the handle: stems, slots, cables and the MAX placard of POWER. */
 export function LeverTrack({ skin, length, axis, handleAt }: LeverTrackProps) {
   switch (skin) {
     case 'gear-knob': {
