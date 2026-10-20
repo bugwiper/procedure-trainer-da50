@@ -9,29 +9,33 @@ import type { ControlDef, Rect } from '../src/engine/registry';
 
 /** Reference measurement table (D-21): id, global centre x, global centre y. */
 const REFERENCE_POSITIONS: readonly (readonly [string, number, number])[] = [
-  ['sw.deice_alternate', 203, 162],
-  ['sw.fadec', 126, 326],
-  ['btn.fadec_test', 206, 326],
-  ['sw.alternator_1', 134, 390],
-  ['sw.alternator_2', 210, 390],
-  ['sw.prop_deice', 114, 484],
-  ['sw.fuel_trans', 189, 484],
-  ['sw.emerg_fuel_pump', 276, 484],
-  ['btn.engine_start', 386, 484],
-  ['sw.engine_master', 470, 484],
-  ['sw.ess_bus', 572, 484],
-  ['sw.elect_master', 656, 484],
-  ['sw.av_master', 731, 484],
-  ['sw.pitot_stall_heat', 801, 484],
-  ['sw.mfd_page', 1288, 409],
-  ['lv.gear', 997, 476.5],
-  ['lv.flaps', 1366, 490.5],
-  ['sw.elt', 1776, 476],
-  ['lv.alt_static', 51, 625],
-  ['lv.emerg_gear', 907, 625],
-  ['lv.alt_air', 1205, 625],
-  ['lv.power', 1110, 780],
-  ['lv.cowl_flap', 1010, 930],
+  ['sw.light_landing', 1047, 90],
+  ['sw.light_taxi', 1095, 90],
+  ['sw.light_position', 1143, 90],
+  ['sw.light_strobe', 1191, 90],
+  ['sw.deice_alternate', 203, 342],
+  ['sw.fadec', 126, 506],
+  ['btn.fadec_test', 206, 506],
+  ['sw.alternator_1', 134, 570],
+  ['sw.alternator_2', 210, 570],
+  ['sw.prop_deice', 114, 664],
+  ['sw.fuel_trans', 189, 664],
+  ['sw.emerg_fuel_pump', 276, 664],
+  ['btn.engine_start', 386, 664],
+  ['sw.engine_master', 470, 664],
+  ['sw.ess_bus', 572, 664],
+  ['sw.elect_master', 656, 664],
+  ['sw.av_master', 731, 664],
+  ['sw.pitot_stall_heat', 801, 664],
+  ['sw.mfd_page', 1288, 589],
+  ['lv.gear', 997, 656.5],
+  ['lv.flaps', 1366, 670.5],
+  ['sw.elt', 1776, 656],
+  ['lv.alt_static', 51, 805],
+  ['lv.emerg_gear', 907, 805],
+  ['lv.alt_air', 1205, 805],
+  ['lv.power', 1110, 1115],
+  ['lv.cowl_flap', 1010, 1235],
 ];
 const POSITION_TOLERANCE = 3;
 
@@ -94,22 +98,37 @@ const ORDERING: readonly (readonly [string, Relation, string | number])[] = [
   ['lv.emerg_gear', 'left-of', 'region:pedestal'],
   ['lv.alt_air', 'right-of', 'region:pedestal'],
   ['lv.power', 'above', 'lv.cowl_flap'],
+  // Glareshield light switches (D-08).
+  ['sw.light_landing', 'left-of', 'sw.light_taxi'],
+  ['sw.light_taxi', 'left-of', 'sw.light_position'],
+  ['sw.light_position', 'left-of', 'sw.light_strobe'],
+  ['sw.light_landing', 'same-row', 'sw.light_taxi'],
+  ['sw.light_taxi', 'same-row', 'sw.light_position'],
+  ['sw.light_position', 'same-row', 'sw.light_strobe'],
+  ...['sw.light_landing', 'sw.light_taxi', 'sw.light_position', 'sw.light_strobe'].map(
+    (id): [string, Relation, string] => [id, 'above', 'region:pfd'],
+  ),
 ];
 
 const FRONT_PANEL_REGIONS = [
+  'lights',
   'deice',
+  'deice_switches',
   'engine_controls',
   'pfd',
+  'light_knobs',
   'mfd',
   'mfd_softkeys',
   'switch_bank',
   'landing_gear',
+  'level',
   'flaps',
   'right_panel',
 ];
 const UNDER_PANEL_REGIONS = [
   'under_panel_left',
   'under_panel_centre',
+  'env_control',
   'pedestal',
   'under_panel_right',
 ];
@@ -196,13 +215,13 @@ function holds(a: Subject, relation: Relation, b: Subject | number): boolean {
 
 describe('viewBox and regions', () => {
   it('uses the true panel proportions (D-21)', () => {
-    expect(VIEWBOX).toEqual({ w: 2000, h: 1010 });
+    expect(VIEWBOX).toEqual({ w: 2000, h: 1300 });
   });
 
-  it('PFD and MFD are the same display: 495x367, aspect 1.35, starting at y 20', () => {
+  it('PFD and MFD are the same display: 495x367, aspect 1.35, starting at y 200', () => {
     for (const id of ['pfd', 'mfd']) {
       const b = regionBounds(id);
-      expect([b.w, b.h, b.y]).toEqual([495, 367, 20]);
+      expect([b.w, b.h, b.y]).toEqual([495, 367, 200]);
     }
     expect(495 / 367).toBeCloseTo(1.35, 2);
   });

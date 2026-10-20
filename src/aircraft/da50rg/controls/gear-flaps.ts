@@ -10,7 +10,7 @@ export const GEAR_FLAPS_CONTROLS: readonly ControlSpec[] = [
     kind: 'detent-lever',
     label: 'GEAR',
     region: 'landing_gear',
-    x: 147,
+    x: 161, // global 997, 656.5 in the 2000 x 1300 space (region widened to the left)
     y: 81.5,
     hit: { w: 70, h: 151 },
     track: { length: 91, axis: 'v' },
@@ -25,7 +25,7 @@ export const GEAR_FLAPS_CONTROLS: readonly ControlSpec[] = [
     kind: 'detent-lever',
     label: 'FLAPS',
     region: 'flaps',
-    x: 66,
+    x: 176, // global 1366, 670.5 (region widened to the left for the flap lamps)
     y: 57.5,
     hit: { w: 60, h: 115 },
     // FLAPS travel is short on the real panel.

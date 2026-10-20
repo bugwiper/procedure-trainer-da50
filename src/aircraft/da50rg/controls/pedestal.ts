@@ -18,9 +18,10 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     kind: 'detent-lever',
     label: 'POWER',
     region: 'pedestal',
+    // Global 1110, 1115 in the 2000 x 1300 space. Handle square min(60, 200 - 154) = 46.
     x: 153,
-    y: 140,
-    hit: { w: 70, h: 214 },
+    y: 100,
+    hit: { w: 60, h: 200 },
     track: { length: 154, axis: 'v' },
     detents: POWER_STEPS,
     // Tap targets only at 0, 50 and 100 %; every 5 % step stays a snap position.
@@ -33,10 +34,11 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     kind: 'detent-lever',
     label: 'COWL FLAP',
     region: 'pedestal',
+    // Global 1010, 1235. Handle square min(60, 104 - 60) = 44.
     x: 53,
-    y: 290,
-    hit: { w: 60, h: 133 },
-    track: { length: 77, axis: 'v' },
+    y: 220,
+    hit: { w: 60, h: 104 },
+    track: { length: 60, axis: 'v' },
     detents: [
       { id: 'closed', label: 'CLOSED', pos: 0 },
       { id: 'open', label: 'OPEN', pos: 1 },
