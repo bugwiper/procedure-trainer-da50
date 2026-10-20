@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
 status: executing
-stopped_at: Phase 01.1 context gathered
-last_updated: "2026-10-20T14:25:35.497Z"
+stopped_at: Completed 01.1-01-PLAN.md
+last_updated: "2026-10-20T15:16:33.877Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 2b3b006ca7346c7fb6c4d56eb3bef489bbd3cee8
+state_head: 1e9609e161f4da33052e7b2519117e24ca5d9941
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 20
-  completed_plans: 9
+  completed_plans: 10
   percent: 14
 ---
 
@@ -52,6 +52,11 @@ Progress: [█░░░░░░░░░] 14%
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01.1 P01 | 6min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -65,6 +70,9 @@ Recent decisions affecting current work:
 - [Roadmap]: CNT-03 (content policy) sits in Phase 1 so it lands before any AFM-derived text is committed in Phase 2.
 - [Roadmap]: Phase 2 delivers Exam-style flow plus the full debrief (SES-03, SES-04) so the core value is demonstrable early; Training mode follows in Phase 4.
 - [Roadmap]: Scripted reactions (SCN-06) and gauge response (PNL-04) are their own slice in Phase 3, where the three real scenarios stress the DSL.
+- [Phase 01.1]: PD-01: pedestal split into env_control and pedestal regions (44 px POWER on phone)
+- [Phase 01.1]: PD-02: de-ice split into deice and deice_switches regions (44 px per detent)
+- [Phase 01.1]: PD-06: hit rects narrowed (sw.fadec 66 wide, under-panel levers 44 wide) for 7 units of background clearance
 
 ### Pending Todos
 
@@ -93,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T11:17:23.071Z
-Stopped at: Phase 01.1 context gathered
-Resume file: .planning/phases/01.1-panel-shape-controls-and-indicator-lights/01.1-CONTEXT.md
+Last session: 2026-10-20T15:16:33.774Z
+Stopped at: Completed 01.1-01-PLAN.md
+Resume file: None

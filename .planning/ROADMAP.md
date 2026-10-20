@@ -71,11 +71,12 @@ Plans:
   3. The gear indicator has three separate green lights (each green or off; all three green means down and locked) and a separate red light (red or off; on for unsafe or in transition); all off means up and locked. The flap lights follow flap state. Transition timing is Phase 3.
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
-**Plans:** 11 plans
+
+**Plans:** 1/11 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 01.1-01-PLAN.md — 2000 x 1300 coordinate space, 18 regions, existing controls at UI-SPEC positions, glareshield light switches, buttons family file, shared layout reference for 42 controls and 7 lamps
+- [x] 01.1-01-PLAN.md — 2000 x 1300 coordinate space, 18 regions, existing controls at UI-SPEC positions, glareshield light switches, buttons family file, shared layout reference for 42 controls and 7 lamps
 - [ ] 01.1-02-PLAN.md — Panel shell art, GO-AROUND / RUBIN / DA50RG brand marks and gates, glass-digit font snap, per-worktree Playwright port
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -105,6 +106,7 @@ Plans:
   2. The PFD and MFD show the G1000 NXi shape with all softkeys; the MFD page softkey and the engine page still work.
   3. The audio panel, autopilot panel and backup EFIS are visible in their real positions and look like the real units; their buttons do nothing for now.
   4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.
+
 **Plans:** 0 plans
 
 Plans:
