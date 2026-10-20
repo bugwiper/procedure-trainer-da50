@@ -19,12 +19,12 @@ result: pass
 ### 2. Real Android phone, Chrome
 expected: same sequence as test 1, plus rotating between portrait and landscape
 result: skipped
-reason: no Android phone available (accepted by the owner 2026-10-20: early prototype phase)
+reason: "Deferred follow-up: skipped - I have no Android phone to test with; fine for now as we are in an early prototype phase."
 
 ### 3. Real tablet
 expected: touch operation of each control kind and region zoom
 result: skipped
-reason: no tablet available (accepted by the owner 2026-10-20: early prototype phase)
+reason: "Deferred follow-up: skipped - I have no tablet to test with; fine for now as we are in an early prototype phase."
 
 ### 4. Smallest landscape phone, under-panel regions
 expected: tapping the background of the tiny under-panel regions zooms in despite very little background clearance (about 1.5 px)
@@ -56,3 +56,12 @@ skipped: 2
 blocked: 0
 
 ## Gaps
+
+## Deferred Follow-Ups
+
+- test: 2
+  idea: "Real Android phone, Chrome check (portrait/landscape rotation, touch controls) once a device is available; fine to skip in the early prototype phase"
+  deferred_at: 2026-10-20
+- test: 3
+  idea: "Real tablet touch check once a device is available; fine to skip in the early prototype phase"
+  deferred_at: 2026-10-20
