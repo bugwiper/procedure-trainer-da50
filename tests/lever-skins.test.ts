@@ -246,6 +246,100 @@ describe('FLAPS, de-ice MODE and the pull handles', () => {
   });
 });
 
+describe('POWER grip, COWL FLAP, PARKING BRAKE and the environmental sliders', () => {
+  const EXPECTED: Record<string, string> = {
+    'lv.power': 'power-grip',
+    'lv.cowl_flap': 'cowl-slider',
+    'lv.parking_brake': 'parking-lever',
+    'lv.env_direction': 'env-slider',
+    'lv.env_temp': 'env-slider',
+    'lv.env_circ': 'env-slider',
+  };
+
+  it('assigns the skins of UI-SPEC 8.5', () => {
+    for (const [id, skin] of Object.entries(EXPECTED)) expect(lever(id).skin, id).toBe(skin);
+    expect(LEVERS.filter((l) => l.skin === undefined)).toEqual([]);
+  });
+
+  it('draws the POWER grip in p-carbon with no emblem and only the MAX placard as track text', () => {
+    const power = lever('lv.power');
+    const tree = body(power, 'p70');
+    const props = JSON.stringify(findElements(tree, () => true).map((e) => e.props));
+    expect(props).toContain('url(#p-carbon)');
+    const handle = findElements(
+      tree,
+      (el) =>
+        el.tag === 'g' &&
+        typeof el.props['transform'] === 'string' &&
+        el.props['pointer-events'] === 'none' &&
+        !('data-control-id' in el.props) &&
+        findElements(el, (c) => c.props['fill'] === 'url(#p-carbon)').length > 0,
+    )[0];
+    expect(handle).toBeDefined();
+    expect(findElements(handle as El, (el) => el.tag === 'text')).toHaveLength(0);
+    expect(texts(tree).filter((t) => t === 'MAX')).toHaveLength(1);
+    expect(texts(tree).join(' ')).not.toMatch(/DIAMOND|RUBIN|DA50|\bDA\b/i);
+  });
+
+  it('prints the POWER legend only at the marker detents and never a ground-idle gate', () => {
+    const tree = body(lever('lv.power'), 'p70');
+    const all = texts(tree).join('|');
+    expect(all).not.toMatch(/IDLE|GATE/i);
+    expect(all).toContain('50 %');
+  });
+
+  it('draws the environmental icons as original path glyphs beside the slot', () => {
+    const direction = body(lever('lv.env_direction'), 'face');
+    const icons = findElements(direction, (el) => 'data-icon' in el.props).map(
+      (e) => e.props['data-icon'],
+    );
+    expect(icons.sort()).toEqual(['defrost', 'face', 'feet']);
+    const circ = body(lever('lv.env_circ'), 'fresh');
+    const circIcons = findElements(circ, (el) => 'data-icon' in el.props).map(
+      (e) => e.props['data-icon'],
+    );
+    expect(circIcons.sort()).toEqual(['fresh', 'recirc']);
+  });
+
+  it('lays CIRCULATING AIR out horizontally inside its region: name above, legends at the ends', () => {
+    const def = lever('lv.env_circ');
+    const region = DA50RG.regions.find((r) => r.id === def.region);
+    if (region === undefined) throw new Error('no region');
+    const tree = body(def, 'recirc');
+    const all = findElements(tree, (el) => el.tag === 'text');
+    const name = all.find((t) => textOf(t) === 'CIRCULATING AIR');
+    expect(name).toBeDefined();
+    expect(Number(name?.props['y'])).toBeLessThan(0);
+    const state = stateTexts(tree)[0] as El;
+    expect(Number(state.props['y'])).toBeGreaterThan(Number(name?.props['y']));
+    // The legend of the end the handle is not on sits under its slot end.
+    const legend = all.find((t) => textOf(t) === 'FRESH');
+    expect(legend).toBeDefined();
+    expect(Number(legend?.props['x'])).toBeCloseTo(-def.track.length / 2);
+    expect(Number(legend?.props['y'])).toBeGreaterThan(0);
+    for (const t of all) {
+      const half = Number(t.props['textLength'] ?? 20) / 2;
+      const x = def.x + Number(t.props['x']);
+      expect(x - half, textOf(t)).toBeGreaterThanOrEqual(0);
+      expect(x + half, textOf(t)).toBeLessThanOrEqual(region.bounds.w);
+      const y = def.y + Number(t.props['y']);
+      expect(y, textOf(t)).toBeGreaterThan(0);
+      expect(y, textOf(t)).toBeLessThan(region.bounds.h);
+    }
+  });
+
+  it('keeps every console lever body at most 40 elements with one state text', () => {
+    for (const id of Object.keys(EXPECTED)) {
+      const def = lever(id);
+      for (const d of def.detents) {
+        const tree = body(def, d.id);
+        expect(countElements(tree), `${id}/${d.id}`).toBeLessThanOrEqual(40);
+        expect(stateTexts(tree), `${id}/${d.id}`).toHaveLength(1);
+      }
+    }
+  });
+});
+
 describe('lever sources', () => {
   it('use only the font sizes 6, 8, 10 and 14', () => {
     for (const path of [
