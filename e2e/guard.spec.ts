@@ -92,3 +92,25 @@ test('@hooks the guard sequence appends exactly guard-open, switch-on, guard-clo
     [GUARD, 'closed'],
   ]);
 });
+
+test('ELECT. MASTER and ELT are unguarded and flip with one tap', async ({ page, hasTouch }) => {
+  await expect(page.locator('[data-control-id="sw.elect_master.guard"]')).toHaveCount(0);
+  await expect(page.locator('[data-control-id="sw.elt.guard"]')).toHaveCount(0);
+  // The cockpit's only guarded switch is the de-ice ALTERNATE switch (D-07b).
+  const guarded = await page
+    .locator('[data-kind="guarded-toggle"]')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-control-id')));
+  expect(guarded).toEqual([SWITCH]);
+
+  const master = control(page, 'sw.elect_master');
+  await expect(master).toHaveAttribute('data-state', 'on');
+  await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
+  await expect(master).toHaveAttribute('data-state', 'off');
+  await expect(master.locator('[data-state-text]')).toHaveText('OFF');
+
+  const elt = control(page, 'sw.elt');
+  await expect(elt).toHaveAttribute('data-state', 'arm');
+  await activate(page.locator('[data-hit="sw.elt"]'), hasTouch);
+  await expect(elt).toHaveAttribute('data-state', 'on');
+  await expect(elt.locator('[data-state-text]')).toHaveText('ON');
+});
