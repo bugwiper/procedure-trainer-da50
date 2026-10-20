@@ -217,9 +217,9 @@ describe('defineIndicators invariants', () => {
       ...FIXTURE_REGISTRY,
       get: (id: string) => (id === 'lt.same' ? SWITCH_DEF : FIXTURE_REGISTRY.get(id)),
     };
-    expect(() =>
-      defineIndicators(stub, { indicators: [lamp({ id: 'lt.same' })] }),
-    ).toThrow('lt.same');
+    expect(() => defineIndicators(stub, { indicators: [lamp({ id: 'lt.same' })] })).toThrow(
+      'lt.same',
+    );
   });
 
   it('rejects an unknown region', () => {
