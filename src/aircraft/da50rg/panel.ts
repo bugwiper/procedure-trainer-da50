@@ -17,6 +17,7 @@ import { MFD_CONTROLS } from './controls/mfd';
 import { GEAR_FLAPS_CONTROLS } from './controls/gear-flaps';
 import { PEDESTAL_CONTROLS } from './controls/pedestal';
 import { SWITCH_BANK_CONTROLS } from './controls/switch-bank';
+import { UNDER_PANEL_CONTROLS } from './controls/under-panel';
 
 /** True panel proportions with the under-panel area below (D-19, D-21). */
 export const VIEWBOX: Size = { w: 2000, h: 1010 };
@@ -74,5 +75,6 @@ export const DA50RG = defineRegistry({
     ...MFD_CONTROLS,
     ...PEDESTAL_CONTROLS,
     ...GEAR_FLAPS_CONTROLS,
+    ...UNDER_PANEL_CONTROLS,
   ],
 });

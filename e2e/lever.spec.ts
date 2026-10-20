@@ -186,3 +186,112 @@ test('every lever marker is reachable by tap', async ({ page, hasTouch }) => {
     }
   }
 });
+
+// Under-panel levers (Task 3).
+
+test('ALTERNATE STATIC and ALTERNATE AIR open and close by marker tap', async ({
+  page,
+  hasTouch,
+}) => {
+  for (const id of ['lv.alt_static', 'lv.alt_air']) {
+    const group = control(page, id);
+    await expect(group).toHaveAttribute('data-state', 'closed');
+    await activate(page.locator(`[data-detent="${id}:open"]`), hasTouch);
+    await expect(group).toHaveAttribute('data-state', 'open');
+    await expect(group.locator('[data-state-text]')).toHaveText('OPEN');
+    await activate(page.locator(`[data-detent="${id}:closed"]`), hasTouch);
+    await expect(group).toHaveAttribute('data-state', 'closed');
+  }
+});
+
+/** Screen px per SVG user unit of the panel (uniform under xMidYMid meet). */
+async function panelScale(page: Page): Promise<number> {
+  return page.getByTestId('panel').evaluate((el) => {
+    const svg = el as unknown as { getScreenCTM(): { a: number } | null };
+    return svg.getScreenCTM()?.a ?? 0;
+  });
+}
+
+const EMERG_TRACK_UNITS = 60;
+
+/** Handle centre (stowed, NORMAL end) and the EMERGENCY end of the drag-only track. */
+async function emergTrack(page: Page): Promise<{ normal: Point; emergency: Point }> {
+  const scale = await panelScale(page);
+  expect(scale).toBeGreaterThan(0);
+  const normal = await centre(page.locator('[data-hit="lv.emerg_gear"]'));
+  return { normal, emergency: { x: normal.x, y: normal.y + EMERG_TRACK_UNITS * scale } };
+}
+
+async function cdpTouchDrag(page: Page, from: Point, to: Point): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (x: number, y: number) => [{ x, y, id: 1 }];
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: touch(from.x, from.y),
+  });
+  for (let i = 1; i <= 6; i++) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: touch(from.x + ((to.x - from.x) * i) / 6, from.y + ((to.y - from.y) * i) / 6),
+    });
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
+async function tapAt(page: Page, p: Point, hasTouch: boolean): Promise<void> {
+  if (hasTouch) await page.touchscreen.tap(p.x, p.y);
+  else await page.mouse.click(p.x, p.y);
+}
+
+test('EMERGENCY GEAR EXTENSION ignores taps', async ({ page, hasTouch }) => {
+  const group = control(page, 'lv.emerg_gear');
+  await expect(group).toHaveCount(1);
+  await expect(page.locator('[data-detent^="lv.emerg_gear:"]')).toHaveCount(0);
+  await expect(group).toHaveAttribute('data-state', 'normal');
+
+  const { normal, emergency } = await emergTrack(page);
+  await tapAt(page, normal, hasTouch);
+  await tapAt(page, emergency, hasTouch);
+  await tapAt(page, { x: normal.x, y: (normal.y + emergency.y) / 2 }, hasTouch);
+  await expect(group).toHaveAttribute('data-state', 'normal');
+});
+
+test('EMERGENCY GEAR EXTENSION moves only by a deliberate drag', async ({ page, hasTouch }) => {
+  test.skip(hasTouch, WEBKIT_TOUCH_NOTE);
+  const group = control(page, 'lv.emerg_gear');
+  const { normal, emergency } = await emergTrack(page);
+
+  // 30 percent of the way toward EMERGENCY is short of the midpoint: it snaps back.
+  await mouseDrag(page, normal, {
+    x: normal.x,
+    y: normal.y + 0.3 * (emergency.y - normal.y),
+  });
+  await expect(group).toHaveAttribute('data-state', 'normal');
+  await expect(group.locator('[data-state-text]')).toHaveText('NORMAL');
+
+  await mouseDrag(page, normal, emergency);
+  await expect(group).toHaveAttribute('data-state', 'emergency');
+  await expect(group.locator('[data-state-text]')).toHaveText('EMERGENCY');
+
+  await mouseDrag(page, await centre(page.locator('[data-hit="lv.emerg_gear"]')), normal);
+  await expect(group).toHaveAttribute('data-state', 'normal');
+});
+
+test('touch drag on EMERGENCY GEAR EXTENSION', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
+  const { normal, emergency } = await emergTrack(page);
+  await cdpTouchDrag(page, normal, emergency);
+  await expect(control(page, 'lv.emerg_gear')).toHaveAttribute('data-state', 'emergency');
+  const scrollY = await page.evaluate(() => (globalThis as unknown as PageHost).scrollY);
+  expect(scrollY).toBe(0);
+});
+
+test('@hooks taps on EMERGENCY GEAR EXTENSION append no event', async ({ page, hasTouch }) => {
+  const count = () =>
+    page.evaluate(() => (globalThis as unknown as PageHost).__panel?.events().length ?? -1);
+  expect(await count()).toBe(0);
+  const { normal, emergency } = await emergTrack(page);
+  await tapAt(page, normal, hasTouch);
+  await tapAt(page, emergency, hasTouch);
+  expect(await count()).toBe(0);
+});

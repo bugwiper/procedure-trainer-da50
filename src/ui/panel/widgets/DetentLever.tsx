@@ -149,11 +149,14 @@ export function DetentLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
   const region = bridge.registry.regions.find((r) => r.id === def.region);
   const labelX = vertical ? 10 : 0;
   const labelRoom = Math.max(14, (region?.bounds.w ?? def.hit.w) - def.x - labelX - 3);
-  const labelled = dragOnly ? def.detents : markerDetents;
-  const lines = placardLines(def.label);
-  const top = -def.hit.h / 2;
   const knobW = vertical ? Math.min(34, side) : 16;
   const knobH = vertical ? 16 : Math.min(34, side);
+  // A label under the knob would be half hidden; the state text already names that detent.
+  const labelled = (dragOnly ? def.detents : markerDetents).filter(
+    (d) => Math.abs(d.pos - handlePos) * length > (vertical ? knobH : knobW) / 2 + 3,
+  );
+  const lines = placardLines(def.label);
+  const top = -def.hit.h / 2;
 
   return (
     <g
