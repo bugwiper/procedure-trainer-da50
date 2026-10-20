@@ -1,5 +1,13 @@
+import type { JSX } from 'preact';
 import type { PanelBridge } from '../bridge';
 import { ControlWidget } from './ControlWidget';
+import { MfdFrame } from './frames/MfdFrame';
+import type { FrameProps } from './frames/MfdFrame';
+
+/** Glass-display frames by region id; frames are presentational and carry no handlers (D-09). */
+const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
+  mfd: MfdFrame,
+};
 
 /**
  * Root panel SVG. Iterates regions and their controls; carries no pointer handlers
@@ -45,6 +53,10 @@ export function Panel({ bridge }: { bridge: PanelBridge }) {
           >
             {region.name}
           </text>
+          {(() => {
+            const Frame = FRAMES[region.id];
+            return Frame === undefined ? null : <Frame region={region} bridge={bridge} />;
+          })()}
           {region.controlIds.map((id) => {
             const def = registry.get(id);
             return def === undefined ? null : <ControlWidget key={id} def={def} bridge={bridge} />;
