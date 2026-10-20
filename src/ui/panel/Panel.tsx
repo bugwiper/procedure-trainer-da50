@@ -1,9 +1,11 @@
 import type { JSX } from 'preact';
+import { useEffect, useRef } from 'preact/hooks';
 import type { PanelBridge } from '../bridge';
 import { ControlWidget } from './ControlWidget';
 import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
 import { PfdFrame } from './frames/PfdFrame';
+import { attachZoomGestures, viewBoxAttr } from './zoom';
 
 /** Glass-display frames by region id; frames are presentational and carry no handlers (D-09). */
 const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
@@ -13,16 +15,24 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
 
 /**
  * Root panel SVG. Iterates regions and their controls; carries no pointer handlers
- * (neutral areas emit nothing, D-09). Pointer handling lives on widget hit rects only.
+ * (neutral areas emit nothing, D-09). Pointer handling lives on widget hit rects only; the
+ * zoom gesture layer attaches its own listeners and only ever changes the viewBox (D-20).
  */
 export function Panel({ bridge }: { bridge: PanelBridge }) {
   const { registry } = bridge;
   const { w, h } = registry.viewBox;
+  const svgRef = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (svg === null) return undefined;
+    return attachZoomGestures(svg, { registry });
+  }, [registry]);
   return (
     <svg
+      ref={svgRef}
       class="panel-svg"
       data-testid="panel"
-      viewBox={`0 0 ${w} ${h}`}
+      viewBox={viewBoxAttr}
       preserveAspectRatio="xMidYMid meet"
       aria-label="DA50 RG instrument panel"
     >
