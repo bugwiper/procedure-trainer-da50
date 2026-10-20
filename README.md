@@ -10,26 +10,32 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ## Demo controls
 
-The panel has 23 controls in thirteen regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
+The panel has 42 controls and 7 indicator lamps in eighteen regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
 
-- **DE-ICE**, top far left: ALTERNATE (guarded)
+- **LIGHTS**, glareshield: LANDING, TAXI, POSITION, STROBE
+- **INSTRUMENT AND FLOOD LIGHT**, between the displays: INSTRUMENT LIGHT and FLOOD LIGHT knobs
+- **DE-ICE**, top far left: MODE selector, ALTERNATE (guarded)
+- **DE-ICE SWITCHES**, below DE-ICE: WIND SHIELD, ICE LIGHT, PUMP 2, PUMP 1, ANNUN TEST (push button)
 - **ENGINE**, left edge below DE-ICE: FADEC (AUTO / FORCE B), FADEC TEST (push button), ALTERNATOR 1, ALTERNATOR 2
 - **MFD SOFTKEYS**, under the MFD screen: MFD PAGE
-- **SWITCH ROW**, under the PFD, left to right: PROP DE-ICE, FUEL TRANS, EMERG FUEL PUMP, ENGINE START (push button), ENGINE MASTER, ESS BUS, ELECT. MASTER, AV MASTER, PITOT/STALL HEAT
-- **LANDING GEAR**, right of the switch row: GEAR
-- **FLAPS**, below the MFD: FLAPS
+- **SWITCH ROW**, under the PFD: PROP DE-ICE, FUEL TRANS, EMERG FUEL PUMP, ENGINE START (push button), ENGINE MASTER, ESS BUS, ELECT. MASTER, AV MASTER, PITOT/STALL HEAT
+- **LANDING GEAR**: GEAR, STALL/GEAR TEST (push button), and the gear lamps (NOSE, LEFT, RIGHT, UNSAFE)
+- **LEVEL**, between the gear and flap blocks: LEVEL (push button)
+- **FLAPS**, below the MFD: FLAPS, and the flap lamps (UP, T/O, LDG)
 - **RIGHT PANEL**, lower right: ELT
 - **UNDER PANEL L**: ALTERNATE STATIC
 - **UNDER PANEL C**: EMERGENCY GEAR EXTENSION (drag-only: tapping does nothing, the handle must be dragged all the way)
-- **PEDESTAL**: POWER (0 to 100 % in 5 % steps), COWL FLAP (CLOSED / OPEN)
+- **ENVIRONMENTAL CONTROL**, top of the centre console: FAN, DIRECTION, TEMPERATURE, CIRCULATING AIR
+- **PEDESTAL**: POWER (0 to 100 % in 5 % steps), COWL FLAP (CLOSED / OPEN), PARKING BRAKE
 - **UNDER PANEL R**: ALTERNATE AIR
 
 How it behaves:
 
 - The panel opens in the normal in-flight configuration.
 - ALTERNATE is the cockpit's only guarded switch: tap the guard to lift it, then tap the switch; the guard stays up until you tap it closed. ELECT. MASTER and ELT are red but unguarded and flip with one tap.
-- ENGINE START and FADEC TEST show PRESSED while held and return to RELEASED when you let go, also when you slide off the button first.
-- The other de-ice controls are out of scope for now.
+- The gear and flap lamps follow the GEAR and FLAPS levers. Lamps are derived from the control states; nothing pulses.
+- ENGINE START, FADEC TEST, ANNUN TEST, LEVEL and STALL/GEAR TEST show PRESSED while held and return to RELEASED when you let go, also when you slide off the button first.
+- The de-ice, lighting and environmental controls move and are recorded, but their systems are not simulated yet.
 - The panel keeps the true spacing and proportions of the aircraft, so some controls are small at the full view. On every device, a tap or click on a region's background zooms into it at full tap size; "Full panel" (or a double tap or double click) zooms out.
 - Tapping a neutral area (panel background, display artwork, gaps between controls) never changes anything.
 - The default positions and step sizes flagged as assumptions in the plans are still to be confirmed against the aircraft.
