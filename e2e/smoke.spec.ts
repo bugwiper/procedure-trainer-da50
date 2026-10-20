@@ -27,7 +27,7 @@ test('panel stage loads at the base path', async ({ page, baseURL }) => {
 
   const panel = page.getByTestId('panel');
   await expect(panel).toBeVisible();
-  await expect(panel).toHaveAttribute('viewBox', '0 0 2000 1010');
+  await expect(panel).toHaveAttribute('viewBox', '0 0 2000 1300');
   await expect(page.getByTestId('training-aid-notice')).toHaveText(
     'Training aid only, not the AFM',
   );

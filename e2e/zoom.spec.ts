@@ -4,7 +4,7 @@ import type { Locator, Page } from '@playwright/test';
 // Region zoom (PNL-09, PNL-06, D-20, D-21): tap or click a region's background to zoom in,
 // operate its controls at full tap size, zoom back out; pinch, pan and gesture arbitration.
 
-const FULL_VIEWBOX = '0 0 2000 1010';
+const FULL_VIEWBOX = '0 0 2000 1300';
 const MIN_TAP_PX = 43.5;
 const PORTRAIT_NOTE =
   'Portrait phones are covered by the rotate hint (D-02); pinch zoom reaches full tap size there';

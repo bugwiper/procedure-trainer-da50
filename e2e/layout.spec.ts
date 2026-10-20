@@ -2,17 +2,22 @@ import { expect, test } from '@playwright/test';
 import type { Locator } from '@playwright/test';
 
 const REGION_IDS = [
+  'lights',
   'deice',
+  'deice_switches',
   'engine_controls',
   'pfd',
+  'light_knobs',
   'mfd',
   'mfd_softkeys',
   'switch_bank',
   'landing_gear',
+  'level',
   'flaps',
   'right_panel',
   'under_panel_left',
   'under_panel_centre',
+  'env_control',
   'pedestal',
   'under_panel_right',
 ];

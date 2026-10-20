@@ -1,137 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
 import type { ControlDef, Rect } from '../src/engine/registry';
+import {
+  FRONT_PANEL_REGIONS,
+  INDICATOR_POSITIONS,
+  ORDERING,
+  REFERENCE_POSITIONS,
+  UNDER_PANEL_REGIONS,
+} from './layout-reference';
+import type { Relation } from './layout-reference';
 
-// Layout gate (PNL-02, PNL-08, D-19, D-21). Pure geometry over the registry: controls added
-// by later plans are checked automatically. Positions in the two tables below are layout
-// facts read from the private reference photos IMG_0650 (front panel) and DA50_virtual
-// (left panel, under-panel); they are never copied or traced (D-04b).
-
-/** Reference measurement table (D-21): id, global centre x, global centre y. */
-const REFERENCE_POSITIONS: readonly (readonly [string, number, number])[] = [
-  ['sw.light_landing', 1047, 90],
-  ['sw.light_taxi', 1095, 90],
-  ['sw.light_position', 1143, 90],
-  ['sw.light_strobe', 1191, 90],
-  ['sw.deice_alternate', 203, 342],
-  ['sw.fadec', 126, 506],
-  ['btn.fadec_test', 206, 506],
-  ['sw.alternator_1', 134, 570],
-  ['sw.alternator_2', 210, 570],
-  ['sw.prop_deice', 114, 664],
-  ['sw.fuel_trans', 189, 664],
-  ['sw.emerg_fuel_pump', 276, 664],
-  ['btn.engine_start', 386, 664],
-  ['sw.engine_master', 470, 664],
-  ['sw.ess_bus', 572, 664],
-  ['sw.elect_master', 656, 664],
-  ['sw.av_master', 731, 664],
-  ['sw.pitot_stall_heat', 801, 664],
-  ['sw.mfd_page', 1288, 589],
-  ['lv.gear', 997, 656.5],
-  ['lv.flaps', 1366, 670.5],
-  ['sw.elt', 1776, 656],
-  ['lv.alt_static', 51, 805],
-  ['lv.emerg_gear', 907, 805],
-  ['lv.alt_air', 1205, 805],
-  ['lv.power', 1110, 1115],
-  ['lv.cowl_flap', 1010, 1235],
-];
-const POSITION_TOLERANCE = 3;
-
-type Relation =
-  | 'left-of'
-  | 'right-of'
-  | 'above'
-  | 'below'
-  | 'x-within'
-  | 'same-row'
-  | 'x-greater-than'
-  | 'under-left-quarter-of';
-
-/**
- * Reference ordering table (PNL-08, D-19): subject, relation, object. A subject is a control
- * id or "region:<id>"; the object of x-greater-than is a number. A relation whose control is
- * not in DA50RG yet is skipped, so a later plan can require zero skipped rows.
- */
-const SWITCH_ROW = [
-  'sw.prop_deice',
-  'sw.fuel_trans',
-  'sw.emerg_fuel_pump',
-  'btn.engine_start',
-  'sw.engine_master',
-  'sw.ess_bus',
-  'sw.elect_master',
-  'sw.av_master',
-  'sw.pitot_stall_heat',
-] as const;
-
-const ORDERING: readonly (readonly [string, Relation, string | number])[] = [
-  ['sw.deice_alternate', 'above', 'sw.fadec'],
-  ['sw.fadec', 'above', 'sw.alternator_1'],
-  ['sw.fadec', 'left-of', 'btn.fadec_test'],
-  ['sw.alternator_1', 'left-of', 'sw.alternator_2'],
-  ['sw.alternator_1', 'above', 'sw.prop_deice'],
-  ['region:deice', 'left-of', 'region:pfd'],
-  ['region:engine_controls', 'left-of', 'region:pfd'],
-  ...SWITCH_ROW.slice(1).map((id, i): [string, Relation, string] => [
-    SWITCH_ROW[i] ?? '',
-    'left-of',
-    id,
-  ]),
-  ...SWITCH_ROW.slice(1).map((id, i): [string, Relation, string] => [
-    SWITCH_ROW[i] ?? '',
-    'same-row',
-    id,
-  ]),
-  ...SWITCH_ROW.map((id): [string, Relation, string] => [id, 'below', 'region:pfd']),
-  ['sw.pitot_stall_heat', 'x-within', 'region:pfd'],
-  ['sw.pitot_stall_heat', 'left-of', 'lv.gear'],
-  ['lv.gear', 'left-of', 'lv.flaps'],
-  ['lv.flaps', 'below', 'region:mfd'],
-  ['lv.flaps', 'x-within', 'region:mfd'],
-  ['lv.flaps', 'x-greater-than', 1000],
-  ['lv.flaps', 'left-of', 'sw.elt'],
-  ['sw.elt', 'below', 'region:mfd'],
-  ['sw.mfd_page', 'under-left-quarter-of', 'region:mfd'],
-  ['lv.alt_static', 'left-of', 'lv.emerg_gear'],
-  ['lv.emerg_gear', 'left-of', 'region:pedestal'],
-  ['lv.alt_air', 'right-of', 'region:pedestal'],
-  ['lv.power', 'above', 'lv.cowl_flap'],
-  // Glareshield light switches (D-08).
-  ['sw.light_landing', 'left-of', 'sw.light_taxi'],
-  ['sw.light_taxi', 'left-of', 'sw.light_position'],
-  ['sw.light_position', 'left-of', 'sw.light_strobe'],
-  ['sw.light_landing', 'same-row', 'sw.light_taxi'],
-  ['sw.light_taxi', 'same-row', 'sw.light_position'],
-  ['sw.light_position', 'same-row', 'sw.light_strobe'],
-  ...['sw.light_landing', 'sw.light_taxi', 'sw.light_position', 'sw.light_strobe'].map(
-    (id): [string, Relation, string] => [id, 'above', 'region:pfd'],
-  ),
-];
-
-const FRONT_PANEL_REGIONS = [
-  'lights',
-  'deice',
-  'deice_switches',
-  'engine_controls',
-  'pfd',
-  'light_knobs',
-  'mfd',
-  'mfd_softkeys',
-  'switch_bank',
-  'landing_gear',
-  'level',
-  'flaps',
-  'right_panel',
-];
-const UNDER_PANEL_REGIONS = [
-  'under_panel_left',
-  'under_panel_centre',
-  'env_control',
-  'pedestal',
-  'under_panel_right',
-];
+// Layout gate (PNL-02, PNL-08, D-03, D-19, D-21). Pure geometry over the registry: controls
+// added by later plans are checked automatically. The reference tables live in
+// tests/layout-reference.ts; their positions are layout facts read from private photos and
+// never copied or traced (D-06).
 
 function overlaps(a: Rect, b: Rect): boolean {
   // Strict inequality on both axes: shared edges do not overlap.
@@ -322,24 +204,76 @@ describe('control footprints', () => {
 });
 
 describe('true-proportion reference positions (D-21)', () => {
-  for (const [id, x, y] of REFERENCE_POSITIONS) {
+  for (const { id, x, y, tol, review } of [...REFERENCE_POSITIONS, ...INDICATOR_POSITIONS]) {
     const def = DA50RG.get(id);
     (def === undefined ? it.skip : it)(
-      `${id} sits at ${x}, ${y} within ${POSITION_TOLERANCE}`,
+      `${id} sits at ${x}, ${y} within ${tol}${review ? ' (review)' : ''}`,
       () => {
         if (def === undefined) return;
         const c = globalCentre(def);
-        expect(Math.abs(c.x - x)).toBeLessThanOrEqual(POSITION_TOLERANCE);
-        expect(Math.abs(c.y - y)).toBeLessThanOrEqual(POSITION_TOLERANCE);
+        expect(Math.abs(c.x - x)).toBeLessThanOrEqual(tol);
+        expect(Math.abs(c.y - y)).toBeLessThanOrEqual(tol);
       },
     );
   }
 
+  it('the reference table covers 42 controls and 7 indicators', () => {
+    expect(REFERENCE_POSITIONS).toHaveLength(42);
+    expect(INDICATOR_POSITIONS).toHaveLength(7);
+  });
+
   it('every non-guard control appears in the reference table', () => {
-    const known = new Set(REFERENCE_POSITIONS.map(([id]) => id));
+    const known = new Set(REFERENCE_POSITIONS.map((r) => r.id));
     for (const def of DA50RG.controls) {
       if (def.kind === 'guard') continue;
       expect(known.has(def.id), `${def.id} has no reference position`).toBe(true);
+    }
+  });
+});
+
+/** Hit footprints in global coordinates, including lifted-guard areas. */
+function globalFootprints(): Rect[] {
+  const out: Rect[] = [];
+  for (const def of DA50RG.controls) {
+    const b = regionBounds(def.region);
+    const f = footprint(def);
+    out.push({ x: b.x + f.x, y: b.y + f.y, w: f.w, h: f.h });
+    const open =
+      def.kind === 'guarded-toggle' ? def.guardOpenHit : def.kind === 'guard' ? def.openHit : null;
+    if (open !== null) {
+      out.push({ x: b.x + def.x + open.x, y: b.y + def.y + open.y, w: open.w, h: open.h });
+    }
+  }
+  return out;
+}
+
+function distanceToRect(px: number, py: number, r: Rect): number {
+  const dx = Math.max(r.x - px, 0, px - (r.x + r.w));
+  const dy = Math.max(r.y - py, 0, py - (r.y + r.h));
+  return Math.hypot(dx, dy);
+}
+
+describe('background clearance for region tap (PNL-09)', () => {
+  const MIN_CLEARANCE = 7;
+  const STEPS = 48;
+
+  it(`every region keeps a background point at least ${MIN_CLEARANCE} units from every control`, () => {
+    const all = globalFootprints();
+    for (const region of DA50RG.regions) {
+      const b = region.bounds;
+      let best = 0;
+      for (let i = 0; i < STEPS; i++) {
+        for (let j = 0; j < STEPS; j++) {
+          const x = b.x + (0.1 + (0.8 * (i + 0.5)) / STEPS) * b.w;
+          const y = b.y + (0.1 + (0.8 * (j + 0.5)) / STEPS) * b.h;
+          let nearest = Infinity;
+          for (const r of all) nearest = Math.min(nearest, distanceToRect(x, y, r));
+          best = Math.max(best, nearest);
+        }
+      }
+      expect(best, `${region.id} best clearance ${best.toFixed(1)}`).toBeGreaterThanOrEqual(
+        MIN_CLEARANCE,
+      );
     }
   });
 });
