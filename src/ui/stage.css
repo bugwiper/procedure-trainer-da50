@@ -1,3 +1,8 @@
+:root {
+  --font-placard: 'B612', system-ui, sans-serif;
+  --font-glass: 'B612 Mono', ui-monospace, monospace;
+}
+
 html,
 body,
 #app {
@@ -30,7 +35,27 @@ body,
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Placard face for every panel text, so widgets need no per-file font settings (D-10, D-12).
+   Fill is only a default: texts that set their own fill keep it. */
+.panel-svg text {
+  font-family: var(--font-placard);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.panel-svg text:not([fill]) {
+  fill: #e6e9ed;
+}
+
+/* Display digits of the glass areas and gauges. */
+.panel-svg text.glass-digits {
+  font-family: var(--font-glass);
+  font-weight: 400;
+}
+
 .footer {
+  font-family: var(--font-placard);
+  font-weight: 400;
   flex: 0 0 auto;
   height: 28px;
   line-height: 28px;

@@ -3,9 +3,11 @@ import type { PanelBridge } from '../bridge';
 import { ControlWidget } from './ControlWidget';
 import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
+import { PfdFrame } from './frames/PfdFrame';
 
 /** Glass-display frames by region id; frames are presentational and carry no handlers (D-09). */
 const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
+  pfd: PfdFrame,
   mfd: MfdFrame,
 };
 

@@ -33,3 +33,30 @@ test('MFD PAGE softkey switches to the Engine page and back', async ({ page, has
   await expect(page.getByTestId('mfd-engine-strip')).toBeVisible();
   await expect(page.getByTestId('mfd-engine-page')).toHaveCount(0);
 });
+
+test('PFD shows attitude, airspeed, altitude and heading', async ({ page }) => {
+  for (const id of ['pfd-attitude', 'pfd-airspeed', 'pfd-altitude', 'pfd-heading']) {
+    await expect(page.getByTestId(id)).toBeVisible();
+  }
+});
+
+test('B612 fonts are self-hosted and loaded', async ({ page, baseURL }) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  const origin = new URL(baseURL).origin;
+  const urls: string[] = [];
+  page.on('response', (res) => urls.push(res.url()));
+
+  await page.reload();
+  await expect(page.getByTestId('panel')).toBeVisible();
+  const loaded = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return {
+      placard: document.fonts.check('700 12px B612'),
+      glass: document.fonts.check('12px "B612 Mono"'),
+    };
+  });
+  expect(loaded.placard).toBe(true);
+  expect(loaded.glass).toBe(true);
+  expect(urls.length).toBeGreaterThan(0);
+  for (const url of urls) expect(new URL(url).origin, url).toBe(origin);
+});
