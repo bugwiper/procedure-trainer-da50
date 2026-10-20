@@ -1,5 +1,5 @@
 ---
-status: partial
+status: complete
 phase: 01-deployed-playable-panel
 source: [01-VERIFICATION.md]
 started: 2026-10-20T09:08:55Z
@@ -19,12 +19,12 @@ result: pass
 ### 2. Real Android phone, Chrome
 expected: same sequence as test 1, plus rotating between portrait and landscape
 result: skipped
-reason: no Android phone available
+reason: no Android phone available (accepted by the owner 2026-10-20: early prototype phase)
 
 ### 3. Real tablet
 expected: touch operation of each control kind and region zoom
 result: skipped
-reason: no tablet available
+reason: no tablet available (accepted by the owner 2026-10-20: early prototype phase)
 
 ### 4. Smallest landscape phone, under-panel regions
 expected: tapping the background of the tiny under-panel regions zooms in despite very little background clearance (about 1.5 px)
