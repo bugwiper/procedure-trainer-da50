@@ -19,7 +19,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-09**: On phones, the user can zoom into a panel region (pinch or region tap) with enlarged hit targets, without changing the true layout (promoted from PNL-V2-01)
 - [ ] **PNL-07**: A simplified transponder section lets the user enter a squawk code (no full G1000 menu structure)
 - [x] **PNL-10**: The panel visually reproduces the real DA50 RG (instrument panel outline, centre console, under-panel areas) in kind-of real shapes and real colours; brand marks are replaced (GARMIN with GO-AROUND, DIAMOND with RUBIN, DA50RG kept)
-- [ ] **PNL-11**: Every switch, rocker, push button, lever and knob exists at its real position in kind-of real shape and colour; all of them work by mouse or touch (state shown by position and text); the light switches are white rockers and movable
+- [x] **PNL-11**: Every switch, rocker, push button, lever and knob exists at its real position in kind-of real shape and colour; all of them work by mouse or touch (state shown by position and text); the light switches are white rockers and movable
 - [ ] **PNL-12**: Every circuit breaker of the Essential, Main and Avionics bus exists at its real position as a control kind with states in and out (pushed in by default, pulled out shows a white ring and IN/OUT text); tap toggles
 - [ ] **PNL-13**: The G1000 NXi PFD and MFD appear in their well-known shape incl. all softkeys (inert except the MFD page softkey and the engine page); the audio panel, autopilot panel and the static backup EFIS are visible in their real positions (buttons not functional)
 - [ ] **PNL-14**: The gear indicator is three separate green lights (each green or off; all three green = down and locked) plus a separate red light (red or off; on for unsafe or in transition; all off for up and locked); the flap lights follow flap state; transition timing arrives with Phase 3
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PNL-08 | Phase 1 | Complete |
 | PNL-09 | Phase 1 | Complete |
 | PNL-10 | Phase 01.1 | Complete |
-| PNL-11 | Phase 01.1 | Pending |
+| PNL-11 | Phase 01.1 | Complete |
 | PNL-13 | Phase 01.2 | Pending |
 | PNL-14 | Phase 01.1 | Pending |
 | PNL-12 | Phase 01.2 | Pending |

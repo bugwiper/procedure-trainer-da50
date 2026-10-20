@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
 status: executing
-stopped_at: Completed 01.1-02-PLAN.md
-last_updated: "2026-10-20T15:24:55.624Z"
+stopped_at: Completed 01.1-03-PLAN.md
+last_updated: "2026-10-20T15:38:53.045Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: f27e74876da2012fdf006bde158f3b8e0ed87494
+state_head: f977f600b399ff56a703c8d86526e2bd568eb13f
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 20
-  completed_plans: 11
+  completed_plans: 12
   percent: 14
 ---
 
@@ -58,6 +58,7 @@ Progress: [█░░░░░░░░░] 14%
 |------|----------|-------|-------|
 | Phase 01.1 P01 | 6min | 3 tasks | 14 files |
 | Phase 01.1 P02 | 8min | 3 tasks | 13 files |
+| Phase 01.1 P03 | 12min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Recent decisions affecting current work:
 - [Phase 01.1]: PD-06: hit rects narrowed (sw.fadec 66 wide, under-panel levers 44 wide) for 7 units of background clearance
 - [Phase 01.1]: Brand text letter spacing set via style string because .panel-svg text CSS overrides the attribute
 - [Phase 01.1]: RUBIN centre-anchored at (1232, 625) to stay clear of the UP flap lamp; Defs.tsx also exports DEF_IDS
+- [Phase 01.1]: PD-05: FAN knob centre (1032, 896), within 8 units of the UI-SPEC centre, so its 80 x 40 footprint clears the environmental sliders
+- [Phase 01.1]: Knob layout follows footprint shape: footprint at least twice as wide as high puts placard left and state text right, otherwise placard above and state text below
+- [Phase 01.1]: Registry skin vocabularies are exported const arrays and re-checked at runtime so data cast around the types still fails at load
 
 ### Pending Todos
 
@@ -104,6 +108,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T15:24:55.523Z
-Stopped at: Completed 01.1-02-PLAN.md
+Last session: 2026-10-20T15:38:52.947Z
+Stopped at: Completed 01.1-03-PLAN.md
 Resume file: None

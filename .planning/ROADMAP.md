@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 2/11 plans executed
+**Plans:** 3/11 plans executed
 
 Plans:
 **Wave 1**
@@ -80,7 +80,7 @@ Plans:
 - [x] 01.1-02-PLAN.md — Panel shell art, GO-AROUND / RUBIN / DA50RG brand marks and gates, glass-digit font snap, per-worktree Playwright port
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01.1-03-PLAN.md — Rotary kind (FUEL TRANS, INSTRUMENT LIGHT, FLOOD LIGHT, FAN) and the registry skin vocabulary
+- [x] 01.1-03-PLAN.md — Rotary kind (FUEL TRANS, INSTRUMENT LIGHT, FLOOD LIGHT, FAN) and the registry skin vocabulary
 - [ ] 01.1-04-PLAN.md — Derived gear and flap indicator lamps (three green plus red UNSAFE, flap lamps) with readouts
 - [ ] 01.1-05-PLAN.md — De-ice panel, LEVEL, environmental-control sliders and parking brake with existing kinds
 
