@@ -2,17 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
+current_plan: 9
 status: executing
-stopped_at: Completed 01.1-07-PLAN.md
-last_updated: "2026-10-20T16:11:49.982Z"
+stopped_at: Completed 01.1-08-PLAN.md
+last_updated: "2026-10-20T17:00:59.265Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: f0f8a068f3aeb76ca17963f933e8f7f47ce477d7
+state_head: 3e7e4530b48475fa79a392c9f4bbc022c66acede
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 20
-  completed_plans: 16
+  completed_plans: 17
   percent: 14
 ---
 
@@ -28,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.1 (Panel shape, controls and indicator lights) — READY TO EXECUTE
-Current Plan: 8
+Current Plan: 9
 Total Plans in Phase: 11
-Status: Ready to execute (plans 01.1-01 to 01.1-07 complete)
+Status: Ready to execute (plans 01.1-01 to 01.1-08 complete)
 Last activity: 2026-10-20 — Phase 01 complete, transitioned to Phase 2
 
 Progress: [█░░░░░░░░░] 14%
@@ -64,6 +65,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P05 | 10 min | 3 tasks | 6 files |
 | Phase 01.1 P06 | 25min | 3 tasks | 6 files |
 | Phase 01.1 P07 | 20 min | 2 tasks | 6 files |
+| Phase 01.1 P08 | 55min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -90,6 +92,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: PD-05: TEMPERATURE slider centred 4 units right of UI-SPEC x (global 1096) to clear the FAN knob
 - [Phase 01.1]: PD-04: STALL/GEAR TEST registered as btn.stall_gear_test (spring-return three-state momentary), centred 7 units right of the UI-SPEC x
 - [Phase 01.1]: 01.1-07: single background tap while zoomed zooms fully out; suppression (350 ms / 24 px) kept and cleared when the view changes by other means
+- [Phase 01.1]: PD-08: compact bat variant for footprints under 39 tall (de-ice bats): throw 8, name Micro 6 above the footprint, state text 8 inside it, no lamp dot; guard placard is two lines right of the cover
 
 ### Pending Todos
 
@@ -118,6 +121,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T16:11:49.846Z
-Stopped at: Completed 01.1-07-PLAN.md
+Last session: 2026-10-20T17:00:59.163Z
+Stopped at: Completed 01.1-08-PLAN.md
 Resume file: None
