@@ -18,6 +18,12 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-08**: Panel layout reproduces the real DA50 RG positions (which control is where, relative placement and grouping, incl. under-panel controls) closely enough to build position memory for emergencies; touch sizing must never relocate a control
 - [x] **PNL-09**: On phones, the user can zoom into a panel region (pinch or region tap) with enlarged hit targets, without changing the true layout (promoted from PNL-V2-01)
 - [ ] **PNL-07**: A simplified transponder section lets the user enter a squawk code (no full G1000 menu structure)
+- [ ] **PNL-10**: The panel visually reproduces the real DA50 RG (instrument panel outline, centre console, under-panel areas) in kind-of real shapes and real colours; brand marks are replaced (GARMIN with GO-AROUND, DIAMOND with RUBIN, DA50RG kept)
+- [ ] **PNL-11**: Every switch, rocker, push button, lever and knob exists at its real position in kind-of real shape and colour; all of them work by mouse or touch (state shown by position and text); the light switches are white rockers and movable
+- [ ] **PNL-12**: Every circuit breaker of the Essential, Main and Avionics bus exists at its real position as a control kind with states in and out (pushed in by default, pulled out shows a white ring and IN/OUT text); tap toggles
+- [ ] **PNL-13**: The G1000 NXi PFD and MFD appear in their well-known shape incl. all softkeys (inert except the MFD page softkey and the engine page); the audio panel, autopilot panel and the static backup EFIS are visible in their real positions (buttons not functional)
+- [ ] **PNL-14**: The gear and flap lights follow gear and flap state: three greens for down and locked, red for unsafe or in transition, off for up and locked (transition timing arrives with Phase 3)
+- [ ] **PNL-15**: A single tap on the panel background while zoomed zooms fully out (also from intermediate zoom levels); the "Full panel" button is never hidden by the footer
 
 ### Scenario Engine
 
@@ -102,6 +108,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PNL-06 | Phase 1 | Complete |
 | PNL-08 | Phase 1 | Complete |
 | PNL-09 | Phase 1 | Complete |
+| PNL-10 | Phase 01.1 | Pending |
+| PNL-11 | Phase 01.1 | Pending |
+| PNL-13 | Phase 01.2 | Pending |
+| PNL-14 | Phase 01.1 | Pending |
+| PNL-12 | Phase 01.2 | Pending |
+| PNL-15 | Phase 01.1 | Pending |
 | SCN-01 | Phase 2 | Pending |
 | SCN-02 | Phase 2 | Pending |
 | SCN-03 | Phase 2 | Pending |
@@ -126,7 +138,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLT-02 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 30 total (28 + PNL-08, PNL-09 added 2026-10-19)
+- v1 requirements: 36 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica)
 - Mapped to phases: 30
 - Unmapped: 0 ✓
 

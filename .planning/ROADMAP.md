@@ -13,6 +13,8 @@ The journey runs in vertical slices, each of which ends with something a pilot c
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Deployed Playable Panel** - Live GitHub Pages site where a responsive DA50 panel can be operated by mouse or touch; content policy decided (completed 2026-10-20)
+- [ ] **Phase 01.1: Panel shape, controls and indicator lights** (INSERTED) - Real panel outline, every switch, rocker, button and lever at its real position, working gear and flap lights, zoom fixes
+- [ ] **Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels** (INSERTED) - All circuit breakers, G1000 NXi PFD and MFD with softkeys, audio and autopilot panels, backup EFIS
 - [ ] **Phase 2: First Gradable Scenario** - Oil Temp High runs end to end: start, briefing, operate the panel, "Procedure complete", PASS/FAIL debrief
 - [ ] **Phase 3: Reactive Scenarios and Initial Pack** - Scripted reactions and escalation; Oil Temp High, Electrical Failure and Engine Fire all playable
 - [ ] **Phase 4: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
@@ -58,16 +60,36 @@ Plans:
 
 **UI hint**: yes
 
-### Phase 01.1: Panel appearance and control inventory (INSERTED)
+### Phase 01.1: Panel shape, controls and indicator lights (INSERTED)
 
-**Goal**: The panel looks and is laid out like the real DA50 RG, with the control inventory the first scenarios need in their real positions, so every later phase builds on a settled layout. Switch shapes and colours follow the aircraft (ELECT. MASTER big red rocker, ELT small red rocker, ESS BUS medium red rocker, other rockers white; alternators are the accurate reference); the overall graphical look is reworked; the two zoom usability findings from the Phase 1 UAT are fixed (single tap zooms fully out; the Full panel button is never hidden by the footer).
-**Scope to settle in discussion**: overall panel appearance concern (owner), which missing controls to add now versus per scenario
-**Requirements**: TBD
-**Depends on:** Phase 1
+**Goal**: The panel looks like the real DA50 RG: instrument panel outline, centre console, and every switch, rocker, push button, lever and knob at its real position in kind-of real shape and real colour. Light switches are movable; the gear and flap lights work. Brand marks are replaced (GARMIN becomes GO-AROUND, DIAMOND becomes RUBIN, DA50RG stays). The two zoom usability findings from the Phase 1 UAT are fixed. Every later phase builds on this settled layout.
+**Depends on**: Phase 1
+**Requirements**: PNL-10, PNL-11, PNL-14, PNL-15
+**Success Criteria** (what must be TRUE):
+  1. The panel outline, centre console and under-panel areas match the real DA50 RG, with all switches, rockers, push buttons, levers and knobs at their real positions, in kind-of real shape and real colour (ELECT. MASTER big red rocker, ELT small red rocker, ESS BUS medium red rocker, light switches white).
+  2. Every switch and lever works by mouse or touch with state shown by position plus text; the light rockers move.
+  3. The gear and flap lights follow the gear and flap state: three greens for down and locked, red for unsafe or in transition, off for up and locked (transition timing is Phase 3).
+  4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
+  5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 01.1 to break down)
+
+### Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels (INSERTED)
+
+**Goal**: The panel is complete before scenarios start: every circuit breaker at its real position (pushed in by default, pulled out showing a white ring, tap toggles), the G1000 NXi PFD and MFD in their well-known shape with softkeys (the MFD engine page and page softkey work, the rest is inert), the audio panel and autopilot panel visible (buttons not functional), and the static backup EFIS and other fixed items. Nothing a pilot would find on the real panel is missing.
+**Depends on**: Phase 01.1
+**Requirements**: PNL-12, PNL-13
+**Success Criteria** (what must be TRUE):
+  1. All circuit breakers (Essential, Main and Avionics bus) sit at their real positions with legible labels and work as a new control kind with states in and out, all pushed in by default, with an IN or OUT text for readability.
+  2. The PFD and MFD show the G1000 NXi shape with all softkeys; the MFD page softkey and the engine page still work.
+  3. The audio panel, autopilot panel and backup EFIS are visible in their real positions and look like the real units; their buttons do nothing for now.
+  4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 01.2 to break down)
 
 ### Phase 2: First Gradable Scenario
 
