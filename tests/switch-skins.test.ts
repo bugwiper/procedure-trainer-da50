@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { ROCKER_COLOURS, ROCKER_SIZES } from '../src/engine/registry';
 import type { ControlDef, GuardedToggleDef, ToggleDef } from '../src/engine/registry';
+import { BatBody, COMPACT_BAT_HEIGHT } from '../src/ui/panel/skins/Bat';
 import { ROCKER_FACE, RockerBody, rockerExtent } from '../src/ui/panel/skins/Rocker';
+import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
+import { SoftkeyBody } from '../src/ui/panel/widgets/Toggle';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
 
@@ -157,9 +161,9 @@ describe('D-08 colour and size gate', () => {
     expect(ids.sort()).toEqual(Object.keys(EXPECTED).sort());
   });
 
-  it('red switch parts are exactly ELECT. MASTER and ELT among the toggles', () => {
-    const red = TOGGLES.filter((t) => t.colour === 'red').map((t) => t.id);
-    expect(red.sort()).toEqual(['sw.elect_master', 'sw.elt']);
+  it('red switch parts are exactly ELECT. MASTER, ELT and the de-ice ALTERNATE', () => {
+    const red = ROCKERS.filter((t) => t.colour === 'red').map((t) => t.id);
+    expect(red.sort()).toEqual(['sw.deice_alternate', 'sw.elect_master', 'sw.elt']);
   });
 
   it('keeps the bats: alternators, FADEC and ENGINE MASTER (with ball)', () => {
@@ -188,5 +192,161 @@ describe('D-08 colour and size gate', () => {
       const text = stateTexts(tree)[0];
       expect(text?.props['font-size'], id).toBe(8);
     }
+  });
+});
+
+const BATS = TOGGLES.filter((t) => (t.skin ?? 'bat') === 'bat');
+
+describe('BatBody', () => {
+  it('covers the seven bats named by the plan plus ENGINE MASTER', () => {
+    expect(BATS.map((b) => b.id).sort()).toEqual([
+      'sw.alternator_1',
+      'sw.alternator_2',
+      'sw.deice_ice_light',
+      'sw.deice_pump1',
+      'sw.deice_pump2',
+      'sw.deice_windshield',
+      'sw.engine_master',
+      'sw.fadec',
+    ]);
+  });
+
+  it('stays within 40 nodes with one state text equal to the label, in both states', () => {
+    for (const def of BATS) {
+      for (const isSecond of [false, true]) {
+        for (const pressed of [false, true]) {
+          const label = (isSecond ? def.states[1] : def.states[0]).label;
+          const tree = expand(BatBody({ def, isSecond, pressed, stateLabel: label }));
+          const id = `${def.id}/${String(isSecond)}/${String(pressed)}`;
+          expect(countElements(tree), id).toBeLessThanOrEqual(40);
+          const texts = stateTexts(tree);
+          expect(texts, id).toHaveLength(1);
+          expect(textOf(texts[0] as El), id).toBe(label);
+        }
+      }
+    }
+  });
+
+  it('paints the bat with the shared chrome gradient and adds a ball tip only where asked', () => {
+    for (const def of BATS) {
+      const tree = expand(BatBody({ def, isSecond: true, pressed: false, stateLabel: 'ON' }));
+      expect(allProps(tree), def.id).toContain('url(#g-chrome)');
+      const balls = findElements(tree, (el) => el.tag === 'circle' && el.props['r'] === 3.2);
+      expect(balls.length, def.id).toBe(def.ball === true ? 1 : 0);
+    }
+  });
+
+  it('uses the pressed ring only while a pointer is down', () => {
+    for (const def of BATS) {
+      const idle = expand(BatBody({ def, isSecond: false, pressed: false, stateLabel: 'X' }));
+      const held = expand(BatBody({ def, isSecond: false, pressed: true, stateLabel: 'X' }));
+      expect(allProps(idle), def.id).not.toContain(PRESSED_RING);
+      expect(allProps(held), def.id).toContain(PRESSED_RING);
+    }
+  });
+
+  it('the de-ice bats, under 39 tall, use the compact variant: 6 label above, 8 state text', () => {
+    const compact = BATS.filter((b) => b.hit.h < COMPACT_BAT_HEIGHT);
+    expect(compact.map((b) => b.id).sort()).toEqual([
+      'sw.deice_ice_light',
+      'sw.deice_pump1',
+      'sw.deice_pump2',
+      'sw.deice_windshield',
+    ]);
+    for (const def of compact) {
+      const tree = expand(BatBody({ def, isSecond: true, pressed: false, stateLabel: 'ON' }));
+      const label = findElements(tree, (el) => el.tag === 'text' && textOf(el) === def.label)[0];
+      expect(label?.props['font-size'], def.id).toBe(6);
+      expect(Number(label?.props['y']), def.id).toBeLessThan(-def.hit.h / 2);
+      expect(stateTexts(tree)[0]?.props['font-size'], def.id).toBe(8);
+    }
+  });
+});
+
+describe('guarded ALTERNATE', () => {
+  const alt = DA50RG.controls.find((c) => c.id === 'sw.deice_alternate');
+
+  it('is a red size M rocker under the cover', () => {
+    expect(alt?.kind).toBe('guarded-toggle');
+    if (alt?.kind !== 'guarded-toggle') return;
+    expect([alt.size, alt.colour]).toEqual(['M', 'red']);
+  });
+
+  it('rocker plus cover stay within 40 nodes, closed and open, and use the shared hatch', () => {
+    if (alt?.kind !== 'guarded-toggle') throw new Error('no ALTERNATE');
+    for (const guardOpen of [false, true]) {
+      const rocker = expand(
+        RockerBody({ def: alt, isSecond: false, pressed: false, stateLabel: 'OFF' }),
+      );
+      const cover = expand(
+        GuardCover({ def: alt, guardOpen, guardLabel: guardOpen ? 'OPEN' : 'CLOSED' }),
+      );
+      const id = guardOpen ? 'open' : 'closed';
+      expect(countElements(rocker) + countElements(cover), id).toBeLessThanOrEqual(40);
+      expect(allProps(cover), id).toContain('url(#p-hatch)');
+      expect(
+        findElements(cover, (el) => el.tag === 'pattern' || el.tag === 'defs'),
+        id,
+      ).toEqual([]);
+      expect(textOf(cover), id).toContain('GUARD');
+      const stateText = stateTexts(cover);
+      expect(stateText, id).toHaveLength(1);
+      expect(textOf(stateText[0] as El), id).toBe(guardOpen ? 'OPEN' : 'CLOSED');
+    }
+  });
+});
+
+describe('softkey selected state', () => {
+  it('uses a 2.5-unit #e6e9ed stroke and never the blue ring', () => {
+    const def = toggle('sw.mfd_page');
+    const selected = expand(
+      SoftkeyBody({
+        def,
+        labelWidth: 20,
+        isSecond: true,
+        pressed: false,
+        stateLabel: def.states[1].label,
+      }),
+    );
+    const rect = findElements(selected, (el) => el.tag === 'rect')[0];
+    expect(rect?.props['stroke']).toBe('#e6e9ed');
+    expect(rect?.props['stroke-width']).toBe(2.5);
+    expect(allProps(selected)).not.toContain('#5ab0ff');
+    const idle = expand(
+      SoftkeyBody({
+        def,
+        labelWidth: 20,
+        isSecond: false,
+        pressed: false,
+        stateLabel: def.states[0].label,
+      }),
+    );
+    expect(findElements(idle, (el) => el.tag === 'rect')[0]?.props['stroke-width']).toBe(1);
+  });
+});
+
+describe('toggle-family sources', () => {
+  const FILES = [
+    'src/ui/panel/widgets/Toggle.tsx',
+    'src/ui/panel/widgets/GuardedToggle.tsx',
+    'src/ui/panel/skins/Rocker.tsx',
+    'src/ui/panel/skins/Bat.tsx',
+  ];
+
+  it('use only the font sizes 6, 8, 10 and 14', () => {
+    for (const file of FILES) {
+      const src = readFileSync(file, 'utf8');
+      const sizes = [...src.matchAll(/font-size=\{(\d+)\}/g)].map((m) => Number(m[1]));
+      expect(sizes.length, file).toBeGreaterThan(0);
+      for (const size of sizes) expect([6, 8, 10, 14], `${file} ${size}`).toContain(size);
+    }
+  });
+
+  it('define no gradient or pattern of their own and Toggle no longer exports SwitchBody', () => {
+    for (const file of FILES) {
+      const src = readFileSync(file, 'utf8');
+      expect(src, file).not.toMatch(/<(pattern|linearGradient|radialGradient)/);
+    }
+    expect(readFileSync(FILES[0] as string, 'utf8')).not.toContain('export function SwitchBody');
   });
 });
