@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
 status: executing
-stopped_at: Completed 01.1-06-PLAN.md
-last_updated: "2026-10-20T16:06:05.688Z"
+stopped_at: Completed 01.1-07-PLAN.md
+last_updated: "2026-10-20T16:11:49.982Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: fc79582b8a80c5eb48eb249977475c82c243148b
+state_head: f0f8a068f3aeb76ca17963f933e8f7f47ce477d7
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 20
-  completed_plans: 15
+  completed_plans: 16
   percent: 14
 ---
 
@@ -28,8 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.1 (Panel shape, controls and indicator lights) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
+Current Plan: 8
+Total Plans in Phase: 11
+Status: Ready to execute (plans 01.1-01 to 01.1-07 complete)
 Last activity: 2026-10-20 — Phase 01 complete, transitioned to Phase 2
 
 Progress: [█░░░░░░░░░] 14%
@@ -62,6 +63,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P04 | 9 min | 3 tasks | 9 files |
 | Phase 01.1 P05 | 10 min | 3 tasks | 6 files |
 | Phase 01.1 P06 | 25min | 3 tasks | 6 files |
+| Phase 01.1 P07 | 20 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -87,6 +89,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: PD-03: UI-SPEC id sw.deice_mode registered as lv.deice_mode (detent lever needs lv. prefix)
 - [Phase 01.1]: PD-05: TEMPERATURE slider centred 4 units right of UI-SPEC x (global 1096) to clear the FAN knob
 - [Phase 01.1]: PD-04: STALL/GEAR TEST registered as btn.stall_gear_test (spring-return three-state momentary), centred 7 units right of the UI-SPEC x
+- [Phase 01.1]: 01.1-07: single background tap while zoomed zooms fully out; suppression (350 ms / 24 px) kept and cleared when the view changes by other means
 
 ### Pending Todos
 
@@ -115,6 +118,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T16:06:05.572Z
-Stopped at: Completed 01.1-06-PLAN.md
+Last session: 2026-10-20T16:11:49.846Z
+Stopped at: Completed 01.1-07-PLAN.md
 Resume file: None
