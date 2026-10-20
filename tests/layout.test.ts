@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
+import { BEZEL_EXTRA } from '../src/engine/indicators';
 import type { ControlDef, Rect } from '../src/engine/registry';
 import {
   FRONT_PANEL_REGIONS,
@@ -39,7 +41,10 @@ function regionBounds(id: string): Rect {
   return region.bounds;
 }
 
-function globalCentre(def: ControlDef): { x: number; y: number } {
+function globalCentre(def: { region: string; x: number; y: number }): {
+  x: number;
+  y: number;
+} {
   const b = regionBounds(def.region);
   return { x: b.x + def.x, y: b.y + def.y };
 }
@@ -67,7 +72,8 @@ function subject(ref: string): Subject | undefined {
       y2: b.y + b.h,
     };
   }
-  const def = DA50RG.get(ref);
+  const lamp = DA50RG_INDICATORS.get(ref);
+  const def = lamp ?? DA50RG.get(ref);
   if (def === undefined) return undefined;
   const c = globalCentre(def);
   return { isRegion: false, cx: c.x, cy: c.y, x1: c.x, x2: c.x, y1: c.y, y2: c.y };
@@ -205,7 +211,7 @@ describe('control footprints', () => {
 
 describe('true-proportion reference positions (D-21)', () => {
   for (const { id, x, y, tol, review } of [...REFERENCE_POSITIONS, ...INDICATOR_POSITIONS]) {
-    const def = DA50RG.get(id);
+    const def = DA50RG_INDICATORS.get(id) ?? DA50RG.get(id);
     (def === undefined ? it.skip : it)(
       `${id} sits at ${x}, ${y} within ${tol}${review ? ' (review)' : ''}`,
       () => {
@@ -227,6 +233,52 @@ describe('true-proportion reference positions (D-21)', () => {
     for (const def of DA50RG.controls) {
       if (def.kind === 'guard') continue;
       expect(known.has(def.id), `${def.id} has no reference position`).toBe(true);
+    }
+  });
+});
+
+describe('indicator lamps (PNL-14, D-11)', () => {
+  const BEZEL = 7 + BEZEL_EXTRA;
+
+  it('every lamp bezel disc lies inside its region', () => {
+    for (const lamp of DA50RG_INDICATORS.indicators) {
+      const b = regionBounds(lamp.region);
+      expect(lamp.r + BEZEL_EXTRA, `${lamp.id} bezel`).toBe(BEZEL);
+      expect(lamp.x - BEZEL, `${lamp.id} left`).toBeGreaterThanOrEqual(0);
+      expect(lamp.y - BEZEL, `${lamp.id} top`).toBeGreaterThanOrEqual(0);
+      expect(lamp.x + BEZEL, `${lamp.id} right`).toBeLessThanOrEqual(b.w);
+      expect(lamp.y + BEZEL, `${lamp.id} bottom`).toBeLessThanOrEqual(b.h);
+    }
+  });
+
+  it('no lamp bezel overlaps a control footprint of its region', () => {
+    for (const lamp of DA50RG_INDICATORS.indicators) {
+      const region = DA50RG.regions.find((r) => r.id === lamp.region);
+      for (const id of region?.controlIds ?? []) {
+        const def = DA50RG.get(id);
+        if (def === undefined) continue;
+        const distance = distanceToRect(lamp.x, lamp.y, footprint(def));
+        expect(distance, `${lamp.id} / ${id}`).toBeGreaterThanOrEqual(BEZEL);
+      }
+    }
+  });
+
+  it('readout text centres lie inside their region and clear of control footprints', () => {
+    for (const group of DA50RG_INDICATORS.groups) {
+      const b = regionBounds(group.region);
+      expect(group.x).toBeGreaterThan(0);
+      expect(group.x).toBeLessThan(b.w);
+      expect(group.y).toBeGreaterThan(0);
+      expect(group.y).toBeLessThan(b.h);
+      const region = DA50RG.regions.find((r) => r.id === group.region);
+      for (const id of region?.controlIds ?? []) {
+        const def = DA50RG.get(id);
+        if (def === undefined) continue;
+        expect(
+          distanceToRect(group.x, group.y, footprint(def)),
+          `${group.id} / ${id}`,
+        ).toBeGreaterThan(0);
+      }
     }
   });
 });
