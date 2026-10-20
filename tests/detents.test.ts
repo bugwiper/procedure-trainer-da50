@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GEAR_FLAPS_CONTROLS } from '../src/aircraft/da50rg/controls/gear-flaps';
 import { PEDESTAL_CONTROLS } from '../src/aircraft/da50rg/controls/pedestal';
+import { UNDER_PANEL_CONTROLS } from '../src/aircraft/da50rg/controls/under-panel';
 import { detentOffset, projectToTrack, snapToDetent } from '../src/engine/detents';
 import type { DetentDef, DetentLeverDef } from '../src/engine/registry';
 
@@ -78,5 +79,28 @@ describe('pedestal and front-panel lever inventory', () => {
   it('GEAR_FLAPS_CONTROLS is exactly GEAR and FLAPS', () => {
     expect(GEAR_FLAPS_CONTROLS.map((c) => c.id)).toEqual(['lv.gear', 'lv.flaps']);
     for (const c of GEAR_FLAPS_CONTROLS) expect(c.kind).toBe('detent-lever');
+  });
+});
+
+describe('under-panel lever inventory', () => {
+  it('UNDER_PANEL_CONTROLS is exactly alternate static, emergency gear, alternate air', () => {
+    expect(UNDER_PANEL_CONTROLS.map((c) => c.id)).toEqual([
+      'lv.alt_static',
+      'lv.emerg_gear',
+      'lv.alt_air',
+    ]);
+  });
+
+  it('all are two-detent levers; only EMERGENCY GEAR EXTENSION is dragOnly (PNL-06)', () => {
+    for (const c of UNDER_PANEL_CONTROLS) {
+      expect(c.kind).toBe('detent-lever');
+      if (c.kind !== 'detent-lever') continue;
+      expect(c.detents, c.id).toHaveLength(2);
+      expect(c.dragOnly === true, c.id).toBe(c.id === 'lv.emerg_gear');
+    }
+  });
+
+  it('defaults are closed, normal, closed', () => {
+    expect(UNDER_PANEL_CONTROLS.map((c) => c.default)).toEqual(['closed', 'normal', 'closed']);
   });
 });
