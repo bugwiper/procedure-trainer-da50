@@ -127,3 +127,66 @@ describe('DA50RG rockers', () => {
     expect(ROCKER_FACE.L.ears).toBeDefined();
   });
 });
+
+describe('D-08 colour and size gate', () => {
+  const EXPECTED: Record<string, readonly [string, string]> = {
+    'sw.elect_master': ['L', 'red'],
+    'sw.elt': ['S', 'red'],
+    'sw.ess_bus': ['M', 'white'],
+    'sw.prop_deice': ['M', 'white'],
+    'sw.emerg_fuel_pump': ['M', 'white'],
+    'sw.av_master': ['M', 'white'],
+    'sw.pitot_stall_heat': ['W', 'white'],
+    'sw.light_landing': ['LIGHT', 'white'],
+    'sw.light_taxi': ['LIGHT', 'white'],
+    'sw.light_position': ['LIGHT', 'white'],
+    'sw.light_strobe': ['LIGHT', 'white'],
+  };
+
+  it('gives every rocker toggle its size and colour from Table S1', () => {
+    for (const [id, [size, colour]] of Object.entries(EXPECTED)) {
+      const def = toggle(id);
+      expect(def.skin, id).toBe('rocker');
+      expect(def.size, id).toBe(size);
+      expect(def.colour, id).toBe(colour);
+    }
+  });
+
+  it('has no other rocker toggle than the eleven of Table S1', () => {
+    const ids = TOGGLES.filter((t) => t.skin === 'rocker').map((t) => t.id);
+    expect(ids.sort()).toEqual(Object.keys(EXPECTED).sort());
+  });
+
+  it('red switch parts are exactly ELECT. MASTER and ELT among the toggles', () => {
+    const red = TOGGLES.filter((t) => t.colour === 'red').map((t) => t.id);
+    expect(red.sort()).toEqual(['sw.elect_master', 'sw.elt']);
+  });
+
+  it('keeps the bats: alternators, FADEC and ENGINE MASTER (with ball)', () => {
+    for (const id of ['sw.alternator_1', 'sw.alternator_2', 'sw.fadec', 'sw.engine_master']) {
+      const def = toggle(id);
+      expect(def.skin ?? 'bat', id).toBe('bat');
+      expect(def.size, id).toBeUndefined();
+      expect(def.colour, id).toBeUndefined();
+    }
+    expect(toggle('sw.engine_master').ball).toBe(true);
+    expect(TOGGLES.filter((t) => t.ball === true).map((t) => t.id)).toEqual(['sw.engine_master']);
+  });
+
+  it('the four light rockers use state text size 8 and keep ON as the second state', () => {
+    for (const id of [
+      'sw.light_landing',
+      'sw.light_taxi',
+      'sw.light_position',
+      'sw.light_strobe',
+    ]) {
+      const def = toggle(id);
+      expect(def.states[1].id, id).toBe('on');
+      const tree = expand(
+        RockerBody({ def, isSecond: true, pressed: false, stateLabel: def.states[1].label }),
+      );
+      const text = stateTexts(tree)[0];
+      expect(text?.props['font-size'], id).toBe(8);
+    }
+  });
+});
