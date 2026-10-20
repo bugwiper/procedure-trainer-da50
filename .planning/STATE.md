@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
 status: executing
-stopped_at: Completed 01.1-05-PLAN.md
-last_updated: "2026-10-20T15:51:00.594Z"
+stopped_at: Completed 01.1-06-PLAN.md
+last_updated: "2026-10-20T16:06:05.688Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: ff76a50c9d1ff002ba945a6dfb258904ef4fd06a
+state_head: fc79582b8a80c5eb48eb249977475c82c243148b
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 20
-  completed_plans: 14
+  completed_plans: 15
   percent: 14
 ---
 
@@ -61,6 +61,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P03 | 12min | 3 tasks | 12 files |
 | Phase 01.1 P04 | 9 min | 3 tasks | 9 files |
 | Phase 01.1 P05 | 10 min | 3 tasks | 6 files |
+| Phase 01.1 P06 | 25min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: PD-07: indicators (lt. lamps) are outside the control registry; never dispatched or graded. Phase 3 feeds flags (gear.in_transit) through IndicatorInputs.flags
 - [Phase 01.1]: PD-03: UI-SPEC id sw.deice_mode registered as lv.deice_mode (detent lever needs lv. prefix)
 - [Phase 01.1]: PD-05: TEMPERATURE slider centred 4 units right of UI-SPEC x (global 1096) to clear the FAN knob
+- [Phase 01.1]: PD-04: STALL/GEAR TEST registered as btn.stall_gear_test (spring-return three-state momentary), centred 7 units right of the UI-SPEC x
 
 ### Pending Todos
 
@@ -113,6 +115,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T15:51:00.492Z
-Stopped at: Completed 01.1-05-PLAN.md
+Last session: 2026-10-20T16:06:05.572Z
+Stopped at: Completed 01.1-06-PLAN.md
 Resume file: None
