@@ -96,15 +96,16 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
   );
 }
 
-interface BodyProps {
-  readonly def: ToggleDef;
+export interface BodyProps {
+  readonly def: Pick<ToggleDef, 'label' | 'hit'>;
   readonly isSecond: boolean;
   readonly pressed: boolean;
   readonly stateLabel: string;
   readonly labelWidth: number;
 }
 
-function SwitchBody({
+/** Switch skin, shared with the guarded toggle widget. */
+export function SwitchBody({
   def,
   top,
   labelWidth,

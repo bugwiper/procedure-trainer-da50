@@ -12,6 +12,7 @@
 
 import { defineRegistry } from '../../engine/registry';
 import type { RegionDef, Size } from '../../engine/registry';
+import { DEICE_CONTROLS } from './controls/deice';
 import { ENGINE_CONTROLS } from './controls/engine';
 import { MFD_CONTROLS } from './controls/mfd';
 import { GEAR_FLAPS_CONTROLS } from './controls/gear-flaps';
@@ -70,6 +71,7 @@ export const DA50RG = defineRegistry({
   regions: REGIONS,
   // Plans 05 and 07 append their control lists here.
   controls: [
+    ...DEICE_CONTROLS,
     ...ENGINE_CONTROLS,
     ...SWITCH_BANK_CONTROLS,
     ...MFD_CONTROLS,
