@@ -92,14 +92,18 @@ export function screenToView(
 
 /**
  * Smallest tap-target side of a control in viewBox units. Mirrors the widgets: toggles and
- * buttons their footprint (a three-state button half its width), a knob its whole footprint (two
+ * buttons their footprint (a three-state toggle a third of its height, a three-state button half
+ * its width), a knob its whole footprint (two
  * stops) or each tap half, a guard also its lifted-guard area, and a lever the handle and marker
  * squares min(across, along - track length, smallest marker spacing).
  */
 export function targetSide(def: ControlDef): number {
   switch (def.kind) {
     case 'toggle':
-      return Math.min(def.hit.w, def.hit.h);
+      // A three-state toggle has three stacked tap thirds.
+      return def.states.length === 3
+        ? Math.min(def.hit.w, def.hit.h / 3)
+        : Math.min(def.hit.w, def.hit.h);
     case 'momentary-button':
       // A three-state button (spring-bat) has two pressed positions, one per half of the width.
       return def.states.length === 3

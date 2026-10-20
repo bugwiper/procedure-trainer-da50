@@ -93,8 +93,12 @@ export const SWITCH_BANK_CONTROLS: readonly ControlSpec[] = [
     size: 'W',
     colour: 'white',
   }),
-  // ELT sits in RIGHT PANEL at the lower right (D-07c does not mention it); the data
-  // stays here with the other panel switches.
+  // ELT sits in RIGHT PANEL at the lower right (D-07c does not mention it); the data stays here
+  // with the other panel switches. Three positions, bottom to top: RESET / TEST, ARMED, ON
+  // (owner finding G-6); default ARMED, maintained (Q-01 default: no spring return). The hit is
+  // 34 wide so the lamp left of the rocker (lt.elt) stays outside the footprint; a tap in the top,
+  // middle or bottom third of the 78-high hit selects the position. The placards are static plate
+  // text (placards.ts).
   {
     id: 'sw.elt',
     kind: 'toggle',
@@ -102,13 +106,14 @@ export const SWITCH_BANK_CONTROLS: readonly ControlSpec[] = [
     region: 'right_panel',
     x: 56,
     y: 43,
-    hit: { w: 50, h: 70 },
+    hit: { w: 34, h: 78 },
     states: [
-      { id: 'arm', label: 'ARM' },
+      { id: 'reset_test', label: 'RESET / TEST' },
+      { id: 'armed', label: 'ARMED' },
       { id: 'on', label: 'ON' },
     ],
-    default: 'arm',
-    // Small red rocker; the second state (ON) is the upper end (P650, PED, P807).
+    default: 'armed',
+    // Small red rocker (P650, PED, P807).
     skin: 'rocker',
     size: 'S',
     colour: 'red',

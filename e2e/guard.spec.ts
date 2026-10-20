@@ -17,6 +17,15 @@ async function activate(target: Locator, hasTouch: boolean): Promise<void> {
   else await target.click();
 }
 
+/** Taps or clicks at a fraction of the height of the hit rectangle (0 top, 1 bottom). */
+async function activateAt(target: Locator, hasTouch: boolean, fraction: number): Promise<void> {
+  const box = await target.boundingBox();
+  if (box === null) throw new Error('hit rectangle has no bounding box');
+  const position = { x: box.width / 2, y: box.height * fraction };
+  if (hasTouch) await target.tap({ position });
+  else await target.click({ position });
+}
+
 function control(page: Page, id: string): Locator {
   return page.locator(`[data-control-id="${id}"]`);
 }
@@ -104,8 +113,25 @@ test('ELECT. MASTER and ELT are unguarded and flip with one tap', async ({ page,
   await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
   await expect(master).toHaveAttribute('data-state', 'off');
 
+  // The ELT has three positions (G-6): a tap in the top, middle and bottom third of its hit
+  // rectangle sets ON, ARMED and RESET / TEST in turn, with no guard in between.
   const elt = control(page, 'sw.elt');
-  await expect(elt).toHaveAttribute('data-state', 'arm');
-  await activate(page.locator('[data-hit="sw.elt"]'), hasTouch);
+  const eltHit = page.locator('[data-hit="sw.elt"]');
+  await expect(elt).toHaveAttribute('data-state', 'armed');
+  await expect(elt).toHaveAttribute('data-pressed-half', 'level');
+  await activateAt(eltHit, hasTouch, 1 / 6);
   await expect(elt).toHaveAttribute('data-state', 'on');
+  await expect(elt).toHaveAttribute('data-pressed-half', 'upper');
+  await activateAt(eltHit, hasTouch, 1 / 2);
+  await expect(elt).toHaveAttribute('data-state', 'armed');
+  await expect(elt).toHaveAttribute('data-pressed-half', 'level');
+  await activateAt(eltHit, hasTouch, 5 / 6);
+  await expect(elt).toHaveAttribute('data-state', 'reset_test');
+  await expect(elt).toHaveAttribute('data-pressed-half', 'lower');
+  // A tap on the position it already holds records no event.
+  const count = () => page.evaluate(() => (globalThis as HookHost).__panel?.events().length ?? -1);
+  const before = await count();
+  await activateAt(eltHit, hasTouch, 5 / 6);
+  await expect(elt).toHaveAttribute('data-state', 'reset_test');
+  expect(await count()).toBe(before);
 });

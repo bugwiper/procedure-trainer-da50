@@ -148,6 +148,14 @@ describe('targetSide', () => {
     expect(targetSide(toggle)).toBe(Math.min(toggle.hit.w, toggle.hit.h));
   });
 
+  it('a three-state toggle counts a third of its height (the ELT)', () => {
+    const elt = DA50RG.get('sw.elt');
+    expect(elt?.kind).toBe('toggle');
+    if (elt === undefined) return;
+    expect(targetSide(elt)).toBe(Math.min(elt.hit.w, elt.hit.h / 3));
+    expect(targetSide(elt)).toBe(26);
+  });
+
   it('includes the lifted-guard area for guarded toggles and guards', () => {
     const base = {
       label: 'X',

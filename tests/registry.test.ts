@@ -345,6 +345,69 @@ describe('toggle skins (UI-SPEC 8.1, 8.2)', () => {
   });
 });
 
+describe('three-position toggles (plan 18, Table T2)', () => {
+  const three = [
+    { id: 'reset_test', label: 'RESET / TEST' },
+    { id: 'armed', label: 'ARMED' },
+    { id: 'on', label: 'ON' },
+  ] as const;
+  const mid = { states: three, default: 'armed' } as const;
+
+  it('accepts three states on the rocker and the bat skin and lists them bottom to top', () => {
+    const reg = build([
+      toggle('sw.r3', { ...mid, skin: 'rocker', size: 'S', colour: 'red' }),
+      toggle('sw.b3', { ...mid, skin: 'bat' }),
+      toggle('sw.d3', { ...mid }),
+    ]);
+    const def = reg.get('sw.r3');
+    expect(def).toBeDefined();
+    if (def === undefined) return;
+    expect(legalStates(def)).toEqual(['reset_test', 'armed', 'on']);
+  });
+
+  it('rejects three states on the softkey skin', () => {
+    expectRejected([toggle('sw.k3', { ...mid, skin: 'softkey' })], 'sw.k3');
+  });
+
+  it('rejects a guarded toggle with three states (data cast around the types)', () => {
+    expectRejected(
+      [
+        guarded('sw.g3', {
+          states: three as unknown as GuardedToggleDef['states'],
+          default: 'armed',
+        }),
+      ],
+      'sw.g3',
+    );
+  });
+
+  it('rejects duplicate state ids and an illegal default among three states', () => {
+    const dup = [three[0], three[1], three[0]] as unknown as ToggleDef['states'];
+    expectRejected([toggle('sw.dup3', { states: dup, default: 'armed' })], 'sw.dup3');
+    expectRejected([toggle('sw.def3', { ...mid, default: 'off' })], 'sw.def3');
+  });
+
+  it('rejects four states', () => {
+    const four = [...three, { id: 'x', label: 'X' }] as unknown as ToggleDef['states'];
+    expectRejected([toggle('sw.four', { states: four, default: 'armed' })], 'sw.four');
+  });
+
+  it('targetSide of a three-state toggle is min(width, height / 3)', () => {
+    const def = toggle('sw.t3', { ...mid, skin: 'rocker', size: 'S', colour: 'red' });
+    expect(targetSide({ ...def, hit: { w: 34, h: 78 } })).toBe(26);
+    expect(targetSide({ ...def, hit: { w: 20, h: 78 } })).toBe(20);
+    expect(targetSide(toggle('sw.t2', { hit: { w: 34, h: 78 } }))).toBe(34);
+  });
+
+  it('the ELT of DA50RG has reset_test, armed, on and rests armed', () => {
+    const elt = DA50RG.get('sw.elt');
+    expect(elt?.kind).toBe('toggle');
+    if (elt === undefined) return;
+    expect(legalStates(elt)).toEqual(['reset_test', 'armed', 'on']);
+    expect(elt.default).toBe('armed');
+  });
+});
+
 describe('guarded toggle rocker fields', () => {
   it('accepts both size and colour, or neither', () => {
     expect(() =>

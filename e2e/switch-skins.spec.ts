@@ -43,20 +43,57 @@ test('ELECT. MASTER is the big red rocker and its pressed half follows its state
 
 const RED_IDS = ['sw.deice_alternate', 'sw.elect_master', 'sw.elt'];
 
+/** Taps or clicks at a fraction of the height of the hit rectangle (0 top, 1 bottom). */
+async function activateAt(hit: Locator, hasTouch: boolean, fraction: number): Promise<void> {
+  const box = await hit.boundingBox();
+  if (box === null) throw new Error('hit rectangle has no bounding box');
+  const position = { x: box.width / 2, y: box.height * fraction };
+  if (hasTouch) await hit.tap({ position });
+  else await hit.click({ position });
+}
+
+// The pressed half per state: the upper end (on) is upper, the middle (armed) is level, the
+// lower end (off, reset_test) is lower.
+function expectedHalf(state: string | null): string {
+  return state === 'on' ? 'upper' : state === 'armed' ? 'level' : 'lower';
+}
+
+test('the three-position ELT rocker shows upper, level and lower for on, armed and reset_test', async ({
+  page,
+  hasTouch,
+}) => {
+  const elt = control(page, 'sw.elt');
+  const hit = page.locator('[data-hit="sw.elt"]');
+  await expect(elt).toHaveAttribute('data-skin', 'rocker');
+  await expect(elt).toHaveAttribute('data-state', 'armed');
+  await expect(elt).toHaveAttribute('data-pressed-half', 'level');
+  for (const [fraction, state] of [
+    [1 / 6, 'on'],
+    [1 / 2, 'armed'],
+    [5 / 6, 'reset_test'],
+    [1 / 2, 'armed'],
+  ] as const) {
+    await activateAt(hit, hasTouch, fraction);
+    await expect(elt).toHaveAttribute('data-state', state);
+    await expect(elt).toHaveAttribute('data-pressed-half', expectedHalf(state));
+  }
+});
+
 test('every rocker pressed half matches its state before and after one tap', async ({
   page,
   hasTouch,
 }) => {
   const ids = await page
-    .locator('[data-skin="rocker"][data-kind="toggle"]')
+    .locator('[data-skin="rocker"][data-kind="toggle"]:not([data-control-id="sw.elt"])')
     .evaluateAll((els) => els.map((el) => el.getAttribute('data-control-id') ?? ''));
-  expect(ids.length).toBeGreaterThanOrEqual(11);
+  // The three-position ELT has its own case above.
+  expect(ids.length).toBeGreaterThanOrEqual(10);
   for (const id of ids) {
     const group = control(page, id);
     const half = async () => {
       const state = await group.getAttribute('data-state');
-      // The second state in registry order (ON for every rocker, also ELT) is the upper end.
-      return state === 'on' ? 'upper' : 'lower';
+      // The second state in registry order (ON for every two-state rocker) is the upper end.
+      return expectedHalf(state);
     };
     await expect(group, id).toHaveAttribute('data-pressed-half', await half());
     await activate(page.locator(`[data-hit="${id}"]`), hasTouch);

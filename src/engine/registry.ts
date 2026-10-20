@@ -67,9 +67,15 @@ export type LeverSkin = (typeof LEVER_SKINS)[number];
  */
 export type TogglePosition = 'low' | 'mid' | 'high';
 
+/**
+ * Two states, or three for the rocker and bat skins only. With three the order is bottom, middle,
+ * top: the first state is drawn `low`, the second `mid`, the third `high` (plan 18, Table T2).
+ */
+export type ToggleStates = readonly [StateDef, StateDef] | readonly [StateDef, StateDef, StateDef];
+
 export interface ToggleDef extends ControlBase {
   readonly kind: 'toggle';
-  readonly states: readonly [StateDef, StateDef];
+  readonly states: ToggleStates;
   readonly default: StateId;
   /** Absent means 'bat'. */
   readonly skin?: ToggleSkin;
@@ -302,6 +308,12 @@ function checkRotary(def: RotaryDef): void {
 
 function checkSkinFields(def: ToggleDef | GuardedToggleDef): void {
   if (def.kind === 'guarded-toggle') {
+    const count = (def.states as readonly StateDef[]).length;
+    if (count !== 2) {
+      throw new RegistryError(
+        `guarded toggle "${def.id}" has ${count} states (a guarded toggle has exactly two)`,
+      );
+    }
     if ((def.size === undefined) !== (def.colour === undefined)) {
       throw new RegistryError(
         `guarded toggle "${def.id}" needs both size and colour for its rocker, or neither`,
@@ -313,6 +325,14 @@ function checkSkinFields(def: ToggleDef | GuardedToggleDef): void {
   const skin = def.skin ?? 'bat';
   if (!(TOGGLE_SKINS as readonly string[]).includes(skin)) {
     throw new RegistryError(`toggle "${def.id}" has unknown skin "${skin}"`);
+  }
+  if (def.states.length > 3) {
+    throw new RegistryError(`toggle "${def.id}" has ${def.states.length} states (2 or 3 allowed)`);
+  }
+  if (def.states.length === 3 && skin === 'softkey') {
+    throw new RegistryError(
+      `toggle "${def.id}" has three states but its skin is "softkey"; only the rocker and bat skins have a middle position`,
+    );
   }
   if (skin === 'rocker') {
     if (def.size === undefined || def.colour === undefined) {

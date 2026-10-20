@@ -6,7 +6,13 @@ import type { ControlDef, GuardedToggleDef, ToggleDef } from '../src/engine/regi
 import { BatBody, COMPACT_BAT_HEIGHT } from '../src/ui/panel/skins/Bat';
 import { ROCKER_FACE, ROCKER_LIFT, RockerBody, rockerExtent } from '../src/ui/panel/skins/Rocker';
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
-import { SoftkeyBody } from '../src/ui/panel/widgets/Toggle';
+import {
+  SoftkeyBody,
+  pressedHalfOf,
+  stateAtFraction,
+  tapTarget,
+  togglePosition,
+} from '../src/ui/panel/widgets/Toggle';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
 
@@ -239,6 +245,73 @@ describe('D-08 colour and size gate', () => {
       expect(def.states[1].id, id).toBe('on');
       const tree = expand(RockerBody({ def, position: 'high', pressed: false }));
       expect(stateTexts(tree), id).toHaveLength(0);
+    }
+  });
+});
+
+describe('three-position toggle contract (plan 18, Table T2)', () => {
+  it('the ELT is the small red rocker with reset_test, armed, on from bottom to top', () => {
+    const elt = toggle('sw.elt');
+    expect(elt.states.map((st) => st.id)).toEqual(['reset_test', 'armed', 'on']);
+    expect(elt.default).toBe('armed');
+    expect([elt.skin, elt.size, elt.colour]).toEqual(['rocker', 'S', 'red']);
+    expect(elt.hit).toEqual({ w: 34, h: 78 });
+    expect([elt.x, elt.y]).toEqual([56, 43]);
+  });
+
+  it('only the ELT has three states among the toggles', () => {
+    expect(TOGGLES.filter((t) => t.states.length === 3).map((t) => t.id)).toEqual(['sw.elt']);
+  });
+
+  it('the position input follows the state index: low and high, or low, mid and high', () => {
+    expect([togglePosition(0, 2), togglePosition(1, 2)]).toEqual(['low', 'high']);
+    expect([0, 1, 2].map((i) => togglePosition(i, 3))).toEqual(['low', 'mid', 'high']);
+  });
+
+  it('data-pressed-half is upper for high, level for mid and lower for low', () => {
+    expect(pressedHalfOf('high')).toBe('upper');
+    expect(pressedHalfOf('mid')).toBe('level');
+    expect(pressedHalfOf('low')).toBe('lower');
+  });
+
+  it('a tap in the top, middle or bottom third selects on, armed or reset_test', () => {
+    const { states } = toggle('sw.elt');
+    const pick = (f: number) => stateAtFraction(states, f).id;
+    expect([0, 0.1, 0.33].map(pick)).toEqual(['on', 'on', 'on']);
+    expect([0.34, 0.5, 0.66].map(pick)).toEqual(['armed', 'armed', 'armed']);
+    expect([0.67, 0.9, 1].map(pick)).toEqual(['reset_test', 'reset_test', 'reset_test']);
+  });
+
+  it('a tap outside the rectangle still lands on one of the three declared states', () => {
+    const { states } = toggle('sw.elt');
+    const ids = states.map((st) => st.id);
+    for (const f of [-5, -0.01, 1.01, 7, Number.NaN]) {
+      expect(ids).toContain(stateAtFraction(states, f).id);
+    }
+  });
+
+  it('a two-state toggle ignores the position and flips on any tap', () => {
+    const { states } = toggle('sw.engine_master');
+    expect([0.1, 0.9].map((f) => tapTarget(states, 'on', f))).toEqual(['off', 'off']);
+    expect([0.1, 0.9].map((f) => tapTarget(states, 'off', f))).toEqual(['on', 'on']);
+  });
+
+  it('a three-state tap on the active position targets that same state (no event)', () => {
+    const { states } = toggle('sw.elt');
+    expect(tapTarget(states, 'armed', 0.5)).toBe('armed');
+    expect(tapTarget(states, 'armed', 0.1)).toBe('on');
+    expect(tapTarget(states, 'on', 0.5)).toBe('armed');
+  });
+
+  it('the ELT rocker draws level in the middle position and the same text everywhere', () => {
+    const def = toggle('sw.elt');
+    const mid = expand(RockerBody({ def, position: 'mid', pressed: false }));
+    expect(findElements(mid, (el) => 'data-rocker-wall' in el.props)).toHaveLength(2);
+    for (const position of ['low', 'mid', 'high'] as const) {
+      const tree = expand(RockerBody({ def, position, pressed: false }));
+      expect(findElements(tree, (el) => el.tag === 'text').map((el) => textOf(el))).toEqual([
+        'ELT',
+      ]);
     }
   });
 });
