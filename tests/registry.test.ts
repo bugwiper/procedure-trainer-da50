@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
-import { RegistryError, defineRegistry, guardIdFor, legalStates } from '../src/engine/registry';
+import {
+  LEVER_SKINS,
+  RegistryError,
+  defineRegistry,
+  guardIdFor,
+  legalStates,
+} from '../src/engine/registry';
 import type {
   ControlSpec,
   DetentLeverDef,
@@ -9,6 +15,7 @@ import type {
   RegionDef,
   ToggleDef,
 } from '../src/engine/registry';
+import { targetSide } from '../src/ui/panel/viewport';
 
 // Registry invariant suite (PNL-02). Inline fixtures build the malformed definitions.
 
@@ -283,5 +290,152 @@ describe('ordering and empty input', () => {
     const reg = build([]);
     expect(reg.controls).toEqual([]);
     expect(reg.get('sw.anything')).toBeUndefined();
+  });
+});
+
+describe('toggle skins (UI-SPEC 8.1, 8.2)', () => {
+  it('a toggle without skin is a bat and needs no size or colour', () => {
+    const reg = build([toggle('sw.plain')]);
+    const def = reg.get('sw.plain') as ToggleDef;
+    expect(def.skin).toBeUndefined();
+    expect(() => build([toggle('sw.bat', { skin: 'bat' })])).not.toThrow();
+  });
+
+  it('accepts a rocker with size and colour and a bat with a ball tip', () => {
+    expect(() =>
+      build([
+        toggle('sw.r', { skin: 'rocker', size: 'M', colour: 'white' }),
+        toggle('sw.l', { skin: 'rocker', size: 'LIGHT', colour: 'red' }),
+        toggle('sw.b', { skin: 'bat', ball: true }),
+        toggle('sw.d', { ball: true }),
+      ]),
+    ).not.toThrow();
+  });
+
+  it('rejects a rocker without size or without colour', () => {
+    expectRejected([toggle('sw.nosize', { skin: 'rocker', colour: 'white' })], 'sw.nosize');
+    expectRejected([toggle('sw.nocolour', { skin: 'rocker', size: 'M' })], 'sw.nocolour');
+    expectRejected([toggle('sw.neither', { skin: 'rocker' })], 'sw.neither');
+  });
+
+  it('rejects size or colour on a bat, a softkey and a toggle without skin', () => {
+    expectRejected([toggle('sw.batsize', { skin: 'bat', size: 'M' })], 'sw.batsize');
+    expectRejected([toggle('sw.keycolour', { skin: 'softkey', colour: 'red' })], 'sw.keycolour');
+    expectRejected([toggle('sw.plainsize', { size: 'S' })], 'sw.plainsize');
+  });
+
+  it('rejects a ball on a rocker or a softkey', () => {
+    expectRejected(
+      [toggle('sw.rball', { skin: 'rocker', size: 'M', colour: 'white', ball: true })],
+      'sw.rball',
+    );
+    expectRejected([toggle('sw.kball', { skin: 'softkey', ball: true })], 'sw.kball');
+  });
+
+  it('rejects a skin, size or colour outside the vocabulary (data cast around the types)', () => {
+    expectRejected([toggle('sw.odd', { skin: 'dial' as unknown as 'bat' })], 'sw.odd');
+    expectRejected(
+      [toggle('sw.big', { skin: 'rocker', size: 'XL' as unknown as 'M', colour: 'white' })],
+      'sw.big',
+    );
+    expectRejected(
+      [toggle('sw.blue', { skin: 'rocker', size: 'M', colour: 'blue' as unknown as 'red' })],
+      'sw.blue',
+    );
+  });
+});
+
+describe('guarded toggle rocker fields', () => {
+  it('accepts both size and colour, or neither', () => {
+    expect(() =>
+      build([guarded('sw.both', { size: 'M', colour: 'red' }), guarded('sw.none')]),
+    ).not.toThrow();
+  });
+
+  it('rejects only one of size and colour', () => {
+    expectRejected([guarded('sw.onlysize', { size: 'M' })], 'sw.onlysize');
+    expectRejected([guarded('sw.onlycolour', { colour: 'red' })], 'sw.onlycolour');
+  });
+});
+
+describe('momentary button skins and the three-state spring bat', () => {
+  const threeStates: MomentaryButtonDef['states'] = [
+    { id: 'neutral', label: 'NEUTRAL' },
+    { id: 'stall', label: 'STALL TEST' },
+    { id: 'gear', label: 'GEAR TEST' },
+  ];
+
+  it('accepts a 3-state spring-bat that rests in states[0] and lists all three states', () => {
+    const reg = build([
+      button('btn.spring', { skin: 'spring-bat', states: threeStates, default: 'neutral' }),
+    ]);
+    const def = reg.get('btn.spring') as MomentaryButtonDef;
+    expect(def.default).toBe(def.states[0].id);
+    expect(legalStates(def)).toEqual(['neutral', 'stall', 'gear']);
+  });
+
+  it('rejects a 3-state button with any other skin or none', () => {
+    expectRejected([button('btn.three', { states: threeStates, default: 'neutral' })], 'btn.three');
+    expectRejected(
+      [button('btn.dome', { skin: 'blue-dome', states: threeStates, default: 'neutral' })],
+      'btn.dome',
+    );
+  });
+
+  it('rejects four states even with the spring-bat skin', () => {
+    const four: MomentaryButtonDef['states'] = [...threeStates, { id: 'x', label: 'X' }];
+    expectRejected(
+      [button('btn.four', { skin: 'spring-bat', states: four, default: 'neutral' })],
+      'btn.four',
+    );
+  });
+
+  it('a 3-state spring-bat must still rest in its first state', () => {
+    expectRejected(
+      [button('btn.sticky3', { skin: 'spring-bat', states: threeStates, default: 'gear' })],
+      'btn.sticky3',
+    );
+  });
+
+  it('accepts every two-state skin', () => {
+    expect(() =>
+      build([
+        button('btn.a', { skin: 'chrome-round' }),
+        button('btn.b', { skin: 'blue-dome' }),
+        button('btn.c', { skin: 'small-black' }),
+        button('btn.d'),
+      ]),
+    ).not.toThrow();
+  });
+
+  it('targetSide: a three-state button counts half the width, a two-state one the footprint', () => {
+    const three = button('btn.t3', {
+      skin: 'spring-bat',
+      states: threeStates,
+      default: 'neutral',
+      hit: { w: 56, h: 30 },
+    });
+    expect(targetSide(three)).toBe(28);
+    expect(targetSide(button('btn.t2', { hit: { w: 66, h: 70 } }))).toBe(66);
+  });
+});
+
+describe('lever skins', () => {
+  it('accepts every skin of the vocabulary and none', () => {
+    expect(LEVER_SKINS).toContain('power-grip');
+    expect(LEVER_SKINS).toHaveLength(10);
+    for (const skin of LEVER_SKINS) expect(() => build([lever('lv.s', { skin })])).not.toThrow();
+    expect(() => build([lever('lv.none')])).not.toThrow();
+  });
+
+  it('rejects a skin outside the vocabulary', () => {
+    expectRejected([lever('lv.odd', { skin: 'wheel' as unknown as 'gear-knob' })], 'lv.odd');
+  });
+});
+
+describe('DA50RG still passes every invariant', () => {
+  it('builds with all Phase 1 and plan 01 to 03 controls', () => {
+    expect(DA50RG.controls.length).toBeGreaterThanOrEqual(30);
+    expect(DA50RG.get('sw.fuel_trans')?.kind).toBe('rotary');
   });
 });

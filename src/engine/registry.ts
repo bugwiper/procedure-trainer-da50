@@ -36,11 +36,41 @@ interface ControlBase {
   readonly hit: Size;
 }
 
+/** Skin vocabulary (UI-SPEC 8.1 to 8.5). Widgets pick their art by skin; absent means the first. */
+export const TOGGLE_SKINS = ['bat', 'rocker', 'softkey'] as const;
+export const ROCKER_SIZES = ['S', 'M', 'L', 'W', 'LIGHT'] as const;
+export const ROCKER_COLOURS = ['white', 'red'] as const;
+export const BUTTON_SKINS = ['chrome-round', 'blue-dome', 'small-black', 'spring-bat'] as const;
+export const LEVER_SKINS = [
+  'gear-knob',
+  'flaps-block',
+  'power-grip',
+  'pull-t',
+  'pull-tab',
+  'pull-boot',
+  'env-slider',
+  'bat-small',
+  'parking-lever',
+  'cowl-slider',
+] as const;
+
+export type ToggleSkin = (typeof TOGGLE_SKINS)[number];
+export type RockerSize = (typeof ROCKER_SIZES)[number];
+export type RockerColour = (typeof ROCKER_COLOURS)[number];
+export type ButtonSkin = (typeof BUTTON_SKINS)[number];
+export type LeverSkin = (typeof LEVER_SKINS)[number];
+
 export interface ToggleDef extends ControlBase {
   readonly kind: 'toggle';
   readonly states: readonly [StateDef, StateDef];
   readonly default: StateId;
-  readonly skin?: 'switch' | 'softkey';
+  /** Absent means 'bat'. */
+  readonly skin?: ToggleSkin;
+  /** Rocker only, and then required together with colour. */
+  readonly size?: RockerSize;
+  readonly colour?: RockerColour;
+  /** Bat only: a ball tip on the handle (ENGINE MASTER). */
+  readonly ball?: boolean;
 }
 
 export interface GuardedToggleDef extends ControlBase {
@@ -49,6 +79,9 @@ export interface GuardedToggleDef extends ControlBase {
   readonly default: StateId;
   /** Where the lifted guard can be tapped closed; x, y = top-left corner as an offset from the control centre. */
   readonly guardOpenHit: Rect;
+  /** The rocker under the guard: both or neither. */
+  readonly size?: RockerSize;
+  readonly colour?: RockerColour;
 }
 
 /** Derived by defineRegistry, never authored. */
@@ -79,14 +112,19 @@ export interface DetentLeverDef extends ControlBase {
   readonly markers?: readonly StateId[];
   /** Centred on (x, y); 'v': pos 0 = bottom, 'h': pos 0 = left. */
   readonly track: { readonly length: number; readonly axis: 'v' | 'h' };
+  readonly skin?: LeverSkin;
 }
 
 export interface MomentaryButtonDef extends ControlBase {
   readonly kind: 'momentary-button';
-  /** [released, pressed] */
-  readonly states: readonly [StateDef, StateDef];
+  /**
+   * [rest, pressed] or, for the spring-bat skin only, [rest, first side, second side]: each side
+   * is its own pressed position and the toggle springs back to states[0] on release.
+   */
+  readonly states: readonly [StateDef, StateDef, ...StateDef[]];
   /** Must be states[0].id. */
   readonly default: StateId;
+  readonly skin?: ButtonSkin;
 }
 
 export interface RotaryStopDef {
@@ -255,6 +293,67 @@ function checkRotary(def: RotaryDef): void {
   }
 }
 
+function checkSkinFields(def: ToggleDef | GuardedToggleDef): void {
+  if (def.kind === 'guarded-toggle') {
+    if ((def.size === undefined) !== (def.colour === undefined)) {
+      throw new RegistryError(
+        `guarded toggle "${def.id}" needs both size and colour for its rocker, or neither`,
+      );
+    }
+    checkRockerFields(def);
+    return;
+  }
+  const skin = def.skin ?? 'bat';
+  if (!(TOGGLE_SKINS as readonly string[]).includes(skin)) {
+    throw new RegistryError(`toggle "${def.id}" has unknown skin "${skin}"`);
+  }
+  if (skin === 'rocker') {
+    if (def.size === undefined || def.colour === undefined) {
+      throw new RegistryError(`rocker "${def.id}" needs both size and colour`);
+    }
+    if (def.ball !== undefined) {
+      throw new RegistryError(`rocker "${def.id}" cannot have a ball tip (bat skin only)`);
+    }
+    checkRockerFields(def);
+    return;
+  }
+  if (def.size !== undefined || def.colour !== undefined) {
+    throw new RegistryError(`toggle "${def.id}" has size or colour but its skin is "${skin}"`);
+  }
+  if (def.ball !== undefined && skin !== 'bat') {
+    throw new RegistryError(`toggle "${def.id}" has a ball tip but its skin is "${skin}"`);
+  }
+}
+
+function checkRockerFields(def: { id: ControlId; size?: string; colour?: string }): void {
+  if (def.size !== undefined && !(ROCKER_SIZES as readonly string[]).includes(def.size)) {
+    throw new RegistryError(`control "${def.id}" has unknown rocker size "${def.size}"`);
+  }
+  if (def.colour !== undefined && !(ROCKER_COLOURS as readonly string[]).includes(def.colour)) {
+    throw new RegistryError(`control "${def.id}" has unknown rocker colour "${def.colour}"`);
+  }
+}
+
+function checkLeverSkin(def: DetentLeverDef): void {
+  if (def.skin !== undefined && !(LEVER_SKINS as readonly string[]).includes(def.skin)) {
+    throw new RegistryError(`lever "${def.id}" has unknown skin "${def.skin}"`);
+  }
+}
+
+function checkMomentaryStates(def: MomentaryButtonDef): void {
+  if (def.skin !== undefined && !(BUTTON_SKINS as readonly string[]).includes(def.skin)) {
+    throw new RegistryError(`button "${def.id}" has unknown skin "${def.skin}"`);
+  }
+  if (def.states.length > 3) {
+    throw new RegistryError(`button "${def.id}" has ${def.states.length} states (2 or 3 allowed)`);
+  }
+  if (def.states.length === 3 && def.skin !== 'spring-bat') {
+    throw new RegistryError(
+      `button "${def.id}" has three states but its skin is "${def.skin ?? 'none'}"; only spring-bat has a rest-first three-state form`,
+    );
+  }
+}
+
 function checkDefaultLegal(def: ControlDef): void {
   if (!legalStates(def).includes(def.default)) {
     throw new RegistryError(`control "${def.id}" default "${def.default}" is not a legal state`);
@@ -306,7 +405,12 @@ export function defineRegistry(input: {
     checkUniqueId(def.id, seen);
     checkDistinctStates(def);
     if (spec.kind === 'detent-lever') checkDetents(spec);
-    if (spec.kind === 'momentary-button') checkMomentaryRest(spec);
+    if (spec.kind === 'momentary-button') {
+      checkMomentaryStates(spec);
+      checkMomentaryRest(spec);
+    }
+    if (spec.kind === 'toggle' || spec.kind === 'guarded-toggle') checkSkinFields(spec);
+    if (spec.kind === 'detent-lever') checkLeverSkin(spec);
     if (spec.kind === 'rotary') checkRotary(spec);
     checkDefaultLegal(def);
     checkRegionExists(def, regionIds);

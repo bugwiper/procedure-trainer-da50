@@ -50,7 +50,7 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
     bridge.actuate(def.id, isSecond ? first.id : second.id);
   };
 
-  const skin = def.skin ?? 'switch';
+  const skin = def.skin ?? 'bat';
   const top = -def.hit.h / 2;
   const labelWidth = Math.min(def.label.length * 5.2, def.hit.w - 2);
 
@@ -61,7 +61,7 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
       data-state={state}
       transform={`translate(${def.x} ${def.y})`}
     >
-      {skin === 'switch' ? (
+      {skin === 'bat' ? (
         <SwitchBody
           def={def}
           top={top}
