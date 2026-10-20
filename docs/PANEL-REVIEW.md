@@ -151,16 +151,16 @@ Three pull handles below the face plate. States are confirmed for all three; onl
 
 For orientation, confirmed: `lv.emerg_gear` (pull-tab, red, drag-only, default NORMAL, 907, 805) and `lv.alt_air` (pull-boot, black with white vertical text, default CLOSED, 1205, 805). The two-line EMERGENCY GEAR EXTENSION name sits about 2 units above its region top at the stowed position.
 
-## Environmental control and pedestal (regions `env_control`, `pedestal`)
+## Environmental control and pedestal (regions `env_control`, `env_circ`, `pedestal`)
 
 The environmental-control plate sits above the POWER lever. Its sliders, the fan knob and the parking brake were read from one close-up and the simulator image, so most of this area is assumed. The plate is compressed from the real aspect (about 0.52) to fit. The region was split in two (PD-01).
 
 | Id | Placard | Assumed kind and skin | Assumed states and default | Centre (tol) | What is uncertain | Photos | File to change |
 |----|---------|-----------------------|----------------------------|--------------|-------------------|--------|----------------|
-| `lv.env_direction` | DIRECTION | detent-lever, env-slider, vertical, three icons | FEET, FACE, DEFROST (DEFROST at the top); default FACE | 1020, 816 (8) | default, order of the icons; three stops are confirmed | PED, COCK, SIM | `controls/pedestal.ts` |
-| `lv.env_temp` | TEMPERATURE | detent-lever, env-slider, vertical, five steps | COLD, 25, 50, 75, WARM; default 50 | 1096, 862 (8) | a continuous slider is modelled as five steps, default; the centre is 4 units right of the UI-SPEC 1092 (PD-05) | PED, COCK, SIM | `controls/pedestal.ts` |
-| `sw.env_fan` | FAN | rotary r 14, dots growing in size | OFF, 1, 2, 3, 4 at 180, 240, 300, 360, 420 degrees; default OFF | 1032, 896 (8) | stop count, angles, default; the centre is 4 units left and 8 down of the UI-SPEC 1036, 888 (PD-05) | PED, SIM | `controls/knobs.ts` |
-| `lv.env_circ` | CIRCULATING AIR | detent-lever, env-slider, the only horizontal track | FRESH, RECIRC; default FRESH | 1062, 990 (8) | which end is fresh air and which is recirculation, icon meaning | PED, SIM | `controls/pedestal.ts` |
+| `lv.env_direction` | DIRECTION | detent-lever, env-slider, vertical, three icons | FEET, FACE, DEFROST (DEFROST at the top); default FACE; pictograms only | 1004, 828 (8) | default, order of the icons; three stops are confirmed | PED, COCK, SIM | `controls/pedestal.ts` |
+| `lv.env_temp` | TEMPERATURE | detent-lever, env-slider, vertical, five steps | COLD, 25, 50, 75, WARM; default 50; only COLD and WARM are printed, a triangle pictogram left of the slot | 1100, 880 (8) | a continuous slider is modelled as five steps, default | PED, COCK, SIM | `controls/pedestal.ts` |
+| `sw.env_fan` | FAN | rotary r 14, three fan symbols small to large | OFF, 1, 2, 3 at 180, 300, 360, 420 degrees; default OFF; only OFF is printed | 1020, 932 (8) | stop count, angles, default | PED, SIM | `controls/knobs.ts` |
+| `lv.env_circ` | CIRCULATING AIR | detent-lever, env-slider, the only horizontal track | FRESH, RECIRC; default FRESH; pictograms only, region `env_circ` | 1063, 1010 (8) | which end is fresh air and which is recirculation, icon meaning | PED, SIM | `controls/pedestal.ts` |
 | `lv.parking_brake` | PARKING BRAKE (plate placard, two lines) | detent-lever, parking-lever (small lever), nameless, no legends | OFF (bottom), SET (top, pulled up); default OFF | 1008, 1110 (8) | owner finding G-3; the exact look of the lever; position from the side-view photo | PED, SIM, side view | `controls/pedestal.ts` |
 | `lv.power` | THROTTLE (plate placard; the id stays `lv.power`) | detent-lever, power-grip, nameless, legends 0 %, 50 %, 100 % | 0 to 100 percent in 5 percent steps; default 70 percent | 1115, 1160 (8) | owner finding G-3; position from the side-view photo | PED, COCK, SIM, side view | `controls/pedestal.ts` |
 | `lv.cowl_flap` | COWL FLAP (plate placard) | detent-lever, cowl-slider (small lever acting as a switch), nameless, no legends | CLOSED (bottom), OPEN (top); default CLOSED | 1058, 1218 (8) | owner finding G-3; position and size of the small lever; default is an assumption (U-04) | PED, SIM, side view | `controls/pedestal.ts` |
@@ -169,7 +169,7 @@ The environmental-control plate sits above the POWER lever. Its sliders, the fan
 
 The pedestal (PARKING BRAKE, THROTTLE, COWL FLAP) sits on its own plate below the environmental control plate (plan 19); the placards and the cowl-flap lamp captions are static plate text. The default of the cowl flap is an assumption (U-04).
 
-Seen in the build, to check in the first render: the ENVIRONMENTAL CONTROL plate title runs over the DIRECTION DEFROST icon and legend, and the FACE state text sits close to the FAN scale.
+The environmental plate was rebuilt in plan 01.1-20 from the owner's side-view photo: four outlined boxes (DIRECTION, TEMPERATURE, FAN, CIRCULATING AIR), no state text, no scale numbers.
 
 ## Shell and placards (static art, no region)
 
@@ -218,7 +218,7 @@ The numbered list of the UI-SPEC, each with what the plans assumed.
 | **U-06** STALL TEST and GEAR TEST | one three-position spring toggle instead of two parts; GEAR TEST changes only its own state and does not light the gear lamps. `controls/buttons.ts`. |
 | **U-07** Flap lamp colour and UNSAFE | T/O and LDG lamps lit white; the red UNSAFE lamp is not lit during emergency gear extension, only `lv.gear` drives the lamps. `indicators.ts`. |
 | **U-08** De-ice names and kinds | MAX / HIGH / NORM / OFF selector, WIND SHIELD, ICE LIGHT, PUMP 1, PUMP 2 and ANNUN TEST as read from the photos; to be verified against the ice-protection supplement before scenarios use them. `controls/deice.ts`, `controls/gear-flaps.ts`, `controls/buttons.ts`. |
-| **U-09** Environmental controls | step counts (three, five and two stops, fan with four speeds) and which end of CIRCULATING AIR is fresh. `controls/pedestal.ts`, `controls/knobs.ts`. |
+| **U-09** Environmental controls | step counts (three, five and two stops, fan with three speeds) and which end of CIRCULATING AIR is fresh. `controls/pedestal.ts`, `controls/knobs.ts`. |
 | **U-10** PARKING BRAKE | a black latch lever with SET and OFF; how the real one is actuated is unknown. `controls/pedestal.ts`. |
 | **U-11** LEVEL button | assumed autopilot emergency level, inert here. `controls/buttons.ts`. |
 | **U-12** Shell outline coordinates | coaming, hump and plate edges are redrawn approximations of the photo silhouettes; see the Shell table. `src/ui/panel/PanelShell.tsx`. |
