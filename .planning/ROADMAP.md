@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. A written content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is in the repo before any procedure text is committed.
   6. The panel layout matches the real DA50 RG: every control sits where it is in the aircraft (relative position and grouping, incl. under-panel controls), and on a phone the user can zoom into any region to operate its controls at full tap size without the layout changing.
 
-**Plans:** 3/9 plans executed
+**Plans:** 6/9 plans executed
 
 Plans:
 **Wave 1**
@@ -46,9 +46,9 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-04-PLAN.md — CI and Deploy workflow, public repository, skeleton live on GitHub Pages (wave 3)
-- [ ] 01-05-PLAN.md — Levers at their real positions: pedestal POWER (0-100 %) and COWL FLAP, front-panel GEAR and FLAPS, under-panel ALTERNATE STATIC, EMERGENCY GEAR EXTENSION (drag-only), ALTERNATE AIR (wave 3)
-- [ ] 01-06-PLAN.md — PFD and two-page MFD frames, B612 fonts, About/content policy in app, responsive layout and rotate hint (wave 3)
-- [ ] 01-08-PLAN.md — Registry and store contract pinned test-first for every control kind, incl. the guard interlock (wave 3)
+- [x] 01-05-PLAN.md — Levers at their real positions: pedestal POWER (0-100 %) and COWL FLAP, front-panel GEAR and FLAPS, under-panel ALTERNATE STATIC, EMERGENCY GEAR EXTENSION (drag-only), ALTERNATE AIR (wave 3)
+- [x] 01-06-PLAN.md — PFD and two-page MFD frames, B612 fonts, About/content policy in app, responsive layout and rotate hint (wave 3)
+- [x] 01-08-PLAN.md — Registry and store contract pinned test-first for every control kind, incl. the guard interlock (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-09-PLAN.md — Region zoom on all devices (PNL-09, D-21): region tap or click, pinch, pan, Full panel; every control reaches 44 px when zoomed; gestures never emit control events or hijack lever drags (wave 4)
@@ -125,7 +125,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Deployed Playable Panel | 3/9 | In Progress | - |
+| 1. Deployed Playable Panel | 6/9 | In Progress | - |
 | 2. First Gradable Scenario | 0/TBD | Not started | - |
 | 3. Reactive Scenarios and Initial Pack | 0/TBD | Not started | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
