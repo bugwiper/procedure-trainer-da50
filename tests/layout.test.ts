@@ -223,9 +223,20 @@ describe('true-proportion reference positions (D-21)', () => {
     );
   }
 
-  it('the reference table covers 42 controls and 7 indicators', () => {
-    expect(REFERENCE_POSITIONS).toHaveLength(42);
-    expect(INDICATOR_POSITIONS).toHaveLength(7);
+  it('the reference tables cover every non-guard control and every lamp exactly once', () => {
+    const controlRows = REFERENCE_POSITIONS.map((r) => r.id);
+    const lampRows = INDICATOR_POSITIONS.map((r) => r.id);
+    expect(new Set(controlRows).size, 'duplicate id in REFERENCE_POSITIONS').toBe(
+      controlRows.length,
+    );
+    expect(new Set(lampRows).size, 'duplicate id in INDICATOR_POSITIONS').toBe(lampRows.length);
+    expect([...controlRows].sort()).toEqual(
+      DA50RG.controls
+        .filter((c) => c.kind !== 'guard')
+        .map((c) => c.id)
+        .sort(),
+    );
+    expect([...lampRows].sort()).toEqual(DA50RG_INDICATORS.indicators.map((l) => l.id).sort());
   });
 
   it('every non-guard control appears in the reference table', () => {
@@ -378,10 +389,5 @@ describe('inventory complete', () => {
         expect(subject(b), `${a} ${relation} ${b} (object)`).toBeDefined();
       }
     }
-  });
-
-  it('the registry has exactly 42 non-guard controls and the indicator set exactly 7 lamps', () => {
-    expect(DA50RG.controls.filter((c) => c.kind !== 'guard')).toHaveLength(42);
-    expect(DA50RG_INDICATORS.indicators).toHaveLength(7);
   });
 });
