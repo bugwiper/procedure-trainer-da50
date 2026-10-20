@@ -16,6 +16,18 @@ The following kinds of content may be committed to this repository:
 - (b) Short verbatim AFM checklist step lines, within the limit defined in the subsection below. Whatever that limit is, WARNING, CAUTION and NOTE text is never copied verbatim, figures, tables and page images are never copied, and a whole procedure is never copied as continuous prose.
 - (c) All narrative and explanatory text, written in the author's own words (paraphrased, never copied).
 
+### Verbatim checklist step lines: limit
+
+A verbatim checklist step line is one line as printed in the AFM checklist, at most 12 words, counted as whitespace-separated tokens. Such a line is the item plus its action or target state.
+
+A line counts as verbatim when its wording matches the AFM line apart from whitespace and letter case.
+
+Compliant example (invented wording, one line, 4 words): `EXAMPLE SWITCH ...... OFF`
+
+Non-compliant example (invented wording): a multi-sentence explanatory paragraph that describes why the example switch is moved, what happens afterwards and what the pilot should watch for. It is more than one line and more than 12 words, so it must be paraphrased in the author's own words and, if it is explanatory, must not be copied from the AFM at all.
+
+Decided by the project owner on 2026-10-20 (option-a).
+
 ## 3. What must never be committed
 
 The following must never be committed to the repository or published on the deployed site:
