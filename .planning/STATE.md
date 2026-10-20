@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
-current_plan: 17 (complete)
+current_plan: 18 (complete)
 status: executing
-stopped_at: Completed 01.1-17-PLAN.md
-last_updated: "2026-10-20T22:54:39.711Z"
+stopped_at: Completed 01.1-18-PLAN.md
+last_updated: "2026-10-20T23:03:18.546Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: ff4b17ae84ccd0e488da6e8f0081fc0c375694f1
+state_head: 246bae977f7dbd9a5de32f12f8cb0cfdf7893e22
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 32
-  completed_plans: 26
+  completed_plans: 27
   percent: 14
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.1 (Panel shape, controls and indicator lights) — GAP CLOSURE IN PROGRESS (plans 12 to 23 from the owner first-render review)
-Current Plan: 17 (complete)
+Current Plan: 18 (complete)
 Total Plans in Phase: 23
-Status: Plans 01.1-01 to 01.1-17 complete; plan 17 made GEAR TEST light all four gear lamps and put the landing gear block in the owner's order on the gear plate (GEAR_BLOCK); plans 18 to 23 pending
-Last activity: 2026-10-21 — Plan 01.1-17 complete (gear lamp test, landing gear block order)
+Status: Plans 01.1-01 to 01.1-18 complete; plan 18 added three-position toggles, static plate placards (placards.ts) and rebuilt the ELT as a three-position rocker with its lamp lt.elt; plans 19 to 23 pending
+Last activity: 2026-10-21 — Plan 01.1-18 complete (three-position toggle, plate placards, ELT with lamp)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -75,6 +75,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P15 | 10min | 3 tasks | 12 files |
 | Phase 01.1 P16 | 35min | 3 tasks | 12 files |
 | Phase 01.1 P17 | 15min | 2 tasks | 9 files |
+| Phase 01.1 P18 | approx 25min | 2 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Plan 14: levers and buttons show state by position only; horizontal slider legends print below the handle and never hide
 - [Phase 01.1]: Plan 16: plates are data (PLATES); the flap region and plate grow upward by shrinking the softkey region to end at 608; lever names clamped at the region top sit at baseline 6.5
 - [Phase 01.1]: Plan 17: GEAR TEST lights all four gear lamps; gear plate top 580 drawn under the PFD bezels
+- [Phase 01.1]: Plan 18: the bus panel starts at x 1836 so the ELT placards on the strip plate stay visible; ELT is maintained, rests ARMED (Q-01 default)
 
 ### Pending Todos
 
@@ -137,6 +139,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T22:54:39.618Z
-Stopped at: Completed 01.1-17-PLAN.md
+Last session: 2026-10-20T23:03:18.453Z
+Stopped at: Completed 01.1-18-PLAN.md
 Resume file: None
