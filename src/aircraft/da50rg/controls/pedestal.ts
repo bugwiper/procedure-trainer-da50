@@ -1,9 +1,12 @@
 import type { ControlSpec, DetentDef } from '../../../engine/registry';
 
-// Pedestal levers (D-05a, D-07c, D-07d). Control inventory: AFM section 7-23 and the private
-// reference photo DA50_virtual (layout facts only, no AFM wording, D-04b). The DA50 RG has one
-// power lever: the ECU governs engine and propeller speed, so there is no propeller or
-// mixture lever, and the POWER range is a plain 0 to 100 % load with no ground-idle gate.
+// Centre-console controls (D-05a, D-07c, D-07d, D-10). The environmental-control plate sits in
+// region env_control (DIRECTION, TEMPERATURE, CIRCULATING AIR sliders; the FAN knob is in
+// knobs.ts); POWER, PARKING BRAKE and COWL FLAP sit in region pedestal. Control inventory: AFM
+// section 7-23 and the private reference photos PED, COCK, SIM and DA50_virtual (layout facts
+// only, no AFM wording, D-04b). The DA50 RG has one power lever: the ECU governs engine and
+// propeller speed, so there is no propeller or mixture lever (P1 D-05a), and the POWER range
+// is a plain 0 to 100 % load with no ground-idle gate.
 
 /** POWER snaps in 5 % steps (planner choice under D-07d; data only, reversible). */
 const POWER_STEPS: readonly DetentDef[] = Array.from({ length: 21 }, (_, i) => ({
@@ -44,5 +47,83 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
       { id: 'open', label: 'OPEN', pos: 1 },
     ],
     default: 'closed', // cruise setting assumed (D-07d)
+  },
+  // Environmental-control plate (COCK, SIM). The slider kinds and their positions are layout
+  // facts; the end-icon meanings are unconfirmed (UI-SPEC unconfirmed items 9 and 10).
+  {
+    // DIRECTION: air to the feet, the face or the windshield (DEFROST). Default FACE.
+    id: 'lv.env_direction',
+    kind: 'detent-lever',
+    label: 'DIRECTION',
+    region: 'env_control',
+    // Global 1020, 816. Handle square min(40, 120 - 80) = 40.
+    x: 63,
+    y: 66,
+    hit: { w: 40, h: 120 },
+    track: { length: 80, axis: 'v' },
+    detents: [
+      { id: 'feet', label: 'FEET', pos: 0 },
+      { id: 'face', label: 'FACE', pos: 0.5 },
+      { id: 'defrost', label: 'DEFROST', pos: 1 },
+    ],
+    default: 'face',
+  },
+  {
+    // TEMPERATURE: continuous on the aircraft, modelled in five steps COLD, 25, 50, 75, WARM
+    // (UI-SPEC unconfirmed item 9). PD-05: centred 4 units right of the UI-SPEC position
+    // (global 1092) so its footprint clears the FAN knob of plan 01.1-03.
+    id: 'lv.env_temp',
+    kind: 'detent-lever',
+    label: 'TEMPERATURE',
+    region: 'env_control',
+    // Global 1096, 862. Handle square min(40, 200 - 160) = 40.
+    x: 139,
+    y: 112,
+    hit: { w: 40, h: 200 },
+    track: { length: 160, axis: 'v' },
+    detents: [
+      { id: 'cold', label: 'COLD', pos: 0 },
+      { id: 't25', label: '25', pos: 0.25 },
+      { id: 't50', label: '50', pos: 0.5 },
+      { id: 't75', label: '75', pos: 0.75 },
+      { id: 'warm', label: 'WARM', pos: 1 },
+    ],
+    default: 't50',
+  },
+  {
+    // CIRCULATING AIR: the only horizontal slider, FRESH at the left, RECIRC at the right. The
+    // end-icon meaning is unconfirmed (UI-SPEC unconfirmed item 9). Default FRESH.
+    id: 'lv.env_circ',
+    kind: 'detent-lever',
+    label: 'CIRCULATING AIR',
+    region: 'env_control',
+    // Global 1062, 990. Handle square min(40, 80 - 40) = 40.
+    x: 105,
+    y: 240,
+    hit: { w: 80, h: 40 },
+    track: { length: 40, axis: 'h' },
+    detents: [
+      { id: 'fresh', label: 'FRESH', pos: 0 },
+      { id: 'recirc', label: 'RECIRC', pos: 1 },
+    ],
+    default: 'fresh',
+  },
+  {
+    // Parking brake between COWL FLAP and POWER (PED, SIM). SET is the aft/lower end here;
+    // how the real lever is actuated (pull, rotate) is unconfirmed (UI-SPEC unconfirmed item 10).
+    id: 'lv.parking_brake',
+    kind: 'detent-lever',
+    label: 'PARKING BRAKE',
+    region: 'pedestal',
+    // Global 1058, 1095. Handle square min(44, 88 - 44) = 44.
+    x: 101,
+    y: 80,
+    hit: { w: 44, h: 88 },
+    track: { length: 44, axis: 'v' },
+    detents: [
+      { id: 'set', label: 'SET', pos: 0 },
+      { id: 'off', label: 'OFF', pos: 1 },
+    ],
+    default: 'off', // in flight the brake is released (D-07d)
   },
 ];

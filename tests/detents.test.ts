@@ -71,9 +71,35 @@ describe('projectToTrack', () => {
 });
 
 describe('pedestal and front-panel lever inventory', () => {
-  it('PEDESTAL_CONTROLS is exactly POWER and COWL FLAP', () => {
-    expect(PEDESTAL_CONTROLS.map((c) => c.id)).toEqual(['lv.power', 'lv.cowl_flap']);
+  it('PEDESTAL_CONTROLS is exactly POWER, COWL FLAP, the environmental sliders and PARKING BRAKE', () => {
+    expect(PEDESTAL_CONTROLS.map((c) => c.id)).toEqual([
+      'lv.power',
+      'lv.cowl_flap',
+      'lv.env_direction',
+      'lv.env_temp',
+      'lv.env_circ',
+      'lv.parking_brake',
+    ]);
     for (const c of PEDESTAL_CONTROLS) expect(c.kind).toBe('detent-lever');
+  });
+
+  it('lv.env_circ is the only horizontal track in the console', () => {
+    for (const c of PEDESTAL_CONTROLS) {
+      if (c.kind !== 'detent-lever') continue;
+      expect(c.track.axis, c.id).toBe(c.id === 'lv.env_circ' ? 'h' : 'v');
+    }
+  });
+
+  it('console levers open in the in-flight configuration', () => {
+    const defaults = Object.fromEntries(PEDESTAL_CONTROLS.map((c) => [c.id, c.default]));
+    expect(defaults).toEqual({
+      'lv.power': 'p70',
+      'lv.cowl_flap': 'closed',
+      'lv.env_direction': 'face',
+      'lv.env_temp': 't50',
+      'lv.env_circ': 'fresh',
+      'lv.parking_brake': 'off',
+    });
   });
 
   it('GEAR_FLAPS_CONTROLS is exactly GEAR, FLAPS and the de-ice MODE selector', () => {

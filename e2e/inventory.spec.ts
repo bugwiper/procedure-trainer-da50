@@ -89,3 +89,36 @@ test('the ALTERNATE switch is the only guarded control', async ({ page }) => {
   await expect(page.locator('[data-kind="guarded-toggle"]')).toHaveCount(1);
   await expect(control(page, 'sw.deice_alternate')).toHaveAttribute('data-kind', 'guarded-toggle');
 });
+
+test('console levers open in their in-flight defaults', async ({ page }) => {
+  const defaults: Record<string, string> = {
+    'lv.env_direction': 'face',
+    'lv.env_temp': 't50',
+    'lv.env_circ': 'fresh',
+    'lv.parking_brake': 'off',
+    'lv.deice_mode': 'off',
+  };
+  for (const [id, state] of Object.entries(defaults)) {
+    await expect(control(page, id), id).toHaveAttribute('data-state', state);
+  }
+});
+
+test('every detent of DIRECTION, TEMPERATURE, CIRCULATING AIR and PARKING BRAKE is reachable by tap', async ({
+  page,
+  hasTouch,
+}) => {
+  const sequences: Record<string, string[]> = {
+    'lv.env_direction': ['defrost', 'feet', 'face'],
+    'lv.env_temp': ['cold', 't25', 't75', 'warm', 't50'],
+    'lv.env_circ': ['recirc', 'fresh'],
+    'lv.parking_brake': ['set', 'off'],
+  };
+  for (const [id, detents] of Object.entries(sequences)) {
+    const group = control(page, id);
+    await expect(group, id).toHaveCount(1);
+    for (const detent of detents) {
+      await activate(page.locator(`[data-detent="${id}:${detent}"]`), hasTouch);
+      await expect(group, `${id}:${detent}`).toHaveAttribute('data-state', detent);
+    }
+  }
+});
