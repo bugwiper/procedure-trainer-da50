@@ -1,5 +1,5 @@
 import { defineIndicators } from '../../engine/indicators';
-import type { IndicatorInputs, IndicatorSpec } from '../../engine/indicators';
+import type { IndicatorGroupSpec, IndicatorInputs, IndicatorSpec } from '../../engine/indicators';
 import type { StateId } from '../../engine/registry';
 import { DA50RG } from './panel';
 
@@ -21,6 +21,38 @@ export interface GearLamps {
 export function gearLamps(gear: StateId, inTransit: boolean): GearLamps {
   const downLocked = gear === 'down' && !inTransit;
   return { nose: downLocked, left: downLocked, right: downLocked, unsafe: inTransit };
+}
+
+export interface FlapLamps {
+  readonly up: boolean;
+  readonly to: boolean;
+  readonly ldg: boolean;
+}
+
+/** Exactly the lamp that matches the FLAPS lever is lit. */
+export function flapLamps(flaps: StateId): FlapLamps {
+  return { up: flaps === 'up', to: flaps === 'to', ldg: flaps === 'ldg' };
+}
+
+type LitById = Readonly<Record<string, boolean>>;
+
+/** GEAR UNSAFE when the red lamp is lit, GEAR DOWN LOCKED with three greens, otherwise GEAR UP. */
+export function gearReadout(lit: LitById): string {
+  if (lit['lt.gear_unsafe'] === true) return 'GEAR UNSAFE';
+  if (
+    lit['lt.gear_nose'] === true &&
+    lit['lt.gear_left'] === true &&
+    lit['lt.gear_right'] === true
+  ) {
+    return 'GEAR DOWN LOCKED';
+  }
+  return 'GEAR UP';
+}
+
+export function flapReadout(lit: LitById): string {
+  if (lit['lt.flap_to'] === true) return 'FLAPS T/O';
+  if (lit['lt.flap_ldg'] === true) return 'FLAPS LDG';
+  return 'FLAPS UP';
 }
 
 function gearOf(inputs: IndicatorInputs): { gear: StateId; inTransit: boolean } {
@@ -100,7 +132,70 @@ const GEAR_LAMPS: readonly IndicatorSpec[] = [
   },
 ];
 
+function flapsOf(inputs: IndicatorInputs): StateId {
+  return inputs.controls['lv.flaps'] ?? '';
+}
+
+// T/O and LDG lit colour white is an assumption (UI-SPEC unconfirmed item 7); UP green confirmed.
+const FLAP_LAMPS: readonly IndicatorSpec[] = [
+  {
+    id: 'lt.flap_up',
+    label: 'UP',
+    region: 'flaps',
+    x: 88,
+    y: 16,
+    r: 7,
+    colour: 'green',
+    caption: 'right',
+    reads: ['lv.flaps'],
+    lit: (inputs) => flapLamps(flapsOf(inputs)).up,
+  },
+  {
+    id: 'lt.flap_to',
+    label: 'T/O 133 KIAS',
+    region: 'flaps',
+    x: 84,
+    y: 47,
+    r: 7,
+    colour: 'white',
+    caption: 'right',
+    reads: ['lv.flaps'],
+    lit: (inputs) => flapLamps(flapsOf(inputs)).to,
+  },
+  {
+    id: 'lt.flap_ldg',
+    label: 'LDG 121 KIAS',
+    region: 'flaps',
+    x: 73,
+    y: 76,
+    r: 7,
+    colour: 'white',
+    caption: 'right',
+    reads: ['lv.flaps'],
+    lit: (inputs) => flapLamps(flapsOf(inputs)).ldg,
+  },
+];
+
+const GROUPS: readonly IndicatorGroupSpec[] = [
+  {
+    id: 'grp.gear',
+    region: 'landing_gear',
+    x: 62,
+    y: 140,
+    members: GEAR_LAMPS.map((l) => l.id),
+    readout: gearReadout,
+  },
+  {
+    id: 'grp.flaps',
+    region: 'flaps',
+    x: 80,
+    y: 105,
+    members: FLAP_LAMPS.map((l) => l.id),
+    readout: flapReadout,
+  },
+];
+
 export const DA50RG_INDICATORS = defineIndicators(DA50RG, {
-  indicators: GEAR_LAMPS,
-  groups: [],
+  indicators: [...GEAR_LAMPS, ...FLAP_LAMPS],
+  groups: GROUPS,
 });
