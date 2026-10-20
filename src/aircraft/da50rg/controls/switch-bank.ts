@@ -43,7 +43,13 @@ function rowSwitch(
 }
 
 export const SWITCH_BANK_CONTROLS: readonly ControlSpec[] = [
-  rowSwitch('sw.prop_deice', 'PROP DE-ICE', 44, 'off'),
+  // White rockers (D-08): sizes are proposals within +/- 10 percent (UI-SPEC unconfirmed item 2).
+  // PROP DE-ICE: photos P650, SIM, PED.
+  rowSwitch('sw.prop_deice', 'PROP DE-ICE', 44, 'off', {
+    skin: 'rocker',
+    size: 'M',
+    colour: 'white',
+  }),
   // Round knob with OFF and ON, not a toggle (UI-SPEC row 19; pointer angles unconfirmed).
   {
     id: 'sw.fuel_trans',
@@ -61,18 +67,32 @@ export const SWITCH_BANK_CONTROLS: readonly ControlSpec[] = [
     ],
     default: 'off',
   },
-  rowSwitch('sw.emerg_fuel_pump', 'EMERG FUEL PUMP', 206, 'off'),
+  // EMERG FUEL PUMP: P650, P386, SIM.
+  rowSwitch('sw.emerg_fuel_pump', 'EMERG FUEL PUMP', 206, 'off', {
+    skin: 'rocker',
+    size: 'M',
+    colour: 'white',
+  }),
   // Slot 3 (x 316) is the ENGINE START push button, defined in buttons.ts.
-  rowSwitch('sw.engine_master', 'ENGINE MASTER', 400, 'on'),
-  rowSwitch('sw.ess_bus', 'ESS BUS', 502, 'off'), // its placard reserves it for abnormal operation
+  // ENGINE MASTER stays a chrome bat, now with the ball tip (P386, P650).
+  rowSwitch('sw.engine_master', 'ENGINE MASTER', 400, 'on', { ball: true }),
+  // ESS BUS: white rocker per the photos P650 and P386 (owner decision 2026-10-20, replaces the
+  // medium red of D-08). Its placard reserves it for abnormal operation.
+  rowSwitch('sw.ess_bus', 'ESS BUS', 502, 'off', { skin: 'rocker', size: 'M', colour: 'white' }),
   // Big red rocker with bezel ears (D-08; P650, P386, PED). Size ratios are proposals.
   rowSwitch('sw.elect_master', 'ELECT. MASTER', 586, 'on', {
     skin: 'rocker',
     size: 'L',
     colour: 'red',
   }),
-  rowSwitch('sw.av_master', 'AV MASTER', 661, 'on'),
-  rowSwitch('sw.pitot_stall_heat', 'PITOT/STALL HEAT', 731, 'on'),
+  // AV MASTER: P650, P386.
+  rowSwitch('sw.av_master', 'AV MASTER', 661, 'on', { skin: 'rocker', size: 'M', colour: 'white' }),
+  // PITOT/STALL HEAT: the widest white rocker (P650, P386).
+  rowSwitch('sw.pitot_stall_heat', 'PITOT/STALL HEAT', 731, 'on', {
+    skin: 'rocker',
+    size: 'W',
+    colour: 'white',
+  }),
   // ELT sits in RIGHT PANEL at the lower right (D-07c does not mention it); the data
   // stays here with the other panel switches.
   {
@@ -88,5 +108,9 @@ export const SWITCH_BANK_CONTROLS: readonly ControlSpec[] = [
       { id: 'on', label: 'ON' },
     ],
     default: 'arm',
+    // Small red rocker; the second state (ON) is the upper end (P650, PED, P807).
+    skin: 'rocker',
+    size: 'S',
+    colour: 'red',
   },
 ];
