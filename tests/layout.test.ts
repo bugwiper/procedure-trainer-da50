@@ -354,3 +354,34 @@ describe('reference ordering (PNL-08, D-19)', () => {
     }
   });
 });
+
+// Completeness gate (D-10, PNL-08). The per-row tests above skip a row whose control does not
+// exist yet (so later phases can add rows early); this block is what fails if a control or
+// lamp of the inventory goes missing, so no reference or ordering row is ever skipped silently.
+describe('inventory complete', () => {
+  it('every reference position resolves to a DA50RG control', () => {
+    for (const row of REFERENCE_POSITIONS) {
+      expect(DA50RG.get(row.id), row.id).toBeDefined();
+    }
+  });
+
+  it('every indicator position resolves to a DA50RG_INDICATORS lamp', () => {
+    for (const row of INDICATOR_POSITIONS) {
+      expect(DA50RG_INDICATORS.get(row.id), row.id).toBeDefined();
+    }
+  });
+
+  it('every ordering subject and object resolves, so no ordering row skips', () => {
+    for (const [a, relation, b] of ORDERING) {
+      expect(subject(a), `${a} ${relation} ${String(b)} (subject)`).toBeDefined();
+      if (typeof b !== 'number') {
+        expect(subject(b), `${a} ${relation} ${b} (object)`).toBeDefined();
+      }
+    }
+  });
+
+  it('the registry has exactly 42 non-guard controls and the indicator set exactly 7 lamps', () => {
+    expect(DA50RG.controls.filter((c) => c.kind !== 'guard')).toHaveLength(42);
+    expect(DA50RG_INDICATORS.indicators).toHaveLength(7);
+  });
+});
