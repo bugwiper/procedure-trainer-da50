@@ -262,10 +262,10 @@ function MapPage({ w, h }: { readonly w: number; readonly h: number }) {
           pointer-events="none"
         />
         <path d={`M ${cx} ${cy - 150} l 6 14 l -12 0 z`} fill="#8d97a2" />
-        <text x={cx + 12} y={cy - 138} font-size={12} fill="#8d97a2">
+        <text x={cx + 12} y={cy - 138} font-size={10} fill="#8d97a2">
           N
         </text>
-        <text x={mapX + 10} y={34} font-size={13} fill="#d8dde3">
+        <text x={mapX + 10} y={34} font-size={14} fill="#d8dde3">
           MAP
         </text>
         <text x={mapX + mapW - 10} y={34} text-anchor="end" font-size={10} fill="#8d97a2">
@@ -282,7 +282,7 @@ function EnginePage({ w }: { readonly w: number }) {
   const barW = (w - 8) / 2 - 24;
   return (
     <g data-testid="mfd-engine-page">
-      <text x={14} y={24} font-size={13} fill="#d8dde3">
+      <text x={14} y={24} font-size={14} fill="#d8dde3">
         ENGINE
       </text>
       {arcs.map((g, i) => (

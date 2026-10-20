@@ -31,7 +31,7 @@ export function BarGauge({ label, unit, value, min, max, bands, x, y, w, h }: Ba
         x={x + w}
         y={y + 11}
         text-anchor="end"
-        font-size={11}
+        font-size={10}
         fill="#ffffff"
         pointer-events="none"
       >

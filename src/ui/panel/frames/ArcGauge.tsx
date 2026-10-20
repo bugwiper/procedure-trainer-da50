@@ -97,7 +97,7 @@ export function ArcGauge({ label, unit, value, min, max, bands, cx, cy, r }: Arc
         x={cx}
         y={cy - r - 9}
         text-anchor="middle"
-        font-size={11}
+        font-size={10}
         fill="#aab3bd"
         pointer-events="none"
       >
@@ -108,7 +108,7 @@ export function ArcGauge({ label, unit, value, min, max, bands, cx, cy, r }: Arc
         x={cx}
         y={cy + 22}
         text-anchor="middle"
-        font-size={16}
+        font-size={14}
         fill="#ffffff"
         pointer-events="none"
       >
@@ -118,7 +118,7 @@ export function ArcGauge({ label, unit, value, min, max, bands, cx, cy, r }: Arc
         x={cx}
         y={cy + 38}
         text-anchor="middle"
-        font-size={9}
+        font-size={10}
         fill="#8d97a2"
         pointer-events="none"
       >

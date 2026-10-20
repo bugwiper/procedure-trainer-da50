@@ -88,7 +88,7 @@ export function PfdFrame({ region }: FrameProps) {
           x={66}
           y={HORIZON_Y + 8}
           text-anchor="end"
-          font-size={22}
+          font-size={14}
           fill={WHITE}
         >
           0
@@ -117,7 +117,7 @@ export function PfdFrame({ region }: FrameProps) {
           x={480}
           y={HORIZON_Y + 8}
           text-anchor="end"
-          font-size={22}
+          font-size={14}
           fill={WHITE}
         >
           1400
@@ -130,7 +130,7 @@ export function PfdFrame({ region }: FrameProps) {
       <g data-testid="pfd-heading">
         <rect x={170} y={290} width={155} height={60} rx={6} fill="#12181e" stroke="#3a424b" />
         <rect x={218} y={296} width={60} height={26} fill="#000000" stroke={WHITE} />
-        <text class="glass-digits" x={248} y={316} text-anchor="middle" font-size={20} fill={WHITE}>
+        <text class="glass-digits" x={248} y={316} text-anchor="middle" font-size={14} fill={WHITE}>
           360
         </text>
         <text x={248} y={342} text-anchor="middle" font-size={10} fill={LABEL}>

@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DEF_IDS, Defs } from '../src/ui/panel/Defs';
@@ -163,5 +166,54 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
   it('draws the static vent as concentric rings', () => {
     const rings = findElements(shell, (el) => el.props['data-shell'] === 'vent-ring');
     expect(rings.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// Typography contract (UI-SPEC "Typography"): panel text uses exactly four sizes.
+describe('declared font-size scale 6, 8, 10, 14', () => {
+  const SCALE = [6, 8, 10, 14];
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const frames = join(root, 'src/ui/panel/frames');
+  const files = [
+    ...readdirSync(frames)
+      .filter((name) => name.endsWith('.tsx'))
+      .map((name) => join(frames, name)),
+    join(root, 'src/ui/panel/PanelShell.tsx'),
+    join(root, 'src/ui/panel/Defs.tsx'),
+    join(root, 'src/ui/panel/Panel.tsx'),
+  ];
+
+  /** Every font-size value as written: JSX number, JSX string or quoted attribute. */
+  function sizesIn(text: string): number[] {
+    const out: number[] = [];
+    for (const match of text.matchAll(
+      /font-size\s*[=:]\s*(?:\{\s*([0-9.]+)\s*\}|["']?([0-9.]+)(?:px)?["']?)/g,
+    )) {
+      out.push(Number(match[1] ?? match[2]));
+    }
+    return out;
+  }
+
+  it('scans the four frame files and the shell files', () => {
+    expect(files.length).toBeGreaterThanOrEqual(7);
+  });
+
+  it.each(files.map((file) => [file.slice(root.length), file] as const))(
+    '%s uses only declared sizes',
+    (_name, file) => {
+      const sizes = sizesIn(readFileSync(file, 'utf8'));
+      expect(sizes.filter((size) => !SCALE.includes(size))).toEqual([]);
+    },
+  );
+
+  it('actually finds font sizes in the frames (the scan is not vacuous)', () => {
+    const total = files.reduce((n, file) => n + sizesIn(readFileSync(file, 'utf8')).length, 0);
+    expect(total).toBeGreaterThan(20);
+  });
+
+  it('the scanner rejects an off-scale size in each written form', () => {
+    expect(sizesIn('<text font-size={12} />')).toEqual([12]);
+    expect(sizesIn('<text font-size="13" />')).toEqual([13]);
+    expect(sizesIn('style="font-size: 9px"')).toEqual([9]);
   });
 });
