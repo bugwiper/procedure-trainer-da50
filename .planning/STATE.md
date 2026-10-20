@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
-current_plan: 15 (complete)
+current_plan: 16 (complete)
 status: executing
-stopped_at: Completed 01.1-15-PLAN.md
-last_updated: "2026-10-20T22:39:03.505Z"
+stopped_at: Completed 01.1-16-PLAN.md
+last_updated: "2026-10-20T22:48:25.486Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 8c961ac0e5e39eb94da0dbc388e48b810f017b9b
+state_head: 899a0864ba377a87b38b86645c2718f0602ecf49
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 32
-  completed_plans: 24
+  completed_plans: 25
   percent: 14
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.1 (Panel shape, controls and indicator lights) — GAP CLOSURE IN PROGRESS (plans 12 to 23 from the owner first-render review)
-Current Plan: 15 (complete)
+Current Plan: 16 (complete)
 Total Plans in Phase: 23
-Status: Plans 01.1-01 to 01.1-15 complete; plan 15 removed the lamp group readouts and the knob state text and added e2e/static-text.spec.ts (built-panel text gate); plans 16 to 23 pending
-Last activity: 2026-10-21 — Plan 01.1-15 complete (static knobs, no lamp readouts, built-panel text gate)
+Status: Plans 01.1-01 to 01.1-16 complete; plan 16 made the visible plates data (plates.ts), added the e2e/art-fit.spec.ts gates and fixed FADEC, flap block, LEVEL and the other overflows outside the rebuilt areas; plans 17 to 23 pending
+Last activity: 2026-10-21 — Plan 01.1-16 complete (plates as data, art-fit and no-overlap gates)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -73,6 +73,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P13 | 25min | 2 tasks | 13 files |
 | Phase 01.1 P14 | 20min | 2 tasks | 9 files |
 | Phase 01.1 P15 | 10min | 3 tasks | 12 files |
+| Phase 01.1 P16 | 35min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: 01.1-10: docs/PANEL-REVIEW.md is the owner first-render review list; tests/panel-review.test.ts keeps it complete against layout-reference review rows and the UI-SPEC
 - [Phase 01.1]: Rocker raised half drawn as tilted face with tagged side wall; rockerExtent absorbs the 3-unit lift in the 4-unit bezel pad
 - [Phase 01.1]: Plan 14: levers and buttons show state by position only; horizontal slider legends print below the handle and never hide
+- [Phase 01.1]: Plan 16: plates are data (PLATES); the flap region and plate grow upward by shrinking the softkey region to end at 608; lever names clamped at the region top sit at baseline 6.5
 
 ### Pending Todos
 
@@ -133,6 +135,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T22:39:03.416Z
-Stopped at: Completed 01.1-15-PLAN.md
+Last session: 2026-10-20T22:48:25.394Z
+Stopped at: Completed 01.1-16-PLAN.md
 Resume file: None

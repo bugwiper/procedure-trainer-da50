@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 15/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
+**Plans:** 16/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
 
 Plans:
 **Wave 1**
@@ -111,7 +111,7 @@ Plans:
 - [x] 01.1-15-PLAN.md — Static knobs, lamp-group readouts removed, built-panel static-text gate
 
 **Wave 10**
-- [ ] 01.1-16-PLAN.md — Plates as data, art-fit and no-overlap gates, FADEC, flap block and LEVEL placement
+- [x] 01.1-16-PLAN.md — Plates as data, art-fit and no-overlap gates, FADEC, flap block and LEVEL placement
 
 **Wave 11**
 - [ ] 01.1-17-PLAN.md — Landing gear block order, GEAR TEST lights all gear lamps
