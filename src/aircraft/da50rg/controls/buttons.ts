@@ -64,4 +64,28 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
     states: RELEASED_PRESSED,
     default: 'released',
   },
+  // STALL TEST / GEAR TEST: one spring-return three-position bat left of the gear lamps. Holding
+  // the left half gives STALL TEST (caption left, as on the placard), the right half GEAR TEST;
+  // release always returns to NEUTRAL. The UI-SPEC id sw.stall_gear_test is registered as
+  // btn.stall_gear_test because a spring-return part is a momentary control (PD-04). Existence
+  // confirmed (P386, PED, SIM); one three-position part versus two parts is unconfirmed
+  // (UI-SPEC unconfirmed item 6). GEAR TEST has no lamp-test effect in this phase.
+  {
+    id: 'btn.stall_gear_test',
+    kind: 'momentary-button',
+    label: 'STALL/GEAR TEST',
+    region: 'landing_gear',
+    // Global 872, 649: 7 units right of the UI-SPEC centre (within the 8-unit tolerance) so the
+    // STALL TEST caption clears the left leg of the LANDING GEAR bracket header.
+    x: 36,
+    y: 74,
+    hit: { w: 56, h: 30 },
+    states: [
+      { id: 'neutral', label: 'NEUTRAL' },
+      { id: 'stall_test', label: 'STALL TEST' },
+      { id: 'gear_test', label: 'GEAR TEST' },
+    ],
+    default: 'neutral',
+    skin: 'spring-bat',
+  },
 ];

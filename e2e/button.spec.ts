@@ -85,3 +85,82 @@ test('@hooks one press appends exactly pressed then released', async ({ page, ha
     [START, 'released'],
   ]);
 });
+
+const SPRING = 'btn.stall_gear_test';
+
+/** Press the mouse at a fraction of the hit box width (0 left edge, 1 right edge). */
+async function pressAt(page: Page, id: string, fraction: number): Promise<void> {
+  const box = await page.locator(`[data-hit="${id}"]`).boundingBox();
+  if (box === null) throw new Error(`no hit box for ${id}`);
+  await page.mouse.move(box.x + box.width * fraction, box.y + box.height / 2);
+  await page.mouse.down();
+}
+
+test('holding the left half of the spring toggle shows STALL TEST, release returns NEUTRAL', async ({
+  page,
+  hasTouch,
+}) => {
+  test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
+  const toggle = control(page, SPRING);
+  await expect(toggle).toHaveAttribute('data-state', 'neutral');
+  await expect(toggle.locator('[data-state-text]')).toHaveText('NEUTRAL');
+
+  await pressAt(page, SPRING, 0.25);
+  await expect(toggle).toHaveAttribute('data-state', 'stall_test');
+  await expect(toggle.locator('[data-state-text]')).toHaveText('STALL TEST');
+
+  await page.mouse.up();
+  await expect(toggle).toHaveAttribute('data-state', 'neutral');
+  await expect(toggle.locator('[data-state-text]')).toHaveText('NEUTRAL');
+});
+
+test('holding the right half of the spring toggle shows GEAR TEST', async ({ page, hasTouch }) => {
+  test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
+  const toggle = control(page, SPRING);
+  await pressAt(page, SPRING, 0.75);
+  await expect(toggle).toHaveAttribute('data-state', 'gear_test');
+  await expect(toggle.locator('[data-state-text]')).toHaveText('GEAR TEST');
+  await page.mouse.up();
+  await expect(toggle).toHaveAttribute('data-state', 'neutral');
+});
+
+test('a pointercancel during the hold returns the spring toggle to NEUTRAL', async ({
+  page,
+  hasTouch,
+}) => {
+  test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
+  const toggle = control(page, SPRING);
+  await pressAt(page, SPRING, 0.75);
+  await expect(toggle).toHaveAttribute('data-state', 'gear_test');
+  await page.evaluate((id) => {
+    const hit = document.querySelector(`[data-hit="${id}"]`);
+    hit?.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, isPrimary: true }));
+  }, SPRING);
+  await expect(toggle).toHaveAttribute('data-state', 'neutral');
+  await page.mouse.up();
+  await expect(toggle).toHaveAttribute('data-state', 'neutral');
+});
+
+test('@hooks one hold of the spring toggle appends exactly the side, then neutral', async ({
+  page,
+  hasTouch,
+}) => {
+  test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
+  const events = () => page.evaluate(() => (globalThis as HookHost).__panel?.events() ?? []);
+  expect(await events()).toHaveLength(0);
+
+  await pressAt(page, SPRING, 0.25);
+  await expect(control(page, SPRING)).toHaveAttribute('data-state', 'stall_test');
+  await page.mouse.up();
+  await expect(control(page, SPRING)).toHaveAttribute('data-state', 'neutral');
+  await pressAt(page, SPRING, 0.75);
+  await page.mouse.up();
+  await expect(control(page, SPRING)).toHaveAttribute('data-state', 'neutral');
+
+  expect((await events()).map((e) => [e.id, e.value])).toEqual([
+    [SPRING, 'stall_test'],
+    [SPRING, 'neutral'],
+    [SPRING, 'gear_test'],
+    [SPRING, 'neutral'],
+  ]);
+});
