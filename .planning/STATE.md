@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
 status: executing
-stopped_at: Completed 01.1-04-PLAN.md
-last_updated: "2026-10-20T15:45:30.620Z"
+stopped_at: Completed 01.1-05-PLAN.md
+last_updated: "2026-10-20T15:51:00.594Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: d595ba2d3ea1c514c3c44c245e13e9c9b8f6e17a
+state_head: ff76a50c9d1ff002ba945a6dfb258904ef4fd06a
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 20
-  completed_plans: 13
+  completed_plans: 14
   percent: 14
 ---
 
@@ -60,6 +60,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P02 | 8min | 3 tasks | 13 files |
 | Phase 01.1 P03 | 12min | 3 tasks | 12 files |
 | Phase 01.1 P04 | 9 min | 3 tasks | 9 files |
+| Phase 01.1 P05 | 10 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Knob layout follows footprint shape: footprint at least twice as wide as high puts placard left and state text right, otherwise placard above and state text below
 - [Phase 01.1]: Registry skin vocabularies are exported const arrays and re-checked at runtime so data cast around the types still fails at load
 - [Phase 01.1]: PD-07: indicators (lt. lamps) are outside the control registry; never dispatched or graded. Phase 3 feeds flags (gear.in_transit) through IndicatorInputs.flags
+- [Phase 01.1]: PD-03: UI-SPEC id sw.deice_mode registered as lv.deice_mode (detent lever needs lv. prefix)
+- [Phase 01.1]: PD-05: TEMPERATURE slider centred 4 units right of UI-SPEC x (global 1096) to clear the FAN knob
 
 ### Pending Todos
 
@@ -110,6 +113,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T15:45:30.527Z
-Stopped at: Completed 01.1-04-PLAN.md
+Last session: 2026-10-20T15:51:00.492Z
+Stopped at: Completed 01.1-05-PLAN.md
 Resume file: None
