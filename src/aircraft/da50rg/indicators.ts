@@ -1,5 +1,5 @@
 import { defineIndicators } from '../../engine/indicators';
-import type { IndicatorGroupSpec, IndicatorInputs, IndicatorSpec } from '../../engine/indicators';
+import type { IndicatorInputs, IndicatorSpec } from '../../engine/indicators';
 import type { StateId } from '../../engine/registry';
 import { DA50RG } from './panel';
 
@@ -32,27 +32,6 @@ export interface FlapLamps {
 /** Exactly the lamp that matches the FLAPS lever is lit. */
 export function flapLamps(flaps: StateId): FlapLamps {
   return { up: flaps === 'up', to: flaps === 'to', ldg: flaps === 'ldg' };
-}
-
-type LitById = Readonly<Record<string, boolean>>;
-
-/** GEAR UNSAFE when the red lamp is lit, GEAR DOWN LOCKED with three greens, otherwise GEAR UP. */
-export function gearReadout(lit: LitById): string {
-  if (lit['lt.gear_unsafe'] === true) return 'GEAR UNSAFE';
-  if (
-    lit['lt.gear_nose'] === true &&
-    lit['lt.gear_left'] === true &&
-    lit['lt.gear_right'] === true
-  ) {
-    return 'GEAR DOWN LOCKED';
-  }
-  return 'GEAR UP';
-}
-
-export function flapReadout(lit: LitById): string {
-  if (lit['lt.flap_to'] === true) return 'FLAPS T/O';
-  if (lit['lt.flap_ldg'] === true) return 'FLAPS LDG';
-  return 'FLAPS UP';
 }
 
 function gearOf(inputs: IndicatorInputs): { gear: StateId; inTransit: boolean } {
@@ -176,26 +155,6 @@ const FLAP_LAMPS: readonly IndicatorSpec[] = [
   },
 ];
 
-const GROUPS: readonly IndicatorGroupSpec[] = [
-  {
-    id: 'grp.gear',
-    region: 'landing_gear',
-    x: 62,
-    y: 140,
-    members: GEAR_LAMPS.map((l) => l.id),
-    readout: gearReadout,
-  },
-  {
-    id: 'grp.flaps',
-    region: 'flaps',
-    x: 80,
-    y: 105,
-    members: FLAP_LAMPS.map((l) => l.id),
-    readout: flapReadout,
-  },
-];
-
 export const DA50RG_INDICATORS = defineIndicators(DA50RG, {
   indicators: [...GEAR_LAMPS, ...FLAP_LAMPS],
-  groups: GROUPS,
 });

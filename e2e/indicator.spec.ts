@@ -52,18 +52,14 @@ test('GEAR DOWN lights the three green lamps and GEAR UP turns all four off', as
 
 const FLAP_LAMPS = ['lt.flap_up', 'lt.flap_to', 'lt.flap_ldg'] as const;
 const FLAP_CASES = [
-  ['up', 'lt.flap_up', 'FLAPS UP'],
-  ['to', 'lt.flap_to', 'FLAPS T/O'],
-  ['ldg', 'lt.flap_ldg', 'FLAPS LDG'],
+  ['up', 'lt.flap_up'],
+  ['to', 'lt.flap_to'],
+  ['ldg', 'lt.flap_ldg'],
 ] as const;
 
-test('each FLAPS marker lights exactly its lamp and sets the readout', async ({
-  page,
-  hasTouch,
-}) => {
-  const readout = page.locator('[data-indicator-group="grp.flaps"]');
+test('each FLAPS marker lights exactly its lamp', async ({ page, hasTouch }) => {
   // Cycle away from the default first so every case is a real change.
-  for (const [detent, lit, text] of [FLAP_CASES[1], FLAP_CASES[2], FLAP_CASES[0]]) {
+  for (const [detent, lit] of [FLAP_CASES[1], FLAP_CASES[2], FLAP_CASES[0]]) {
     await activate(page.locator(`[data-detent="lv.flaps:${detent}"]`), hasTouch);
     for (const id of FLAP_LAMPS) {
       await expect(lamp(page, id), `${detent} ${id}`).toHaveAttribute(
@@ -71,17 +67,7 @@ test('each FLAPS marker lights exactly its lamp and sets the readout', async ({
         id === lit ? 'true' : 'false',
       );
     }
-    await expect(readout).toHaveText(text);
   }
-});
-
-test('the gear readout reads GEAR UP and GEAR DOWN LOCKED', async ({ page, hasTouch }) => {
-  const readout = page.locator('[data-indicator-group="grp.gear"]');
-  await expect(readout).toHaveText('GEAR UP');
-  await activate(page.locator('[data-detent="lv.gear:down"]'), hasTouch);
-  await expect(readout).toHaveText('GEAR DOWN LOCKED');
-  await activate(page.locator('[data-detent="lv.gear:up"]'), hasTouch);
-  await expect(readout).toHaveText('GEAR UP');
 });
 
 test('lamps are never tap targets', async ({ page }) => {

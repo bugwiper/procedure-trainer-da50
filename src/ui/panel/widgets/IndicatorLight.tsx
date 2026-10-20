@@ -1,5 +1,5 @@
 import { BEZEL_EXTRA } from '../../../engine/indicators';
-import type { IndicatorColour, IndicatorDef, IndicatorGroupSpec } from '../../../engine/indicators';
+import type { IndicatorColour, IndicatorDef } from '../../../engine/indicators';
 import type { PanelBridge } from '../../bridge';
 import { paint } from '../Defs';
 import type { DefId } from '../Defs';
@@ -81,35 +81,5 @@ export function IndicatorLight({ def, bridge }: { def: IndicatorDef; bridge: Pan
     >
       <LampBody label={def.label} colour={def.colour} r={def.r} lit={lit} caption={def.caption} />
     </g>
-  );
-}
-
-/**
- * Text readout of a lamp group (GEAR DOWN LOCKED, FLAPS T/O, ...): the same state as the lamps
- * in words, so it never relies on colour (D-13). Computed from the members' signals only.
- */
-export function IndicatorReadout({
-  group,
-  bridge,
-}: {
-  group: IndicatorGroupSpec;
-  bridge: PanelBridge;
-}) {
-  const lit: Record<string, boolean> = {};
-  for (const id of group.members) lit[id] = bridge.indicatorOf(id).value;
-  return (
-    <text
-      data-indicator-group={group.id}
-      data-state-text
-      x={group.x}
-      y={group.y}
-      text-anchor="middle"
-      font-family={FONT}
-      font-size={6}
-      fill="#e6e9ed"
-      pointer-events="none"
-    >
-      {group.readout(lit)}
-    </text>
   );
 }

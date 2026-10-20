@@ -5,9 +5,7 @@ import {
   DA50RG_INDICATORS,
   GEAR_IN_TRANSIT,
   flapLamps,
-  flapReadout,
   gearLamps,
-  gearReadout,
 } from '../src/aircraft/da50rg/indicators';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { IndicatorError, defineIndicators, evaluateIndicator } from '../src/engine/indicators';
@@ -18,7 +16,7 @@ import { PanelStore } from '../src/engine/store';
 import { LAMP_COLOURS, LampBody } from '../src/ui/panel/widgets/IndicatorLight';
 import { countElements, expand } from './vnode-walk';
 
-// Derived indicators (PNL-14, D-11): derive logic, readouts, definition invariants, lamp
+// Derived indicators (PNL-14, D-11): derive logic, definition invariants, lamp
 // contrast and the node cap of the lamp art. Indicators are never controls (PD-07).
 
 const GEAR_IDS = ['lt.gear_nose', 'lt.gear_left', 'lt.gear_right', 'lt.gear_unsafe'] as const;
@@ -72,46 +70,10 @@ describe('flapLamps', () => {
   });
 });
 
-describe('readouts', () => {
-  const gear = (nose: boolean, left: boolean, right: boolean, unsafe: boolean) => ({
-    'lt.gear_nose': nose,
-    'lt.gear_left': left,
-    'lt.gear_right': right,
-    'lt.gear_unsafe': unsafe,
-  });
-
-  it('gear: unsafe wins, three greens give DOWN LOCKED, otherwise UP', () => {
-    expect(gearReadout(gear(false, false, false, true))).toBe('GEAR UNSAFE');
-    expect(gearReadout(gear(true, true, true, false))).toBe('GEAR DOWN LOCKED');
-    expect(gearReadout(gear(false, false, false, false))).toBe('GEAR UP');
-    expect(gearReadout(gear(true, true, true, true))).toBe('GEAR UNSAFE');
-  });
-
-  it('flaps: one readout per lamp', () => {
-    expect(flapReadout({ 'lt.flap_up': true, 'lt.flap_to': false, 'lt.flap_ldg': false })).toBe(
-      'FLAPS UP',
-    );
-    expect(flapReadout({ 'lt.flap_up': false, 'lt.flap_to': true, 'lt.flap_ldg': false })).toBe(
-      'FLAPS T/O',
-    );
-    expect(flapReadout({ 'lt.flap_up': false, 'lt.flap_to': false, 'lt.flap_ldg': true })).toBe(
-      'FLAPS LDG',
-    );
-  });
-
-  it('the group readouts in DA50RG_INDICATORS follow the lamps', () => {
-    const [gearGroup, flapGroup] = DA50RG_INDICATORS.groups;
-    expect(gearGroup?.readout(litMap({ 'lv.gear': 'down', 'lv.flaps': 'to' }))).toBe(
-      'GEAR DOWN LOCKED',
-    );
-    expect(flapGroup?.readout(litMap({ 'lv.gear': 'down', 'lv.flaps': 'to' }))).toBe('FLAPS T/O');
-  });
-});
-
 describe('DA50RG indicators', () => {
-  it('has seven lamps and two groups, all indicator ids outside the control registry', () => {
+  it('has seven lamps and no group readouts, all indicator ids outside the control registry', () => {
     expect(DA50RG_INDICATORS.indicators).toHaveLength(7);
-    expect(DA50RG_INDICATORS.groups).toHaveLength(2);
+    expect(Object.keys(DA50RG_INDICATORS).sort()).toEqual(['get', 'inRegion', 'indicators']);
     for (const def of DA50RG_INDICATORS.indicators) {
       expect(def.id.startsWith('lt.')).toBe(true);
       expect(DA50RG.get(def.id)).toBeUndefined();
@@ -173,7 +135,7 @@ describe('DA50RG indicators', () => {
         return inputs.flags['f'] === true;
       },
     };
-    const set = defineIndicators(FIXTURE_REGISTRY, { indicators: [spy], groups: [] });
+    const set = defineIndicators(FIXTURE_REGISTRY, { indicators: [spy] });
     const def = set.get('lt.spy');
     if (def === undefined) throw new Error('missing');
     expect(evaluateIndicator(def, { 'sw.a': 'on', 'sw.b': 'on' })).toBe(false);
@@ -222,11 +184,8 @@ function lamp(over: Partial<IndicatorSpec> = {}): IndicatorSpec {
   };
 }
 
-function build(
-  indicators: IndicatorSpec[],
-  groups = [] as Parameters<typeof defineIndicators>[1]['groups'],
-) {
-  return defineIndicators(FIXTURE_REGISTRY, { indicators, groups });
+function build(indicators: IndicatorSpec[]) {
+  return defineIndicators(FIXTURE_REGISTRY, { indicators });
 }
 
 function expectRejected(build_: () => unknown, needle: string): void {
@@ -237,14 +196,10 @@ function expectRejected(build_: () => unknown, needle: string): void {
 const SWITCH_DEF = FIXTURE_REGISTRY.get('sw.a');
 
 describe('defineIndicators invariants', () => {
-  it('accepts a well-formed lamp and a group of it', () => {
-    const set = build(
-      [lamp()],
-      [{ id: 'grp.one', region: 'r1', x: 10, y: 90, members: ['lt.one'], readout: () => 'X' }],
-    );
+  it('accepts a well-formed lamp', () => {
+    const set = build([lamp()]);
     expect(set.inRegion('r1')).toHaveLength(1);
     expect(set.inRegion('r2')).toHaveLength(0);
-    expect(set.groupsInRegion('r1')).toHaveLength(1);
   });
 
   it('rejects an id without the lt. prefix', () => {
@@ -263,7 +218,7 @@ describe('defineIndicators invariants', () => {
       get: (id: string) => (id === 'lt.same' ? SWITCH_DEF : FIXTURE_REGISTRY.get(id)),
     };
     expect(() =>
-      defineIndicators(stub, { indicators: [lamp({ id: 'lt.same' })], groups: [] }),
+      defineIndicators(stub, { indicators: [lamp({ id: 'lt.same' })] }),
     ).toThrow('lt.same');
   });
 
@@ -280,19 +235,6 @@ describe('defineIndicators invariants', () => {
     expectRejected(() => build([lamp({ x: 4 })]), 'outside');
     expectRejected(() => build([lamp({ y: 97 })]), 'outside');
     expectRejected(() => build([lamp({ r: 0 })]), 'lt.one');
-  });
-
-  it('rejects a group member in another region or one that is not a lamp', () => {
-    const group = (members: string[], region = 'r2') => ({
-      id: 'grp.one',
-      region,
-      x: 10,
-      y: 10,
-      members,
-      readout: () => 'X',
-    });
-    expectRejected(() => build([lamp()], [group(['lt.one'])]), 'lt.one');
-    expectRejected(() => build([lamp()], [group(['lt.nope'], 'r1')]), 'lt.nope');
   });
 });
 

@@ -273,25 +273,6 @@ describe('indicator lamps (PNL-14, D-11)', () => {
       }
     }
   });
-
-  it('readout text centres lie inside their region and clear of control footprints', () => {
-    for (const group of DA50RG_INDICATORS.groups) {
-      const b = regionBounds(group.region);
-      expect(group.x).toBeGreaterThan(0);
-      expect(group.x).toBeLessThan(b.w);
-      expect(group.y).toBeGreaterThan(0);
-      expect(group.y).toBeLessThan(b.h);
-      const region = DA50RG.regions.find((r) => r.id === group.region);
-      for (const id of region?.controlIds ?? []) {
-        const def = DA50RG.get(id);
-        if (def === undefined) continue;
-        expect(
-          distanceToRect(group.x, group.y, footprint(def)),
-          `${group.id} / ${id}`,
-        ).toBeGreaterThan(0);
-      }
-    }
-  });
 });
 
 /** Hit footprints in global coordinates, including lifted-guard areas. */

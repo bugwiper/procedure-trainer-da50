@@ -39,24 +39,10 @@ export interface IndicatorSpec {
 
 export type IndicatorDef = Readonly<IndicatorSpec> & { readonly kind: 'indicator' };
 
-export interface IndicatorGroupSpec {
-  readonly id: string;
-  readonly region: string;
-  /** Region-local centre of the readout text. */
-  readonly x: number;
-  readonly y: number;
-  /** Lamp ids of the group. */
-  readonly members: readonly string[];
-  /** Readout text from the lit state of the members, keyed by lamp id. */
-  readonly readout: (lit: Readonly<Record<string, boolean>>) => string;
-}
-
 export interface IndicatorSet {
   readonly indicators: readonly IndicatorDef[];
-  readonly groups: readonly IndicatorGroupSpec[];
   get(id: string): IndicatorDef | undefined;
   inRegion(regionId: string): readonly IndicatorDef[];
-  groupsInRegion(regionId: string): readonly IndicatorGroupSpec[];
 }
 
 export class IndicatorError extends Error {}
@@ -68,10 +54,7 @@ export const INDICATOR_PREFIX = 'lt.';
 
 export function defineIndicators(
   registry: Registry,
-  input: {
-    readonly indicators: readonly IndicatorSpec[];
-    readonly groups: readonly IndicatorGroupSpec[];
-  },
+  input: { readonly indicators: readonly IndicatorSpec[] },
 ): IndicatorSet {
   const seen = new Set<string>();
   const defs: IndicatorDef[] = [];
@@ -115,34 +98,10 @@ export function defineIndicators(
   }
 
   const byId = new Map<string, IndicatorDef>(defs.map((d) => [d.id, d]));
-  const groups: IndicatorGroupSpec[] = [];
-  const groupIds = new Set<string>();
-  for (const group of input.groups) {
-    if (groupIds.has(group.id)) throw new IndicatorError(`duplicate group id "${group.id}"`);
-    groupIds.add(group.id);
-    if (!registry.regions.some((r) => r.id === group.region)) {
-      throw new IndicatorError(`group "${group.id}" names unknown region "${group.region}"`);
-    }
-    for (const member of group.members) {
-      const def = byId.get(member);
-      if (def === undefined) {
-        throw new IndicatorError(`group "${group.id}" member "${member}" is not an indicator`);
-      }
-      if (def.region !== group.region) {
-        throw new IndicatorError(
-          `group "${group.id}" member "${member}" is in region "${def.region}", not "${group.region}"`,
-        );
-      }
-    }
-    groups.push(Object.freeze({ ...group }));
-  }
-
   return Object.freeze({
     indicators: Object.freeze(defs),
-    groups: Object.freeze(groups),
     get: (id: string) => byId.get(id),
     inRegion: (regionId: string) => defs.filter((d) => d.region === regionId),
-    groupsInRegion: (regionId: string) => groups.filter((g) => g.region === regionId),
   });
 }
 
