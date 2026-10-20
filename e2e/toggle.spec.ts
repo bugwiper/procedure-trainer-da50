@@ -87,3 +87,19 @@ test('@hooks every control reports only legal states', async ({ page, hasTouch }
     expect(legal[id], id).toContain(value);
   }
 });
+
+test('every plain toggle flips by mouse or tap', async ({ page, hasTouch }) => {
+  const ids = await page
+    .locator('[data-kind="toggle"]')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-control-id') ?? ''));
+  // 12 plain toggles of the instrument panel plus the MFD PAGE softkey.
+  expect(ids.length).toBeGreaterThanOrEqual(13);
+  for (const id of ids) {
+    const group = control(page, id);
+    const before = (await group.getAttribute('data-state')) ?? '';
+    await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
+    await expect(group, id).not.toHaveAttribute('data-state', before);
+    await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
+    await expect(group, id).toHaveAttribute('data-state', before);
+  }
+});
