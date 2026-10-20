@@ -151,6 +151,21 @@ const FLAP_LAMPS: readonly IndicatorSpec[] = [
   },
 ];
 
+// ELT lamp (owner finding G-6, G-0.3): the original has a small red lamp left of the rocker,
+// lit while the ELT is ON. It prints no name; the placards beside the rocker name the positions.
+const ELT_LAMP: IndicatorSpec = {
+  id: 'lt.elt',
+  label: 'ELT',
+  region: 'right_panel',
+  x: 32,
+  y: 43,
+  r: 4,
+  colour: 'red',
+  caption: 'none',
+  reads: ['sw.elt'],
+  lit: (inputs) => inputs.controls['sw.elt'] === 'on',
+};
+
 export const DA50RG_INDICATORS = defineIndicators(DA50RG, {
-  indicators: [...GEAR_LAMPS, ...FLAP_LAMPS],
+  indicators: [...GEAR_LAMPS, ...FLAP_LAMPS, ELT_LAMP],
 });

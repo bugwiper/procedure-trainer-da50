@@ -28,8 +28,8 @@ export interface IndicatorSpec {
   /** Radius of the lamp disc; the bezel is a little larger. */
   readonly r: number;
   readonly colour: IndicatorColour;
-  /** Where the caption sits relative to the lamp. */
-  readonly caption: 'above' | 'right';
+  /** Where the caption sits relative to the lamp; `none` for a lamp the original prints no name on. */
+  readonly caption: 'above' | 'right' | 'none';
   /** The control ids this lamp reads; the lit function only ever sees these. */
   readonly reads: readonly ControlId[];
   /** Flag names this lamp reads (documentation for Phase 3; missing flags read as false). */

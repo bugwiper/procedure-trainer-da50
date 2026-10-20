@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
+import { PLACARDS, placardLineY } from '../src/aircraft/da50rg/placards';
+import { PLATES } from '../src/aircraft/da50rg/plates';
 import { DEF_IDS, Defs } from '../src/ui/panel/Defs';
 import { PanelShell } from '../src/ui/panel/PanelShell';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
@@ -166,6 +168,89 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
   it('draws the static vent as concentric rings', () => {
     const rings = findElements(shell, (el) => el.props['data-shell'] === 'vent-ring');
     expect(rings.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// Plate placards (owner findings G-0.1, G-0.3, G-6): static text printed on a plate beside a
+// control, data in placards.ts, positioned relative to a control id and drawn by the shell.
+describe('plate placards', () => {
+  const drawn = findElements(shell, (el) => el.props['data-placard'] !== undefined);
+
+  /** Global centre of a registry control. */
+  function centreOf(id: string): { x: number; y: number; region: string } {
+    const def = DA50RG.get(id);
+    if (def === undefined) throw new Error(`unknown control ${id}`);
+    const region = DA50RG.regions.find((r) => r.id === def.region);
+    if (region === undefined) throw new Error(`unknown region ${def.region}`);
+    return { x: region.bounds.x + def.x, y: region.bounds.y + def.y, region: region.id };
+  }
+
+  it('has placards, each with a unique id, a registry control to sit near and lines', () => {
+    expect(PLACARDS.length).toBeGreaterThan(0);
+    expect(new Set(PLACARDS.map((p) => p.id)).size).toBe(PLACARDS.length);
+    for (const p of PLACARDS) {
+      expect(DA50RG.get(p.near), `${p.id} near ${p.near}`).toBeDefined();
+      expect(p.lines.length, p.id).toBeGreaterThan(0);
+      expect([6, 8], p.id).toContain(p.size);
+    }
+  });
+
+  it('every placard sits inside the plate that carries its control region', () => {
+    for (const p of PLACARDS) {
+      const c = centreOf(p.near);
+      const plate = PLATES.find((pl) => pl.regions.includes(c.region));
+      expect(plate, `${p.id} has a plate`).toBeDefined();
+      if (plate === undefined) continue;
+      p.lines.forEach((line, i) => {
+        const width = line.length * p.size * 0.62;
+        const x0 = p.anchor === 'start' ? c.x + p.dx : c.x + p.dx - width;
+        const y = c.y + placardLineY(p, i);
+        expect(x0, `${p.id} line ${i} left`).toBeGreaterThanOrEqual(plate.x);
+        expect(x0 + width, `${p.id} line ${i} right`).toBeLessThanOrEqual(plate.x + plate.w);
+        expect(y - p.size, `${p.id} line ${i} top`).toBeGreaterThanOrEqual(plate.y);
+        expect(y, `${p.id} line ${i} bottom`).toBeLessThanOrEqual(plate.y + plate.h);
+      });
+    }
+  });
+
+  it('draws one text element per placard line, with exactly the PLACARDS lines', () => {
+    const expected = PLACARDS.flatMap((p) => p.lines);
+    expect(drawn.map((el) => textOf(el))).toEqual(expected);
+    expect(new Set(drawn.map((el) => el.props['data-placard'])).size).toBe(PLACARDS.length);
+  });
+
+  it('draws each line at its control centre plus the offsets', () => {
+    for (const p of PLACARDS) {
+      const c = centreOf(p.near);
+      const lines = drawn.filter((el) => el.props['data-placard'] === p.id);
+      expect(lines, p.id).toHaveLength(p.lines.length);
+      lines.forEach((el, i) => {
+        expect(el.props['x'], `${p.id} ${i} x`).toBe(c.x + p.dx);
+        expect(el.props['y'], `${p.id} ${i} y`).toBe(c.y + placardLineY(p, i));
+        expect(el.props['text-anchor'], `${p.id} ${i}`).toBe(p.anchor);
+        expect(el.props['font-size'], `${p.id} ${i}`).toBe(p.size);
+      });
+    }
+  });
+
+  it('the ELT has ON, ARMED and RESET / TEST (two lines) as plain text without state behaviour', () => {
+    const elt = PLACARDS.filter((p) => p.near === 'sw.elt');
+    expect(elt.map((p) => p.lines.join(' '))).toEqual(['ON', 'ARMED', 'RESET / TEST']);
+    expect(elt.every((p) => p.anchor === 'start' && p.size === 6)).toBe(true);
+    expect(elt[2]?.lines).toHaveLength(2);
+    // On the right of the rocker and aligned with the three tap thirds of its hit rectangle.
+    const hit = DA50RG.get('sw.elt')?.hit;
+    expect(hit).toBeDefined();
+    if (hit === undefined) return;
+    const third = hit.h / 3;
+    const tops = [-hit.h / 2, -hit.h / 2 + third, -hit.h / 2 + 2 * third];
+    // ON, ARMED and the first RESET / TEST line baseline lie in the top, middle and bottom third.
+    elt.forEach((p, i) => {
+      const y = placardLineY(p, 0);
+      expect(y, p.id).toBeGreaterThanOrEqual(tops[i] ?? 0);
+      expect(y, p.id).toBeLessThanOrEqual((tops[i] ?? 0) + third);
+    });
+    for (const p of elt) expect(p.dx, p.id).toBeGreaterThan(hit.w / 2);
   });
 });
 

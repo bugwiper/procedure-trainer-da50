@@ -5,7 +5,11 @@ import { paint } from '../Defs';
 import type { DefId } from '../Defs';
 
 const FONT = 'B612, system-ui, sans-serif';
-const HALO_RADIUS = 13;
+
+/** Halo radius of a lamp: 13 for the standard r 7, and a smaller halo for a smaller lamp. */
+export function haloRadius(r: number): number {
+  return r + 6;
+}
 
 /** Lamp colours (UI-SPEC Color, item 3). Lit and unlit fills keep a luminance ratio of 3:1 or more. */
 export const LAMP_COLOURS: Readonly<
@@ -24,7 +28,7 @@ export interface LampBodyProps {
   readonly colour: IndicatorColour;
   readonly r: number;
   readonly lit: boolean;
-  readonly caption: 'above' | 'right';
+  readonly caption: 'above' | 'right' | 'none';
 }
 
 /**
@@ -37,7 +41,7 @@ export function LampBody({ label, colour, r, lit, caption }: LampBodyProps) {
   return (
     <g>
       <circle r={bezel} fill="#0c0d0f" stroke="#2d3138" stroke-width={1} />
-      {lit ? <circle r={HALO_RADIUS} fill={paint(c.halo)} /> : null}
+      {lit ? <circle r={haloRadius(r)} fill={paint(c.halo)} /> : null}
       <circle r={r} fill={lit ? c.lit : c.unlit} />
       <circle
         r={lit ? r - 1 : r - 0.5}
@@ -48,17 +52,19 @@ export function LampBody({ label, colour, r, lit, caption }: LampBodyProps) {
       {lit ? (
         <circle r={r - 3} fill="none" stroke="#ffffff" stroke-opacity={0.7} stroke-width={1} />
       ) : null}
-      <text
-        x={caption === 'above' ? 0 : bezel + 4}
-        y={caption === 'above' ? -(bezel + 3) : 2}
-        text-anchor={caption === 'above' ? 'middle' : 'start'}
-        font-family={FONT}
-        font-size={6}
-        fill="#aab3bd"
-        pointer-events="none"
-      >
-        {label}
-      </text>
+      {caption === 'none' ? null : (
+        <text
+          x={caption === 'above' ? 0 : bezel + 4}
+          y={caption === 'above' ? -(bezel + 3) : 2}
+          text-anchor={caption === 'above' ? 'middle' : 'start'}
+          font-family={FONT}
+          font-size={6}
+          fill="#aab3bd"
+          pointer-events="none"
+        >
+          {label}
+        </text>
+      )}
     </g>
   );
 }

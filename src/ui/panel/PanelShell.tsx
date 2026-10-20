@@ -1,4 +1,5 @@
 import type { Registry } from '../../engine/registry';
+import { PLACARDS, placardLineY } from '../../aircraft/da50rg/placards';
 import { GEAR_BLOCK, PLATES } from '../../aircraft/da50rg/plates';
 import type { PlateDef } from '../../aircraft/da50rg/plates';
 import { paint } from './Defs';
@@ -282,14 +283,45 @@ function SwitchStrips() {
   );
 }
 
+/**
+ * Plate placards (owner finding G-6): static text printed beside a control, resolved against the
+ * registry (region origin plus control centre plus the placard offsets). Never state dependent.
+ */
+function Placards({ registry }: { registry: Registry }) {
+  return (
+    <g data-shell="placards" fill={LEGEND}>
+      {PLACARDS.flatMap((placard) => {
+        const def = registry.get(placard.near);
+        const region =
+          def === undefined ? undefined : registry.regions.find((r) => r.id === def.region);
+        if (def === undefined || region === undefined) return [];
+        const x = region.bounds.x + def.x + placard.dx;
+        const y = region.bounds.y + def.y;
+        return placard.lines.map((line, i) => (
+          <text
+            key={`${placard.id}.${i}`}
+            data-placard={placard.id}
+            x={x}
+            y={y + placardLineY(placard, i)}
+            text-anchor={placard.anchor}
+            font-size={placard.size}
+          >
+            {line}
+          </text>
+        ));
+      })}
+    </g>
+  );
+}
+
 /** One bracket outline of the right bus panel with its heading. */
 function BusBracket({ y, h, title }: { y: number; h: number; title: string }) {
   return (
     <g data-shell="bus-bracket">
       <rect
-        x={1810}
+        x={1846}
         y={y}
-        width={160}
+        width={124}
         height={h}
         rx={4}
         fill="none"
@@ -297,18 +329,21 @@ function BusBracket({ y, h, title }: { y: number; h: number; title: string }) {
         stroke-opacity={0.4}
         stroke-width={1}
       />
-      <text x={1890} y={y + 14} text-anchor="middle" font-size={8} fill={LEGEND}>
+      <text x={1908} y={y + 14} text-anchor="middle" font-size={8} fill={LEGEND}>
         {title}
       </text>
     </g>
   );
 }
 
-/** Layer 10: bus panel x 1800..1980. Bracket outlines and headings only (breakers: PNL-12). */
+/**
+ * Layer 10: bus panel x 1836..1980. Bracket outlines and headings only (breakers: PNL-12). It
+ * starts right of the strip plate (ends x 1830) so the ELT placards on that plate stay visible.
+ */
 function BusPanel() {
   return (
     <g data-shell="bus-panel">
-      <rect x={1800} y={215} width={180} height={530} rx={8} fill="#15171a" stroke={RIM} />
+      <rect x={1836} y={215} width={144} height={530} rx={8} fill="#15171a" stroke={RIM} />
       <BusBracket y={225} h={140} title="ESSENTIAL BUS" />
       <BusBracket y={375} h={190} title="MAIN BUS" />
       <BusBracket y={575} h={160} title="AVIONICS BUS" />
@@ -392,6 +427,7 @@ export function PanelShell({ registry }: { registry: Registry }) {
       {mfd === undefined ? null : <DisplayBezel {...mfd.bounds} />}
       <CentreStack />
       <SwitchStrips />
+      <Placards registry={registry} />
       <BusPanel />
       <LeftStrip />
       <StaticDecor />

@@ -134,9 +134,12 @@ RUBIN mark: text only, centred at (1232, 625) at the left of the flap block, rep
 
 | Id | Placard | Assumed kind and skin | Assumed states and default | Centre (tol) | What is uncertain | Photos | File to change |
 |----|---------|-----------------------|----------------------------|--------------|-------------------|--------|----------------|
-| `sw.elt` | ELT | toggle, rocker S red (22 x 38), hit 50 x 70 | ARM, ON; default ARM | 1776, 656 (3) | the placard shows a third RESET/TEST position that is not modelled; size ratio against the other rockers; position confirmed | P650, PED, P807 | `controls/switch-bank.ts` |
+| `sw.elt` | ELT | toggle, rocker S red (22 x 38), hit 34 x 78, three positions | RESET / TEST (bottom), ARMED (middle), ON (top); default ARMED, no spring return | 1776, 656 (3) | owner finding G-6; whether the middle position rests there (Q-01); size ratio against the other rockers; position confirmed | P650, PED, P807 | `controls/switch-bank.ts` |
+| `lt.elt` | none | red lamp r 4, no caption, left of the rocker | lit when the ELT is ON | 1752, 656 (8) | owner finding G-6; exact position and size | same | `indicators.ts` |
 
-The bus panel (x 1800..1980) is drawn as three bracket outlines with the headings ESSENTIAL BUS, MAIN BUS and AVIONICS BUS only. No circuit-breaker shapes exist yet (phase 01.2).
+The three ELT position placards ON, ARMED and RESET / TEST stand to the right of the rocker (`src/aircraft/da50rg/placards.ts`).
+
+The bus panel (x 1836..1980, right of the strip plate so the ELT placards stay visible) is drawn as three bracket outlines with the headings ESSENTIAL BUS, MAIN BUS and AVIONICS BUS only. No circuit-breaker shapes exist yet (phase 01.2).
 
 ## Under panel (regions `under_panel_left`, `under_panel_centre`, `under_panel_right`)
 
@@ -179,7 +182,7 @@ All static art lives in `src/ui/panel/PanelShell.tsx` and carries no handler. Ou
 | Switch-strip seam | plates meet at x 1100 (LEVEL sits on the seam) |
 | LANDING GEAR bracket | line y 630 from 846 to 986, header at (916, 640), speed line at (916, 733) |
 | ESS BUS NOT FOR NORMAL OPERATION placard | four Micro lines centred at x 521, baselines 650 to 671 |
-| Bus panel brackets | x 1810..1970; ESSENTIAL y 225..365, MAIN y 375..565, AVIONICS y 575..735 |
+| Bus panel brackets | x 1846..1970; ESSENTIAL y 225..365, MAIN y 375..565, AVIONICS y 575..735 |
 | Left-strip plates | de-ice x 70..270, y 265..470; engine x 70..270, y 485..615 |
 | Vent | centre (60, 700), r 28 with three inner rings |
 | NO SMOKING placard | x 965..1029, y 725..739 |

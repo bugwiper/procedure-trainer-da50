@@ -71,7 +71,7 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lv.cowl_flap', x: 1010, y: 1235, tol: 3, review: false },
 ];
 
-/** The seven derived lamps; they resolve once plan 01.1-04 adds them. */
+/** The eight derived lamps (seven gear and flap lamps, the ELT lamp of plan 18). */
 export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.gear_nose', x: 916, y: 682, tol: 8, review: true },
   { id: 'lt.gear_left', x: 894, y: 714, tol: 8, review: true },
@@ -80,6 +80,7 @@ export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.flap_up', x: 1278, y: 629, tol: 8, review: true },
   { id: 'lt.flap_to', x: 1274, y: 660, tol: 8, review: true },
   { id: 'lt.flap_ldg', x: 1263, y: 689, tol: 8, review: true },
+  { id: 'lt.elt', x: 1752, y: 656, tol: 8, review: true },
 ];
 
 /**
@@ -185,6 +186,8 @@ export const ORDERING: readonly OrderRow[] = [
   ['lt.flap_to', 'above', 'lt.flap_ldg'],
   ...FLAP_LAMPS.map((id): OrderRow => [id, 'left-of', 'lv.flaps']),
   ['btn.level', 'left-of', 'lt.flap_up'],
+  ['lt.elt', 'left-of', 'sw.elt'],
+  ['lt.elt', 'same-row', 'sw.elt'],
 ];
 
 export const FRONT_PANEL_REGIONS: readonly string[] = [

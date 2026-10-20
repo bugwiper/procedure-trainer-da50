@@ -250,12 +250,14 @@ describe('true-proportion reference positions (D-21)', () => {
 });
 
 describe('indicator lamps (PNL-14, D-11)', () => {
-  const BEZEL = 7 + BEZEL_EXTRA;
+  // Each lamp has its own bezel: r 7 for the gear and flap lamps, r 4 for the small ELT lamp.
+  const bezelOf = (lamp: { r: number }) => lamp.r + BEZEL_EXTRA;
 
   it('every lamp bezel disc lies inside its region', () => {
     for (const lamp of DA50RG_INDICATORS.indicators) {
       const b = regionBounds(lamp.region);
-      expect(lamp.r + BEZEL_EXTRA, `${lamp.id} bezel`).toBe(BEZEL);
+      const BEZEL = bezelOf(lamp);
+      expect(lamp.r, `${lamp.id} radius`).toBeGreaterThanOrEqual(4);
       expect(lamp.x - BEZEL, `${lamp.id} left`).toBeGreaterThanOrEqual(0);
       expect(lamp.y - BEZEL, `${lamp.id} top`).toBeGreaterThanOrEqual(0);
       expect(lamp.x + BEZEL, `${lamp.id} right`).toBeLessThanOrEqual(b.w);
@@ -270,7 +272,7 @@ describe('indicator lamps (PNL-14, D-11)', () => {
         const def = DA50RG.get(id);
         if (def === undefined) continue;
         const distance = distanceToRect(lamp.x, lamp.y, footprint(def));
-        expect(distance, `${lamp.id} / ${id}`).toBeGreaterThanOrEqual(BEZEL);
+        expect(distance, `${lamp.id} / ${id}`).toBeGreaterThanOrEqual(bezelOf(lamp));
       }
     }
   });
@@ -439,13 +441,8 @@ describe('inventory complete', () => {
 // are fixed by enlarging the plate or the region, never by shrinking a tap target.
 describe('plates', () => {
   const BEZEL_GROW = 16;
-  /** Regions rebuilt by plans 18 to 22; their footprints are checked once those plans land. */
-  const FOOTPRINT_KNOWN_OPEN: readonly string[] = [
-    'right_panel',
-    'env_control',
-    'deice',
-    'deice_switches',
-  ];
+  /** Regions rebuilt by plans 19 to 22; their footprints are checked once those plans land. */
+  const FOOTPRINT_KNOWN_OPEN: readonly string[] = ['env_control', 'deice', 'deice_switches'];
 
   const rectOf = (p: { x: number; y: number; w: number; h: number }): Rect => ({
     x: p.x,

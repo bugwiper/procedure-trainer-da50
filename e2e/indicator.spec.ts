@@ -98,8 +98,33 @@ test('lamps are never tap targets', async ({ page }) => {
   // Selector of src/ui/panel/zoom.ts TAP_TARGET_SELECTOR.
   await expect(page.locator('[data-indicator-id] :is([data-hit], [data-detent])')).toHaveCount(0);
   await expect(page.locator('[data-indicator-id]:is([data-hit], [data-detent])')).toHaveCount(0);
-  await expect(page.locator('[data-indicator-id]')).toHaveCount(7);
+  await expect(page.locator('[data-indicator-id]')).toHaveCount(8);
   await expect(page.locator('[data-indicator-id][data-control-id]')).toHaveCount(0);
+});
+
+test('the ELT lamp is lit in ON only: top third lights it, middle third turns it off', async ({
+  page,
+  hasTouch,
+}) => {
+  const hit = page.locator('[data-hit="sw.elt"]');
+  const tapAt = async (fraction: number) => {
+    const box = await hit.boundingBox();
+    if (box === null) throw new Error('no hit box for the ELT');
+    const position = { x: box.width / 2, y: box.height * fraction };
+    if (hasTouch) await hit.tap({ position });
+    else await hit.click({ position });
+  };
+  const elt = lamp(page, 'lt.elt');
+  await expect(elt).toHaveCount(1);
+  await expect(elt).toHaveAttribute('data-lit', 'false');
+  await tapAt(1 / 6);
+  await expect(elt).toHaveAttribute('data-lit', 'true');
+  await tapAt(1 / 2);
+  await expect(elt).toHaveAttribute('data-lit', 'false');
+  await tapAt(5 / 6);
+  await expect(elt).toHaveAttribute('data-lit', 'false');
+  // The lamp prints no text of its own.
+  await expect(elt.locator('text')).toHaveCount(0);
 });
 
 test('@hooks lever moves record only lv.gear events and a tap on a lamp records none', async ({
@@ -133,7 +158,7 @@ test('@hooks window.__panel.indicators() agrees with every data-lit attribute', 
     const hook = await page.evaluate(
       () => (globalThis as unknown as PageHost).__panel?.indicators() ?? {},
     );
-    expect(Object.keys(hook)).toHaveLength(7);
+    expect(Object.keys(hook)).toHaveLength(8);
     for (const [id, state] of Object.entries(hook)) {
       await expect(lamp(page, id), id).toHaveAttribute(
         'data-lit',

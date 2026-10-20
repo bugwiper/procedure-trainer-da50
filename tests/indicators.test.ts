@@ -8,13 +8,18 @@ import {
   gearLamps,
 } from '../src/aircraft/da50rg/indicators';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
-import { IndicatorError, defineIndicators, evaluateIndicator } from '../src/engine/indicators';
+import {
+  BEZEL_EXTRA,
+  IndicatorError,
+  defineIndicators,
+  evaluateIndicator,
+} from '../src/engine/indicators';
 import type { IndicatorSpec } from '../src/engine/indicators';
 import { defineRegistry } from '../src/engine/registry';
 import type { ControlSpec, RegionDef } from '../src/engine/registry';
 import { PanelStore } from '../src/engine/store';
-import { LAMP_COLOURS, LampBody } from '../src/ui/panel/widgets/IndicatorLight';
-import { countElements, expand } from './vnode-walk';
+import { LAMP_COLOURS, LampBody, haloRadius } from '../src/ui/panel/widgets/IndicatorLight';
+import { countElements, expand, findElements } from './vnode-walk';
 
 // Derived indicators (PNL-14, D-11): derive logic, definition invariants, lamp
 // contrast and the node cap of the lamp art. Indicators are never controls (PD-07).
@@ -84,8 +89,8 @@ describe('flapLamps', () => {
 });
 
 describe('DA50RG indicators', () => {
-  it('has seven lamps and no group readouts, all indicator ids outside the control registry', () => {
-    expect(DA50RG_INDICATORS.indicators).toHaveLength(7);
+  it('has eight lamps and no group readouts, all indicator ids outside the control registry', () => {
+    expect(DA50RG_INDICATORS.indicators).toHaveLength(8);
     expect(Object.keys(DA50RG_INDICATORS).sort()).toEqual(['get', 'inRegion', 'indicators']);
     for (const def of DA50RG_INDICATORS.indicators) {
       expect(def.id.startsWith('lt.')).toBe(true);
@@ -290,6 +295,68 @@ describe('defineIndicators invariants', () => {
   });
 });
 
+describe('lt.elt (owner finding G-6)', () => {
+  const elt = DA50RG_INDICATORS.get('lt.elt');
+
+  it('is a small red lamp without a caption that reads sw.elt', () => {
+    expect(elt).toBeDefined();
+    if (elt === undefined) return;
+    expect([elt.colour, elt.r, elt.caption]).toEqual(['red', 4, 'none']);
+    expect(elt.reads).toEqual(['sw.elt']);
+    expect(elt.region).toBe('right_panel');
+  });
+
+  it('is lit exactly when the ELT is ON', () => {
+    const lit = (state: string) => litMap({ 'sw.elt': state })['lt.elt'];
+    expect(lit('on')).toBe(true);
+    expect(lit('armed')).toBe(false);
+    expect(lit('reset_test')).toBe(false);
+  });
+
+  it('follows the store: the default is off, ON lights it, ARMED turns it off again', () => {
+    const store = new PanelStore(DA50RG);
+    const lamp = () => litMap(store.snapshot())['lt.elt'];
+    expect(lamp()).toBe(false);
+    store.dispatch('sw.elt', 'on', 0);
+    expect(lamp()).toBe(true);
+    store.dispatch('sw.elt', 'armed', 1);
+    expect(lamp()).toBe(false);
+    store.dispatch('sw.elt', 'reset_test', 2);
+    expect(lamp()).toBe(false);
+  });
+
+  it('is not a control: the store knows no lt.elt and a dispatch to it is rejected', () => {
+    expect(DA50RG.get('lt.elt')).toBeUndefined();
+    const store = new PanelStore(DA50RG);
+    const result = store.dispatch('lt.elt', 'on', 0);
+    expect(result.ok).toBe(false);
+    expect(store.events()).toHaveLength(0);
+  });
+
+  it('sits left of the rocker and clear of every control footprint of right_panel', () => {
+    if (elt === undefined) return;
+    const region = DA50RG.regions.find((r) => r.id === 'right_panel');
+    expect(region).toBeDefined();
+    if (region === undefined) return;
+    const reach = elt.r + BEZEL_EXTRA;
+    for (const id of region.controlIds) {
+      const def = DA50RG.get(id);
+      if (def === undefined) continue;
+      const left = def.x - def.hit.w / 2;
+      const right = def.x + def.hit.w / 2;
+      const top = def.y - def.hit.h / 2;
+      const bottom = def.y + def.hit.h / 2;
+      const apart =
+        elt.x + reach <= left ||
+        elt.x - reach >= right ||
+        elt.y + reach <= top ||
+        elt.y - reach >= bottom;
+      expect(apart, `lamp bezel against ${id}`).toBe(true);
+    }
+    expect(elt.x).toBeLessThan(DA50RG.get('sw.elt')?.x ?? 0);
+  });
+});
+
 function luminance(hex: string): number {
   const channel = (i: number) => {
     const v = parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16) / 255;
@@ -315,6 +382,26 @@ describe('lamp art', () => {
         expect(countElements(tree), `${colour} ${String(lit)}`).toBeLessThanOrEqual(40);
       }
     }
+  });
+
+  it('a lamp with caption none draws no text', () => {
+    for (const lit of [true, false]) {
+      const tree = expand(LampBody({ label: 'ELT', colour: 'red', r: 4, lit, caption: 'none' }));
+      expect(findElements(tree, (el) => el.tag === 'text')).toEqual([]);
+    }
+  });
+
+  it('the halo radius scales with the lamp: 13 for r 7, smaller for r 4', () => {
+    expect(haloRadius(7)).toBe(13);
+    expect(haloRadius(4)).toBeLessThan(haloRadius(7));
+    expect(haloRadius(4)).toBeGreaterThan(4 + BEZEL_EXTRA);
+    const radii = (r: number) =>
+      findElements(
+        expand(LampBody({ label: 'X', colour: 'red', r, lit: true, caption: 'none' })),
+        (el) => el.tag === 'circle' && String(el.props['fill']).startsWith('url('),
+      ).map((el) => el.props['r']);
+    expect(radii(7)).toEqual([13]);
+    expect(radii(4)).toEqual([haloRadius(4)]);
   });
 
   it('lit lamps have a thicker ring than unlit lamps (state without colour)', () => {
