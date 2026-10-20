@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 10/11 plans executed
+**Plans:** 11/11 plans executed
 
 Plans:
 **Wave 1**
@@ -94,7 +94,7 @@ Plans:
 - [x] 01.1-10-PLAN.md — Owner review document docs/PANEL-REVIEW.md with completeness gate
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 01.1-11-PLAN.md — Release manifest, owner SHA confirmation, fast-forward publish, live verification, first-render review
+- [x] 01.1-11-PLAN.md — Release manifest, owner SHA confirmation, fast-forward publish, live verification, first-render review
 
 ### Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels (INSERTED)
 
