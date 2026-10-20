@@ -22,6 +22,7 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
     hit: { w: 66, h: 70 },
     states: RELEASED_PRESSED,
     default: 'released',
+    skin: 'chrome-round',
   },
   // FADEC TEST: right of the FADEC switch (D-07c).
   {
@@ -36,6 +37,7 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
     hit: { w: 60, h: 60 },
     states: RELEASED_PRESSED,
     default: 'released',
+    skin: 'small-black',
   },
   // ANNUN TEST of the de-ice panel (second row, between WIND SHIELD and PUMP 1 on the
   // lower row). It tests the de-ice annunciations; inert in this phase. Layout fact from the
@@ -50,6 +52,7 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
     hit: { w: 30, h: 36 },
     states: RELEASED_PRESSED,
     default: 'released',
+    skin: 'small-black',
   },
   // LEVEL, between the GEAR lever and the FLAPS block. Believed to be the autopilot level
   // function; inert in this phase (UI-SPEC unconfirmed item 11).
@@ -63,6 +66,7 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
     hit: { w: 44, h: 44 },
     states: RELEASED_PRESSED,
     default: 'released',
+    skin: 'blue-dome',
   },
   // STALL TEST / GEAR TEST: one spring-return three-position bat left of the gear lamps. Holding
   // the left half gives STALL TEST (caption left, as on the placard), the right half GEAR TEST;
