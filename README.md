@@ -1,5 +1,9 @@
 # DA50 RG Procedure Trainer
 
+Live site: https://bugwiper.github.io/procedure-trainer-da50/
+
+[![CI and Deploy](https://github.com/bugwiper/procedure-trainer-da50/actions/workflows/deploy.yml/badge.svg)](https://github.com/bugwiper/procedure-trainer-da50/actions/workflows/deploy.yml)
+
 **Training aid only, not the AFM. Not approved or certified, and not affiliated with Diamond Aircraft or Garmin.**
 
 A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emergency situations. The user operates an interactive panel and, in a quiz-style scenario, performs the checklist actions; performance is graded against stored required, optional and ordered actions.
