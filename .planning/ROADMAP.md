@@ -58,6 +58,17 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 01.1: Panel appearance and control inventory (INSERTED)
+
+**Goal**: The panel looks and is laid out like the real DA50 RG, with the control inventory the first scenarios need in their real positions, so every later phase builds on a settled layout. Switch shapes and colours follow the aircraft (ELECT. MASTER big red rocker, ELT small red rocker, ESS BUS medium red rocker, other rockers white; alternators are the accurate reference); the overall graphical look is reworked; the two zoom usability findings from the Phase 1 UAT are fixed (single tap zooms fully out; the Full panel button is never hidden by the footer).
+**Scope to settle in discussion**: overall panel appearance concern (owner), which missing controls to add now versus per scenario
+**Requirements**: TBD
+**Depends on:** Phase 1
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 01.1 to break down)
+
 ### Phase 2: First Gradable Scenario
 
 **Goal**: Users can start one real emergency (Oil Temp High), run the procedure by operating the panel, finish with "Procedure complete" and receive an objective PASS/FAIL debrief.

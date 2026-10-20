@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 2
-current_phase_name: First Gradable Scenario
+current_phase: 01.1
+current_phase_name: Panel appearance and control inventory
 status: planning
-stopped_at: Phase 01 complete, ready to plan Phase 2
-last_updated: "2026-10-20T09:32:03.505Z"
+stopped_at: Phase 01 complete; Phase 1.1 inserted, ready to discuss
+last_updated: "2026-10-20T09:33:01.743Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 39057101fd518be338e9534ae8b7200eedec283e
+state_head: 000c930761d002f8e62fe907d8cc770b077a42dc
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 1
   total_plans: 9
   completed_plans: 9
-  percent: 20
+  percent: 17
 ---
 
 # Project State
@@ -32,7 +32,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-10-20 — Phase 01 complete, transitioned to Phase 2
 
-Progress: [██░░░░░░░░] 20%
+Progress: [██░░░░░░░░] 17%
 
 ## Performance Metrics
 
@@ -78,6 +78,10 @@ None yet.
 - [Phase 2]: The user supplies DA50 RG AFM procedures, CAS texts and the control inventory. Derive the registry from them. Confirm memory-item deadlines (keep `within_s` optional).
 - [Phase 3]: Authoring all three real scenarios will likely force schema revisions. Do not freeze the schema for external authors (CNT-02) until all three are written.
 - [Setup]: REQUIREMENTS.md previously said 30 v1 requirements, but only 28 IDs are defined. Corrected to 28 during roadmap creation.
+
+### Roadmap Evolution
+
+- Phase 1.1 inserted after Phase 1: Panel appearance (switch shapes/colours per real DA50: ELECT. MASTER big red rocker, ELT small red, ESS BUS medium red, others white), control inventory for upcoming scenarios, graphical panel rework, single-tap zoom-out and hidden Full panel button fixes. Must settle layout before Phase 2.
 
 ## Deferred Items
 
