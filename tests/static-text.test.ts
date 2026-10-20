@@ -170,6 +170,8 @@ describe('knob family text is state-independent', () => {
       // A nameless knob is named by a plate title or placard, not by its own text.
       if (def.nameless === true) expect(first, def.id).not.toContain(def.label.split(' ')[0]);
       else expect(first, def.id).toContain(def.label.split(' ')[0]);
+      // The FAN prints OFF only: the three stops are fan symbols, no label, no number (G-3).
+      if (def.id === 'sw.env_fan') expect(first, def.id).toEqual(['OFF']);
       for (const stop of def.stops) {
         for (const pressed of [false, true]) {
           const tree = expand(RotaryBody({ def, state: stop.id, pressed }));

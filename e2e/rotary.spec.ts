@@ -179,15 +179,46 @@ test('@hooks four right taps from OFF end at MAX and a fifth records no event', 
   expect(await eventCount(page)).toBe(4);
 });
 
-test('FAN steps OFF, 1, 2, 3, 4 and clamps at both ends', async ({ page, hasTouch }) => {
+test('FAN steps OFF, 1, 2, 3 and clamps at both ends', async ({ page, hasTouch }) => {
   const knob = control(page, 'sw.env_fan');
   await expect(knob).toHaveAttribute('data-state', 'off');
-  for (const state of ['f1', 'f2', 'f3', 'f4', 'f4'] as const) {
+  for (const state of ['f1', 'f2', 'f3', 'f3'] as const) {
     await tapHalf(page, 'sw.env_fan', 'right', hasTouch);
     await expect(knob).toHaveAttribute('data-state', state);
   }
   await tapHalf(page, 'sw.env_fan', 'left', hasTouch);
-  await expect(knob).toHaveAttribute('data-state', 'f3');
+  await expect(knob).toHaveAttribute('data-state', 'f2');
+  await tapHalf(page, 'sw.env_fan', 'left', hasTouch);
+  await tapHalf(page, 'sw.env_fan', 'left', hasTouch);
+  await tapHalf(page, 'sw.env_fan', 'left', hasTouch);
+  await expect(knob).toHaveAttribute('data-state', 'off');
+});
+
+test('FAN reaches OFF, 1, 2 and 3 by a drag toward each stop and prints only OFF', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop mouse path');
+  const hit = page.locator('[data-hit="sw.env_fan"]');
+  const c = await centre(hit);
+  const unit = await unitPx(page, 'sw.env_fan', 80);
+  // Directions clockwise from 12 o'clock: f1 300, f2 360, f3 420 (60), off 180.
+  const targets: [string, number][] = [
+    ['f1', 300],
+    ['f2', 0],
+    ['f3', 60],
+    ['off', 180],
+  ];
+  for (const [stop, deg] of targets) {
+    const rad = (deg * Math.PI) / 180;
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 26 * unit * Math.sin(rad), c.y - 26 * unit * Math.cos(rad), {
+      steps: 6,
+    });
+    await page.mouse.up();
+    await expect(control(page, 'sw.env_fan'), stop).toHaveAttribute('data-state', stop);
+  }
+  await expect(control(page, 'sw.env_fan').locator('text')).toHaveText(['OFF']);
 });
 
 test('a mouse drag to the 3 o clock direction snaps INSTRUMENT LIGHT to 75 on release', async ({

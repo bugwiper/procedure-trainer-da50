@@ -165,8 +165,11 @@ export interface RotaryDef extends ControlBase {
   readonly default: StateId;
   /** Radius of the visible knob; the knob lies inside the hit footprint. */
   readonly r: number;
-  /** Printed scale around the knob. */
-  readonly scale?: 'arc' | 'dots' | 'none';
+  /**
+   * Printed scale around the knob: `arc` ticks and labels, `fan` (the first stop's label and one
+   * propeller glyph per further stop, growing small to large, no dots, no numbers), or `none`.
+   */
+  readonly scale?: 'arc' | 'fan' | 'none';
 }
 
 export type ControlDef =

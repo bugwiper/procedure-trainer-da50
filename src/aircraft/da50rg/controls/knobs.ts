@@ -7,8 +7,8 @@ import type { ControlSpec, RotaryStopDef } from '../../../engine/registry';
 // the fourth knob and lives in the switch row (switch-bank.ts).
 //
 // Pointer angles are degrees clockwise from 12 o'clock. The dimmers sweep 270 degrees over the
-// top; FAN starts at 6 o'clock (OFF) and runs clockwise, so its last stop (420) is the same
-// direction as 60.
+// top; FAN starts at 6 o'clock (OFF) and runs clockwise to about 2 o'clock, so its last stop
+// (420) is the same direction as 60.
 
 const DIMMER_STOPS: readonly RotaryStopDef[] = [
   { id: 'off', label: 'OFF', angle: -135 },
@@ -46,13 +46,14 @@ export const KNOB_CONTROLS: readonly ControlSpec[] = [
     y: 182,
     hit: { w: 80, h: 40 },
     r: 14,
-    scale: 'dots',
+    // OFF at the bottom, then three fixed stops clockwise up to about 2 o'clock (owner photo,
+    // G-3). Only OFF is printed; the three stops carry fan symbols from small to large.
+    scale: 'fan',
     stops: [
       { id: 'off', label: 'OFF', angle: 180 },
-      { id: 'f1', label: '1', angle: 240 },
-      { id: 'f2', label: '2', angle: 300 },
-      { id: 'f3', label: '3', angle: 360 },
-      { id: 'f4', label: '4', angle: 420 },
+      { id: 'f1', label: '1', angle: 300 },
+      { id: 'f2', label: '2', angle: 360 },
+      { id: 'f3', label: '3', angle: 420 },
     ],
     default: 'off',
   },

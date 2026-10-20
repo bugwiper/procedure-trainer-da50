@@ -79,22 +79,30 @@ describe('nearestStop', () => {
   const dimmer = knob('sw.flood_light');
 
   it('picks the stop with the smallest circular distance', () => {
-    expect(nearestStop(fan, 300)).toBe('f2');
-    expect(nearestStop(fan, 10)).toBe('f3');
+    expect(nearestStop(fan, 300)).toBe('f1');
+    expect(nearestStop(fan, 10)).toBe('f2');
     expect(nearestStop(fan, 175)).toBe('off');
     expect(nearestStop(fan, 205)).toBe('off');
-    expect(nearestStop(fan, 215)).toBe('f1');
+    expect(nearestStop(fan, 245)).toBe('f1');
   });
 
-  it('treats a stop above 360 as the same direction (f4 at 420 is 60 degrees)', () => {
-    expect(nearestStop(fan, 60)).toBe('f4');
-    expect(nearestStop(fan, 90)).toBe('f4');
-    expect(nearestStop(fan, 115)).toBe('f4');
+  it('treats a stop above 360 as the same direction (f3 at 420 is 60 degrees)', () => {
+    expect(nearestStop(fan, 60)).toBe('f3');
+    expect(nearestStop(fan, 90)).toBe('f3');
+    expect(nearestStop(fan, 115)).toBe('f3');
+  });
+
+  it('snaps across the 120 degree gap at the bottom to the nearer end', () => {
+    // OFF (180) and f1 (300) are 120 apart; f3 (420 = 60) and OFF are 120 apart the other way.
+    expect(nearestStop(fan, 235)).toBe('off');
+    expect(nearestStop(fan, 245)).toBe('f1');
+    expect(nearestStop(fan, 125)).toBe('off');
+    expect(nearestStop(fan, 115)).toBe('f3');
   });
 
   it('works modulo 360 for angles outside 0..360', () => {
-    expect(nearestStop(fan, 300 + 360)).toBe('f2');
-    expect(nearestStop(fan, 300 - 720)).toBe('f2');
+    expect(nearestStop(fan, 300 + 360)).toBe('f1');
+    expect(nearestStop(fan, 300 - 720)).toBe('f1');
     expect(nearestStop(dimmer, -2)).toBe('s50');
     expect(nearestStop(dimmer, 358)).toBe('s50');
   });
@@ -119,8 +127,9 @@ describe('nearestStop', () => {
 describe('stopAngle', () => {
   it('returns the authored pointer angle', () => {
     expect(stopAngle(knob('sw.fuel_trans'), 'on')).toBe(60);
-    expect(stopAngle(knob('sw.env_fan'), 'f4')).toBe(420);
-    expect(() => stopAngle(knob('sw.fuel_trans'), 'f4')).toThrow(RangeError);
+    expect(stopAngle(knob('sw.env_fan'), 'f3')).toBe(420);
+    expect(() => stopAngle(knob('sw.env_fan'), 'f4')).toThrow(RangeError);
+    expect(() => stopAngle(knob('sw.fuel_trans'), 'f3')).toThrow(RangeError);
   });
 });
 
@@ -150,10 +159,9 @@ describe('DA50RG knobs (Table K1)', () => {
     ];
     const fanStops = [
       ['off', 'OFF', 180],
-      ['f1', '1', 240],
-      ['f2', '2', 300],
-      ['f3', '3', 360],
-      ['f4', '4', 420],
+      ['f1', '1', 300],
+      ['f2', '2', 360],
+      ['f3', '3', 420],
     ];
     const read = (id: string) => knob(id).stops.map((s) => [s.id, s.label, s.angle]);
     expect(read('sw.fuel_trans')).toEqual([
@@ -166,7 +174,18 @@ describe('DA50RG knobs (Table K1)', () => {
   });
 
   it('legal states are the stop ids', () => {
-    expect(legalStates(knob('sw.env_fan'))).toEqual(['off', 'f1', 'f2', 'f3', 'f4']);
+    expect(legalStates(knob('sw.env_fan'))).toEqual(['off', 'f1', 'f2', 'f3']);
+  });
+
+  it('FAN sweeps 240 degrees from OFF at the bottom to about 2 o clock, default off, fan scale', () => {
+    const fan = knob('sw.env_fan');
+    const first = fan.stops[0];
+    const last = fan.stops[fan.stops.length - 1];
+    expect(last!.angle - first!.angle).toBe(240);
+    expect(fan.default).toBe('off');
+    expect(fan.scale).toBe('fan');
+    expect(fan.nameless).toBe(true);
+    expect(fan.hit).toEqual({ w: 80, h: 40 });
   });
 });
 
@@ -201,6 +220,12 @@ describe('rotary registry invariants', () => {
   it('rejects fewer than 2 and more than 5 stops', () => {
     expect(() => define(build({ stops: stops(0) }))).toThrow(RegistryError);
     expect(() => define(build({ stops: stops(0, 10, 20, 30, 40, 50) }))).toThrow(/2 to 5 stops/);
+  });
+
+  it('accepts the fan scale with four stops over a 240 degree sweep', () => {
+    expect(() =>
+      define(build({ stops: stops(180, 300, 360, 420), scale: 'fan', nameless: true })),
+    ).not.toThrow();
   });
 
   it('rejects angles that do not strictly increase', () => {
@@ -281,7 +306,9 @@ describe('RotaryBody art', () => {
       const first = strings(def.stops[0]?.id ?? '');
       expect(first.length, def.id).toBeGreaterThan(0);
       for (const stop of def.stops) expect(strings(stop.id), `${def.id}/${stop.id}`).toEqual(first);
-      for (const stop of def.stops) expect(first, def.id).toContain(stop.label);
+      // The fan scale prints its first stop only (the others are symbols).
+      const printed = def.scale === 'fan' ? def.stops.slice(0, 1) : def.stops;
+      for (const stop of printed) expect(first, def.id).toContain(stop.label);
     }
   });
 
@@ -323,10 +350,68 @@ describe('RotaryBody art', () => {
     expect(Number(rest?.props['y2'])).toBeCloseTo(-0.8 * def.r * Math.cos(rad), 1);
   });
 
-  it('prints the labels of every stop of a multi-stop knob', () => {
-    const def = knob('sw.env_fan');
+  it('prints the labels of every stop of an arc-scale knob', () => {
+    const def = knob('sw.flood_light');
     const text = textOf(expand(RotaryBody({ def, state: 'off', pressed: false })));
     for (const stop of def.stops) expect(text).toContain(stop.label);
+  });
+
+  describe('fan scale (plan 20, G-3)', () => {
+    const def = knob('sw.env_fan');
+    const render = (state: string) => expand(RotaryBody({ def, state, pressed: false }));
+
+    it('prints only OFF, no other label, no number, no placard, in every state', () => {
+      for (const stop of def.stops) {
+        const strings = findElements(render(stop.id), (el) => el.tag === 'text').map((t) =>
+          textOf(t),
+        );
+        expect(strings, stop.id).toEqual(['OFF']);
+      }
+    });
+
+    it('draws no dots: no circle but the knob disc', () => {
+      const circles = findElements(render('off'), (el) => el.tag === 'circle');
+      expect(circles).toHaveLength(1);
+      expect(Number(circles[0]?.props['r'])).toBe(def.r);
+    });
+
+    it('draws three four-blade glyphs, small to large, at the angles of the three upper stops', () => {
+      const glyphs = findElements(render('off'), (el) => 'data-fan-symbol' in el.props);
+      expect(glyphs.map((g) => g.props['data-fan-symbol'])).toEqual(['f1', 'f2', 'f3']);
+      const sizes = glyphs.map((g) => Number(g.props['data-fan-size']));
+      expect(sizes[0]).toBeLessThan(sizes[1] ?? 0);
+      expect(sizes[1]).toBeLessThan(sizes[2] ?? 0);
+      glyphs.forEach((g, i) => {
+        const stop = def.stops[i + 1];
+        const m = /translate\((-?[\d.]+) (-?[\d.]+)\)/.exec(String(g.props['transform']));
+        const angle = (Math.atan2(Number(m?.[1]), -Number(m?.[2])) * 180) / Math.PI;
+        const want = (((((stop!.angle % 360) + 360) % 360) + 540) % 360) - 180;
+        expect(angle).toBeCloseTo(want, 0);
+        // One path element per glyph, four blades (four subpaths).
+        expect(g.tag).toBe('path');
+        expect(String(g.props['d']).split('M').length - 1).toBe(4);
+      });
+    });
+
+    it('is at most 40 elements at every stop and the pointer follows the stop angle', () => {
+      for (const stop of def.stops) {
+        const tree = render(stop.id);
+        expect(countElements(tree), stop.id).toBeLessThanOrEqual(40);
+        const line = findElements(tree, (el) => el.tag === 'line')[0];
+        const rad = (stop.angle * Math.PI) / 180;
+        expect(Number(line?.props['x2'])).toBeCloseTo(0.8 * def.r * Math.sin(rad), 1);
+        expect(Number(line?.props['y2'])).toBeCloseTo(-0.8 * def.r * Math.cos(rad), 1);
+      }
+    });
+
+    it('steps toward the maximum on the right half, toward OFF on the left, both ends clamp', () => {
+      expect(stepStop(def, 'off', 1)).toBe('f1');
+      expect(stepStop(def, 'f1', 1)).toBe('f2');
+      expect(stepStop(def, 'f2', 1)).toBe('f3');
+      expect(stepStop(def, 'f3', 1)).toBe('f3');
+      expect(stepStop(def, 'f3', -1)).toBe('f2');
+      expect(stepStop(def, 'off', -1)).toBe('off');
+    });
   });
 });
 

@@ -1,5 +1,4 @@
 import { useSignal } from '@preact/signals';
-import { Fragment } from 'preact';
 import { useRef } from 'preact/hooks';
 import { angleOf, nearestStop, stepStop, stopAngle } from '../../../engine/rotary';
 import type { RotaryDef } from '../../../engine/registry';
@@ -74,6 +73,34 @@ function arcTicks(def: RotaryDef): string {
   return parts.join('');
 }
 
+/** Half extent of the smallest fan symbol and the growth per further stop, in units. */
+const FAN_SIZE_MIN = 3;
+const FAN_SIZE_STEP = 1.5;
+
+/**
+ * One four-blade propeller glyph as a single path (four subpaths), blade length `size`, centred on
+ * the origin. Original simple shapes: each blade is a leaf from the hub, the four turned 20
+ * degrees off the axes so the glyph reads as a fan and not as a cross.
+ */
+export function fanGlyphPath(size: number): string {
+  const parts: string[] = [];
+  const width = 0.42 * size;
+  for (let k = 0; k < 4; k++) {
+    const a = ((20 + 90 * k) * Math.PI) / 180;
+    const ux = Math.sin(a);
+    const uy = -Math.cos(a);
+    const vx = Math.cos(a);
+    const vy = Math.sin(a);
+    const at = (along: number, across: number): string =>
+      `${fixed(along * size * ux + across * vx)} ${fixed(along * size * uy + across * vy)}`;
+    parts.push(
+      `M0 0C${at(0.3, width)} ${at(0.85, 0.8 * width)} ${at(1, 0)}` +
+        `C${at(0.85, -0.8 * width)} ${at(0.3, -width)} 0 0Z`,
+    );
+  }
+  return parts.join('');
+}
+
 export interface RotaryBodyProps {
   readonly def: RotaryDef;
   /** Committed stop id: the pointer rests there. */
@@ -100,7 +127,6 @@ export function RotaryBody({ def, state, dragAngle, pressed }: RotaryBodyProps) 
   const lines = def.nameless === true ? [] : placardLines(def.label);
 
   const labelRadius = scale === 'none' ? r + 7 : scale === 'arc' ? r + 7.5 : r + 8;
-  const dotRadius = r + 3;
 
   return (
     <g pointer-events="none">
@@ -127,27 +153,32 @@ export function RotaryBody({ def, state, dragAngle, pressed }: RotaryBodyProps) 
       ) : null}
       {def.stops.map((stop, i) => {
         const p = polar(stop.angle, labelRadius);
-        return (
-          <Fragment key={stop.id}>
-            {scale === 'dots' ? (
-              <circle
-                cx={fixed(polar(stop.angle, dotRadius).x)}
-                cy={fixed(polar(stop.angle, dotRadius).y)}
-                r={0.6 + 0.35 * i}
-                fill="#aab3bd"
-              />
-            ) : null}
-            <text
-              x={fixed(p.x)}
-              y={fixed(p.y + 2)}
-              text-anchor="middle"
-              font-family={FONT}
-              font-size={6}
+        // The fan scale prints the first stop's label only; the others carry a fan symbol.
+        if (scale === 'fan' && i > 0) {
+          const size = FAN_SIZE_MIN + FAN_SIZE_STEP * (i - 1);
+          return (
+            <path
+              key={stop.id}
+              data-fan-symbol={stop.id}
+              data-fan-size={size}
+              transform={`translate(${fixed(p.x)} ${fixed(p.y)})`}
+              d={fanGlyphPath(size)}
               fill="#aab3bd"
-            >
-              {stop.label}
-            </text>
-          </Fragment>
+            />
+          );
+        }
+        return (
+          <text
+            key={stop.id}
+            x={fixed(p.x)}
+            y={fixed(p.y + 2)}
+            text-anchor="middle"
+            font-family={FONT}
+            font-size={6}
+            fill="#aab3bd"
+          >
+            {stop.label}
+          </text>
         );
       })}
       <circle
