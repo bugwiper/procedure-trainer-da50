@@ -17,8 +17,15 @@ export interface GearLamps {
   readonly unsafe: boolean;
 }
 
-/** Down and not in transit: three greens. In transit: only the red lamp. Up: nothing. */
-export function gearLamps(gear: StateId, inTransit: boolean): GearLamps {
+/** Control id of the spring-return STALL TEST / GEAR TEST toggle (owner finding G-2). */
+export const GEAR_TEST_CONTROL = 'btn.stall_gear_test';
+
+/**
+ * Down and not in transit: three greens. In transit: only the red lamp. Up: nothing. The lamp
+ * test (GEAR TEST held) lights all four lamps whatever the lever and the flag say (G-2).
+ */
+export function gearLamps(gear: StateId, inTransit: boolean, lampTest = false): GearLamps {
+  if (lampTest) return { nose: true, left: true, right: true, unsafe: true };
   const downLocked = gear === 'down' && !inTransit;
   return { nose: downLocked, left: downLocked, right: downLocked, unsafe: inTransit };
 }
@@ -34,14 +41,15 @@ export function flapLamps(flaps: StateId): FlapLamps {
   return { up: flaps === 'up', to: flaps === 'to', ldg: flaps === 'ldg' };
 }
 
-function gearOf(inputs: IndicatorInputs): { gear: StateId; inTransit: boolean } {
-  return {
-    gear: inputs.controls['lv.gear'] ?? '',
-    inTransit: inputs.flags[GEAR_IN_TRANSIT] === true,
-  };
+function gearOf(inputs: IndicatorInputs): GearLamps {
+  return gearLamps(
+    inputs.controls['lv.gear'] ?? '',
+    inputs.flags[GEAR_IN_TRANSIT] === true,
+    inputs.controls[GEAR_TEST_CONTROL] === 'gear_test',
+  );
 }
 
-const GEAR_READS = ['lv.gear'] as const;
+const GEAR_READS = ['lv.gear', GEAR_TEST_CONTROL] as const;
 const GEAR_FLAGS = [GEAR_IN_TRANSIT] as const;
 
 const GEAR_LAMPS: readonly IndicatorSpec[] = [
@@ -56,10 +64,7 @@ const GEAR_LAMPS: readonly IndicatorSpec[] = [
     caption: 'above',
     reads: GEAR_READS,
     flags: GEAR_FLAGS,
-    lit: (inputs) => {
-      const { gear, inTransit } = gearOf(inputs);
-      return gearLamps(gear, inTransit).nose;
-    },
+    lit: (inputs) => gearOf(inputs).nose,
   },
   {
     id: 'lt.gear_left',
@@ -72,10 +77,7 @@ const GEAR_LAMPS: readonly IndicatorSpec[] = [
     caption: 'above',
     reads: GEAR_READS,
     flags: GEAR_FLAGS,
-    lit: (inputs) => {
-      const { gear, inTransit } = gearOf(inputs);
-      return gearLamps(gear, inTransit).left;
-    },
+    lit: (inputs) => gearOf(inputs).left,
   },
   {
     id: 'lt.gear_right',
@@ -88,10 +90,7 @@ const GEAR_LAMPS: readonly IndicatorSpec[] = [
     caption: 'above',
     reads: GEAR_READS,
     flags: GEAR_FLAGS,
-    lit: (inputs) => {
-      const { gear, inTransit } = gearOf(inputs);
-      return gearLamps(gear, inTransit).right;
-    },
+    lit: (inputs) => gearOf(inputs).right,
   },
   {
     id: 'lt.gear_unsafe',
@@ -104,10 +103,7 @@ const GEAR_LAMPS: readonly IndicatorSpec[] = [
     caption: 'above',
     reads: GEAR_READS,
     flags: GEAR_FLAGS,
-    lit: (inputs) => {
-      const { gear, inTransit } = gearOf(inputs);
-      return gearLamps(gear, inTransit).unsafe;
-    },
+    lit: (inputs) => gearOf(inputs).unsafe,
   },
 ];
 

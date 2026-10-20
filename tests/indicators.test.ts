@@ -32,6 +32,19 @@ function litMap(
 }
 
 describe('gearLamps', () => {
+  it('the lamp test lights all four lamps whatever the lever says (Table G2)', () => {
+    for (const gear of ['up', 'down']) {
+      expect(gearLamps(gear, false, true), gear).toEqual({
+        nose: true,
+        left: true,
+        right: true,
+        unsafe: true,
+      });
+    }
+    expect(gearLamps('up', false, false)).toEqual(gearLamps('up', false));
+    expect(gearLamps('down', true, false)).toEqual(gearLamps('down', true));
+  });
+
   it('gear up with no transit lights nothing', () => {
     expect(gearLamps('up', false)).toEqual({
       nose: false,
@@ -101,6 +114,45 @@ describe('DA50RG indicators', () => {
     const lit = litMap({ 'lv.gear': 'down', 'lv.flaps': 'up' }, { [GEAR_IN_TRANSIT]: true });
     expect(lit['lt.gear_unsafe']).toBe(true);
     for (const id of ['lt.gear_nose', 'lt.gear_left', 'lt.gear_right']) expect(lit[id]).toBe(false);
+  });
+
+  it('every gear lamp reads btn.stall_gear_test', () => {
+    for (const id of GEAR_IDS) {
+      const def = DA50RG_INDICATORS.indicators.find((d) => d.id === id);
+      expect(def?.reads, id).toContain('btn.stall_gear_test');
+    }
+    for (const id of FLAP_IDS) {
+      const def = DA50RG_INDICATORS.indicators.find((d) => d.id === id);
+      expect(def?.reads, id).not.toContain('btn.stall_gear_test');
+    }
+  });
+
+  it('through the store: GEAR TEST lights all four, neutral turns them off, STALL TEST changes none', () => {
+    const store = new PanelStore(DA50RG);
+    const lamps = () => litMap(store.snapshot());
+    store.dispatch('btn.stall_gear_test', 'gear_test', 0);
+    for (const id of GEAR_IDS) expect(lamps()[id], id).toBe(true);
+    store.dispatch('btn.stall_gear_test', 'neutral', 1);
+    for (const id of GEAR_IDS) expect(lamps()[id], id).toBe(false);
+    store.dispatch('btn.stall_gear_test', 'stall_test', 2);
+    for (const id of GEAR_IDS) expect(lamps()[id], id).toBe(false);
+    store.dispatch('btn.stall_gear_test', 'neutral', 3);
+    store.dispatch('lv.gear', 'down', 4);
+    store.dispatch('btn.stall_gear_test', 'stall_test', 5);
+    const withStall = lamps();
+    for (const id of ['lt.gear_nose', 'lt.gear_left', 'lt.gear_right'])
+      expect(withStall[id], id).toBe(true);
+    expect(withStall['lt.gear_unsafe']).toBe(false);
+  });
+
+  it('the lamp test and the in-transit flag are separate inputs', () => {
+    const transit = litMap(
+      { 'lv.gear': 'up', 'btn.stall_gear_test': 'neutral' },
+      { [GEAR_IN_TRANSIT]: true },
+    );
+    expect(transit['lt.gear_unsafe']).toBe(true);
+    for (const id of ['lt.gear_nose', 'lt.gear_left', 'lt.gear_right'])
+      expect(transit[id]).toBe(false);
   });
 
   it('exactly one flap lamp is lit for each FLAPS state', () => {

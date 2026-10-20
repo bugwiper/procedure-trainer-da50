@@ -73,7 +73,7 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
   // release always returns to NEUTRAL. The UI-SPEC id sw.stall_gear_test is registered as
   // btn.stall_gear_test because a spring-return part is a momentary control (PD-04). Existence
   // confirmed (P386, PED, SIM); one three-position part versus two parts is unconfirmed
-  // (UI-SPEC unconfirmed item 6). GEAR TEST has no lamp-test effect in this phase.
+  // (UI-SPEC unconfirmed item 6). GEAR TEST lights all four gear lamps while held (G-2, see indicators.ts).
   {
     id: 'btn.stall_gear_test',
     kind: 'momentary-button',

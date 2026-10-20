@@ -50,6 +50,30 @@ test('GEAR DOWN lights the three green lamps and GEAR UP turns all four off', as
   for (const id of GEAR_LAMPS) await expect(lamp(page, id)).toHaveAttribute('data-lit', 'false');
 });
 
+test('holding GEAR TEST lights all four gear lamps and releasing restores the lever picture', async ({
+  page,
+  hasTouch,
+}) => {
+  test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
+  const box = await page.locator('[data-hit="btn.stall_gear_test"]').boundingBox();
+  if (box === null) throw new Error('no hit box for the spring toggle');
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height / 2);
+  await page.mouse.down();
+  for (const id of GEAR_LAMPS) await expect(lamp(page, id)).toHaveAttribute('data-lit', 'true');
+  await page.mouse.up();
+  for (const id of GEAR_LAMPS) await expect(lamp(page, id)).toHaveAttribute('data-lit', 'false');
+
+  // STALL TEST (left half) changes no lamp.
+  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(page.locator('[data-control-id="btn.stall_gear_test"]')).toHaveAttribute(
+    'data-state',
+    'stall_test',
+  );
+  for (const id of GEAR_LAMPS) await expect(lamp(page, id)).toHaveAttribute('data-lit', 'false');
+  await page.mouse.up();
+});
+
 const FLAP_LAMPS = ['lt.flap_up', 'lt.flap_to', 'lt.flap_ldg'] as const;
 const FLAP_CASES = [
   ['up', 'lt.flap_up'],
