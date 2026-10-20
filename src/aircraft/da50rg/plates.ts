@@ -45,11 +45,43 @@ export const PLATES: readonly PlateDef[] = [
     rx: 8,
     regions: ['flaps', 'right_panel'],
   },
-  { id: 'environmental', x: 962, y: 764, w: 201, h: 250, rx: 18, regions: ['env_control'] },
+  // Environmental control plate as in the owner's side-view photo (G-3): DIRECTION and
+  // TEMPERATURE side by side, FAN under DIRECTION, CIRCULATING AIR across the bottom. The plate
+  // ends at 1036, ten units above the pedestal plate.
+  {
+    id: 'environmental',
+    x: 962,
+    y: 752,
+    w: 201,
+    h: 284,
+    rx: 18,
+    regions: ['env_control', 'env_circ'],
+  },
   // Parking brake, cowl flap with its two lamps and the throttle on one plate below the
   // environmental control plate, as in the owner's side-view photo (G-3).
   { id: 'pedestal', x: 962, y: 1046, w: 201, h: 242, rx: 18, regions: ['pedestal'] },
 ];
+
+/** One outlined group box of a plate; its title cuts the top edge (static shell art). */
+export interface GroupBoxDef {
+  readonly id: string;
+  readonly title: string;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** The four group boxes of the environmental control plate (owner finding G-3), global units. */
+export const ENV_BOXES: readonly GroupBoxDef[] = [
+  { id: 'direction', title: 'DIRECTION', x: 970, y: 776, w: 98, h: 108 },
+  { id: 'temperature', title: 'TEMPERATURE', x: 1076, y: 776, w: 80, h: 206 },
+  { id: 'fan', title: 'FAN', x: 970, y: 892, w: 98, h: 90 },
+  { id: 'circulating-air', title: 'CIRCULATING AIR', x: 970, y: 990, w: 186, h: 40 },
+];
+
+/** Title of the whole environmental control plate and its centre, above the group boxes. */
+export const ENV_TITLE = { text: 'ENVIRONMENTAL CONTROL', x: 1062, y: 766 } as const;
 
 /**
  * Vertical order of the landing gear block (owner finding G-2): the heading LANDING GEAR, the

@@ -90,7 +90,10 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'under_panel_centre', name: 'UNDER PANEL C', bounds: { x: 860, y: 740, w: 90, h: 125 } },
   // Environmental plate, top of the centre console. Split from the pedestal (PD-01): in one
   // 540-tall region the phone shows 0.56 px per unit and POWER reaches only 34 px.
-  { id: 'env_control', name: 'ENVIRONMENTAL CONTROL', bounds: { x: 957, y: 750, w: 211, h: 265 } },
+  // DIRECTION, TEMPERATURE and FAN. CIRCULATING AIR is its own region below (plan 20): a single
+  // 290-tall region would shrink the zoom scale below the 44 px tap size on the phone.
+  { id: 'env_control', name: 'ENVIRONMENTAL CONTROL', bounds: { x: 957, y: 750, w: 211, h: 240 } },
+  { id: 'env_circ', name: 'CIRCULATING AIR', bounds: { x: 957, y: 990, w: 211, h: 50 } },
   // Drawn as a plan view below the panel, fore at the top; fore-aft length not to scale.
   { id: 'pedestal', name: 'PEDESTAL', bounds: { x: 957, y: 1042, w: 211, h: 248 } },
   // Right of the pedestal.

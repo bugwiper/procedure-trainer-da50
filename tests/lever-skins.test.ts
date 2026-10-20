@@ -257,8 +257,15 @@ describe('nameless levers and chosen legends (plan 19, G-3)', () => {
 
   it('a lever with legends prints exactly those detent labels and nothing else changes', () => {
     const temp = lever('lv.env_temp');
-    const all = texts(body({ ...temp, nameless: true }, 't50'));
+    const unlisted = Object.fromEntries(
+      Object.entries({ ...temp, nameless: true }).filter(([key]) => key !== 'legends'),
+    ) as unknown as DetentLeverDef;
+    const all = texts(body(unlisted, 't50'));
     expect(all).toEqual(expect.arrayContaining(['COLD', '25', '50', '75', 'WARM']));
+    // As shipped, TEMPERATURE prints only COLD and WARM in every step (plan 20, G-3).
+    expect(temp.legends).toEqual(['cold', 'warm']);
+    for (const d of temp.detents)
+      expect(texts(body(temp, d.id)).sort(), d.id).toEqual(['COLD', 'WARM']);
     const some = texts(body({ ...temp, nameless: true, legends: ['cold', 'warm'] }, 't50'));
     expect(some.sort()).toEqual(['COLD', 'WARM']);
     const none = texts(body({ ...temp, nameless: true, legends: [] }, 't50'));
@@ -403,33 +410,30 @@ describe('POWER grip, COWL FLAP, PARKING BRAKE and the environmental sliders', (
     expect(circIcons.sort()).toEqual(['fresh', 'recirc']);
   });
 
-  it('lays CIRCULATING AIR out horizontally inside its region: name above, legends at the ends', () => {
+  it('lays CIRCULATING AIR out horizontally inside its region: pictograms only, no text', () => {
     const def = lever('lv.env_circ');
+    expect(def.region).toBe('env_circ');
+    expect(def.nameless).toBe(true);
     const region = DA50RG.regions.find((r) => r.id === def.region);
     if (region === undefined) throw new Error('no region');
+    for (const d of def.detents) {
+      const tree = body(def, d.id);
+      expect(texts(tree), d.id).toEqual([]);
+      expect(stateTexts(tree), d.id).toHaveLength(0);
+    }
+    // Both pictograms sit at the slot ends, inside the region and clear of the handle.
     const tree = body(def, 'recirc');
-    const all = findElements(tree, (el) => el.tag === 'text');
-    const name = all.find((t) => textOf(t) === 'CIRCULATING AIR');
-    expect(name).toBeDefined();
-    expect(Number(name?.props['y'])).toBeLessThan(0);
-    expect(stateTexts(tree)).toHaveLength(0);
-    // Both legends sit under their slot ends, below the handle's cross extent.
-    const legend = all.find((t) => textOf(t) === 'FRESH');
-    expect(legend).toBeDefined();
-    expect(Number(legend?.props['x'])).toBeCloseTo(-def.track.length / 2);
-    expect(Number(legend?.props['y'])).toBeGreaterThan(11);
-    const other = all.find((t) => textOf(t) === 'RECIRC');
-    expect(other).toBeDefined();
-    expect(Number(other?.props['x'])).toBeCloseTo(def.track.length / 2);
-    expect(Number(other?.props['y'])).toBeGreaterThan(11);
-    for (const t of all) {
-      const half = Number(t.props['textLength'] ?? 20) / 2;
-      const x = def.x + Number(t.props['x']);
-      expect(x - half, textOf(t)).toBeGreaterThanOrEqual(0);
-      expect(x + half, textOf(t)).toBeLessThanOrEqual(region.bounds.w);
-      const y = def.y + Number(t.props['y']);
-      expect(y, textOf(t)).toBeGreaterThan(0);
-      expect(y, textOf(t)).toBeLessThan(region.bounds.h);
+    const icons = findElements(tree, (el) => 'data-icon' in el.props);
+    expect(icons.map((i) => i.props['data-icon']).sort()).toEqual(['fresh', 'recirc']);
+    for (const icon of icons) {
+      const m = /translate\((-?[\d.]+) (-?[\d.]+)\)/.exec(String(icon.props['transform']));
+      const x = Number(m?.[1]);
+      const y = Number(m?.[2]);
+      expect(Math.abs(x), String(icon.props['data-icon'])).toBeGreaterThan(def.track.length / 2);
+      expect(def.x + x - 6, String(icon.props['data-icon'])).toBeGreaterThanOrEqual(0);
+      expect(def.x + x + 6, String(icon.props['data-icon'])).toBeLessThanOrEqual(region.bounds.w);
+      expect(def.y + y - 6, String(icon.props['data-icon'])).toBeGreaterThanOrEqual(0);
+      expect(def.y + y + 6, String(icon.props['data-icon'])).toBeLessThanOrEqual(region.bounds.h);
     }
   });
 

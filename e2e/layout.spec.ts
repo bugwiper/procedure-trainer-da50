@@ -18,6 +18,7 @@ const REGION_IDS = [
   'under_panel_left',
   'under_panel_centre',
   'env_control',
+  'env_circ',
   'pedestal',
   'under_panel_right',
 ];

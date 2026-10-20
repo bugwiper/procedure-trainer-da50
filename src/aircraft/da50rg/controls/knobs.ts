@@ -33,16 +33,17 @@ const DIMMER = {
 export const KNOB_CONTROLS: readonly ControlSpec[] = [
   { ...DIMMER, id: 'sw.instr_light', label: 'INSTRUMENT LIGHT', x: 37 },
   { ...DIMMER, id: 'sw.flood_light', label: 'FLOOD LIGHT', x: 116 },
-  // The centre (1032, 896) is 4 units left and 8 units below the UI-SPEC centre (1036, 888): moved
-  // so the 80 x 40 footprint (tap halves 40 wide) clears the DIRECTION and TEMPERATURE sliders
-  // of the environmental plate (planner decision PD-05).
+  // FAN, below DIRECTION in the environmental plate (owner side-view photo, G-3). The group box
+  // title FAN is static shell art, so the knob is nameless.
   {
     id: 'sw.env_fan',
     kind: 'rotary',
     label: 'FAN',
+    nameless: true,
     region: 'env_control',
-    x: 75,
-    y: 146,
+    // Global 1020, 932.
+    x: 63,
+    y: 182,
     hit: { w: 80, h: 40 },
     r: 14,
     scale: 'dots',

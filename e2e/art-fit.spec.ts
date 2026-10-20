@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 
 /**
  * Regions the gate does not fail yet because a later plan rebuilds them; each plan removes its
- * entry. env_control (20), deice (21), deice_switches (22).
+ * entry. deice (21), deice_switches (22).
  */
 const KNOWN_OPEN: readonly string[] = [
   // Rebuilt by plans 20 to 22.
@@ -187,11 +187,7 @@ test('the RUBIN mark and the LEVEL button lie on one plate and no plate seam cro
  * "owner:text" of both strings, sorted and joined with a bar (owner is a region id or `shell`).
  * Each plan removes the pairs of the area it rebuilds; the list ends empty.
  */
-const TEXT_OVERLAP_KNOWN: readonly string[] = [
-  // The ENVIRONMENTAL CONTROL heading runs over the DEFROST and WARM captions (plan 20).
-  'env_control:DEFROST|shell:ENVIRONMENTAL CONTROL',
-  'env_control:WARM|shell:ENVIRONMENTAL CONTROL',
-];
+const TEXT_OVERLAP_KNOWN: readonly string[] = [];
 
 /** Overlap area in square units of two glyph bands. */
 function overlapArea(a: Box, b: Box): number {

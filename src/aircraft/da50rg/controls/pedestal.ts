@@ -1,8 +1,8 @@
 import type { ControlSpec, DetentDef } from '../../../engine/registry';
 
 // Centre-console controls (D-05a, D-07c, D-07d, D-10). The environmental-control plate sits in
-// region env_control (DIRECTION, TEMPERATURE, CIRCULATING AIR sliders; the FAN knob is in
-// knobs.ts); the THROTTLE (id lv.power), PARKING BRAKE and COWL FLAP sit in region pedestal.
+// region env_control (DIRECTION and TEMPERATURE sliders; the FAN knob is in knobs.ts) and in
+// region env_circ (the CIRCULATING AIR slider); the THROTTLE (id lv.power), PARKING BRAKE and COWL FLAP sit in region pedestal.
 // Control inventory: AFM section 7-23 and the private reference photos PED, COCK, SIM and DA50_virtual (layout facts
 // only, no AFM wording, D-04b). The DA50 RG has one power lever: the ECU governs engine and
 // propeller speed, so there is no propeller or mixture lever (P1 D-05a), and the POWER range
@@ -58,17 +58,21 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     // Black handle in a slot (PED, SIM).
     skin: 'cowl-slider',
   },
-  // Environmental-control plate (COCK, SIM). The slider kinds and their positions are layout
-  // facts; the end-icon meanings are unconfirmed (UI-SPEC unconfirmed items 9 and 10).
+  // Environmental-control plate (COCK, SIM, owner side-view photo, G-3). The group boxes with
+  // their titles are static shell art (plates.ts), so the four controls are nameless. The slider
+  // kinds and positions are layout facts; the pictogram meanings are unconfirmed (UI-SPEC
+  // unconfirmed items 9 and 10).
   {
-    // DIRECTION: air to the feet, the face or the windshield (DEFROST). Default FACE.
+    // DIRECTION: air to the feet, the face or the windshield (DEFROST); pictograms only. Default FACE.
     id: 'lv.env_direction',
     kind: 'detent-lever',
     label: 'DIRECTION',
+    nameless: true,
+    legends: [],
     region: 'env_control',
-    // Global 1020, 816. Handle square min(40, 120 - 80) = 40.
-    x: 63,
-    y: 66,
+    // Global 1004, 828. Handle square min(40, 120 - 80) = 40.
+    x: 47,
+    y: 78,
     hit: { w: 40, h: 120 },
     track: { length: 80, axis: 'v' },
     detents: [
@@ -80,16 +84,17 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     skin: 'env-slider', // black handle in a slot with original icons (COCK, SIM)
   },
   {
-    // TEMPERATURE: continuous on the aircraft, modelled in five steps COLD, 25, 50, 75, WARM
-    // (UI-SPEC unconfirmed item 9). PD-05: centred 4 units right of the UI-SPEC position
-    // (global 1092) so its footprint clears the FAN knob of plan 01.1-03.
+    // TEMPERATURE: continuous on the aircraft, modelled in five steps (UI-SPEC unconfirmed item
+    // 9). Only WARM (top) and COLD (bottom) are printed; the three steps between print nothing.
     id: 'lv.env_temp',
     kind: 'detent-lever',
     label: 'TEMPERATURE',
+    nameless: true,
+    legends: ['cold', 'warm'],
     region: 'env_control',
-    // Global 1096, 862. Handle square min(40, 200 - 160) = 40.
-    x: 139,
-    y: 112,
+    // Global 1100, 880. Handle square min(40, 200 - 160) = 40.
+    x: 143,
+    y: 130,
     hit: { w: 40, h: 200 },
     track: { length: 160, axis: 'v' },
     detents: [
@@ -103,15 +108,17 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     skin: 'env-slider',
   },
   {
-    // CIRCULATING AIR: the only horizontal slider, FRESH at the left, RECIRC at the right. The
-    // end-icon meaning is unconfirmed (UI-SPEC unconfirmed item 9). Default FRESH.
+    // CIRCULATING AIR: the only horizontal slider, fresh air at the left, recirculation at the
+    // right, pictograms only. Own region env_circ (plan 20). Default FRESH.
     id: 'lv.env_circ',
     kind: 'detent-lever',
     label: 'CIRCULATING AIR',
-    region: 'env_control',
-    // Global 1062, 990. Handle square min(40, 80 - 40) = 40.
-    x: 105,
-    y: 240,
+    nameless: true,
+    legends: [],
+    region: 'env_circ',
+    // Global 1063, 1010. Handle square min(40, 80 - 40) = 40.
+    x: 106,
+    y: 20,
     hit: { w: 80, h: 40 },
     track: { length: 40, axis: 'h' },
     detents: [

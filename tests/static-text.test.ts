@@ -167,7 +167,9 @@ describe('knob family text is state-independent', () => {
       const first = textStrings(
         expand(RotaryBody({ def, state: def.stops[0]!.id, pressed: false })),
       );
-      expect(first, def.id).toContain(def.label.split(' ')[0]);
+      // A nameless knob is named by a plate title or placard, not by its own text.
+      if (def.nameless === true) expect(first, def.id).not.toContain(def.label.split(' ')[0]);
+      else expect(first, def.id).toContain(def.label.split(' ')[0]);
       for (const stop of def.stops) {
         for (const pressed of [false, true]) {
           const tree = expand(RotaryBody({ def, state: stop.id, pressed }));

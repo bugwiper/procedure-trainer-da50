@@ -62,10 +62,10 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lv.alt_static', x: 51, y: 805, tol: 3, review: true },
   { id: 'lv.emerg_gear', x: 907, y: 805, tol: 3, review: false },
   { id: 'lv.alt_air', x: 1205, y: 805, tol: 3, review: false },
-  { id: 'lv.env_direction', x: 1020, y: 816, tol: 8, review: true },
-  { id: 'lv.env_temp', x: 1092, y: 862, tol: 8, review: true },
-  { id: 'sw.env_fan', x: 1036, y: 888, tol: 8, review: true },
-  { id: 'lv.env_circ', x: 1062, y: 990, tol: 8, review: true },
+  { id: 'lv.env_direction', x: 1004, y: 828, tol: 8, review: true },
+  { id: 'lv.env_temp', x: 1100, y: 880, tol: 8, review: true },
+  { id: 'sw.env_fan', x: 1020, y: 932, tol: 8, review: true },
+  { id: 'lv.env_circ', x: 1063, y: 1010, tol: 8, review: true },
   { id: 'lv.parking_brake', x: 1008, y: 1110, tol: 8, review: true },
   { id: 'lv.power', x: 1115, y: 1160, tol: 8, review: true },
   { id: 'lv.cowl_flap', x: 1058, y: 1218, tol: 8, review: true },
@@ -170,9 +170,14 @@ export const ORDERING: readonly OrderRow[] = [
   // Environmental control.
   ['lv.env_direction', 'above', 'sw.env_fan'],
   ['sw.env_fan', 'above', 'lv.env_circ'],
+  ['lv.env_temp', 'above', 'lv.env_circ'],
   ['lv.env_direction', 'left-of', 'lv.env_temp'],
   ['sw.env_fan', 'left-of', 'lv.env_temp'],
-  ...ENV_CONTROLS.map((id): OrderRow => [id, 'above', 'lv.power']),
+  ...ENV_CONTROLS.flatMap((id): OrderRow[] => [
+    [id, 'above', 'lv.parking_brake'],
+    [id, 'above', 'lv.cowl_flap'],
+    [id, 'above', 'lv.power'],
+  ]),
   // Pedestal (plan 19, Table D2): parking brake upper left, cowl flap lower middle, throttle right.
   ['lv.parking_brake', 'above', 'lv.cowl_flap'],
   ['lv.parking_brake', 'left-of', 'lv.cowl_flap'],
@@ -217,6 +222,7 @@ export const UNDER_PANEL_REGIONS: readonly string[] = [
   'under_panel_left',
   'under_panel_centre',
   'env_control',
+  'env_circ',
   'pedestal',
   'under_panel_right',
 ];

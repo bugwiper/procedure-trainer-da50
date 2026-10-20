@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { PLACARDS, placardLineY } from '../src/aircraft/da50rg/placards';
 import { LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
-import { PLATES } from '../src/aircraft/da50rg/plates';
+import { ENV_BOXES, PLATES } from '../src/aircraft/da50rg/plates';
 import { DEF_IDS, Defs } from '../src/ui/panel/Defs';
-import { PanelShell } from '../src/ui/panel/PanelShell';
+import { PanelShell, groupBoxPath, temperatureTriangle } from '../src/ui/panel/PanelShell';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 
 // PNL-10, D-01, D-02, D-06, T-01.1-05: the static shell is pure, handler-free flat vector art.
@@ -298,6 +298,99 @@ describe('plate placards', () => {
       }
     },
   );
+});
+
+// Environmental control plate (plan 20, owner finding G-3): the plate, four outlined group boxes
+// with titles and the temperature triangle are static shell art.
+describe('environmental control plate (G-3)', () => {
+  const env = PLATES.find((pl) => pl.id === 'environmental');
+
+  it('the plate carries env_control and env_circ and ends above the pedestal plate', () => {
+    expect(env?.regions).toEqual(['env_control', 'env_circ']);
+    const pedestal = PLATES.find((pl) => pl.id === 'pedestal');
+    expect(env).toBeDefined();
+    if (env === undefined || pedestal === undefined) return;
+    expect(env.y + env.h).toBeLessThanOrEqual(pedestal.y);
+  });
+
+  it('four titled boxes lie on the plate and do not overlap', () => {
+    expect(ENV_BOXES.map((b) => b.title)).toEqual([
+      'DIRECTION',
+      'TEMPERATURE',
+      'FAN',
+      'CIRCULATING AIR',
+    ]);
+    if (env === undefined) throw new Error('no plate');
+    for (const b of ENV_BOXES) {
+      expect(b.x, b.id).toBeGreaterThanOrEqual(env.x);
+      expect(b.y, b.id).toBeGreaterThanOrEqual(env.y);
+      expect(b.x + b.w, b.id).toBeLessThanOrEqual(env.x + env.w);
+      expect(b.y + b.h, b.id).toBeLessThanOrEqual(env.y + env.h);
+    }
+    for (let i = 0; i < ENV_BOXES.length; i++) {
+      for (let j = i + 1; j < ENV_BOXES.length; j++) {
+        const a = ENV_BOXES[i];
+        const b = ENV_BOXES[j];
+        if (a === undefined || b === undefined) continue;
+        const apart = a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
+        expect(apart, `${a.id} / ${b.id}`).toBe(true);
+      }
+    }
+  });
+
+  it('DIRECTION and TEMPERATURE sit side by side, FAN under DIRECTION, CIRCULATING AIR below', () => {
+    const box = (id: string) => ENV_BOXES.find((b) => b.id === id);
+    const direction = box('direction');
+    const temperature = box('temperature');
+    const fan = box('fan');
+    const circ = box('circulating-air');
+    if (!direction || !temperature || !fan || !circ) throw new Error('box missing');
+    expect(direction.y).toBe(temperature.y);
+    expect(direction.x + direction.w).toBeLessThanOrEqual(temperature.x);
+    expect(fan.y).toBeGreaterThanOrEqual(direction.y + direction.h);
+    expect(fan.x).toBe(direction.x);
+    expect(circ.y).toBeGreaterThanOrEqual(fan.y + fan.h);
+    expect(circ.y).toBeGreaterThanOrEqual(temperature.y + temperature.h);
+  });
+
+  it('draws the title, the boxes (outline paths with a title each) and the triangle', () => {
+    const boxes = findElements(shell, (el) => el.props['data-shell'] === 'group-box');
+    expect(boxes).toHaveLength(4);
+    for (const b of boxes) {
+      expect(
+        findElements(b, (el) => el.tag === 'path' && el.props['fill'] === 'none'),
+      ).toHaveLength(1);
+      expect(findElements(b, (el) => el.tag === 'text')).toHaveLength(1);
+    }
+    expect(shellText).toContain('ENVIRONMENTAL CONTROL');
+    expect(findElements(shell, (el) => el.props['data-shell'] === 'temp-triangle')).toHaveLength(1);
+  });
+
+  it('a box outline is open exactly where its title sits on the top edge', () => {
+    const d = groupBoxPath(ENV_BOXES[0]!);
+    // Starts and ends on the top edge, the two ends apart by the title width plus 6.
+    const first = /^M([\d.]+) ([\d.]+)/.exec(d);
+    const last = /H([\d.]+)$/.exec(d);
+    expect(Number(first?.[2])).toBe(ENV_BOXES[0]!.y);
+    expect(Number(first?.[1]) - Number(last?.[1])).toBeCloseTo('DIRECTION'.length * 4.2 + 6);
+  });
+
+  it('the temperature triangle is wide at the top, ends in a point and spans the slot', () => {
+    const tri = temperatureTriangle(DA50RG);
+    const def = DA50RG.get('lv.env_temp');
+    expect(tri).toBeDefined();
+    if (tri === undefined || def?.kind !== 'detent-lever') return;
+    expect(tri.top.x2 - tri.top.x1).toBeGreaterThan(0);
+    expect(tri.tip.y).toBeGreaterThan(tri.top.y);
+    // The point is centred under the wide end.
+    expect(tri.tip.x).toBeCloseTo((tri.top.x1 + tri.top.x2) / 2);
+    // It spans the whole slot, warm stop to cold stop, and lies left of the slot.
+    expect(tri.tip.y - tri.top.y).toBeCloseTo(def.track.length);
+    const region = DA50RG.regions.find((r) => r.id === def.region);
+    expect(tri.top.x2).toBeLessThan((region?.bounds.x ?? 0) + def.x);
+    // Long and thin.
+    expect(tri.tip.y - tri.top.y).toBeGreaterThan(8 * (tri.top.x2 - tri.top.x1));
+  });
 });
 
 // Typography contract (UI-SPEC "Typography"): panel text uses exactly four sizes.

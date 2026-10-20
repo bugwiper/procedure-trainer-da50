@@ -1,7 +1,8 @@
 import type { Registry } from '../../engine/registry';
 import { PLACARDS, placardLineY } from '../../aircraft/da50rg/placards';
-import { GEAR_BLOCK, PLATES } from '../../aircraft/da50rg/plates';
-import type { PlateDef } from '../../aircraft/da50rg/plates';
+import { ENV_BOXES, ENV_TITLE, GEAR_BLOCK, PLATES } from '../../aircraft/da50rg/plates';
+import type { GroupBoxDef, PlateDef } from '../../aircraft/da50rg/plates';
+import { detentOffset } from '../../engine/detents';
 import { paint } from './Defs';
 
 // Static shell art under all regions (UI-SPEC "Panel Surface", D-01, D-02, D-06). Original flat
@@ -181,15 +182,108 @@ function ConsoleBody() {
   );
 }
 
-/** Environmental-control plate on the console top (plain plate, the sliders are widgets), and the pedestal plate below it. */
-function EnvironmentalPlate() {
+/** Width of a drawn title in units: the same 4.2 per character the lever names use. */
+const TITLE_CHAR = 4.2;
+const BOX_RADIUS = 5;
+
+/** Outline of a group box, open on the top edge where its title sits (static shell art). */
+export function groupBoxPath(box: GroupBoxDef): string {
+  const { x, y, w, h } = box;
+  const r = BOX_RADIUS;
+  const half = (box.title.length * TITLE_CHAR + 6) / 2;
+  const cx = x + w / 2;
+  return [
+    `M${cx + half} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}`,
+    `V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}`,
+    `H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}`,
+    `V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}H${cx - half}`,
+  ].join('');
+}
+
+/** One outlined group box with its title cutting the top edge. */
+function GroupBox({ box }: { box: GroupBoxDef }) {
+  return (
+    <g data-shell="group-box" data-box={box.id}>
+      <path
+        d={groupBoxPath(box)}
+        fill="none"
+        stroke={LEGEND}
+        stroke-opacity={0.6}
+        stroke-width={1}
+      />
+      <text
+        x={box.x + box.w / 2}
+        y={box.y + 2}
+        text-anchor="middle"
+        font-size={6}
+        fill={LEGEND}
+        textLength={box.title.length * TITLE_CHAR}
+        lengthAdjust="spacingAndGlyphs"
+      >
+        {box.title}
+      </text>
+    </g>
+  );
+}
+
+/** Half width of the temperature triangle's wide end, and its distance left of the slot centre. */
+const TRIANGLE_HALF = 4;
+const TRIANGLE_OFFSET = 18;
+
+export interface TemperatureTriangle {
+  /** The wide end (top, at the warm stop) and the point (bottom, at the cold stop). */
+  readonly top: { readonly y: number; readonly x1: number; readonly x2: number };
+  readonly tip: { readonly x: number; readonly y: number };
+}
+
+/**
+ * Long thin triangle left of the TEMPERATURE slot, wide end at the warm stop and the point at the
+ * cold stop. Positioned from the lever in the registry, never from literals.
+ */
+export function temperatureTriangle(registry: Registry): TemperatureTriangle | undefined {
+  const def = registry.get('lv.env_temp');
+  if (def === undefined || def.kind !== 'detent-lever') return undefined;
+  const region = registry.regions.find((r) => r.id === def.region);
+  if (region === undefined) return undefined;
+  const cx = region.bounds.x + def.x - TRIANGLE_OFFSET;
+  const cy = region.bounds.y + def.y;
+  const warm = def.detents.find((d) => d.id === 'warm');
+  const cold = def.detents.find((d) => d.id === 'cold');
+  if (warm === undefined || cold === undefined) return undefined;
+  return {
+    top: {
+      y: cy + detentOffset(warm.pos, def.track).dy,
+      x1: cx - TRIANGLE_HALF,
+      x2: cx + TRIANGLE_HALF,
+    },
+    tip: { x: cx, y: cy + detentOffset(cold.pos, def.track).dy },
+  };
+}
+
+/** Environmental-control plate on the console top (plain plate, the controls are widgets), and the pedestal plate below it. */
+function EnvironmentalPlate({ registry }: { registry: Registry }) {
+  const tri = temperatureTriangle(registry);
   return (
     <g data-shell="environmental-plate">
       <Plate id="environmental" />
       <Plate id="pedestal" />
-      <text x={1062} y={782} text-anchor="middle" font-size={8} fill={LEGEND}>
-        ENVIRONMENTAL CONTROL
+      <text x={ENV_TITLE.x} y={ENV_TITLE.y} text-anchor="middle" font-size={8} fill={LEGEND}>
+        {ENV_TITLE.text}
       </text>
+      {ENV_BOXES.map((box) => (
+        <GroupBox key={box.id} box={box} />
+      ))}
+      {tri === undefined ? null : (
+        <path
+          data-shell="temp-triangle"
+          d={`M${tri.top.x1} ${tri.top.y}H${tri.top.x2}L${tri.tip.x} ${tri.tip.y}Z`}
+          fill="none"
+          stroke={LEGEND}
+          stroke-opacity={0.7}
+          stroke-width={1}
+          stroke-linejoin="round"
+        />
+      )}
     </g>
   );
 }
@@ -432,7 +526,7 @@ export function PanelShell({ registry }: { registry: Registry }) {
       <BusPanel />
       <LeftStrip />
       <StaticDecor />
-      <EnvironmentalPlate />
+      <EnvironmentalPlate registry={registry} />
       {/* After every plate, so no plate paints over a placard. */}
       <Placards registry={registry} />
       <Nameplate />

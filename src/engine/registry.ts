@@ -36,7 +36,7 @@ interface ControlBase {
   readonly hit: Size;
   /**
    * The widget draws no name placard of its own because a plate placard (placards.ts) names the
-   * control. Only the detent lever honours it today; absent keeps the drawn name.
+   * control. The detent lever and the rotary knob honour it; absent keeps the drawn name.
    */
   readonly nameless?: boolean;
 }

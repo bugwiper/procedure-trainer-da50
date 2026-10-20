@@ -441,8 +441,8 @@ describe('inventory complete', () => {
 // are fixed by enlarging the plate or the region, never by shrinking a tap target.
 describe('plates', () => {
   const BEZEL_GROW = 16;
-  /** Regions rebuilt by plans 19 to 22; their footprints are checked once those plans land. */
-  const FOOTPRINT_KNOWN_OPEN: readonly string[] = ['env_control', 'deice', 'deice_switches'];
+  /** Regions rebuilt by plans 21 and 22; their footprints are checked once those plans land. */
+  const FOOTPRINT_KNOWN_OPEN: readonly string[] = ['deice', 'deice_switches'];
 
   const rectOf = (p: { x: number; y: number; w: number; h: number }): Rect => ({
     x: p.x,

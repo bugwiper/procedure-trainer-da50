@@ -97,7 +97,7 @@ export function RotaryBody({ def, state, dragAngle, pressed }: RotaryBodyProps) 
   const tip = polar(angle, 0.8 * r);
   const root = polar(angle, 4);
   const wide = def.hit.w >= 2 * def.hit.h;
-  const lines = placardLines(def.label);
+  const lines = def.nameless === true ? [] : placardLines(def.label);
 
   const labelRadius = scale === 'none' ? r + 7 : scale === 'arc' ? r + 7.5 : r + 8;
   const dotRadius = r + 3;
