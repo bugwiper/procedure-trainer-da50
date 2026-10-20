@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 8/11 plans executed
+**Plans:** 9/11 plans executed
 
 Plans:
 **Wave 1**
@@ -88,7 +88,7 @@ Plans:
 - [x] 01.1-06-PLAN.md — Push-button skins, STALL TEST / GEAR TEST spring toggle, inventory completeness gate
 - [x] 01.1-07-PLAN.md — Single tap zooms fully out; Full panel button never covered by the footer
 - [x] 01.1-08-PLAN.md — Rocker, bat and guarded-switch skins in real sizes and colours (D-08 gate)
-- [ ] 01.1-09-PLAN.md — Lever, slider and pull-handle skins
+- [x] 01.1-09-PLAN.md — Lever, slider and pull-handle skins
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01.1-10-PLAN.md — Owner review document docs/PANEL-REVIEW.md with completeness gate
