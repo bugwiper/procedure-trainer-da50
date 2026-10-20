@@ -259,6 +259,7 @@ describe('BatBody', () => {
       expect(label?.props['font-size'], def.id).toBe(6);
       expect(Number(label?.props['y']), def.id).toBeLessThan(-def.hit.h / 2);
       expect(stateTexts(tree)[0]?.props['font-size'], def.id).toBe(8);
+      expect(Number(stateTexts(tree)[0]?.props['y']), def.id).toBeLessThanOrEqual(def.hit.h / 2);
     }
   });
 });
@@ -336,7 +337,9 @@ describe('toggle-family sources', () => {
   it('use only the font sizes 6, 8, 10 and 14', () => {
     for (const file of FILES) {
       const src = readFileSync(file, 'utf8');
-      const sizes = [...src.matchAll(/font-size=\{(\d+)\}/g)].map((m) => Number(m[1]));
+      const sizes = [...src.matchAll(/font-size=\{([^}]+)\}/g)].flatMap((m) =>
+        [...(m[1] ?? '').matchAll(/\d+/g)].map((n) => Number(n[0])),
+      );
       expect(sizes.length, file).toBeGreaterThan(0);
       for (const size of sizes) expect([6, 8, 10, 14], `${file} ${size}`).toContain(size);
     }

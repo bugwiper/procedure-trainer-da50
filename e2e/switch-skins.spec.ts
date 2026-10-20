@@ -40,14 +40,14 @@ test('ELECT. MASTER is the big red rocker and its pressed half follows its state
   await expect(sw.locator('[data-state-text]')).toHaveText('ON');
 });
 
-const RED_IDS = ['sw.elect_master', 'sw.elt'];
+const RED_IDS = ['sw.deice_alternate', 'sw.elect_master', 'sw.elt'];
 
 test('every rocker pressed half matches its state before and after one tap', async ({
   page,
   hasTouch,
 }) => {
   const ids = await page
-    .locator('[data-skin="rocker"]')
+    .locator('[data-skin="rocker"][data-kind="toggle"]')
     .evaluateAll((els) => els.map((el) => el.getAttribute('data-control-id') ?? ''));
   expect(ids.length).toBeGreaterThanOrEqual(11);
   for (const id of ids) {
@@ -66,7 +66,7 @@ test('every rocker pressed half matches its state before and after one tap', asy
   }
 });
 
-test('red rockers are exactly ELECT. MASTER and ELT, every other rocker is white', async ({
+test('red rockers are exactly ELECT. MASTER, ELT and the guarded ALTERNATE, the rest white', async ({
   page,
 }) => {
   const red = await page
@@ -103,4 +103,19 @@ test('the pressed ring is transient: present while the mouse is held, gone after
   await expect(group).toHaveAttribute('data-pressed', 'true');
   await page.mouse.up();
   await expect(group).not.toHaveAttribute('data-pressed', 'true');
+});
+
+test('the guarded ALTERNATE rocker follows its state once the guard is lifted', async ({
+  page,
+  hasTouch,
+}) => {
+  const sw = control(page, 'sw.deice_alternate');
+  await expect(sw).toHaveAttribute('data-skin', 'rocker');
+  await expect(sw).toHaveAttribute('data-size', 'M');
+  await expect(sw).toHaveAttribute('data-colour', 'red');
+  await expect(sw).toHaveAttribute('data-pressed-half', 'lower');
+  await activate(page.locator('[data-hit="sw.deice_alternate.guard"]'), hasTouch);
+  await activate(page.locator('[data-hit="sw.deice_alternate"]'), hasTouch);
+  await expect(sw).toHaveAttribute('data-pressed-half', 'upper');
+  await expect(sw.locator('[data-state-text]')).toHaveText('ON');
 });

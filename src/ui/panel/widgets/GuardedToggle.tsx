@@ -2,7 +2,8 @@ import { useSignal } from '@preact/signals';
 import { guardIdFor } from '../../../engine/registry';
 import type { GuardedToggleDef } from '../../../engine/registry';
 import type { WidgetProps } from '../ControlWidget';
-import { SwitchBody } from './Toggle';
+import { paint } from '../Defs';
+import { RockerBody } from '../skins/Rocker';
 
 const TAP_SLOP_PX = 10;
 const FONT = 'B612, system-ui, sans-serif';
@@ -75,8 +76,6 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
     bridge.actuate(def.id, isSecond ? first.id : second.id);
   });
 
-  const labelWidth = Math.min(def.label.length * 5.2, def.hit.w - 2);
-  const hatchId = `hatch-${def.id.replace(/[^a-z0-9]/g, '-')}`;
   const open = def.guardOpenHit;
 
   return (
@@ -85,12 +84,17 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
         data-control-id={def.id}
         data-kind={def.kind}
         data-state={state}
+        data-skin="rocker"
+        data-size={def.size}
+        data-colour={def.colour}
+        data-pressed-half={isSecond ? 'upper' : 'lower'}
+        data-pressed={switchTap.pressed ? 'true' : undefined}
+        role="img"
+        aria-label={`${def.label}: ${stateLabel}`}
         transform={`translate(${def.x} ${def.y})`}
       >
-        <SwitchBody
+        <RockerBody
           def={def}
-          top={-def.hit.h / 2}
-          labelWidth={labelWidth}
           isSecond={isSecond}
           pressed={switchTap.pressed}
           stateLabel={stateLabel}
@@ -112,69 +116,11 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
         data-control-id={guardId}
         data-kind="guard"
         data-state={guardState}
+        role="img"
+        aria-label={`${def.label} guard: ${guardLabel}`}
         transform={`translate(${def.x} ${def.y})`}
       >
-        <g pointer-events="none">
-          <defs>
-            <pattern
-              id={hatchId}
-              width={6}
-              height={6}
-              patternUnits="userSpaceOnUse"
-              patternTransform="rotate(45)"
-            >
-              <rect width={6} height={6} fill="#7a1d1d" />
-              <rect width={3} height={6} fill="#c43030" />
-            </pattern>
-          </defs>
-          {guardOpen ? (
-            <>
-              {/* Lifted cover: hinge line at the top of the switch footprint, flap above it. */}
-              <rect
-                x={open.x + 2}
-                y={open.y + 2}
-                width={open.w - 4}
-                height={open.h - 4}
-                rx={3}
-                fill={`url(#${hatchId})`}
-                stroke="#e04040"
-                stroke-width={1.5}
-              />
-              <line
-                x1={open.x + 2}
-                y1={open.y + open.h}
-                x2={open.x + open.w - 2}
-                y2={open.y + open.h}
-                stroke="#8a929c"
-                stroke-width={2}
-              />
-            </>
-          ) : (
-            <rect
-              x={-24}
-              y={-22}
-              width={48}
-              height={46}
-              rx={4}
-              fill={`url(#${hatchId})`}
-              fill-opacity={0.8}
-              stroke="#e04040"
-              stroke-width={1.5}
-            />
-          )}
-          <text
-            data-state-text
-            x={0}
-            y={def.hit.h / 2 + 10}
-            text-anchor="middle"
-            font-family={FONT}
-            font-size={7}
-            font-weight={700}
-            fill="#e8a0a0"
-          >
-            {guardLabel}
-          </text>
-        </g>
+        <GuardCover def={def} guardOpen={guardOpen} guardLabel={guardLabel} />
         <rect
           data-hit={guardId}
           x={guardOpen ? open.x : -def.hit.w / 2}
@@ -187,5 +133,83 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
         />
       </g>
     </>
+  );
+}
+
+export interface GuardCoverProps {
+  readonly def: Pick<GuardedToggleDef, 'hit' | 'guardOpenHit'>;
+  readonly guardOpen: boolean;
+  /** CLOSED or OPEN, the guard's state text. */
+  readonly guardLabel: string;
+}
+
+/** Y offsets of the three hatch bars inside the closed cover (rect 40 x 54 centred on the rocker). */
+const COVER_BARS = [-15, -4, 7] as const;
+
+/**
+ * Pure art of the translucent red guard cover (UI-SPEC 8.6): closed it covers the rocker
+ * (rect 40 x 54, rx 4, #c43030 at 35 percent, border #e04040 1.5) with three hatch bars from the
+ * shared p-hatch; open it is drawn lifted above the rocker with the hinge line. The placard
+ * reads GUARD CLOSED or GUARD OPEN on two lines beside the cover.
+ */
+export function GuardCover({ def, guardOpen, guardLabel }: GuardCoverProps) {
+  const open = def.guardOpenHit;
+  const tint = { fill: '#c43030', 'fill-opacity': 0.35, stroke: '#e04040', 'stroke-width': 1.5 };
+  return (
+    <g pointer-events="none">
+      {guardOpen ? (
+        <>
+          {/* Lifted cover: hinge line at the top of the switch footprint, flap above it. */}
+          <rect
+            x={open.x + 2}
+            y={open.y + 2}
+            width={open.w - 4}
+            height={open.h - 4}
+            rx={3}
+            {...tint}
+          />
+          {COVER_BARS.map((dy, i) => (
+            <rect
+              key={dy}
+              x={open.x + 8}
+              y={open.y + 7 + i * 7}
+              width={open.w - 16}
+              height={3}
+              fill={paint('p-hatch')}
+            />
+          ))}
+          <line
+            x1={open.x + 2}
+            y1={open.y + open.h}
+            x2={open.x + open.w - 2}
+            y2={open.y + open.h}
+            stroke="#8a929c"
+            stroke-width={2}
+          />
+        </>
+      ) : (
+        <>
+          <rect x={-20} y={-27} width={40} height={54} rx={4} {...tint} />
+          {COVER_BARS.map((dy) => (
+            <rect key={dy} x={-16} y={dy - 1.5} width={32} height={3} fill={paint('p-hatch')} />
+          ))}
+        </>
+      )}
+      {/* Placard beside the cover, two lines, so it never meets the rows below. */}
+      <text x={22} y={-2} font-family={FONT} font-size={6} font-weight={700} fill="#e8a0a0">
+        GUARD
+      </text>
+      <text
+        data-state-text
+        x={22}
+        y={6}
+        font-family={FONT}
+        font-size={6}
+        font-weight={700}
+        fill="#e8a0a0"
+      >
+        {guardLabel}
+      </text>
+    </g>
   );
 }

@@ -32,6 +32,10 @@ export const DEICE_CONTROLS: readonly ControlSpec[] = [
     ],
     default: 'off',
     guardOpenHit: { x: -28, y: -64, w: 56, h: 30 },
+    // Red rocker under the translucent red guard cover (D-08, UI-SPEC 8.6; photos P650, SIM).
+    // Size M is a proposal within +/- 10 percent (unconfirmed item 2).
+    size: 'M',
+    colour: 'red',
   },
   // The switch row of region deice_switches (global y 410, hit 30 x 36). Kinds and state names
   // are unconfirmed (UI-SPEC unconfirmed item 8); in-flight default OFF.

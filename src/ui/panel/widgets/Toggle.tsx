@@ -1,6 +1,7 @@
 import { useSignal } from '@preact/signals';
 import type { ToggleDef } from '../../../engine/registry';
 import type { WidgetProps } from '../ControlWidget';
+import { BatBody } from '../skins/Bat';
 import { RockerBody } from '../skins/Rocker';
 
 const TAP_SLOP_PX = 10;
@@ -52,8 +53,6 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
   };
 
   const skin = def.skin ?? 'bat';
-  const top = -def.hit.h / 2;
-  const labelWidth = Math.min(def.label.length * 5.2, def.hit.w - 2);
 
   return (
     <g
@@ -72,14 +71,7 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
       {skin === 'rocker' ? (
         <RockerBody def={def} isSecond={isSecond} pressed={pressed.value} stateLabel={stateLabel} />
       ) : skin === 'bat' ? (
-        <SwitchBody
-          def={def}
-          top={top}
-          labelWidth={labelWidth}
-          isSecond={isSecond}
-          pressed={pressed.value}
-          stateLabel={stateLabel}
-        />
+        <BatBody def={def} isSecond={isSecond} pressed={pressed.value} stateLabel={stateLabel} />
       ) : (
         <SoftkeyBody
           def={def}
@@ -114,72 +106,14 @@ export interface BodyProps {
   readonly labelWidth: number;
 }
 
-/** Switch skin, shared with the guarded toggle widget. */
-export function SwitchBody({
+/** Softkey skin: the selected state is a 2.5-unit white stroke plus its text (Color 5). */
+export function SoftkeyBody({
   def,
-  top,
   labelWidth,
   isSecond,
   pressed,
   stateLabel,
-}: BodyProps & { top: number }) {
-  const h = def.hit.h;
-  const labelY = top + 9;
-  const lampY = labelY + 10;
-  const textY = h / 2 - 6;
-  const pivotY = 4.5;
-  const reach = Math.min(14, (h - 37) / 2 - 1);
-  // The bat handle points up for the second state and down for the first.
-  const tipY = isSecond ? pivotY - reach : pivotY + reach;
-  return (
-    <g pointer-events="none">
-      <text
-        x={0}
-        y={labelY}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={8}
-        fill="#aab3bd"
-        textLength={labelWidth}
-        lengthAdjust="spacingAndGlyphs"
-      >
-        {def.label}
-      </text>
-      <circle
-        cx={0}
-        cy={lampY}
-        r={3.5}
-        fill={isSecond ? '#39d98a' : '#2b3138'}
-        stroke="#4a525c"
-        stroke-width={1}
-      />
-      <circle cx={0} cy={pivotY} r={5} fill={pressed ? '#56606b' : '#3a424b'} stroke="#6b7580" />
-      <line
-        x1={0}
-        y1={pivotY}
-        x2={0}
-        y2={tipY}
-        stroke={pressed ? '#ffffff' : '#d8dde3'}
-        stroke-width={5}
-        stroke-linecap="round"
-      />
-      <text
-        data-state-text
-        x={0}
-        y={textY}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={9}
-        font-weight={700}
-        fill="#d8dde3"
-      >
-        {stateLabel}
-      </text>
-    </g>
-  );
-}
-
-function SoftkeyBody({ def, labelWidth, isSecond, pressed, stateLabel }: Omit<BodyProps, never>) {
+}: Omit<BodyProps, never>) {
   const w = def.hit.w - 2;
   const h = def.hit.h - 2;
   return (
@@ -191,7 +125,7 @@ function SoftkeyBody({ def, labelWidth, isSecond, pressed, stateLabel }: Omit<Bo
         height={h}
         rx={5}
         fill={pressed ? '#3a424b' : '#262c33'}
-        stroke={isSecond ? '#5ab0ff' : '#4a525c'}
+        stroke={isSecond ? '#e6e9ed' : '#4a525c'}
         stroke-width={isSecond ? 2.5 : 1}
       />
       <text
