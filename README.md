@@ -38,6 +38,8 @@ How it behaves:
 
 Read the [Content policy](docs/CONTENT-POLICY.md) before adding any scenario, procedure text or artwork. It exists to keep AFM-derived material out of this public repository beyond a small, well-defined limit.
 
+The [Panel review list](docs/PANEL-REVIEW.md) lists every label, position, colour and default of the panel that is still an assumption, so the owner and contributors can check and correct them after a render.
+
 ## Development
 
 ```
