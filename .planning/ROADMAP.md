@@ -72,12 +72,12 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 1/11 plans executed
+**Plans:** 2/11 plans executed
 
 Plans:
 **Wave 1**
 - [x] 01.1-01-PLAN.md — 2000 x 1300 coordinate space, 18 regions, existing controls at UI-SPEC positions, glareshield light switches, buttons family file, shared layout reference for 42 controls and 7 lamps
-- [ ] 01.1-02-PLAN.md — Panel shell art, GO-AROUND / RUBIN / DA50RG brand marks and gates, glass-digit font snap, per-worktree Playwright port
+- [x] 01.1-02-PLAN.md — Panel shell art, GO-AROUND / RUBIN / DA50RG brand marks and gates, glass-digit font snap, per-worktree Playwright port
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01.1-03-PLAN.md — Rotary kind (FUEL TRANS, INSTRUMENT LIGHT, FLOOD LIGHT, FAN) and the registry skin vocabulary

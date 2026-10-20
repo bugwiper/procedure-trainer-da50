@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
 status: executing
-stopped_at: Completed 01.1-01-PLAN.md
-last_updated: "2026-10-20T15:16:33.877Z"
+stopped_at: Completed 01.1-02-PLAN.md
+last_updated: "2026-10-20T15:24:55.624Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 1e9609e161f4da33052e7b2519117e24ca5d9941
+state_head: f27e74876da2012fdf006bde158f3b8e0ed87494
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 20
-  completed_plans: 10
+  completed_plans: 11
   percent: 14
 ---
 
@@ -57,6 +57,7 @@ Progress: [█░░░░░░░░░] 14%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01.1 P01 | 6min | 3 tasks | 14 files |
+| Phase 01.1 P02 | 8min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 01.1]: PD-01: pedestal split into env_control and pedestal regions (44 px POWER on phone)
 - [Phase 01.1]: PD-02: de-ice split into deice and deice_switches regions (44 px per detent)
 - [Phase 01.1]: PD-06: hit rects narrowed (sw.fadec 66 wide, under-panel levers 44 wide) for 7 units of background clearance
+- [Phase 01.1]: Brand text letter spacing set via style string because .panel-svg text CSS overrides the attribute
+- [Phase 01.1]: RUBIN centre-anchored at (1232, 625) to stay clear of the UP flap lamp; Defs.tsx also exports DEF_IDS
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T15:16:33.774Z
-Stopped at: Completed 01.1-01-PLAN.md
+Last session: 2026-10-20T15:24:55.523Z
+Stopped at: Completed 01.1-02-PLAN.md
 Resume file: None
