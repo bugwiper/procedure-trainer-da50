@@ -1,11 +1,12 @@
 import { signal } from '@preact/signals';
+import { DA50RG_INDICATORS } from '../aircraft/da50rg/indicators';
 import { DA50RG } from '../aircraft/da50rg/panel';
 import { About } from './about/About';
 import { createPanelBridge } from './bridge';
 import { Panel } from './panel/Panel';
 import { isZoomed, zoomOut } from './panel/zoom';
 
-const bridge = createPanelBridge(DA50RG);
+const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS);
 
 // UI-only state: neither signal touches the panel store.
 const aboutOpen = signal(false);

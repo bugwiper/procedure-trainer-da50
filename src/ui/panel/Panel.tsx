@@ -7,6 +7,7 @@ import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
 import { PfdFrame } from './frames/PfdFrame';
 import { PanelShell } from './PanelShell';
+import { IndicatorLight } from './widgets/IndicatorLight';
 import { attachZoomGestures, viewBoxAttr } from './zoom';
 
 /** Glass-display frames by region id; frames are presentational and carry no handlers (D-09). */
@@ -83,6 +84,9 @@ export function Panel({ bridge }: { bridge: PanelBridge }) {
             const Frame = FRAMES[region.id];
             return Frame === undefined ? null : <Frame region={region} bridge={bridge} />;
           })()}
+          {(bridge.indicators?.inRegion(region.id) ?? []).map((def) => (
+            <IndicatorLight key={def.id} def={def} bridge={bridge} />
+          ))}
           {region.controlIds.map((id) => {
             const def = registry.get(id);
             return def === undefined ? null : <ControlWidget key={id} def={def} bridge={bridge} />;
