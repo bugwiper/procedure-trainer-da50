@@ -167,6 +167,85 @@ describe('gear knob', () => {
   });
 });
 
+describe('FLAPS, de-ice MODE and the pull handles', () => {
+  const EXPECTED: Record<string, string> = {
+    'lv.flaps': 'flaps-block',
+    'lv.deice_mode': 'bat-small',
+    'lv.alt_static': 'pull-t',
+    'lv.emerg_gear': 'pull-tab',
+    'lv.alt_air': 'pull-boot',
+  };
+
+  it('assigns the skins of UI-SPEC 8.5', () => {
+    for (const [id, skin] of Object.entries(EXPECTED)) expect(lever(id).skin, id).toBe(skin);
+  });
+
+  it('keeps EMERGENCY GEAR EXTENSION dragOnly with no markers', () => {
+    const emerg = lever('lv.emerg_gear');
+    expect(emerg.dragOnly).toBe(true);
+    expect(emerg.markers).toBeUndefined();
+  });
+
+  it('uses the safety red #c4161f only in the pull-t and pull-tab bodies among the levers', () => {
+    for (const def of LEVERS) {
+      const first = def.detents[0];
+      if (first === undefined) throw new Error('no detent');
+      const props = JSON.stringify(
+        findElements(body(def, first.id), () => true).map((e) => e.props),
+      );
+      const red = props.toLowerCase().includes('#c4161f');
+      expect(red, def.id).toBe(def.skin === 'pull-t' || def.skin === 'pull-tab');
+    }
+  });
+
+  it('draws FLAPS as a 46 x 26 block in a 54 wide slot with three notches', () => {
+    const flaps = lever('lv.flaps');
+    const tree = body(flaps, 'up');
+    const block = findElements(
+      tree,
+      (el) => el.tag === 'rect' && el.props['width'] === 46 && el.props['height'] === 26,
+    );
+    expect(block).toHaveLength(1);
+    const slot = findElements(
+      tree,
+      (el) =>
+        el.tag === 'rect' &&
+        el.props['width'] === 54 &&
+        el.props['height'] === flaps.track.length + 36,
+    );
+    expect(slot).toHaveLength(1);
+    const ticks = findElements(
+      tree,
+      (el) => el.tag === 'path' && String(el.props['d']).startsWith('M-27'),
+    );
+    expect(String(ticks[0]?.props['d']).split('M').length - 1).toBe(3);
+  });
+
+  it('puts PULL on the red knob and the red tab, and ALTERNATE AIR vertically on the boot', () => {
+    expect(texts(body(lever('lv.alt_static'), 'closed'))).toContain('PULL');
+    expect(texts(body(lever('lv.emerg_gear'), 'normal'))).toContain('PULL');
+    const boot = body(lever('lv.alt_air'), 'closed');
+    const vertical = findElements(
+      boot,
+      (el) => el.tag === 'text' && el.props['transform'] === 'rotate(90)',
+    );
+    expect(vertical.map((t) => textOf(t))).toEqual(['ALTERNATE AIR']);
+  });
+
+  it('keeps the stem of a pulled handle between the entry plate and the handle', () => {
+    const open = body(lever('lv.alt_static'), 'open');
+    const closed = body(lever('lv.alt_static'), 'closed');
+    const stem = (t: El) =>
+      findElements(
+        t,
+        (el) => el.tag === 'rect' && el.props['width'] === 4 && el.props['fill'] === '#8b9199',
+      )[0];
+    expect(Number(stem(open)?.props['height'])).toBeGreaterThan(
+      Number(stem(closed)?.props['height']),
+    );
+  });
+});
+
 describe('lever sources', () => {
   it('use only the font sizes 6, 8, 10 and 14', () => {
     for (const path of [
