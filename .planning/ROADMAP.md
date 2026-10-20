@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 11/11 plans executed
+**Plans:** 11/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
 
 Plans:
 **Wave 1**
@@ -95,6 +95,44 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [x] 01.1-11-PLAN.md — Release manifest, owner SHA confirmation, fast-forward publish, live verification, first-render review
+
+**Gap closure** *(owner first-render review, 01.1-OWNER-FINDINGS.md; sequential, unattended, no push)*
+
+**Wave 6**
+- [ ] 01.1-12-PLAN.md — Owner label table docs/PANEL-LABELS.md (morning review), completeness gate, derived inventory counts
+
+**Wave 7**
+- [ ] 01.1-13-PLAN.md — Static toggle family (rockers, bats, softkey, guard cover), rocker side perspective, state-independent text gate
+
+**Wave 8**
+- [ ] 01.1-14-PLAN.md — Static levers and push buttons
+
+**Wave 9**
+- [ ] 01.1-15-PLAN.md — Static knobs, lamp-group readouts removed, built-panel static-text gate
+
+**Wave 10**
+- [ ] 01.1-16-PLAN.md — Plates as data, art-fit and no-overlap gates, FADEC, flap block and LEVEL placement
+
+**Wave 11**
+- [ ] 01.1-17-PLAN.md — Landing gear block order, GEAR TEST lights all gear lamps
+
+**Wave 12**
+- [ ] 01.1-18-PLAN.md — Three-position toggle, plate placards, ELT with lamp
+
+**Wave 13**
+- [ ] 01.1-19-PLAN.md — Pedestal rebuild: parking brake, throttle, cowl flap with lamps
+
+**Wave 14**
+- [ ] 01.1-20-PLAN.md — Environmental control rebuild: temperature, direction, fan, circulating air
+
+**Wave 15**
+- [ ] 01.1-21-PLAN.md — De-ice unit part 1: mode toggle, amber and white lamps, MAX button
+
+**Wave 16**
+- [ ] 01.1-22-PLAN.md — De-ice unit part 2: lower row, ALTERNATE under its guard, framed heading
+
+**Wave 17**
+- [ ] 01.1-23-PLAN.md — Live-condition rehearsal, exact inventory gates, documents, final gates, morning-review list
 
 ### Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels (INSERTED)
 
