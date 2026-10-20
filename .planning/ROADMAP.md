@@ -71,10 +71,29 @@ Plans:
   3. The gear indicator has three separate green lights (each green or off; all three green means down and locked) and a separate red light (red or off; on for unsafe or in transition); all off means up and locked. The flap lights follow flap state. Transition timing is Phase 3.
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
-**Plans:** 0 plans
+**Plans:** 11 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 01.1 to break down)
+**Wave 1**
+- [ ] 01.1-01-PLAN.md — 2000 x 1300 coordinate space, 18 regions, existing controls at UI-SPEC positions, glareshield light switches, buttons family file, shared layout reference for 42 controls and 7 lamps
+- [ ] 01.1-02-PLAN.md — Panel shell art, GO-AROUND / RUBIN / DA50RG brand marks and gates, glass-digit font snap, per-worktree Playwright port
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 01.1-03-PLAN.md — Rotary kind (FUEL TRANS, INSTRUMENT LIGHT, FLOOD LIGHT, FAN) and the registry skin vocabulary
+- [ ] 01.1-04-PLAN.md — Derived gear and flap indicator lamps (three green plus red UNSAFE, flap lamps) with readouts
+- [ ] 01.1-05-PLAN.md — De-ice panel, LEVEL, environmental-control sliders and parking brake with existing kinds
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 01.1-06-PLAN.md — Push-button skins, STALL TEST / GEAR TEST spring toggle, inventory completeness gate
+- [ ] 01.1-07-PLAN.md — Single tap zooms fully out; Full panel button never covered by the footer
+- [ ] 01.1-08-PLAN.md — Rocker, bat and guarded-switch skins in real sizes and colours (D-08 gate)
+- [ ] 01.1-09-PLAN.md — Lever, slider and pull-handle skins
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 01.1-10-PLAN.md — Owner review document docs/PANEL-REVIEW.md with completeness gate
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 01.1-11-PLAN.md — Release manifest, owner SHA confirmation, fast-forward publish, live verification, first-render review
 
 ### Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels (INSERTED)
 
