@@ -363,6 +363,52 @@ test('a background drag while zoomed pans and does not zoom out', async ({ page 
   await expect(page.getByTestId('zoom-out')).toBeVisible();
 });
 
+test('the Full panel button stays above the footer and the rotate hint', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
+  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+  const button = page.getByTestId('zoom-out');
+  await expect(button).toBeVisible();
+
+  const report = await page.evaluate(() => {
+    const el = document.querySelector('[data-testid="zoom-out"]');
+    if (el === null) return null;
+    const b = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    const intersects = (r: DOMRect): boolean =>
+      r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
+    const footer = document.querySelector('.footer')?.getBoundingClientRect();
+    const hint = document.querySelector('[data-testid="rotate-hint"]');
+    const hintBox =
+      hint !== null && getComputedStyle(hint).display !== 'none'
+        ? hint.getBoundingClientRect()
+        : null;
+    return {
+      topmost: hit !== null && (hit === el || el.contains(hit)),
+      footerOverlap: footer === undefined ? true : intersects(footer),
+      hintOverlap: hintBox === null ? false : intersects(hintBox),
+      inViewport:
+        b.left >= 0 &&
+        b.top >= 0 &&
+        b.right <= document.documentElement.clientWidth &&
+        b.bottom <= document.documentElement.clientHeight,
+    };
+  });
+  expect(report).not.toBeNull();
+  expect(report?.topmost, 'button is hit-testable at its centre').toBe(true);
+  expect(report?.footerOverlap, 'button intersects footer').toBe(false);
+  expect(report?.hintOverlap, 'button intersects rotate hint').toBe(false);
+  expect(report?.inViewport, 'button inside viewport').toBe(true);
+  if (testInfo.project.name === 'phone-portrait') {
+    await expect(page.getByTestId('rotate-hint')).toBeVisible();
+  }
+
+  await activate(button, hasTouch);
+  await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+});
+
 test('a lever drag while zoomed is never hijacked', async ({ page }, testInfo) => {
   const name = testInfo.project.name;
   test.skip(name !== 'phone-chromium' && name !== 'desktop-chromium', 'Chromium drags only');

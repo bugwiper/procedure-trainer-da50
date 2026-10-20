@@ -23,6 +23,14 @@ body,
   flex-direction: column;
 }
 
+.panel-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .panel-svg {
   flex: 1 1 auto;
   min-height: 0;
@@ -56,12 +64,15 @@ body,
 .footer {
   font-family: var(--font-placard);
   font-weight: 400;
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   /* One 28 px line when it fits; wraps to a second line on a narrow portrait phone. */
   min-height: 28px;
   line-height: 28px;
-  font-size: 12px;
+  font-size: 14px;
   padding: 0 12px;
+  padding-bottom: env(safe-area-inset-bottom);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   touch-action: manipulation;
@@ -100,11 +111,15 @@ body,
   background: rgba(11, 13, 16, 0.96);
   color: #e6e9ed;
   font-family: var(--font-placard);
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .about h2,
 .about h3 {
   margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .about p {
@@ -114,8 +129,9 @@ body,
 
 .about-close {
   min-height: 44px;
-  padding: 0 20px;
+  padding: 0 16px;
   font: inherit;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -127,17 +143,19 @@ body,
   max-width: 80ch;
 }
 
-/* 'Full panel' button over the top right of the stage while the view is zoomed (D-21). */
+/* 'Full panel' button inside the panel area, top right, while the view is zoomed (D-21, D-13).
+   The panel area ends where the footer starts, so the footer can never cover it. */
 .zoom-out {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
+  top: calc(8px + env(safe-area-inset-top));
+  right: calc(8px + env(safe-area-inset-right));
+  z-index: 30;
   box-sizing: border-box;
   min-height: 44px;
+  min-width: 44px;
   padding: 0 16px;
   border: 1px solid #8fb8e6;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #0b0d10;
   color: #ffffff;
   font-family: var(--font-placard);
@@ -153,17 +171,21 @@ body,
   position: absolute;
   top: 8px;
   left: 8px;
-  right: 8px;
+  /* Top left; leaves room for the Full panel button at the top right. */
+  max-width: calc(100% - 16px - 144px - env(safe-area-inset-right));
   z-index: 10;
+  box-sizing: border-box;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 10px;
+  gap: 8px 12px;
+  padding: 8px 12px;
   border-radius: 6px;
   background: rgba(27, 31, 37, 0.92);
   border: 1px solid #3a424b;
   font-family: var(--font-placard);
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 400;
   pointer-events: none;
 }
 

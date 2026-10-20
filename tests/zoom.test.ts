@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DA50RG, VIEWBOX, VIEW_PROFILES } from '../src/aircraft/da50rg/panel';
 import type { ControlDef, Rect } from '../src/engine/registry';
@@ -305,5 +306,14 @@ describe('tapIntent (D-12)', () => {
     expect(tapIntent({ zoomed: false, lastChange: afterOut }, { ...at, at: at.at + 150 })).toBe(
       'none',
     );
+  });
+});
+
+describe('HTML chrome type scale (UI-SPEC Typography)', () => {
+  it('uses 14px as the only font size in stage.css', () => {
+    const css = readFileSync(new URL('../src/ui/stage.css', import.meta.url), 'utf8');
+    const sizes = [...css.matchAll(/font-size:\s*([^;]+);/g)].map((m) => m[1]?.trim());
+    expect(sizes.length).toBeGreaterThan(0);
+    for (const size of sizes) expect(size).toBe('14px');
   });
 });
