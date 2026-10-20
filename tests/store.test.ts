@@ -98,3 +98,109 @@ describe('guard interlock', () => {
     expect(trail).toEqual([true, false, false, true]);
   });
 });
+
+function plainStore(): PanelStore {
+  return new PanelStore(
+    defineRegistry({
+      viewBox: VIEW_BOX,
+      regions: [REGION],
+      controls: [
+        {
+          kind: 'toggle',
+          id: 'sw.engine_master',
+          label: 'ENGINE MASTER',
+          region: 'deice',
+          x: 20,
+          y: 20,
+          hit: { w: 30, h: 30 },
+          states: [
+            { id: 'off', label: 'OFF' },
+            { id: 'on', label: 'ON' },
+          ],
+          default: 'off',
+        },
+        {
+          kind: 'detent-lever',
+          id: 'lv.flaps',
+          label: 'FLAPS',
+          region: 'deice',
+          x: 70,
+          y: 50,
+          hit: { w: 30, h: 60 },
+          detents: [
+            { id: 'up', label: 'UP', pos: 0 },
+            { id: 'down', label: 'DOWN', pos: 1 },
+          ],
+          default: 'up',
+          track: { length: 50, axis: 'v' },
+        },
+      ],
+    }),
+  );
+}
+
+describe('store contract', () => {
+  it('starts with every control at its default', () => {
+    const store = plainStore();
+    expect(store.snapshot()).toEqual({ 'sw.engine_master': 'off', 'lv.flaps': 'up' });
+    expect(store.events()).toEqual([]);
+  });
+
+  it('numbers accepted changes from 0 in order and returns them from events()', () => {
+    const store = plainStore();
+    const a = store.dispatch('sw.engine_master', 'on', 0);
+    const b = store.dispatch('lv.flaps', 'down', 5);
+    const c = store.dispatch('sw.engine_master', 'off', 9);
+    expect([a, b, c].map((r) => r.ok && r.event.seq)).toEqual([0, 1, 2]);
+    expect(store.events().map((e) => [e.seq, e.t, e.id, e.value, e.source])).toEqual([
+      [0, 0, 'sw.engine_master', 'on', 'user'],
+      [1, 5, 'lv.flaps', 'down', 'user'],
+      [2, 9, 'sw.engine_master', 'off', 'user'],
+    ]);
+  });
+
+  it.each([
+    ['unknown', 'sw.nope', 'on', 'unknown'],
+    ['illegal-state', 'sw.engine_master', 'sideways', 'illegal-state'],
+    ['unchanged', 'sw.engine_master', 'off', 'unchanged'],
+  ] as const)(
+    'rejects %s without an event, a notification or a state change',
+    (_name, id, value, reason) => {
+      const store = plainStore();
+      const before = store.snapshot();
+      const seen: unknown[] = [];
+      store.subscribe((e) => seen.push(e));
+      expect(store.dispatch(id, value, 1)).toEqual({ ok: false, reason });
+      expect(store.events()).toHaveLength(0);
+      expect(seen).toHaveLength(0);
+      expect(store.snapshot()).toEqual(before);
+    },
+  );
+
+  it('a rejected request does not consume a sequence number', () => {
+    const store = plainStore();
+    store.dispatch('sw.engine_master', 'off', 1);
+    const ok = store.dispatch('sw.engine_master', 'on', 2);
+    expect(ok.ok && ok.event.seq).toBe(0);
+  });
+
+  it('notifies once per accepted change and unsubscribe stops notifications', () => {
+    const store = plainStore();
+    const seen: number[] = [];
+    const off = store.subscribe((e) => seen.push(e.seq));
+    store.dispatch('sw.engine_master', 'on', 1);
+    store.dispatch('sw.engine_master', 'on', 2);
+    store.dispatch('lv.flaps', 'down', 3);
+    expect(seen).toEqual([0, 1]);
+    off();
+    store.dispatch('sw.engine_master', 'off', 4);
+    expect(seen).toEqual([0, 1]);
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1])('throws RangeError for t = %s', (t) => {
+    const store = plainStore();
+    expect(() => store.dispatch('sw.engine_master', 'on', t)).toThrow(RangeError);
+    expect(store.events()).toHaveLength(0);
+    expect(store.get('sw.engine_master')).toBe('off');
+  });
+});
