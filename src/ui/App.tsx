@@ -3,6 +3,7 @@ import { DA50RG } from '../aircraft/da50rg/panel';
 import { About } from './about/About';
 import { createPanelBridge } from './bridge';
 import { Panel } from './panel/Panel';
+import { isZoomed, zoomOut } from './panel/zoom';
 
 const bridge = createPanelBridge(DA50RG);
 
@@ -18,6 +19,18 @@ export function App() {
   return (
     <div class="stage">
       <Panel bridge={bridge} />
+      {isZoomed.value ? (
+        <button
+          type="button"
+          class="zoom-out"
+          data-testid="zoom-out"
+          onClick={() => {
+            zoomOut(bridge.registry.viewBox);
+          }}
+        >
+          Full panel
+        </button>
+      ) : null}
       {rotateHintDismissed.value ? null : (
         <div class="rotate-hint" data-testid="rotate-hint" role="status">
           <span>Rotate to landscape for the full panel</span>
