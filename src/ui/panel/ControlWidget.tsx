@@ -1,5 +1,6 @@
 import type { ControlDef } from '../../engine/registry';
 import type { PanelBridge } from '../bridge';
+import { DetentLever } from './widgets/DetentLever';
 import { Toggle } from './widgets/Toggle';
 
 export interface WidgetProps<D extends ControlDef = ControlDef> {
@@ -14,6 +15,8 @@ export function ControlWidget({ def, bridge }: WidgetProps) {
   switch (def.kind) {
     case 'toggle':
       return <Toggle def={def} bridge={bridge} />;
+    case 'detent-lever':
+      return <DetentLever def={def} bridge={bridge} />;
     case 'guard':
       // The guard is drawn by its guarded-toggle widget.
       return null;
