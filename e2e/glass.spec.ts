@@ -26,7 +26,7 @@ test('MFD PAGE softkey switches to the Engine page and back', async ({ page, has
   await expect(page.getByTestId('mfd-engine-page')).toBeVisible();
   await expect(page.locator('[data-mfd-page="map"]')).toHaveCount(0);
   await expect(page.getByTestId('mfd-engine-strip')).toHaveCount(0);
-  await expect(key.locator('[data-state-text]')).toHaveText('ENGINE');
+  await expect(key).toHaveAttribute('data-state', 'engine');
 
   await activate(hit, hasTouch);
   await expect(page.locator('[data-mfd-page="map"]')).toBeVisible();

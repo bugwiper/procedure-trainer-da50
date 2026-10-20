@@ -30,30 +30,25 @@ test('ENGINE MASTER flips by mouse or tap and shows its new state', async ({ pag
   const hit = page.locator('[data-hit="sw.engine_master"]');
   await expect(sw).toHaveCount(1);
   await expect(sw).toHaveAttribute('data-state', 'on');
-  await expect(sw.locator('[data-state-text]')).toHaveText('ON');
 
   await activate(hit, hasTouch);
   await expect(sw).toHaveAttribute('data-state', 'off');
-  await expect(sw.locator('[data-state-text]')).toHaveText('OFF');
 
   await activate(hit, hasTouch);
   await expect(sw).toHaveAttribute('data-state', 'on');
-  await expect(sw.locator('[data-state-text]')).toHaveText('ON');
 });
 
 test('MFD PAGE softkey flips between MAP and ENGINE', async ({ page, hasTouch }) => {
   const key = control(page, 'sw.mfd_page');
   const hit = page.locator('[data-hit="sw.mfd_page"]');
   await expect(key).toHaveCount(1);
-  await expect(key.locator('[data-state-text]')).toHaveText('MAP');
+  await expect(key).toHaveAttribute('data-state', 'map');
 
   await activate(hit, hasTouch);
   await expect(key).toHaveAttribute('data-state', 'engine');
-  await expect(key.locator('[data-state-text]')).toHaveText('ENGINE');
 
   await activate(hit, hasTouch);
   await expect(key).toHaveAttribute('data-state', 'map');
-  await expect(key.locator('[data-state-text]')).toHaveText('MAP');
 });
 
 test('@hooks each accepted flip appends exactly one event', async ({ page, hasTouch }) => {

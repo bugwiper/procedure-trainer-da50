@@ -259,25 +259,47 @@ describe('BatBody', () => {
     ]);
   });
 
-  it('stays within 40 nodes with one state text equal to the label, in both states', () => {
+  it('stays within 40 nodes with only the name as text and no status dot, in every position', () => {
     for (const def of BATS) {
-      for (const isSecond of [false, true]) {
+      for (const position of ['low', 'mid', 'high'] as const) {
         for (const pressed of [false, true]) {
-          const label = (isSecond ? def.states[1] : def.states[0]).label;
-          const tree = expand(BatBody({ def, isSecond, pressed, stateLabel: label }));
-          const id = `${def.id}/${String(isSecond)}/${String(pressed)}`;
+          const tree = expand(BatBody({ def, position, pressed }));
+          const id = `${def.id}/${position}/${String(pressed)}`;
           expect(countElements(tree), id).toBeLessThanOrEqual(40);
-          const texts = stateTexts(tree);
-          expect(texts, id).toHaveLength(1);
-          expect(textOf(texts[0] as El), id).toBe(label);
+          expect(stateTexts(tree), id).toHaveLength(0);
+          const texts = findElements(tree, (el) => el.tag === 'text');
+          expect(
+            texts.map((t) => textOf(t)),
+            id,
+          ).toEqual([def.label]);
+          expect(allProps(tree), id).not.toContain('#39d98a');
         }
       }
     }
   });
 
+  it('points the handle down for low, up for high and shows a stub with a ball tip for mid', () => {
+    const def = toggle('sw.alternator_1');
+    const tipOf = (position: 'low' | 'mid' | 'high') => {
+      const tree = expand(BatBody({ def, position, pressed: false }));
+      const cap = findElements(tree, (el) => el.tag === 'circle' && 'cy' in el.props).pop();
+      const pivot = findElements(tree, (el) => el.tag === 'circle' && 'cy' in el.props)[0];
+      return { tip: Number(cap?.props['cy']), pivot: Number(pivot?.props['cy']), tree };
+    };
+    const low = tipOf('low');
+    const high = tipOf('high');
+    const mid = tipOf('mid');
+    expect(low.tip).toBeGreaterThan(low.pivot);
+    expect(high.tip).toBeLessThan(high.pivot);
+    expect(mid.tip).toBe(mid.pivot);
+    expect(findElements(mid.tree, (el) => el.tag === 'polygon')).toHaveLength(0);
+    const cap = findElements(mid.tree, (el) => el.tag === 'circle').pop();
+    expect(Number(cap?.props['r'])).toBeGreaterThanOrEqual(3);
+  });
+
   it('paints the bat with the shared chrome gradient and adds a ball tip only where asked', () => {
     for (const def of BATS) {
-      const tree = expand(BatBody({ def, isSecond: true, pressed: false, stateLabel: 'ON' }));
+      const tree = expand(BatBody({ def, position: 'high', pressed: false }));
       expect(allProps(tree), def.id).toContain('url(#g-chrome)');
       const balls = findElements(tree, (el) => el.tag === 'circle' && el.props['r'] === 3.2);
       expect(balls.length, def.id).toBe(def.ball === true ? 1 : 0);
@@ -286,14 +308,14 @@ describe('BatBody', () => {
 
   it('uses the pressed ring only while a pointer is down', () => {
     for (const def of BATS) {
-      const idle = expand(BatBody({ def, isSecond: false, pressed: false, stateLabel: 'X' }));
-      const held = expand(BatBody({ def, isSecond: false, pressed: true, stateLabel: 'X' }));
+      const idle = expand(BatBody({ def, position: 'low', pressed: false }));
+      const held = expand(BatBody({ def, position: 'low', pressed: true }));
       expect(allProps(idle), def.id).not.toContain(PRESSED_RING);
       expect(allProps(held), def.id).toContain(PRESSED_RING);
     }
   });
 
-  it('the de-ice bats, under 39 tall, use the compact variant: 6 label above, 8 state text', () => {
+  it('the de-ice bats, under 39 tall, use the compact variant: name in 6 above the footprint', () => {
     const compact = BATS.filter((b) => b.hit.h < COMPACT_BAT_HEIGHT);
     expect(compact.map((b) => b.id).sort()).toEqual([
       'sw.deice_ice_light',
@@ -302,12 +324,10 @@ describe('BatBody', () => {
       'sw.deice_windshield',
     ]);
     for (const def of compact) {
-      const tree = expand(BatBody({ def, isSecond: true, pressed: false, stateLabel: 'ON' }));
+      const tree = expand(BatBody({ def, position: 'high', pressed: false }));
       const label = findElements(tree, (el) => el.tag === 'text' && textOf(el) === def.label)[0];
       expect(label?.props['font-size'], def.id).toBe(6);
       expect(Number(label?.props['y']), def.id).toBeLessThan(-def.hit.h / 2);
-      expect(stateTexts(tree)[0]?.props['font-size'], def.id).toBe(8);
-      expect(Number(stateTexts(tree)[0]?.props['y']), def.id).toBeLessThanOrEqual(def.hit.h / 2);
     }
   });
 });
@@ -325,9 +345,7 @@ describe('guarded ALTERNATE', () => {
     if (alt?.kind !== 'guarded-toggle') throw new Error('no ALTERNATE');
     for (const guardOpen of [false, true]) {
       const rocker = expand(RockerBody({ def: alt, position: 'low', pressed: false }));
-      const cover = expand(
-        GuardCover({ def: alt, guardOpen, guardLabel: guardOpen ? 'OPEN' : 'CLOSED' }),
-      );
+      const cover = expand(GuardCover({ def: alt, guardOpen }));
       const id = guardOpen ? 'open' : 'closed';
       expect(countElements(rocker) + countElements(cover), id).toBeLessThanOrEqual(40);
       expect(allProps(cover), id).toContain('url(#p-hatch)');
@@ -335,15 +353,29 @@ describe('guarded ALTERNATE', () => {
         findElements(cover, (el) => el.tag === 'pattern' || el.tag === 'defs'),
         id,
       ).toEqual([]);
-      expect(textOf(cover), id).toContain('GUARD');
-      const stateText = stateTexts(cover);
-      expect(stateText, id).toHaveLength(1);
-      expect(textOf(stateText[0] as El), id).toBe(guardOpen ? 'OPEN' : 'CLOSED');
+      expect(
+        findElements(cover, (el) => el.tag === 'text'),
+        id,
+      ).toHaveLength(0);
+      expect(textOf(cover), id).toBe('');
     }
   });
 });
 
 describe('softkey selected state', () => {
+  it('has the legend ENGINE and the state labels NOT SELECTED and SELECTED', () => {
+    const def = toggle('sw.mfd_page');
+    expect(def.label).toBe('ENGINE');
+    expect(def.states.map((st) => [st.id, st.label])).toEqual([
+      ['map', 'NOT SELECTED'],
+      ['engine', 'SELECTED'],
+    ]);
+    expect(def.default).toBe('map');
+    const tree = expand(SoftkeyBody({ def, labelWidth: 20, isSecond: true, pressed: false }));
+    expect(stateTexts(tree)).toHaveLength(0);
+    expect(findElements(tree, (el) => el.tag === 'text').map((t) => textOf(t))).toEqual(['ENGINE']);
+  });
+
   it('uses a 2.5-unit #e6e9ed stroke and never the blue ring', () => {
     const def = toggle('sw.mfd_page');
     const selected = expand(
@@ -352,7 +384,6 @@ describe('softkey selected state', () => {
         labelWidth: 20,
         isSecond: true,
         pressed: false,
-        stateLabel: def.states[1].label,
       }),
     );
     const rect = findElements(selected, (el) => el.tag === 'rect')[0];
@@ -365,7 +396,6 @@ describe('softkey selected state', () => {
         labelWidth: 20,
         isSecond: false,
         pressed: false,
-        stateLabel: def.states[0].label,
       }),
     );
     expect(findElements(idle, (el) => el.tag === 'rect')[0]?.props['stroke-width']).toBe(1);
@@ -386,7 +416,6 @@ describe('toggle-family sources', () => {
       const sizes = [...src.matchAll(/font-size=\{([^}]+)\}/g)].flatMap((m) =>
         [...(m[1] ?? '').matchAll(/\d+/g)].map((n) => Number(n[0])),
       );
-      expect(sizes.length, file).toBeGreaterThan(0);
       for (const size of sizes) expect([6, 8, 10, 14], `${file} ${size}`).toContain(size);
     }
   });

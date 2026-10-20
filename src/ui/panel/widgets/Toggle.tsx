@@ -14,8 +14,9 @@ interface PointerStart {
 }
 
 /**
- * Toggle widget (switch and softkey skins). State reads from the graphic position and
- * the state text, never from colour alone (D-13). Pointer contract: only primary
+ * Toggle widget (switch and softkey skins). State reads from the graphic position (and the
+ * data-state and aria-label for tests and assistive technology), never from colour alone and never
+ * from printed text (G-0.1). Pointer contract: only primary
  * pointers, capture on pointerdown, actuate on a pointerup within the tap slop, never
  * listen to click (RESEARCH Pattern 5).
  */
@@ -71,14 +72,13 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
       {skin === 'rocker' ? (
         <RockerBody def={def} position={isSecond ? 'high' : 'low'} pressed={pressed.value} />
       ) : skin === 'bat' ? (
-        <BatBody def={def} isSecond={isSecond} pressed={pressed.value} stateLabel={stateLabel} />
+        <BatBody def={def} position={isSecond ? 'high' : 'low'} pressed={pressed.value} />
       ) : (
         <SoftkeyBody
           def={def}
           labelWidth={Math.min(def.label.length * 3.6, def.hit.w - 6)}
           isSecond={isSecond}
           pressed={pressed.value}
-          stateLabel={stateLabel}
         />
       )}
       <rect
@@ -102,18 +102,14 @@ export interface BodyProps {
   readonly def: Pick<ToggleDef, 'label' | 'hit'>;
   readonly isSecond: boolean;
   readonly pressed: boolean;
-  readonly stateLabel: string;
   readonly labelWidth: number;
 }
 
-/** Softkey skin: the selected state is a 2.5-unit white stroke plus its text (Color 5). */
-export function SoftkeyBody({
-  def,
-  labelWidth,
-  isSecond,
-  pressed,
-  stateLabel,
-}: Omit<BodyProps, never>) {
+/**
+ * Softkey skin: the selected state is a 2.5-unit white stroke (Color 5). The body draws its
+ * legend only, centred; the state is never printed (G-0.1).
+ */
+export function SoftkeyBody({ def, labelWidth, isSecond, pressed }: BodyProps) {
   const w = def.hit.w - 2;
   const h = def.hit.h - 2;
   return (
@@ -130,7 +126,7 @@ export function SoftkeyBody({
       />
       <text
         x={0}
-        y={-5}
+        y={2}
         text-anchor="middle"
         font-family={FONT}
         font-size={6}
@@ -139,18 +135,6 @@ export function SoftkeyBody({
         lengthAdjust="spacingAndGlyphs"
       >
         {def.label}
-      </text>
-      <text
-        data-state-text
-        x={0}
-        y={9}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={8}
-        font-weight={700}
-        fill="#d8dde3"
-      >
-        {stateLabel}
       </text>
     </g>
   );

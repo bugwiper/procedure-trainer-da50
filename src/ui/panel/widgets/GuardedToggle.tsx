@@ -6,7 +6,6 @@ import { paint } from '../Defs';
 import { RockerBody } from '../skins/Rocker';
 
 const TAP_SLOP_PX = 10;
-const FONT = 'B612, system-ui, sans-serif';
 
 interface PointerStart {
   readonly pointerId: number;
@@ -115,7 +114,7 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
         aria-label={`${def.label} guard: ${guardLabel}`}
         transform={`translate(${def.x} ${def.y})`}
       >
-        <GuardCover def={def} guardOpen={guardOpen} guardLabel={guardLabel} />
+        <GuardCover def={def} guardOpen={guardOpen} />
         <rect
           data-hit={guardId}
           x={guardOpen ? open.x : -def.hit.w / 2}
@@ -134,8 +133,6 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
 export interface GuardCoverProps {
   readonly def: Pick<GuardedToggleDef, 'hit' | 'guardOpenHit'>;
   readonly guardOpen: boolean;
-  /** CLOSED or OPEN, the guard's state text. */
-  readonly guardLabel: string;
 }
 
 /** Y offsets of the three hatch bars inside the closed cover (rect 40 x 54 centred on the rocker). */
@@ -144,10 +141,10 @@ const COVER_BARS = [-15, -4, 7] as const;
 /**
  * Pure art of the translucent red guard cover (UI-SPEC 8.6): closed it covers the rocker
  * (rect 40 x 54, rx 4, #c43030 at 35 percent, border #e04040 1.5) with three hatch bars from the
- * shared p-hatch; open it is drawn lifted above the rocker with the hinge line. The placard
- * reads GUARD CLOSED or GUARD OPEN on two lines beside the cover.
+ * shared p-hatch; open it is drawn lifted above the rocker with the hinge line. It draws no text
+ * at all (G-0.1); the guard state is in data-state and the aria-label of its group.
  */
-export function GuardCover({ def, guardOpen, guardLabel }: GuardCoverProps) {
+export function GuardCover({ def, guardOpen }: GuardCoverProps) {
   const open = def.guardOpenHit;
   const tint = { fill: '#c43030', 'fill-opacity': 0.35, stroke: '#e04040', 'stroke-width': 1.5 };
   return (
@@ -190,21 +187,6 @@ export function GuardCover({ def, guardOpen, guardLabel }: GuardCoverProps) {
           ))}
         </>
       )}
-      {/* Placard beside the cover, two lines, so it never meets the rows below. */}
-      <text x={22} y={-2} font-family={FONT} font-size={6} font-weight={700} fill="#e8a0a0">
-        GUARD
-      </text>
-      <text
-        data-state-text
-        x={22}
-        y={6}
-        font-family={FONT}
-        font-size={6}
-        font-weight={700}
-        fill="#e8a0a0"
-      >
-        {guardLabel}
-      </text>
     </g>
   );
 }

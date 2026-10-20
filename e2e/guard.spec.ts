@@ -47,18 +47,15 @@ test('guard must be lifted before ALTERNATE moves and stays up until tapped', as
   await activate(page.locator(`[data-hit="${GUARD}"]`), hasTouch);
   await expect(guard).toHaveAttribute('data-state', 'open');
   await expect(sw).toHaveAttribute('data-state', 'off');
-  await expect(guard.locator('[data-state-text]')).toHaveText('OPEN');
 
   // Second tap flips the switch; the guard stays up.
   await activate(page.locator(`[data-hit="${SWITCH}"]`), hasTouch);
   await expect(sw).toHaveAttribute('data-state', 'on');
-  await expect(sw.locator('[data-state-text]')).toHaveText('ON');
   await expect(guard).toHaveAttribute('data-state', 'open');
 
   // The user closes the guard; the switch keeps its position.
   await activate(page.locator(`[data-hit="${GUARD}"]`), hasTouch);
   await expect(guard).toHaveAttribute('data-state', 'closed');
-  await expect(guard.locator('[data-state-text]')).toHaveText('CLOSED');
   await expect(sw).toHaveAttribute('data-state', 'on');
   await expect(page.locator(`[data-hit="${SWITCH}"]`)).toHaveCount(0);
 
@@ -106,11 +103,9 @@ test('ELECT. MASTER and ELT are unguarded and flip with one tap', async ({ page,
   await expect(master).toHaveAttribute('data-state', 'on');
   await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
   await expect(master).toHaveAttribute('data-state', 'off');
-  await expect(master.locator('[data-state-text]')).toHaveText('OFF');
 
   const elt = control(page, 'sw.elt');
   await expect(elt).toHaveAttribute('data-state', 'arm');
   await activate(page.locator('[data-hit="sw.elt"]'), hasTouch);
   await expect(elt).toHaveAttribute('data-state', 'on');
-  await expect(elt.locator('[data-state-text]')).toHaveText('ON');
 });

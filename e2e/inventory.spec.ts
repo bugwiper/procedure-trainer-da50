@@ -24,15 +24,12 @@ test('de-ice WIND SHIELD flips by mouse or tap', async ({ page, hasTouch }) => {
   const hit = page.locator('[data-hit="sw.deice_windshield"]');
   await expect(sw).toHaveCount(1);
   await expect(sw).toHaveAttribute('data-state', 'off');
-  await expect(sw.locator('[data-state-text]')).toHaveText('OFF');
 
   await activate(hit, hasTouch);
   await expect(sw).toHaveAttribute('data-state', 'on');
-  await expect(sw.locator('[data-state-text]')).toHaveText('ON');
 
   await activate(hit, hasTouch);
   await expect(sw).toHaveAttribute('data-state', 'off');
-  await expect(sw.locator('[data-state-text]')).toHaveText('OFF');
 });
 
 test('de-ice ICE LIGHT, PUMP 2 and PUMP 1 flip by mouse or tap', async ({ page, hasTouch }) => {

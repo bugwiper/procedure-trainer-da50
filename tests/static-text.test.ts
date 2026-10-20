@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import type { ControlDef, GuardedToggleDef, ToggleDef } from '../src/engine/registry';
+import { BatBody } from '../src/ui/panel/skins/Bat';
 import { RockerBody } from '../src/ui/panel/skins/Rocker';
+import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
+import { SoftkeyBody } from '../src/ui/panel/widgets/Toggle';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { Tree } from './vnode-walk';
 
@@ -36,6 +39,47 @@ describe('toggle family text is state-independent', () => {
       expect(texts[0], def.id).toEqual([def.label]);
       expect(texts[1], def.id).toEqual(texts[0]);
       expect(texts[2], def.id).toEqual(texts[0]);
+    }
+  });
+
+  it('bats: the same text strings in every position', () => {
+    const bats = DA50RG.controls.filter(
+      (c): c is ToggleDef => c.kind === 'toggle' && (c.skin ?? 'bat') === 'bat',
+    );
+    expect(bats.length).toBeGreaterThan(0);
+    for (const def of bats) {
+      const texts = (['low', 'mid', 'high'] as const).map((position) =>
+        textStrings(expand(BatBody({ def, position, pressed: false }))),
+      );
+      expect(texts[0], def.id).toEqual([def.label]);
+      expect(texts[1], def.id).toEqual(texts[0]);
+      expect(texts[2], def.id).toEqual(texts[0]);
+    }
+  });
+
+  it('softkeys: the same text strings selected and not selected', () => {
+    const keys = DA50RG.controls.filter(
+      (c): c is ToggleDef => c.kind === 'toggle' && c.skin === 'softkey',
+    );
+    expect(keys.length).toBeGreaterThan(0);
+    for (const def of keys) {
+      const texts = [false, true].map((isSecond) =>
+        textStrings(expand(SoftkeyBody({ def, labelWidth: 20, isSecond, pressed: false }))),
+      );
+      expect(texts[0], def.id).toEqual([def.label]);
+      expect(texts[1], def.id).toEqual(texts[0]);
+    }
+  });
+
+  it('guard covers: no text, open or closed', () => {
+    const guarded = DA50RG.controls.filter(
+      (c): c is GuardedToggleDef => c.kind === 'guarded-toggle',
+    );
+    expect(guarded.length).toBeGreaterThan(0);
+    for (const def of guarded) {
+      for (const guardOpen of [false, true]) {
+        expect(textStrings(expand(GuardCover({ def, guardOpen }))), def.id).toEqual([]);
+      }
     }
   });
 });
