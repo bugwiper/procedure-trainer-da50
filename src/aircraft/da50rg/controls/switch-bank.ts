@@ -1,4 +1,4 @@
-import type { ControlSpec, StateDef } from '../../../engine/registry';
+import type { ControlSpec, StateDef, ToggleDef } from '../../../engine/registry';
 
 // Lower switch row of the instrument panel (D-07c). Control inventory: AFM section 7-23
 // and the private reference photos IMG_0650 / DA50_virtual (layout facts only, no AFM
@@ -18,7 +18,16 @@ const OFF_ON: readonly [StateDef, StateDef] = [
   { id: 'on', label: 'ON' },
 ];
 
-function rowSwitch(id: string, label: string, x: number, initial: 'on' | 'off'): ControlSpec {
+/** Skin fields of a toggle (UI-SPEC 8.1, 8.2); absent means the chrome bat. */
+type Look = Pick<ToggleDef, 'skin' | 'size' | 'colour' | 'ball'>;
+
+function rowSwitch(
+  id: string,
+  label: string,
+  x: number,
+  initial: 'on' | 'off',
+  look: Look = {},
+): ToggleDef {
   return {
     id,
     kind: 'toggle',
@@ -29,6 +38,7 @@ function rowSwitch(id: string, label: string, x: number, initial: 'on' | 'off'):
     hit: { w: 66, h: 70 },
     states: OFF_ON,
     default: initial,
+    ...look,
   };
 }
 
@@ -55,7 +65,12 @@ export const SWITCH_BANK_CONTROLS: readonly ControlSpec[] = [
   // Slot 3 (x 316) is the ENGINE START push button, defined in buttons.ts.
   rowSwitch('sw.engine_master', 'ENGINE MASTER', 400, 'on'),
   rowSwitch('sw.ess_bus', 'ESS BUS', 502, 'off'), // its placard reserves it for abnormal operation
-  rowSwitch('sw.elect_master', 'ELECT. MASTER', 586, 'on'),
+  // Big red rocker with bezel ears (D-08; P650, P386, PED). Size ratios are proposals.
+  rowSwitch('sw.elect_master', 'ELECT. MASTER', 586, 'on', {
+    skin: 'rocker',
+    size: 'L',
+    colour: 'red',
+  }),
   rowSwitch('sw.av_master', 'AV MASTER', 661, 'on'),
   rowSwitch('sw.pitot_stall_heat', 'PITOT/STALL HEAT', 731, 'on'),
   // ELT sits in RIGHT PANEL at the lower right (D-07c does not mention it); the data

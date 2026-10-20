@@ -1,6 +1,7 @@
 import { useSignal } from '@preact/signals';
 import type { ToggleDef } from '../../../engine/registry';
 import type { WidgetProps } from '../ControlWidget';
+import { RockerBody } from '../skins/Rocker';
 
 const TAP_SLOP_PX = 10;
 const FONT = 'B612, system-ui, sans-serif';
@@ -59,9 +60,18 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
       data-control-id={def.id}
       data-kind={def.kind}
       data-state={state}
+      data-skin={skin}
+      data-size={def.size}
+      data-colour={def.colour}
+      data-pressed-half={skin === 'rocker' ? (isSecond ? 'upper' : 'lower') : undefined}
+      data-pressed={pressed.value ? 'true' : undefined}
+      role="img"
+      aria-label={`${def.label}: ${stateLabel}`}
       transform={`translate(${def.x} ${def.y})`}
     >
-      {skin === 'bat' ? (
+      {skin === 'rocker' ? (
+        <RockerBody def={def} isSecond={isSecond} pressed={pressed.value} stateLabel={stateLabel} />
+      ) : skin === 'bat' ? (
         <SwitchBody
           def={def}
           top={top}
