@@ -34,3 +34,58 @@ test('de-ice WIND SHIELD flips by mouse or tap', async ({ page, hasTouch }) => {
   await expect(sw).toHaveAttribute('data-state', 'off');
   await expect(sw.locator('[data-state-text]')).toHaveText('OFF');
 });
+
+test('de-ice ICE LIGHT, PUMP 2 and PUMP 1 flip by mouse or tap', async ({ page, hasTouch }) => {
+  for (const id of ['sw.deice_ice_light', 'sw.deice_pump2', 'sw.deice_pump1']) {
+    const sw = control(page, id);
+    await expect(sw, id).toHaveCount(1);
+    await expect(sw, id).toHaveAttribute('data-state', 'off');
+    await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
+    await expect(sw, id).toHaveAttribute('data-state', 'on');
+    await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
+    await expect(sw, id).toHaveAttribute('data-state', 'off');
+  }
+});
+
+test('de-ice MODE reaches NORM, HIGH, MAX and OFF by marker tap', async ({ page, hasTouch }) => {
+  const mode = control(page, 'lv.deice_mode');
+  await expect(mode).toHaveAttribute('data-state', 'off');
+  for (const detent of ['norm', 'high', 'max', 'off']) {
+    await activate(page.locator(`[data-detent="lv.deice_mode:${detent}"]`), hasTouch);
+    await expect(mode, detent).toHaveAttribute('data-state', detent);
+    await expect(mode.locator('[data-state-text]'), detent).toHaveText(detent.toUpperCase());
+  }
+});
+
+test('ANNUN TEST and LEVEL show PRESSED while held and RELEASED after release', async ({
+  page,
+  hasTouch,
+}) => {
+  test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
+  for (const id of ['btn.deice_annun_test', 'btn.level']) {
+    const button = control(page, id);
+    await expect(button, id).toHaveCount(1);
+    await expect(button, id).toHaveAttribute('data-state', 'released');
+
+    await page.locator(`[data-hit="${id}"]`).hover();
+    await page.mouse.down();
+    await expect(button, id).toHaveAttribute('data-state', 'pressed');
+    await expect(button.locator('[data-state-text]'), id).toHaveText('PRESSED');
+
+    await page.mouse.up();
+    await expect(button, id).toHaveAttribute('data-state', 'released');
+    await expect(button.locator('[data-state-text]'), id).toHaveText('RELEASED');
+  }
+});
+
+test('a tap leaves ANNUN TEST and LEVEL RELEASED', async ({ page, hasTouch }) => {
+  for (const id of ['btn.deice_annun_test', 'btn.level']) {
+    await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
+    await expect(control(page, id), id).toHaveAttribute('data-state', 'released');
+  }
+});
+
+test('the ALTERNATE switch is the only guarded control', async ({ page }) => {
+  await expect(page.locator('[data-kind="guarded-toggle"]')).toHaveCount(1);
+  await expect(control(page, 'sw.deice_alternate')).toHaveAttribute('data-kind', 'guarded-toggle');
+});

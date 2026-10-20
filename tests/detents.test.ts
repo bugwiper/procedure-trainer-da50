@@ -76,9 +76,17 @@ describe('pedestal and front-panel lever inventory', () => {
     for (const c of PEDESTAL_CONTROLS) expect(c.kind).toBe('detent-lever');
   });
 
-  it('GEAR_FLAPS_CONTROLS is exactly GEAR and FLAPS', () => {
-    expect(GEAR_FLAPS_CONTROLS.map((c) => c.id)).toEqual(['lv.gear', 'lv.flaps']);
+  it('GEAR_FLAPS_CONTROLS is exactly GEAR, FLAPS and the de-ice MODE selector', () => {
+    expect(GEAR_FLAPS_CONTROLS.map((c) => c.id)).toEqual(['lv.gear', 'lv.flaps', 'lv.deice_mode']);
     for (const c of GEAR_FLAPS_CONTROLS) expect(c.kind).toBe('detent-lever');
+  });
+
+  it('the de-ice MODE selector has four detents and defaults to off', () => {
+    const mode = GEAR_FLAPS_CONTROLS.find((c) => c.id === 'lv.deice_mode');
+    expect(mode?.kind).toBe('detent-lever');
+    if (mode?.kind !== 'detent-lever') return;
+    expect(mode.detents.map((d) => d.id)).toEqual(['off', 'norm', 'high', 'max']);
+    expect(mode.default).toBe('off');
   });
 });
 
