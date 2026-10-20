@@ -9,14 +9,14 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Panel & Interaction
 
-- [ ] **PNL-01**: User can operate switches, guarded switches, detented levers (e.g. power lever, flaps, gear, cowl flap) and buttons by mouse or touch
-- [ ] **PNL-02**: Panel is generated from a control registry; every control has a stable id and defined legal states
+- [x] **PNL-01**: User can operate switches, guarded switches, detented levers (e.g. power lever, flaps, gear, cowl flap) and buttons by mouse or touch
+- [x] **PNL-02**: Panel is generated from a control registry; every control has a stable id and defined legal states
 - [ ] **PNL-03**: Alert/annunciation area shows scenario-driven messages (e.g. "OIL TEMP HIGH")
 - [ ] **PNL-04**: Engine gauges and displays respond to simulated aircraft state
-- [ ] **PNL-05**: Panel scales to desktop, tablet and phone screens without horizontal page scroll; panel regions (e.g. PFD, engine page, switch bank, pedestal) are part of the data model so region zoom can be added later without a rewrite
-- [ ] **PNL-06**: Controls with safety consequences are guarded or confirm-to-actuate, and stray touches on neutral areas are never graded as forbidden actions
-- [ ] **PNL-08**: Panel layout reproduces the real DA50 RG positions (which control is where, relative placement and grouping, incl. under-panel controls) closely enough to build position memory for emergencies; touch sizing must never relocate a control
-- [ ] **PNL-09**: On phones, the user can zoom into a panel region (pinch or region tap) with enlarged hit targets, without changing the true layout (promoted from PNL-V2-01)
+- [x] **PNL-05**: Panel scales to desktop, tablet and phone screens without horizontal page scroll; panel regions (e.g. PFD, engine page, switch bank, pedestal) are part of the data model so region zoom can be added later without a rewrite
+- [x] **PNL-06**: Controls with safety consequences are guarded or confirm-to-actuate, and stray touches on neutral areas are never graded as forbidden actions
+- [x] **PNL-08**: Panel layout reproduces the real DA50 RG positions (which control is where, relative placement and grouping, incl. under-panel controls) closely enough to build position memory for emergencies; touch sizing must never relocate a control
+- [x] **PNL-09**: On phones, the user can zoom into a panel region (pinch or region tap) with enlarged hit targets, without changing the true layout (promoted from PNL-V2-01)
 - [ ] **PNL-07**: A simplified transponder section lets the user enter a squawk code (no full G1000 menu structure)
 
 ### Scenario Engine
@@ -43,11 +43,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **CNT-01**: Initial pack contains Oil Temp High, Electrical Failure and Engine Fire scenarios
 - [ ] **CNT-02**: An authoring guide explains how to add scenarios and validate them
-- [ ] **CNT-03**: A content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is decided before any procedure text is committed
+- [x] **CNT-03**: A content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is decided before any procedure text is committed
 
 ### Platform & Business
 
-- [ ] **PLT-01**: GitHub Actions deploys to GitHub Pages; build is host-agnostic (base path from environment)
+- [x] **PLT-01**: GitHub Actions deploys to GitHub Pages; build is host-agnostic (base path from environment)
 - [ ] **PLT-02**: App installs as a PWA and works offline
 - [ ] **PLT-03**: Scenario packs load only through a PackProvider/AccessPolicy seam, open in v1
 - [ ] **PLT-04**: First-run training-aid acknowledgment is shown, and each scenario shows its source/disclaimer
@@ -94,14 +94,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PLT-01 | Phase 1 | Pending |
-| CNT-03 | Phase 1 | Pending |
-| PNL-01 | Phase 1 | Pending |
-| PNL-02 | Phase 1 | Pending |
-| PNL-05 | Phase 1 | Pending |
-| PNL-06 | Phase 1 | Pending |
-| PNL-08 | Phase 1 | Pending |
-| PNL-09 | Phase 1 | Pending |
+| PLT-01 | Phase 1 | Complete |
+| CNT-03 | Phase 1 | Complete |
+| PNL-01 | Phase 1 | Complete |
+| PNL-02 | Phase 1 | Complete |
+| PNL-05 | Phase 1 | Complete |
+| PNL-06 | Phase 1 | Complete |
+| PNL-08 | Phase 1 | Complete |
+| PNL-09 | Phase 1 | Complete |
 | SCN-01 | Phase 2 | Pending |
 | SCN-02 | Phase 2 | Pending |
 | SCN-03 | Phase 2 | Pending |
