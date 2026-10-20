@@ -135,6 +135,24 @@ function checkIdPattern(id: ControlId): void {
   }
 }
 
+// Kind family prefixes (toggle and guarded-toggle share "sw."; a derived guard is a switch part).
+const KIND_PREFIX: Readonly<Record<ControlKind, string>> = {
+  toggle: 'sw.',
+  'guarded-toggle': 'sw.',
+  guard: 'sw.',
+  'detent-lever': 'lv.',
+  'momentary-button': 'btn.',
+};
+
+function checkKindPrefix(def: ControlDef): void {
+  const prefix = KIND_PREFIX[def.kind];
+  if (!def.id.startsWith(prefix)) {
+    throw new RegistryError(
+      `control "${def.id}" of kind "${def.kind}" must start with "${prefix}"`,
+    );
+  }
+}
+
 function checkDefaultLegal(def: ControlDef): void {
   if (!legalStates(def).includes(def.default)) {
     throw new RegistryError(`control "${def.id}" default "${def.default}" is not a legal state`);
@@ -182,6 +200,7 @@ export function defineRegistry(input: {
   for (const spec of input.controls) {
     const def: ControlDef = Object.freeze({ ...spec });
     checkIdPattern(def.id);
+    checkKindPrefix(def);
     checkUniqueId(def.id, seen);
     checkDefaultLegal(def);
     checkRegionExists(def, regionIds);
