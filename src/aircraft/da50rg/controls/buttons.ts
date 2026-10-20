@@ -79,10 +79,10 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
     kind: 'momentary-button',
     label: 'STALL/GEAR TEST',
     region: 'landing_gear',
-    // Global 872, 649: 7 units right of the UI-SPEC centre (within the 8-unit tolerance) so the
-    // STALL TEST caption clears the left leg of the LANDING GEAR bracket header.
+    // Global 872, 686 (G-2): below the speed line under the LANDING GEAR heading, in the lamp
+    // block; 7 units right of the UI-SPEC centre so the STALL TEST caption clears the bracket.
     x: 36,
-    y: 74,
+    y: 111,
     hit: { w: 56, h: 30 },
     states: [
       { id: 'neutral', label: 'NEUTRAL' },

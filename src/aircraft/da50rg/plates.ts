@@ -21,14 +21,16 @@ export const PLATES: readonly PlateDef[] = [
   // Enlarged upward from y 485 (G-5): FADEC and its label sit higher than the old plate top.
   { id: 'engine', x: 70, y: 474, w: 200, h: 141, rx: 8, regions: ['engine_controls'] },
   { id: 'strip-switch-row', x: 40, y: 620, w: 796, h: 125, rx: 8, regions: ['switch_bank'] },
-  // Raised so the gear knob in its UP position and the lamps lie on it; LEVEL (centre x 1099)
-  // lies fully on this plate and no seam crosses it (G-4, G-6).
+  // Raised to 580 so the gear lever footprint (top 581) and the GEAR name above the knob lie on
+  // it (G-2). The top left corner (x 836 to 873) then runs under the PFD bezel, which ends at
+  // 583: the shell draws this plate below the bezels so the bezel stays whole. LEVEL (centre
+  // x 1099) lies fully on this plate and no seam crosses it (G-4, G-6).
   {
     id: 'strip-gear',
     x: 836,
-    y: 585,
+    y: 580,
     w: 314,
-    h: 160,
+    h: 165,
     rx: 8,
     regions: ['landing_gear', 'level'],
   },
@@ -45,3 +47,10 @@ export const PLATES: readonly PlateDef[] = [
   },
   { id: 'environmental', x: 962, y: 764, w: 201, h: 250, rx: 18, regions: ['env_control'] },
 ];
+
+/**
+ * Vertical order of the landing gear block (owner finding G-2): the heading LANDING GEAR, the
+ * speed line VLE / VLO = 162 KIAS directly under it, then the lamps and the STALL TEST / GEAR
+ * TEST toggle. Baselines in the 2000 x 1300 space; one source for the shell and the tests.
+ */
+export const GEAR_BLOCK = { headingY: 640, speedLineY: 654 } as const;

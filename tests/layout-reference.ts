@@ -53,7 +53,7 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'sw.elect_master', x: 656, y: 664, tol: 3, review: false },
   { id: 'sw.av_master', x: 731, y: 664, tol: 3, review: false },
   { id: 'sw.pitot_stall_heat', x: 801, y: 664, tol: 3, review: true },
-  { id: 'btn.stall_gear_test', x: 865, y: 649, tol: 8, review: true },
+  { id: 'btn.stall_gear_test', x: 872, y: 686, tol: 8, review: true },
   { id: 'lv.gear', x: 997, y: 656.5, tol: 3, review: false },
   { id: 'btn.level', x: 1099, y: 674, tol: 3, review: true },
   { id: 'sw.mfd_page', x: 1288, y: 589, tol: 3, review: false },
@@ -73,10 +73,10 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
 
 /** The seven derived lamps; they resolve once plan 01.1-04 adds them. */
 export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
-  { id: 'lt.gear_nose', x: 916, y: 660, tol: 8, review: true },
-  { id: 'lt.gear_left', x: 894, y: 689, tol: 8, review: true },
-  { id: 'lt.gear_right', x: 936, y: 690, tol: 8, review: true },
-  { id: 'lt.gear_unsafe', x: 860, y: 688, tol: 8, review: true },
+  { id: 'lt.gear_nose', x: 916, y: 682, tol: 8, review: true },
+  { id: 'lt.gear_left', x: 894, y: 714, tol: 8, review: true },
+  { id: 'lt.gear_right', x: 936, y: 714, tol: 8, review: true },
+  { id: 'lt.gear_unsafe', x: 860, y: 714, tol: 8, review: true },
   { id: 'lt.flap_up', x: 1278, y: 629, tol: 8, review: true },
   { id: 'lt.flap_to', x: 1274, y: 660, tol: 8, review: true },
   { id: 'lt.flap_ldg', x: 1263, y: 689, tol: 8, review: true },

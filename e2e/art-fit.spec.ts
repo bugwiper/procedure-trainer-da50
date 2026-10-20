@@ -8,12 +8,11 @@ import type { Page } from '@playwright/test';
 
 /**
  * Regions the gate does not fail yet because a later plan rebuilds them; each plan removes its
- * entry. landing_gear (17), right_panel (18), pedestal (19), env_control (20), deice (21),
+ * entry. right_panel (18), pedestal (19), env_control (20), deice (21),
  * deice_switches (22).
  */
 const KNOWN_OPEN: readonly string[] = [
-  // Rebuilt by plans 17 to 22.
-  'landing_gear',
+  // Rebuilt by plans 18 to 22.
   'right_panel',
   'pedestal',
   'env_control',

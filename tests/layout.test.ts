@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
-import { PLATES } from '../src/aircraft/da50rg/plates';
+import { GEAR_BLOCK, PLATES } from '../src/aircraft/da50rg/plates';
 import { BEZEL_EXTRA } from '../src/engine/indicators';
 import type { ControlDef, Rect } from '../src/engine/registry';
 import {
@@ -323,6 +323,67 @@ describe('background clearance for region tap (PNL-09)', () => {
   });
 });
 
+// Owner finding G-2: the landing gear block reads heading, speed line, then lamps and toggle,
+// all on the gear plate and inside the landing_gear region. Glyph tops use 0.7 of the font size.
+describe('landing gear block order (G-2)', () => {
+  const CAP = 0.7;
+  const gearRegion = (): Rect => regionBounds('landing_gear');
+  const plate = (): Rect => {
+    const p = PLATES.find((q) => q.id === 'strip-gear');
+    if (p === undefined) throw new Error('no strip-gear plate');
+    return { x: p.x, y: p.y, w: p.w, h: p.h };
+  };
+  const lamps = () => DA50RG_INDICATORS.indicators.filter((d) => d.region === 'landing_gear');
+  const toggle = () => {
+    const def = DA50RG.get('btn.stall_gear_test');
+    if (def === undefined) throw new Error('no toggle');
+    return def;
+  };
+
+  it('the heading sits above the speed line', () => {
+    expect(GEAR_BLOCK.headingY).toBeLessThan(GEAR_BLOCK.speedLineY);
+  });
+
+  it('the speed line lies above every lamp caption and the toggle captions', () => {
+    const tops: [string, number][] = [];
+    for (const d of lamps()) {
+      const g = globalCentre(d);
+      tops.push([d.id, g.y - (d.r + BEZEL_EXTRA + 3) - 6 * CAP]);
+    }
+    const t = globalCentre(toggle());
+    tops.push(['toggle captions', t.y - toggle().hit.h / 2 - 8 - 6 * CAP]);
+    for (const [name, top] of tops) {
+      expect(GEAR_BLOCK.speedLineY, name).toBeLessThan(top);
+    }
+  });
+
+  it('every lamp bezel and caption and the toggle with its captions lie in plate and region', () => {
+    const boxes: [string, Rect][] = [];
+    for (const d of lamps()) {
+      const g = globalCentre(d);
+      const reach = d.r + BEZEL_EXTRA;
+      boxes.push([d.id, { x: g.x - 14, y: g.y - reach - 9, w: 28, h: 2 * reach + 9 }]);
+    }
+    const t = globalCentre(toggle());
+    const h = toggle().hit;
+    boxes.push(['toggle', { x: t.x - h.w / 2, y: t.y - h.h / 2 - 15, w: h.w, h: h.h + 15 }]);
+    for (const [name, box] of boxes) {
+      expect(inside(box, plate()), `${name} in plate`).toBe(true);
+      expect(inside(box, gearRegion()), `${name} in region`).toBe(true);
+    }
+  });
+
+  it('the NO SMOKING placard overlaps no lamp', () => {
+    const placard: Rect = { x: 965, y: 725, w: 64, h: 14 };
+    for (const d of lamps()) {
+      const g = globalCentre(d);
+      const reach = d.r + BEZEL_EXTRA;
+      const lamp: Rect = { x: g.x - reach, y: g.y - reach, w: 2 * reach, h: 2 * reach };
+      expect(overlaps(lamp, placard), d.id).toBe(false);
+    }
+  });
+});
+
 describe('reference ordering (PNL-08, D-19)', () => {
   for (const [a, relation, b] of ORDERING) {
     const sa = subject(a);
@@ -378,9 +439,8 @@ describe('inventory complete', () => {
 // are fixed by enlarging the plate or the region, never by shrinking a tap target.
 describe('plates', () => {
   const BEZEL_GROW = 16;
-  /** Regions rebuilt by plans 17 to 22; their footprints are checked once those plans land. */
+  /** Regions rebuilt by plans 18 to 22; their footprints are checked once those plans land. */
   const FOOTPRINT_KNOWN_OPEN: readonly string[] = [
-    'landing_gear',
     'right_panel',
     'env_control',
     'deice',
@@ -421,7 +481,17 @@ describe('plates', () => {
         w: b.w + 2 * BEZEL_GROW,
         h: b.h + 2 * BEZEL_GROW,
       };
-      for (const p of PLATES) expect(overlaps(rectOf(p), bezel), `${p.id} / ${id}`).toBe(false);
+      for (const p of PLATES) {
+        // The gear plate runs under the PFD bezel corner (the shell draws it below the bezel,
+        // G-2): allowed for that one pair, and only as a sliver of at most 4 units.
+        if (p.id === 'strip-gear' && id === 'pfd') {
+          expect(p.y + 4, 'strip-gear sliver under the PFD bezel').toBeGreaterThanOrEqual(
+            bezel.y + bezel.h,
+          );
+          continue;
+        }
+        expect(overlaps(rectOf(p), bezel), `${p.id} / ${id}`).toBe(false);
+      }
     }
   });
 

@@ -1,5 +1,5 @@
 import type { Registry } from '../../engine/registry';
-import { PLATES } from '../../aircraft/da50rg/plates';
+import { GEAR_BLOCK, PLATES } from '../../aircraft/da50rg/plates';
 import type { PlateDef } from '../../aircraft/da50rg/plates';
 import { paint } from './Defs';
 
@@ -243,12 +243,11 @@ function CentreStack() {
   );
 }
 
-/** Layer 9: the three plates of the lower switch strip and their engraved placards. */
+/** Layer 9: the plates of the lower switch strip (the gear plate is drawn under the bezels) and their engraved placards. */
 function SwitchStrips() {
   return (
     <g data-shell="switch-strips">
       <Plate id="strip-switch-row" />
-      <Plate id="strip-gear" />
       <Plate id="strip-flaps" />
       {/* LANDING GEAR bracket header over the gear cluster, speed line under it. */}
       <path
@@ -258,10 +257,10 @@ function SwitchStrips() {
         stroke-opacity={0.6}
         stroke-width={1}
       />
-      <text x={916} y={640} text-anchor="middle" font-size={8} fill={LEGEND}>
+      <text x={916} y={GEAR_BLOCK.headingY} text-anchor="middle" font-size={8} fill={LEGEND}>
         LANDING GEAR
       </text>
-      <text x={916} y={733} text-anchor="middle" font-size={6} fill={LEGEND}>
+      <text x={916} y={GEAR_BLOCK.speedLineY} text-anchor="middle" font-size={6} fill={LEGEND}>
         VLE / VLO = 162 KIAS
       </text>
       {/* ESS BUS placard left of the ESS BUS slot (slot x 572). */}
@@ -387,6 +386,8 @@ export function PanelShell({ registry }: { registry: Registry }) {
       <FacePlate />
       <Coaming />
       <LightsRecess />
+      {/* The gear plate runs a few units under the PFD bezel corner; drawn first so the bezel stays whole. */}
+      <Plate id="strip-gear" />
       {pfd === undefined ? null : <DisplayBezel {...pfd.bounds} />}
       {mfd === undefined ? null : <DisplayBezel {...mfd.bounds} />}
       <CentreStack />
