@@ -71,8 +71,9 @@ export const REGIONS: readonly RegionDef[] = [
     bounds: { x: 1010, y: 190, w: 150, h: 100 },
   },
   { id: 'mfd', name: 'MFD', bounds: { x: 1269, y: 200, w: 495, h: 367 } },
-  // The softkey strip under the MFD screen.
-  { id: 'mfd_softkeys', name: 'MFD SOFTKEYS', bounds: { x: 1262, y: 570, w: 510, h: 42 } },
+  // The softkey strip under the MFD screen. Ends at 608, one unit under the softkey (G-4: the
+  // flap region above it grew upward by 5).
+  { id: 'mfd_softkeys', name: 'MFD SOFTKEYS', bounds: { x: 1262, y: 570, w: 510, h: 38 } },
   // Under the left column and the PFD.
   { id: 'switch_bank', name: 'SWITCH ROW', bounds: { x: 70, y: 625, w: 764, h: 80 } },
   // Gear lever, gear lamps and the STALL/GEAR TEST part.
@@ -80,7 +81,7 @@ export const REGIONS: readonly RegionDef[] = [
   // The LEVEL button between the gear and flap blocks.
   { id: 'level', name: 'LEVEL', bounds: { x: 1076, y: 635, w: 48, h: 80 } },
   // Below the MFD, right of centre: flap lever and flap lamps.
-  { id: 'flaps', name: 'FLAPS', bounds: { x: 1190, y: 613, w: 250, h: 127 } },
+  { id: 'flaps', name: 'FLAPS', bounds: { x: 1190, y: 608, w: 250, h: 132 } },
   // ELT, lower right.
   { id: 'right_panel', name: 'RIGHT PANEL', bounds: { x: 1720, y: 613, w: 120, h: 107 } },
   // Under the panel: left of the pilot's left knee.

@@ -243,12 +243,13 @@ function CentreStack() {
   );
 }
 
-/** Layer 9: the two plates of the lower switch strip and their engraved placards. */
+/** Layer 9: the three plates of the lower switch strip and their engraved placards. */
 function SwitchStrips() {
   return (
     <g data-shell="switch-strips">
-      <Plate id="strip-left" />
-      <Plate id="strip-right" />
+      <Plate id="strip-switch-row" />
+      <Plate id="strip-gear" />
+      <Plate id="strip-flaps" />
       {/* LANDING GEAR bracket header over the gear cluster, speed line under it. */}
       <path
         d="M846 646 V630 H986 V646"

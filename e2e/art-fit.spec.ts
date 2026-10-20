@@ -19,14 +19,15 @@ const KNOWN_OPEN: readonly string[] = [
   'env_control',
   'deice',
   'deice_switches',
-  // Fixed by tasks 2 and 3 of plan 16, then removed from this list.
-  'level',
-  'flaps',
+  // Fixed by task 3 of plan 16, then removed from this list.
   'light_knobs',
   'switch_bank',
   'under_panel_centre',
   'under_panel_right',
 ];
+
+/** ART_FIT_STRICT=1 also checks the known-open regions, to see what a rebuild still has to fix. */
+const STRICT = process.env['ART_FIT_STRICT'] === '1';
 
 const TOLERANCE = 0.75;
 
@@ -48,6 +49,7 @@ interface PanelGeometry {
   readonly frames: Readonly<Record<string, Box>>;
   readonly plates: readonly { id: string; regions: string[]; box: Box }[];
   readonly painted: readonly Painted[];
+  readonly wordmark: Box | null;
 }
 
 test.beforeEach(async ({ page }, testInfo) => {
@@ -101,7 +103,8 @@ async function readGeometry(page: Page): Promise<PanelGeometry> {
       regions: (el.getAttribute('data-plate-regions') ?? '').split(' ').filter((r) => r !== ''),
       box: toBox(el),
     }));
-    return { frames, plates, painted };
+    const mark = svg.querySelector('[data-shell="wordmark"]');
+    return { frames, plates, painted, wordmark: mark === null ? null : toBox(mark) };
   });
 }
 
@@ -126,7 +129,7 @@ test('the art of every region lies inside its region and its plate', async ({ pa
   expect(geo.painted.length).toBeGreaterThan(100);
   for (const item of geo.painted) {
     if (item.region === 'pfd' || item.region === 'mfd') continue;
-    if (KNOWN_OPEN.includes(item.region)) continue;
+    if (!STRICT && KNOWN_OPEN.includes(item.region)) continue;
     const frame = geo.frames[item.region];
     if (frame === undefined) continue;
     const region = outside(item.box, frame);
@@ -144,4 +147,21 @@ test('the art of every region lies inside its region and its plate', async ({ pa
     }
   }
   expect(failures).toEqual([]);
+});
+
+test('the RUBIN mark and the LEVEL button lie on one plate and no plate seam crosses them', async ({
+  page,
+}) => {
+  const geo = await readGeometry(page);
+  const flaps = geo.plates.find((p) => p.id === 'strip-flaps');
+  const gear = geo.plates.find((p) => p.id === 'strip-gear');
+  if (flaps === undefined || gear === undefined) throw new Error('strip plates missing');
+  if (geo.wordmark === null) throw new Error('no wordmark');
+  expect(outside(geo.wordmark, flaps.box), 'RUBIN mark on strip-flaps').toBeNull();
+
+  const level = geo.painted.filter((p) => p.region === 'level');
+  expect(level.length).toBeGreaterThan(0);
+  for (const item of level) {
+    expect(outside(item.box, gear.box), `level ${item.tag} "${item.text}"`).toBeNull();
+  }
 });

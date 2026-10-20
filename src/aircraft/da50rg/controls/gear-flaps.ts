@@ -31,7 +31,7 @@ export const GEAR_FLAPS_CONTROLS: readonly ControlSpec[] = [
     label: 'FLAPS',
     region: 'flaps',
     x: 176, // global 1366, 670.5 (region widened to the left for the flap lamps)
-    y: 57.5,
+    y: 62.5, // global 670.5; the flaps region grew 5 upward (G-4)
     hit: { w: 60, h: 115 },
     // FLAPS travel is short on the real panel.
     track: { length: 79, axis: 'v' },

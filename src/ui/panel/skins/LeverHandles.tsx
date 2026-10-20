@@ -40,7 +40,7 @@ export interface SkinArt {
 
 export const LEVER_ART: Readonly<Record<LeverSkin, SkinArt>> = {
   'gear-knob': { along: 22, across: 22, under: 17, tick: 9, tickColour: '#6b7580' },
-  'flaps-block': { along: 18, across: 27, tick: 27, tickColour: '#4a525c' },
+  'flaps-block': { along: 18, across: 27, nameInset: 6.5, tick: 27, tickColour: '#4a525c' },
   'bat-small': { along: 8, across: 7, tick: 7, tickColour: '#6b7580' },
   'pull-t': { along: 11, across: 11, tick: 8, tickColour: '#6b7580' },
   'pull-tab': { along: 20, across: 7, nameInset: 2, tick: 8, tickColour: '#6b7580' },

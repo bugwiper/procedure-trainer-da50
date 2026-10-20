@@ -385,9 +385,6 @@ describe('plates', () => {
     'env_control',
     'deice',
     'deice_switches',
-    // Fixed by task 2 of plan 16, then removed from this list.
-    'level',
-    'flaps',
   ];
 
   const rectOf = (p: { x: number; y: number; w: number; h: number }): Rect => ({
