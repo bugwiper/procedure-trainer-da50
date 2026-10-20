@@ -160,3 +160,29 @@ test('@hooks a drag back to the starting detent appends no event and a drag to a
   );
   expect(events.map((e) => [e.id, e.value])).toEqual([['lv.power', 'p90']]);
 });
+
+test('levers open in the in-flight configuration', async ({ page }) => {
+  await expect(control(page, 'lv.gear')).toHaveAttribute('data-state', 'up');
+  await expect(control(page, 'lv.flaps')).toHaveAttribute('data-state', 'up');
+  await expect(control(page, 'lv.cowl_flap')).toHaveAttribute('data-state', 'closed');
+});
+
+test('every lever marker is reachable by tap', async ({ page, hasTouch }) => {
+  const ids = await page
+    .locator('[data-kind="detent-lever"]')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-control-id') ?? ''));
+  expect(ids.length).toBeGreaterThanOrEqual(4);
+  for (const id of ids) {
+    const targets = await page
+      .locator(`[data-detent^="${id}:"]`)
+      .evaluateAll((els) => els.map((el) => el.getAttribute('data-detent') ?? ''));
+    // Drag-only levers have no tap targets and so no iterations here.
+    for (const target of targets) {
+      const detent = target.slice(id.length + 1);
+      const group = control(page, id);
+      if ((await group.getAttribute('data-state')) === detent) continue;
+      await activate(page.locator(`[data-detent="${target}"]`), hasTouch);
+      await expect(group, target).toHaveAttribute('data-state', detent);
+    }
+  }
+});

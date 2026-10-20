@@ -14,6 +14,7 @@ import { defineRegistry } from '../../engine/registry';
 import type { RegionDef, Size } from '../../engine/registry';
 import { ENGINE_CONTROLS } from './controls/engine';
 import { MFD_CONTROLS } from './controls/mfd';
+import { GEAR_FLAPS_CONTROLS } from './controls/gear-flaps';
 import { PEDESTAL_CONTROLS } from './controls/pedestal';
 import { SWITCH_BANK_CONTROLS } from './controls/switch-bank';
 
@@ -67,5 +68,11 @@ export const DA50RG = defineRegistry({
   viewBox: VIEWBOX,
   regions: REGIONS,
   // Plans 05 and 07 append their control lists here.
-  controls: [...ENGINE_CONTROLS, ...SWITCH_BANK_CONTROLS, ...MFD_CONTROLS, ...PEDESTAL_CONTROLS],
+  controls: [
+    ...ENGINE_CONTROLS,
+    ...SWITCH_BANK_CONTROLS,
+    ...MFD_CONTROLS,
+    ...PEDESTAL_CONTROLS,
+    ...GEAR_FLAPS_CONTROLS,
+  ],
 });

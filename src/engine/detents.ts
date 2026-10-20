@@ -9,6 +9,7 @@ import type { DetentDef, DetentLeverDef, StateId } from './registry';
  * declared detent.
  */
 export function snapToDetent(pos: number, detents: readonly DetentDef[]): StateId {
+  if (!Number.isFinite(pos)) throw new RangeError(`lever position must be finite (got ${pos})`);
   let best: DetentDef | undefined;
   let bestDistance = Infinity;
   for (const d of detents) {

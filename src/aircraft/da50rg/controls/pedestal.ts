@@ -27,4 +27,20 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     markers: ['p0', 'p50', 'p100'],
     default: 'p70', // cruise load, D-07d in-flight default
   },
+  {
+    // Aft of POWER, left of the centreline; OPEN is fore, as on the real pedestal.
+    id: 'lv.cowl_flap',
+    kind: 'detent-lever',
+    label: 'COWL FLAP',
+    region: 'pedestal',
+    x: 53,
+    y: 290,
+    hit: { w: 60, h: 133 },
+    track: { length: 77, axis: 'v' },
+    detents: [
+      { id: 'closed', label: 'CLOSED', pos: 0 },
+      { id: 'open', label: 'OPEN', pos: 1 },
+    ],
+    default: 'closed', // cruise setting assumed (D-07d)
+  },
 ];
