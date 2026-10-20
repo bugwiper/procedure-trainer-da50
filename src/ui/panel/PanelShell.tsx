@@ -1,4 +1,6 @@
 import type { Registry } from '../../engine/registry';
+import { PLATES } from '../../aircraft/da50rg/plates';
+import type { PlateDef } from '../../aircraft/da50rg/plates';
 import { paint } from './Defs';
 
 // Static shell art under all regions (UI-SPEC "Panel Surface", D-01, D-02, D-06). Original flat
@@ -15,6 +17,31 @@ const PLATE = '#17191d';
 // Letter spacing is a style because the `.panel-svg text` CSS rule would override the attribute.
 const TRACK_BEZEL = 'letter-spacing:0.2em';
 const TRACK_WORDMARK = 'letter-spacing:0.3em';
+
+const PLATE_FILLS: Readonly<Record<string, string>> = {
+  'lights-recess': BEZEL_FILL,
+  'centre-stack': '#101215',
+  environmental: '#1f2226',
+};
+
+/** One visible plate drawn from the plate data (owner finding G-0.5). */
+function Plate({ id }: { id: string }) {
+  const plate: PlateDef | undefined = PLATES.find((p) => p.id === id);
+  if (plate === undefined) return null;
+  return (
+    <rect
+      data-plate={plate.id}
+      data-plate-regions={plate.regions.join(' ')}
+      x={plate.x}
+      y={plate.y}
+      width={plate.w}
+      height={plate.h}
+      rx={plate.rx}
+      fill={PLATE_FILLS[plate.id] ?? PLATE}
+      stroke={RIM}
+    />
+  );
+}
 
 /** Layer 2: dark knee cavity under the face plate, the console body stands on it. */
 function KneeCavity() {
@@ -156,7 +183,7 @@ function ConsoleBody() {
 function EnvironmentalPlate() {
   return (
     <g data-shell="environmental-plate">
-      <rect x={962} y={764} width={201} height={250} rx={18} fill="#1f2226" stroke={RIM} />
+      <Plate id="environmental" />
       <text x={1062} y={782} text-anchor="middle" font-size={8} fill={LEGEND}>
         ENVIRONMENTAL CONTROL
       </text>
@@ -168,7 +195,7 @@ function EnvironmentalPlate() {
 function LightsRecess() {
   return (
     <g data-shell="lights-recess">
-      <rect x={940} y={36} width={360} height={134} rx={12} fill={BEZEL_FILL} stroke={RIM} />
+      <Plate id="lights-recess" />
       <path
         d="M956 56 V52 H1088 M1152 52 H1284 V56"
         fill="none"
@@ -208,7 +235,7 @@ function ReservedOutline({ x, y, w, h }: { x: number; y: number; w: number; h: n
 function CentreStack() {
   return (
     <g data-shell="centre-stack">
-      <rect x={880} y={185} width={360} height={375} rx={8} fill="#101215" stroke={RIM} />
+      <Plate id="centre-stack" />
       <ReservedOutline x={892} y={300} w={76} h={248} />
       <ReservedOutline x={982} y={300} w={156} h={140} />
       <ReservedOutline x={1152} y={300} w={76} h={248} />
@@ -220,8 +247,8 @@ function CentreStack() {
 function SwitchStrips() {
   return (
     <g data-shell="switch-strips">
-      <rect x={40} y={625} width={1060} height={120} rx={8} fill={PLATE} stroke={RIM} />
-      <rect x={1100} y={625} width={730} height={120} rx={8} fill={PLATE} stroke={RIM} />
+      <Plate id="strip-left" />
+      <Plate id="strip-right" />
       {/* LANDING GEAR bracket header over the gear cluster, speed line under it. */}
       <path
         d="M846 646 V630 H986 V646"
@@ -293,8 +320,8 @@ function BusPanel() {
 function LeftStrip() {
   return (
     <g data-shell="left-strip">
-      <rect x={70} y={265} width={200} height={205} rx={8} fill={PLATE} stroke={RIM} />
-      <rect x={70} y={485} width={200} height={130} rx={8} fill={PLATE} stroke={RIM} />
+      <Plate id="deice" />
+      <Plate id="engine" />
       <g data-shell="vent">
         <circle cx={60} cy={700} r={28} fill="#0a0b0d" stroke={RIM} stroke-width={1} />
         {[21, 14, 7].map((r) => (

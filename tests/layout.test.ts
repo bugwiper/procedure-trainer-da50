@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
+import { PLATES } from '../src/aircraft/da50rg/plates';
 import { BEZEL_EXTRA } from '../src/engine/indicators';
 import type { ControlDef, Rect } from '../src/engine/registry';
 import {
@@ -370,5 +371,91 @@ describe('inventory complete', () => {
         expect(subject(b), `${a} ${relation} ${b} (object)`).toBeDefined();
       }
     }
+  });
+});
+
+// Plates (owner finding G-0.5): the dark plates seen on screen are data. Parts that do not fit
+// are fixed by enlarging the plate or the region, never by shrinking a tap target.
+describe('plates', () => {
+  const BEZEL_GROW = 16;
+  /** Regions rebuilt by plans 17 to 22; their footprints are checked once those plans land. */
+  const FOOTPRINT_KNOWN_OPEN: readonly string[] = [
+    'landing_gear',
+    'right_panel',
+    'env_control',
+    'deice',
+    'deice_switches',
+    // Fixed by task 2 of plan 16, then removed from this list.
+    'level',
+    'flaps',
+  ];
+
+  const rectOf = (p: { x: number; y: number; w: number; h: number }): Rect => ({
+    x: p.x,
+    y: p.y,
+    w: p.w,
+    h: p.h,
+  });
+
+  it('plate ids are unique and every plate lies inside the viewBox', () => {
+    const ids = PLATES.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const box: Rect = { x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h };
+    for (const p of PLATES) expect(inside(rectOf(p), box), p.id).toBe(true);
+  });
+
+  it('no two plates overlap with positive area', () => {
+    for (let i = 0; i < PLATES.length; i++) {
+      for (let j = i + 1; j < PLATES.length; j++) {
+        const a = PLATES[i];
+        const b = PLATES[j];
+        if (a === undefined || b === undefined) continue;
+        expect(overlaps(rectOf(a), rectOf(b)), `${a.id} / ${b.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('no plate overlaps the PFD or MFD bezel (region grown by 16)', () => {
+    for (const id of ['pfd', 'mfd']) {
+      const b = regionBounds(id);
+      const bezel: Rect = {
+        x: b.x - BEZEL_GROW,
+        y: b.y - BEZEL_GROW,
+        w: b.w + 2 * BEZEL_GROW,
+        h: b.h + 2 * BEZEL_GROW,
+      };
+      for (const p of PLATES) expect(overlaps(rectOf(p), bezel), `${p.id} / ${id}`).toBe(false);
+    }
+  });
+
+  it('every region a plate names exists and is carried by one plate only', () => {
+    const seen = new Set<string>();
+    for (const p of PLATES) {
+      for (const id of p.regions) {
+        expect(
+          DA50RG.regions.some((r) => r.id === id),
+          `${p.id} names ${id}`,
+        ).toBe(true);
+        expect(seen.has(id), `${id} on two plates`).toBe(false);
+        seen.add(id);
+      }
+    }
+  });
+
+  it('every control footprint of a carried region lies inside its plate', () => {
+    const offenders: string[] = [];
+    for (const p of PLATES) {
+      for (const id of p.regions) {
+        if (FOOTPRINT_KNOWN_OPEN.includes(id)) continue;
+        const b = regionBounds(id);
+        for (const def of DA50RG.controls) {
+          if (def.region !== id) continue;
+          const f = footprint(def);
+          const global: Rect = { x: b.x + f.x, y: b.y + f.y, w: f.w, h: f.h };
+          if (!inside(global, rectOf(p))) offenders.push(`${def.id} on plate ${p.id}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });
