@@ -10,6 +10,7 @@ const BEZEL_GROW = 16;
 const BEZEL_FILL = '#0c0d0f';
 const RIM = '#2d3138';
 const LEGEND = '#c9d0d8';
+const PLATE = '#17191d';
 
 // Letter spacing is a style because the `.panel-svg text` CSS rule would override the attribute.
 const TRACK_BEZEL = 'letter-spacing:0.2em';
@@ -125,6 +126,228 @@ function Wordmark() {
   );
 }
 
+/**
+ * Layer 4: console body x 937..1188 from y 745 down, darker leather side walls and white
+ * stitching dashed 3 2 at 45 percent, inset 8.
+ */
+function ConsoleBody() {
+  return (
+    <g data-shell="console">
+      <rect x={937} y={745} width={251} height={555} rx={18} fill={paint('g-console')} />
+      <rect x={937} y={763} width={14} height={537} fill="#101215" />
+      <rect x={1174} y={763} width={14} height={537} fill="#101215" />
+      <rect
+        x={945}
+        y={753}
+        width={235}
+        height={539}
+        rx={12}
+        fill="none"
+        stroke="#cfd3d8"
+        stroke-opacity={0.45}
+        stroke-width={1}
+        stroke-dasharray="3 2"
+      />
+    </g>
+  );
+}
+
+/** Environmental-control plate on the console top (plain plate, the sliders are widgets). */
+function EnvironmentalPlate() {
+  return (
+    <g data-shell="environmental-plate">
+      <rect x={962} y={764} width={201} height={250} rx={18} fill="#1f2226" stroke={RIM} />
+      <text x={1062} y={782} text-anchor="middle" font-size={8} fill={LEGEND}>
+        ENVIRONMENTAL CONTROL
+      </text>
+    </g>
+  );
+}
+
+/** Layer 6: lights recess inside the hump, LIGHTS heading at y 56 with a bracket line each side. */
+function LightsRecess() {
+  return (
+    <g data-shell="lights-recess">
+      <rect x={940} y={36} width={360} height={134} rx={12} fill={BEZEL_FILL} stroke={RIM} />
+      <path
+        d="M956 56 V52 H1088 M1152 52 H1284 V56"
+        fill="none"
+        stroke={LEGEND}
+        stroke-opacity={0.6}
+        stroke-width={1}
+      />
+      <text x={1120} y={56} text-anchor="middle" font-size={8} fill={LEGEND}>
+        LIGHTS
+      </text>
+    </g>
+  );
+}
+
+/** One plain recessed outline that reserves the space of a Phase 01.2 avionics unit. */
+function ReservedOutline({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  return (
+    <rect
+      data-shell="reserved-outline"
+      x={x}
+      y={y}
+      width={w}
+      height={h}
+      rx={4}
+      fill="#0b0c0e"
+      stroke={RIM}
+      stroke-width={1}
+    />
+  );
+}
+
+/**
+ * Layer 8: centre stack plate x 880..1240, y 185..560. The audio panel column, the standby
+ * instrument and the autopilot column are outlines only (Phase 01.2 draws them); they start
+ * below the two dimmer knobs (y 300).
+ */
+function CentreStack() {
+  return (
+    <g data-shell="centre-stack">
+      <rect x={880} y={185} width={360} height={375} rx={8} fill="#101215" stroke={RIM} />
+      <ReservedOutline x={892} y={300} w={76} h={248} />
+      <ReservedOutline x={982} y={300} w={156} h={140} />
+      <ReservedOutline x={1152} y={300} w={76} h={248} />
+    </g>
+  );
+}
+
+/** Layer 9: the two plates of the lower switch strip and their engraved placards. */
+function SwitchStrips() {
+  return (
+    <g data-shell="switch-strips">
+      <rect x={40} y={625} width={1060} height={120} rx={8} fill={PLATE} stroke={RIM} />
+      <rect x={1100} y={625} width={730} height={120} rx={8} fill={PLATE} stroke={RIM} />
+      {/* LANDING GEAR bracket header over the gear cluster, speed line under it. */}
+      <path
+        d="M846 646 V630 H986 V646"
+        fill="none"
+        stroke={LEGEND}
+        stroke-opacity={0.6}
+        stroke-width={1}
+      />
+      <text x={916} y={640} text-anchor="middle" font-size={8} fill={LEGEND}>
+        LANDING GEAR
+      </text>
+      <text x={916} y={733} text-anchor="middle" font-size={6} fill={LEGEND}>
+        VLE / VLO = 162 KIAS
+      </text>
+      {/* ESS BUS placard left of the ESS BUS slot (slot x 572). */}
+      <g data-shell="ess-bus-placard" fill={LEGEND} text-anchor="middle">
+        <text x={521} y={650} font-size={6}>
+          ESS BUS
+        </text>
+        <text x={521} y={657} font-size={6}>
+          NOT FOR
+        </text>
+        <text x={521} y={664} font-size={6}>
+          NORMAL
+        </text>
+        <text x={521} y={671} font-size={6}>
+          OPERATION
+        </text>
+      </g>
+    </g>
+  );
+}
+
+/** One bracket outline of the right bus panel with its heading. */
+function BusBracket({ y, h, title }: { y: number; h: number; title: string }) {
+  return (
+    <g data-shell="bus-bracket">
+      <rect
+        x={1810}
+        y={y}
+        width={160}
+        height={h}
+        rx={4}
+        fill="none"
+        stroke={LEGEND}
+        stroke-opacity={0.4}
+        stroke-width={1}
+      />
+      <text x={1890} y={y + 14} text-anchor="middle" font-size={8} fill={LEGEND}>
+        {title}
+      </text>
+    </g>
+  );
+}
+
+/** Layer 10: bus panel x 1800..1980. Bracket outlines and headings only (breakers: PNL-12). */
+function BusPanel() {
+  return (
+    <g data-shell="bus-panel">
+      <rect x={1800} y={215} width={180} height={530} rx={8} fill="#15171a" stroke={RIM} />
+      <BusBracket y={225} h={140} title="ESSENTIAL BUS" />
+      <BusBracket y={375} h={190} title="MAIN BUS" />
+      <BusBracket y={575} h={160} title="AVIONICS BUS" />
+    </g>
+  );
+}
+
+/** Layer 11: de-ice and engine plates of the left strip and the static vent. */
+function LeftStrip() {
+  return (
+    <g data-shell="left-strip">
+      <rect x={70} y={265} width={200} height={205} rx={8} fill={PLATE} stroke={RIM} />
+      <rect x={70} y={485} width={200} height={130} rx={8} fill={PLATE} stroke={RIM} />
+      <g data-shell="vent">
+        <circle cx={60} cy={700} r={28} fill="#0a0b0d" stroke={RIM} stroke-width={1} />
+        {[21, 14, 7].map((r) => (
+          <circle
+            key={r}
+            data-shell="vent-ring"
+            cx={60}
+            cy={700}
+            r={r}
+            fill="none"
+            stroke={RIM}
+            stroke-width={1}
+          />
+        ))}
+      </g>
+    </g>
+  );
+}
+
+const FUEL_BARS: readonly { y: number; w: number }[] = [
+  { y: 648, w: 110 },
+  { y: 658, w: 88 },
+  { y: 668, w: 100 },
+  { y: 678, w: 76 },
+  { y: 688, w: 104 },
+];
+
+/** Layer 12: NO SMOKING placard outline and the fuel placard (decorative bars, no real text). */
+function StaticDecor() {
+  return (
+    <g data-shell="decor">
+      <rect
+        x={965}
+        y={725}
+        width={64}
+        height={14}
+        rx={2}
+        fill="none"
+        stroke={LEGEND}
+        stroke-opacity={0.6}
+        stroke-width={1}
+      />
+      <text x={997} y={735} text-anchor="middle" font-size={6} fill={LEGEND}>
+        NO SMOKING
+      </text>
+      <rect x={1560} y={640} width={140} height={60} rx={3} fill="#3b4047" stroke={RIM} />
+      {FUEL_BARS.map((bar) => (
+        <rect key={bar.y} x={1570} y={bar.y} width={bar.w} height={4} rx={1} fill="#5b626b" />
+      ))}
+    </g>
+  );
+}
+
 /** Pure static shell art layer; reads only the PFD and MFD bounds of the registry. */
 export function PanelShell({ registry }: { registry: Registry }) {
   const pfd = registry.regions.find((r) => r.id === 'pfd');
@@ -132,11 +355,19 @@ export function PanelShell({ registry }: { registry: Registry }) {
   return (
     <g data-layer="shell" pointer-events="none">
       <KneeCavity />
+      <ConsoleBody />
       <FacePlate />
       <Coaming />
-      <Nameplate />
+      <LightsRecess />
       {pfd === undefined ? null : <DisplayBezel {...pfd.bounds} />}
       {mfd === undefined ? null : <DisplayBezel {...mfd.bounds} />}
+      <CentreStack />
+      <SwitchStrips />
+      <BusPanel />
+      <LeftStrip />
+      <StaticDecor />
+      <EnvironmentalPlate />
+      <Nameplate />
       <Wordmark />
     </g>
   );
