@@ -43,8 +43,8 @@ duration: 25min
 completed: 2026-10-20
 status: complete
 commits: 2
-plan_head_before: e0678d246a64a76862472a45b8ce0370d6ec246d
-plan_head_after: 48f1f84cfebe687eed114496236d1de790a538b8
+plan_head_before: dbd1ed7c4be1cd49b9d6c9e43c1672832e9815d4
+plan_head_after: 8a024d18efb0b35bdf56c90092175edf40c1735d
 actuals:
   tokens: 17000
   tasks: 3
@@ -60,8 +60,8 @@ Pinned Vite 8 / Preact 11 / TS 6.0.3 stack with a BASE_PATH-only subpath product
 | Task | Name | Commit | Notes |
 | ---- | ---- | ------ | ----- |
 | 1 | Dependency legitimacy review | none | Checkpoint resolved by the user ("Approve all 14") in the orchestrator chat |
-| 2 | Tracer: subpath build renders panel stage | f4b25d1 | Smoke passes in all six projects |
-| 3 | Lint and format gates, purity boundary | 48f1f84 | Probe file triggered all three restricted-* rules, then removed |
+| 2 | Tracer: subpath build renders panel stage | 7981bc4 | Smoke passes in all six projects |
+| 3 | Lint and format gates, purity boundary | 8a024d1 | Probe file triggered all three restricted-* rules, then removed |
 
 ## Verification
 
@@ -80,7 +80,7 @@ Pinned Vite 8 / Preact 11 / TS 6.0.3 stack with a BASE_PATH-only subpath product
 - **Issue:** `prettier --write src tests e2e` exits 2 with "No files matching the pattern: tests" because no tests directory exists yet, which would also make `format:check` (required green in Task 3) fail. `vitest run` also fails with no test files by design (no passWithNoTests).
 - **Fix:** Added a small hygiene test asserting the exact viewport meta, absence of `viewport-fit`, and the `data:` favicon in index.html.
 - **Files modified:** tests/shell.test.ts
-- **Commit:** f4b25d1
+- **Commit:** 7981bc4
 
 The plan's `printf`-based boundary probe command was run as separate steps (write probe file, run eslint, remove file) to fit the sandbox command checks; the outcome is identical.
 
@@ -94,5 +94,5 @@ None.
 
 ## Self-Check: PASSED
 
-- All listed files exist; commits f4b25d1 and 48f1f84 are in the branch history.
+- All listed files exist; commits 7981bc4 and 8a024d1 are in the branch history.
 - No STATE.md or ROADMAP.md changes.

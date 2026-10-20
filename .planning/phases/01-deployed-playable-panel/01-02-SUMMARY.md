@@ -20,8 +20,8 @@ key-decisions:
 requirements-completed: [CNT-03]
 status: complete
 commits: 2
-plan_head_before: 12b09ab
-plan_head_after: 7ed451f
+plan_head_before: 990347b
+plan_head_after: 270622b
 actuals:
   tokens: 4000
   tasks: 3
@@ -38,9 +38,9 @@ AFM content policy (CNT-03) committed and linked from a new README, with the pro
 
 | Task | Name | Commit |
 | ---- | ---- | ------ |
-| 1 | Tracer: policy, README, hygiene gate | 75df789 |
+| 1 | Tracer: policy, README, hygiene gate | f6c3f77 |
 | 2 | Decision checkpoint: verbatim limit | no commit; resolved by the project owner (option-a: one checklist line, at most 12 words) |
-| 3 | Write the chosen limit into the policy | 7ed451f |
+| 3 | Write the chosen limit into the policy | 270622b |
 
 ## Outcome
 
@@ -73,4 +73,4 @@ None.
 ## Self-Check: PASSED
 
 - docs/CONTENT-POLICY.md and README.md exist
-- Commits 75df789 and 7ed451f exist on the branch
+- Commits f6c3f77 and 270622b exist on the branch

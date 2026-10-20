@@ -40,8 +40,8 @@ duration: 25min
 completed: 2026-10-20
 status: complete
 commits: 5
-plan_head_before: 0d0bd38ac23f6618757195fe1c78c7feff58c452
-plan_head_after: 6aa96f365c8d916ce6bbeaca2a210312157ac457
+plan_head_before: 931ae93b295d2214c55c62c42cfa46d6e11ec9ee
+plan_head_after: cdc40694ef3041feb85c12cdade94d8c6b651da1
 actuals:
   tokens: 9200
   tasks: 3
@@ -56,9 +56,9 @@ All seven DA50 RG levers are operable by mouse or finger at their real positions
 
 | Task | Name | Commits | Notes |
 | ---- | ---- | ------- | ----- |
-| 1 | Tracer: POWER by drag-and-snap and marker tap | 3a8d380 | typecheck, lint, layout gate, 17 passed / 13 skipped e2e |
-| 2 | Detent math test-first; COWL FLAP, GEAR, FLAPS | 7f5974a (RED), bb48791 (GREEN) | 29 passed / 13 skipped e2e; vitest 75 passed |
-| 3 | Under-panel levers, drag-only EMERGENCY GEAR EXTENSION | ec87142 (RED), 6aa96f3 (GREEN) | 50 passed / 22 skipped lever e2e; full suite 86 passed / 22 skipped |
+| 1 | Tracer: POWER by drag-and-snap and marker tap | 8d717fc | typecheck, lint, layout gate, 17 passed / 13 skipped e2e |
+| 2 | Detent math test-first; COWL FLAP, GEAR, FLAPS | 039ec0c (RED), ed6974e (GREEN) | 29 passed / 13 skipped e2e; vitest 75 passed |
+| 3 | Under-panel levers, drag-only EMERGENCY GEAR EXTENSION | 5c56a74 (RED), cdc4069 (GREEN) | 50 passed / 22 skipped lever e2e; full suite 86 passed / 22 skipped |
 
 ## What was built
 
@@ -83,7 +83,7 @@ All seven DA50 RG levers are operable by mouse or finger at their real positions
 - **Issue:** The label of the current detent was drawn beside the track right under the knob, so it read "OSED" and "RMAL".
 - **Fix:** Labels whose detent lies within half a knob (plus 3 units) of the handle are not drawn; the state text already names that detent.
 - **Files modified:** src/ui/panel/widgets/DetentLever.tsx
-- **Commit:** 6aa96f3
+- **Commit:** cdc4069
 
 **2. [Process note] RED commits are module-level failures**
 - The RED test commits fail because a module is missing (`gear-flaps`, `under-panel`) so the whole file errors, rather than individual assertions failing. For the RangeError rule, the tracer deliberately shipped `snapToDetent` without the finite check so Task 2 had a genuine behavioural GREEN step; both RED commits precede their GREEN commits in history.
@@ -103,5 +103,5 @@ None. T-01-13 (only committed detents reach the store; hook test counts events),
 
 ## Self-Check: PASSED
 
-- All created files exist; commits 3a8d380, 7f5974a, bb48791, ec87142 and 6aa96f3 are in the branch history.
+- All created files exist; commits 8d717fc, 039ec0c, ed6974e, 5c56a74 and cdc4069 are in the branch history.
 - No STATE.md or ROADMAP.md changes.

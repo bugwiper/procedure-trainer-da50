@@ -111,8 +111,8 @@ coverage:
 duration: 55min
 completed: 2026-10-20
 status: complete
-plan_head_before: 0d0bd38ac23f6618757195fe1c78c7feff58c452
-plan_head_after: bafb40f44fbde6dfd4e4603a6205e5085d8b2788
+plan_head_before: 931ae93b295d2214c55c62c42cfa46d6e11ec9ee
+plan_head_after: e324cac4f6b95015fff1fec2d64917adf5294b44
 commits: 3
 ---
 
@@ -135,9 +135,9 @@ commits: 3
 
 ## Task Commits
 
-1. Task 1 (tracer): MFD pages, gauges, Panel frame map - `72372b0`
-2. Task 2: PFD frame and B612 typography - `f1e0879`
-3. Task 3: About, rotate hint, layout gates - `bafb40f`
+1. Task 1 (tracer): MFD pages, gauges, Panel frame map - `84492db`
+2. Task 2: PFD frame and B612 typography - `0867d67`
+3. Task 3: About, rotate hint, layout gates - `e324cac`
 
 ## Verification
 
@@ -159,7 +159,7 @@ commits: 3
 **2. [Rule 1 - Bug] Escape key raced the dialog's effect registration**
 - **Found during:** Task 3
 - **Fix:** `useLayoutEffect` in About, and the spec waits for Close to be focused before pressing Escape
-- **Commit:** bafb40f
+- **Commit:** e324cac
 
 ### Plan interpretation notes
 
@@ -179,4 +179,4 @@ None. T-01-15 (no raw-HTML API under src, test-enforced), T-01-16 (self-hosted f
 ## Self-Check: PASSED
 
 - Files exist: MfdFrame, PfdFrame, ArcGauge, BarGauge, About, content-policy test, glass/about/layout specs
-- Commits found in history: 72372b0, f1e0879, bafb40f
+- Commits found in history: 84492db, 0867d67, e324cac

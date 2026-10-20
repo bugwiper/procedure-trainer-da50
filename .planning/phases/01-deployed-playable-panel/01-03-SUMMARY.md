@@ -49,8 +49,8 @@ duration: 35min
 completed: 2026-10-20
 status: complete
 commits: 2
-plan_head_before: f5411d3
-plan_head_after: e09e6a470bf7ed8058c21ba108ebbd59dfaeb8b0
+plan_head_before: 76960ab
+plan_head_after: b683e5b85cf7e1c150c67c55017b9b3d43c7ce20
 actuals:
   tokens: 30000
   tasks: 2
@@ -65,8 +65,8 @@ ENGINE MASTER and 12 further plain toggles are operable by mouse or tap, end to 
 
 | Task | Name | Commit | Notes |
 | ---- | ---- | ------ | ----- |
-| 1 | Tracer: ENGINE MASTER from registry to visible state | f8ae19f | typecheck, lint, 30 e2e tests green in all six projects |
-| 2 | Complete the toggle set and the layout gate | e09e6a4 | 36 e2e tests green; vitest 54 passed, 27 skipped |
+| 1 | Tracer: ENGINE MASTER from registry to visible state | 2a7b80b | typecheck, lint, 30 e2e tests green in all six projects |
+| 2 | Complete the toggle set and the layout gate | b683e5b | 36 e2e tests green; vitest 54 passed, 27 skipped |
 
 ## What was built
 
@@ -114,5 +114,5 @@ None. `window.__panel` exists only when `VITE_TEST_HOOKS=1` (e2e build), is read
 
 ## Self-Check: PASSED
 
-- All listed files exist; commits f8ae19f and e09e6a4 are in the branch history.
+- All listed files exist; commits 2a7b80b and b683e5b are in the branch history.
 - No STATE.md or ROADMAP.md changes.

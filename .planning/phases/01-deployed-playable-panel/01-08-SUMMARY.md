@@ -25,8 +25,8 @@ status: complete
 duration: ~15 min
 completed: 2026-10-20
 commits: 4
-plan_head_before: 0d0bd38
-plan_head_after: a10fc6423226f75d7ba16740a0a65dfe490c8340
+plan_head_before: 931ae93
+plan_head_after: 093367d4754dfd1e31c66a043b22d013c6e59062
 actuals:
   tokens: 9000
   tasks: 2
@@ -46,10 +46,10 @@ actuals:
 
 | Task | Commit | Description |
 |------|--------|-------------|
-| 1 RED | 64aec79 | guard interlock suite and failing kind-prefix test |
-| 1 GREEN | 9cfefae | kind prefix check in defineRegistry |
-| 2 RED | 29181b9 | failing registry invariants and store contract suite |
-| 2 GREEN | a10fc64 | remaining registry invariants |
+| 1 RED | cfa7774 | guard interlock suite and failing kind-prefix test |
+| 1 GREEN | a22786a | kind prefix check in defineRegistry |
+| 2 RED | 342d77a | failing registry invariants and store contract suite |
+| 2 GREEN | 093367d | remaining registry invariants |
 
 ## Deviations from Plan
 
@@ -67,4 +67,4 @@ None.
 
 ## Self-Check: PASSED
 
-Files tests/registry.test.ts, tests/store.test.ts and commits 64aec79, 9cfefae, 29181b9, a10fc64 exist on the branch.
+Files tests/registry.test.ts, tests/store.test.ts and commits cfa7774, a22786a, 342d77a, 093367d exist on the branch.

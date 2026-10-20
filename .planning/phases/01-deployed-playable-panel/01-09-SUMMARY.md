@@ -17,8 +17,8 @@ provides:
   - "Zoomed tap-size guarantee test over every region of DA50RG"
 affects: [01-07 guarded switches and real-device check, 02 scenario UI]
 
-plan_head_before: 78017cab0d522491c396435e487a536f06383e2d
-plan_head_after: 4408f7bb4f6af52a906afec56873c661f24bb0c3
+plan_head_before: 7f5a55b3e159e5d9ead91a0a52fc842b10fb0a2b
+plan_head_after: cabb6aaab1a4920414e0366a2f7010fa22ed6b45
 commits: 2
 actuals:
   tokens: 10000
@@ -79,8 +79,8 @@ completed: 2026-10-20
 
 ## Task Commits
 
-1. Task 1: region zoom tracer - `a2485ec`
-2. Task 2: pinch, pan, double-tap zoom-out and arbitration - `4408f7b`
+1. Task 1: region zoom tracer - `5d7a0b2`
+2. Task 2: pinch, pan, double-tap zoom-out and arbitration - `cabb6aa`
 
 ## Deviations from Plan
 
@@ -111,4 +111,4 @@ None. T-01-22 (no bridge import and `grep -c actuate src/ui/panel/zoom.ts` print
 ## Self-Check: PASSED
 
 - Files exist: src/ui/panel/viewport.ts, src/ui/panel/zoom.ts, tests/zoom.test.ts, e2e/zoom.spec.ts
-- Commits found in history: a2485ec, 4408f7b
+- Commits found in history: 5d7a0b2, cabb6aa
