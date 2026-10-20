@@ -63,7 +63,7 @@ export interface LeverBodyProps {
 }
 
 /**
- * Pure body of a detent lever (D-09, UI-SPEC 8.5): name, track art, one tick path, detent
+ * Pure body of a detent lever (D-09, UI-SPEC 8.5): name (unless nameless), track art, one tick path, detent
  * legends (static, no state readout, G-0.1), marker targets, handle and the handle hit, all from props. No hooks, no
  * state, so node tests expand it and count nodes. The handle hit spans the full footprint width
  * by one handle square along the track, so the whole visible grip can be grabbed.
@@ -101,7 +101,11 @@ export function LeverBody({
   // Name: one line when it fits the region around the lever, else two balanced lines.
   const room = Math.min(regionWidth - 8, 2 * Math.min(def.x, regionWidth - def.x) - 4);
   const lines =
-    art !== undefined && def.label.length * 4.2 <= room ? [def.label] : placardLines(def.label);
+    def.nameless === true
+      ? []
+      : art !== undefined && def.label.length * 4.2 <= room
+        ? [def.label]
+        : placardLines(def.label);
   // A skinned vertical lever prints its name above the highest handle position when the
   // footprint top would be covered by the stowed handle, but never above the region.
   const nameTop =
@@ -118,7 +122,12 @@ export function LeverBody({
   const labelRoom = Math.max(14, regionWidth - def.x - labelX - 3);
   const knobW = vertical ? Math.min(34, side) : 16;
   const knobH = vertical ? 16 : Math.min(34, side);
-  const legendDetents = dragOnly ? def.detents : markerDetents;
+  const legendDetents =
+    def.legends !== undefined
+      ? def.detents.filter((d) => def.legends?.includes(d.id))
+      : dragOnly
+        ? def.detents
+        : markerDetents;
   // Legends are static placards: none is hidden or moved by the handle position.
   const labelled = art !== undefined && vertical ? [] : legendDetents;
   const skinnedLegends = art !== undefined && vertical ? legendDetents : [];

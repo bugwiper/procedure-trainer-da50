@@ -66,12 +66,12 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lv.env_temp', x: 1092, y: 862, tol: 8, review: true },
   { id: 'sw.env_fan', x: 1036, y: 888, tol: 8, review: true },
   { id: 'lv.env_circ', x: 1062, y: 990, tol: 8, review: true },
-  { id: 'lv.parking_brake', x: 1058, y: 1095, tol: 8, review: true },
-  { id: 'lv.power', x: 1110, y: 1115, tol: 3, review: false },
-  { id: 'lv.cowl_flap', x: 1010, y: 1235, tol: 3, review: false },
+  { id: 'lv.parking_brake', x: 1008, y: 1110, tol: 8, review: true },
+  { id: 'lv.power', x: 1115, y: 1160, tol: 8, review: true },
+  { id: 'lv.cowl_flap', x: 1058, y: 1218, tol: 8, review: true },
 ];
 
-/** The eight derived lamps (seven gear and flap lamps, the ELT lamp of plan 18). */
+/** The ten derived lamps (seven gear and flap lamps, the ELT lamp of plan 18, two cowl-flap lamps). */
 export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.gear_nose', x: 916, y: 682, tol: 8, review: true },
   { id: 'lt.gear_left', x: 894, y: 714, tol: 8, review: true },
@@ -81,6 +81,8 @@ export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.flap_to', x: 1274, y: 660, tol: 8, review: true },
   { id: 'lt.flap_ldg', x: 1263, y: 689, tol: 8, review: true },
   { id: 'lt.elt', x: 1752, y: 656, tol: 8, review: true },
+  { id: 'lt.cowl_open', x: 1022, y: 1188, tol: 8, review: true },
+  { id: 'lt.cowl_closed', x: 1022, y: 1248, tol: 8, review: true },
 ];
 
 /**
@@ -171,9 +173,14 @@ export const ORDERING: readonly OrderRow[] = [
   ['lv.env_direction', 'left-of', 'lv.env_temp'],
   ['sw.env_fan', 'left-of', 'lv.env_temp'],
   ...ENV_CONTROLS.map((id): OrderRow => [id, 'above', 'lv.power']),
-  // Pedestal.
-  ['lv.cowl_flap', 'left-of', 'lv.parking_brake'],
+  // Pedestal (plan 19, Table D2): parking brake upper left, cowl flap lower middle, throttle right.
+  ['lv.parking_brake', 'above', 'lv.cowl_flap'],
+  ['lv.parking_brake', 'left-of', 'lv.cowl_flap'],
+  ['lv.cowl_flap', 'left-of', 'lv.power'],
   ['lv.parking_brake', 'left-of', 'lv.power'],
+  ['lt.cowl_open', 'above', 'lt.cowl_closed'],
+  ['lt.cowl_open', 'left-of', 'lv.cowl_flap'],
+  ['lt.cowl_closed', 'left-of', 'lv.cowl_flap'],
   // Indicators: resolved once plan 01.1-04 adds them.
   ['lt.gear_unsafe', 'left-of', 'lt.gear_left'],
   ['lt.gear_left', 'left-of', 'lt.gear_nose'],

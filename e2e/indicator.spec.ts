@@ -98,7 +98,7 @@ test('lamps are never tap targets', async ({ page }) => {
   // Selector of src/ui/panel/zoom.ts TAP_TARGET_SELECTOR.
   await expect(page.locator('[data-indicator-id] :is([data-hit], [data-detent])')).toHaveCount(0);
   await expect(page.locator('[data-indicator-id]:is([data-hit], [data-detent])')).toHaveCount(0);
-  await expect(page.locator('[data-indicator-id]')).toHaveCount(8);
+  await expect(page.locator('[data-indicator-id]')).toHaveCount(10);
   await expect(page.locator('[data-indicator-id][data-control-id]')).toHaveCount(0);
 });
 
@@ -125,6 +125,28 @@ test('the ELT lamp is lit in ON only: top third lights it, middle third turns it
   await expect(elt).toHaveAttribute('data-lit', 'false');
   // The lamp prints no text of its own.
   await expect(elt.locator('text')).toHaveCount(0);
+});
+
+test('the cowl-flap lamps follow the lever: closed lights CLOSED, one tap on OPEN lights OPEN (G-3)', async ({
+  page,
+  hasTouch,
+}) => {
+  const open = lamp(page, 'lt.cowl_open');
+  const closed = lamp(page, 'lt.cowl_closed');
+  await expect(open).toHaveCount(1);
+  await expect(closed).toHaveCount(1);
+  await expect(open).toHaveAttribute('data-lit', 'false');
+  await expect(closed).toHaveAttribute('data-lit', 'true');
+  await activate(page.locator('[data-detent="lv.cowl_flap:open"]'), hasTouch);
+  await expect(open).toHaveAttribute('data-lit', 'true');
+  await expect(closed).toHaveAttribute('data-lit', 'false');
+  await activate(page.locator('[data-detent="lv.cowl_flap:closed"]'), hasTouch);
+  await expect(open).toHaveAttribute('data-lit', 'false');
+  await expect(closed).toHaveAttribute('data-lit', 'true');
+  // The captions are static plate text; the lever prints none.
+  await expect(open.locator('text')).toHaveText('OPEN');
+  await expect(closed.locator('text')).toHaveText('CLOSED');
+  await expect(page.locator('[data-control-id="lv.cowl_flap"] text')).toHaveCount(0);
 });
 
 test('@hooks lever moves record only lv.gear events and a tap on a lamp records none', async ({
@@ -158,7 +180,7 @@ test('@hooks window.__panel.indicators() agrees with every data-lit attribute', 
     const hook = await page.evaluate(
       () => (globalThis as unknown as PageHost).__panel?.indicators() ?? {},
     );
-    expect(Object.keys(hook)).toHaveLength(8);
+    expect(Object.keys(hook)).toHaveLength(10);
     for (const [id, state] of Object.entries(hook)) {
       await expect(lamp(page, id), id).toHaveAttribute(
         'data-lit',

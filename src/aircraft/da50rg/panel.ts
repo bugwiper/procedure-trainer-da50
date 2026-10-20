@@ -92,7 +92,7 @@ export const REGIONS: readonly RegionDef[] = [
   // 540-tall region the phone shows 0.56 px per unit and POWER reaches only 34 px.
   { id: 'env_control', name: 'ENVIRONMENTAL CONTROL', bounds: { x: 957, y: 750, w: 211, h: 265 } },
   // Drawn as a plan view below the panel, fore at the top; fore-aft length not to scale.
-  { id: 'pedestal', name: 'PEDESTAL', bounds: { x: 957, y: 1015, w: 211, h: 275 } },
+  { id: 'pedestal', name: 'PEDESTAL', bounds: { x: 957, y: 1042, w: 211, h: 248 } },
   // Right of the pedestal.
   { id: 'under_panel_right', name: 'UNDER PANEL R', bounds: { x: 1170, y: 740, w: 90, h: 125 } },
 ];

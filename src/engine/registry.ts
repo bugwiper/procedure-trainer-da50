@@ -34,6 +34,11 @@ interface ControlBase {
   readonly y: number;
   /** Footprint centred on (x, y); every interactive sub-target of the control lies inside it. */
   readonly hit: Size;
+  /**
+   * The widget draws no name placard of its own because a plate placard (placards.ts) names the
+   * control. Only the detent lever honours it today; absent keeps the drawn name.
+   */
+  readonly nameless?: boolean;
 }
 
 /** Skin vocabulary (UI-SPEC 8.1 to 8.5). Widgets pick their art by skin; absent means the first. */
@@ -123,6 +128,11 @@ export interface DetentLeverDef extends ControlBase {
   readonly dragOnly?: boolean;
   /** Detents that get a tap target; absent = every detent. */
   readonly markers?: readonly StateId[];
+  /**
+   * Detents whose labels are printed beside the lever; absent = every tap marker (every detent
+   * for a drag-only lever), an empty list prints none. Every id must be one of the detents.
+   */
+  readonly legends?: readonly StateId[];
   /** Centred on (x, y); 'v': pos 0 = bottom, 'h': pos 0 = left. */
   readonly track: { readonly length: number; readonly axis: 'v' | 'h' };
   readonly skin?: LeverSkin;
@@ -265,6 +275,16 @@ function checkDetents(def: DetentLeverDef): void {
       throw new RegistryError(`lever "${def.id}" has duplicate marker "${m}"`);
     }
     seenMarkers.add(m);
+  }
+  const seenLegends = new Set<StateId>();
+  for (const l of def.legends ?? []) {
+    if (!def.detents.some((d) => d.id === l)) {
+      throw new RegistryError(`lever "${def.id}" legend "${l}" is not one of its detents`);
+    }
+    if (seenLegends.has(l)) {
+      throw new RegistryError(`lever "${def.id}" has duplicate legend "${l}"`);
+    }
+    seenLegends.add(l);
   }
 }
 

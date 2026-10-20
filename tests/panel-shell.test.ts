@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { PLACARDS, placardLineY } from '../src/aircraft/da50rg/placards';
+import { LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
 import { PLATES } from '../src/aircraft/da50rg/plates';
 import { DEF_IDS, Defs } from '../src/ui/panel/Defs';
 import { PanelShell } from '../src/ui/panel/PanelShell';
@@ -251,6 +252,29 @@ describe('plate placards', () => {
       expect(y, p.id).toBeLessThanOrEqual((tops[i] ?? 0) + third);
     });
     for (const p of elt) expect(p.dx, p.id).toBeGreaterThan(hit.w / 2);
+  });
+
+  it('the pedestal sits on one plate below the environmental control plate', () => {
+    const pedestal = PLATES.find((pl) => pl.id === 'pedestal');
+    const env = PLATES.find((pl) => pl.id === 'environmental');
+    expect(pedestal?.regions).toEqual(['pedestal']);
+    expect(env).toBeDefined();
+    if (pedestal === undefined || env === undefined) return;
+    expect(pedestal.y).toBeGreaterThanOrEqual(env.y + env.h);
+  });
+
+  /** Each pedestal placard is printed above the highest handle position of its lever. */
+  it.each(['lv.cowl_flap'])('the placard of %s lies above the highest handle position', (id) => {
+    const def = DA50RG.get(id);
+    expect(def?.kind).toBe('detent-lever');
+    if (def?.kind !== 'detent-lever' || def.skin === undefined) return;
+    const own = PLACARDS.filter((p) => p.near === id);
+    expect(own.length, id).toBeGreaterThan(0);
+    const handleTop = -def.track.length / 2 - LEVER_ART[def.skin].along;
+    for (const p of own) {
+      const last = placardLineY(p, p.lines.length - 1);
+      expect(last, p.id).toBeLessThanOrEqual(handleTop);
+    }
   });
 });
 

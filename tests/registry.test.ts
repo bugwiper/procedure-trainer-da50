@@ -233,6 +233,20 @@ describe('detent lever rules', () => {
     expectRejected([lever('lv.drag', { dragOnly: true, markers: ['up'] })], 'lv.drag');
   });
 
+  it('rejects a legends id that is not one of the lever detents, and duplicate legends', () => {
+    expectRejected([lever('lv.legend_stray', { legends: ['up', 'sideways'] })], 'lv.legend_stray');
+    expectRejected([lever('lv.legend_twice', { legends: ['up', 'up'] })], 'lv.legend_twice');
+  });
+
+  it('accepts a nameless lever, an empty legends list and a legends subset (plan 19)', () => {
+    expect(() =>
+      build([
+        lever('lv.bare', { nameless: true, legends: [] }),
+        lever('lv.some', { legends: ['up'] }),
+      ]),
+    ).not.toThrow();
+  });
+
   it('accepts a drag-only lever with no markers and a lever with a marker subset', () => {
     expect(() =>
       build([

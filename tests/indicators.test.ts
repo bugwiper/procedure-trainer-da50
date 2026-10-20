@@ -89,8 +89,8 @@ describe('flapLamps', () => {
 });
 
 describe('DA50RG indicators', () => {
-  it('has eight lamps and no group readouts, all indicator ids outside the control registry', () => {
-    expect(DA50RG_INDICATORS.indicators).toHaveLength(8);
+  it('has ten lamps and no group readouts, all indicator ids outside the control registry', () => {
+    expect(DA50RG_INDICATORS.indicators).toHaveLength(10);
     expect(Object.keys(DA50RG_INDICATORS).sort()).toEqual(['get', 'inRegion', 'indicators']);
     for (const def of DA50RG_INDICATORS.indicators) {
       expect(def.id.startsWith('lt.')).toBe(true);
@@ -158,6 +158,36 @@ describe('DA50RG indicators', () => {
     expect(transit['lt.gear_unsafe']).toBe(true);
     for (const id of ['lt.gear_nose', 'lt.gear_left', 'lt.gear_right'])
       expect(transit[id]).toBe(false);
+  });
+
+  it('the cowl-flap lamps follow the lever: OPEN lit when open, CLOSED lit when closed (G-0.3)', () => {
+    const closed = litMap({ 'lv.cowl_flap': 'closed' });
+    expect(closed['lt.cowl_open']).toBe(false);
+    expect(closed['lt.cowl_closed']).toBe(true);
+    const open = litMap({ 'lv.cowl_flap': 'open' });
+    expect(open['lt.cowl_open']).toBe(true);
+    expect(open['lt.cowl_closed']).toBe(false);
+    // The store default is closed.
+    const lit = litMap(new PanelStore(DA50RG).snapshot());
+    expect(lit['lt.cowl_closed']).toBe(true);
+    expect(lit['lt.cowl_open']).toBe(false);
+  });
+
+  it('the cowl-flap lamps are white, sit in the pedestal region, read only lv.cowl_flap and are not controls', () => {
+    for (const [id, caption] of [
+      ['lt.cowl_open', 'OPEN'],
+      ['lt.cowl_closed', 'CLOSED'],
+    ] as const) {
+      const def = DA50RG_INDICATORS.get(id);
+      expect(def, id).toBeDefined();
+      expect(def?.colour, id).toBe('white');
+      expect(def?.region, id).toBe('pedestal');
+      expect(def?.r, id).toBe(5);
+      expect(def?.caption, id).toBe('above');
+      expect(def?.label, id).toBe(caption);
+      expect(def?.reads, id).toEqual(['lv.cowl_flap']);
+      expect(DA50RG.get(id), id).toBeUndefined();
+    }
   });
 
   it('exactly one flap lamp is lit for each FLAPS state', () => {

@@ -166,6 +166,36 @@ const ELT_LAMP: IndicatorSpec = {
   lit: (inputs) => inputs.controls['sw.elt'] === 'on',
 };
 
+// Cowl-flap position lamps (owner findings G-3, G-0.3): the original has a white lamp beside each
+// position of the small lever, OPEN above and CLOSED below, lit by where the lever is. Their
+// captions are the only text that names the positions; the lever itself prints nothing.
+const COWL_LAMPS: readonly IndicatorSpec[] = [
+  {
+    id: 'lt.cowl_open',
+    label: 'OPEN',
+    region: 'pedestal',
+    x: 65,
+    y: 146,
+    r: 5,
+    colour: 'white',
+    caption: 'above',
+    reads: ['lv.cowl_flap'],
+    lit: (inputs) => inputs.controls['lv.cowl_flap'] === 'open',
+  },
+  {
+    id: 'lt.cowl_closed',
+    label: 'CLOSED',
+    region: 'pedestal',
+    x: 65,
+    y: 206,
+    r: 5,
+    colour: 'white',
+    caption: 'above',
+    reads: ['lv.cowl_flap'],
+    lit: (inputs) => inputs.controls['lv.cowl_flap'] === 'closed',
+  },
+];
+
 export const DA50RG_INDICATORS = defineIndicators(DA50RG, {
-  indicators: [...GEAR_LAMPS, ...FLAP_LAMPS, ELT_LAMP],
+  indicators: [...GEAR_LAMPS, ...FLAP_LAMPS, ELT_LAMP, ...COWL_LAMPS],
 });

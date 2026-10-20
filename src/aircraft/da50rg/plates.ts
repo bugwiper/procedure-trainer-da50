@@ -46,6 +46,9 @@ export const PLATES: readonly PlateDef[] = [
     regions: ['flaps', 'right_panel'],
   },
   { id: 'environmental', x: 962, y: 764, w: 201, h: 250, rx: 18, regions: ['env_control'] },
+  // Parking brake, cowl flap with its two lamps and the throttle on one plate below the
+  // environmental control plate, as in the owner's side-view photo (G-3).
+  { id: 'pedestal', x: 962, y: 1046, w: 201, h: 242, rx: 18, regions: ['pedestal'] },
 ];
 
 /**

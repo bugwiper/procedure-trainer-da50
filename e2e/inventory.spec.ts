@@ -90,6 +90,8 @@ test('console levers open in their in-flight defaults', async ({ page }) => {
     'lv.env_temp': 't50',
     'lv.env_circ': 'fresh',
     'lv.parking_brake': 'off',
+    'lv.cowl_flap': 'closed',
+    'lv.power': 'p70',
     'lv.deice_mode': 'off',
   };
   for (const [id, state] of Object.entries(defaults)) {
@@ -97,7 +99,7 @@ test('console levers open in their in-flight defaults', async ({ page }) => {
   }
 });
 
-test('every detent of DIRECTION, TEMPERATURE, CIRCULATING AIR and PARKING BRAKE is reachable by tap', async ({
+test('every detent of DIRECTION, TEMPERATURE, CIRCULATING AIR, PARKING BRAKE and COWL FLAP is reachable by tap', async ({
   page,
   hasTouch,
 }) => {
@@ -106,6 +108,7 @@ test('every detent of DIRECTION, TEMPERATURE, CIRCULATING AIR and PARKING BRAKE 
     'lv.env_temp': ['cold', 't25', 't75', 'warm', 't50'],
     'lv.env_circ': ['recirc', 'fresh'],
     'lv.parking_brake': ['set', 'off'],
+    'lv.cowl_flap': ['open', 'closed'],
   };
   for (const [id, detents] of Object.entries(sequences)) {
     const group = control(page, id);

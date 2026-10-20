@@ -23,6 +23,7 @@ const PLATE_FILLS: Readonly<Record<string, string>> = {
   'lights-recess': BEZEL_FILL,
   'centre-stack': '#101215',
   environmental: '#1f2226',
+  pedestal: '#1f2226',
 };
 
 /** One visible plate drawn from the plate data (owner finding G-0.5). */
@@ -180,11 +181,12 @@ function ConsoleBody() {
   );
 }
 
-/** Environmental-control plate on the console top (plain plate, the sliders are widgets). */
+/** Environmental-control plate on the console top (plain plate, the sliders are widgets), and the pedestal plate below it. */
 function EnvironmentalPlate() {
   return (
     <g data-shell="environmental-plate">
       <Plate id="environmental" />
+      <Plate id="pedestal" />
       <text x={1062} y={782} text-anchor="middle" font-size={8} fill={LEGEND}>
         ENVIRONMENTAL CONTROL
       </text>
@@ -427,11 +429,12 @@ export function PanelShell({ registry }: { registry: Registry }) {
       {mfd === undefined ? null : <DisplayBezel {...mfd.bounds} />}
       <CentreStack />
       <SwitchStrips />
-      <Placards registry={registry} />
       <BusPanel />
       <LeftStrip />
       <StaticDecor />
       <EnvironmentalPlate />
+      {/* After every plate, so no plate paints over a placard. */}
+      <Placards registry={registry} />
       <Nameplate />
       <Wordmark />
     </g>

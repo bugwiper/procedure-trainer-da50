@@ -30,6 +30,9 @@ export function placardLineY(placard: PlacardDef, index: number): number {
 // ELT (sw.elt, global centre 1776, 656): the three positions of the rocker, printed on the right
 // at the height of the three tap thirds of its 78-high hit rectangle (ON top, ARMED middle,
 // RESET / TEST bottom as two lines). The lamp lt.elt sits on the left.
+//
+// Pedestal (plan 19): COWL FLAP centred above the group of the two lamp captions and the small
+// lever, above the highest handle position of the lever.
 export const PLACARDS: readonly PlacardDef[] = [
   { id: 'elt.on', near: 'sw.elt', dx: 22, dy: -26, lines: ['ON'], anchor: 'start', size: 6 },
   { id: 'elt.armed', near: 'sw.elt', dx: 22, dy: 0, lines: ['ARMED'], anchor: 'start', size: 6 },
@@ -40,6 +43,15 @@ export const PLACARDS: readonly PlacardDef[] = [
     dy: 23,
     lines: ['RESET /', 'TEST'],
     anchor: 'start',
+    size: 6,
+  },
+  {
+    id: 'cowl_flap.name',
+    near: 'lv.cowl_flap',
+    dx: -17,
+    dy: -54,
+    lines: ['COWL FLAP'],
+    anchor: 'middle',
     size: 6,
   },
 ];

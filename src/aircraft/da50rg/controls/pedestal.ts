@@ -21,9 +21,9 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     kind: 'detent-lever',
     label: 'POWER',
     region: 'pedestal',
-    // Global 1110, 1115 in the 2000 x 1300 space. Handle square min(60, 200 - 154) = 46.
-    x: 153,
-    y: 100,
+    // Global 1115, 1160 in the 2000 x 1300 space. Handle square min(60, 200 - 154) = 46.
+    x: 158,
+    y: 118,
     hit: { w: 60, h: 200 },
     track: { length: 154, axis: 'v' },
     detents: POWER_STEPS,
@@ -34,16 +34,19 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     skin: 'power-grip',
   },
   {
-    // Aft of POWER, left of the centreline; OPEN is fore, as on the real pedestal.
+    // Below the parking brake, left of POWER; OPEN is the upper position (owner photo, G-3).
     id: 'lv.cowl_flap',
     kind: 'detent-lever',
     label: 'COWL FLAP',
     region: 'pedestal',
-    // Global 1010, 1235. Handle square min(60, 104 - 60) = 44.
-    x: 53,
-    y: 220,
-    hit: { w: 60, h: 104 },
+    // Global 1058, 1218. Handle square min(50, 104 - 60) = 44. The placard COWL FLAP and the
+    // lamps lt.cowl_open / lt.cowl_closed name the two positions, so the lever prints nothing.
+    x: 101,
+    y: 176,
+    hit: { w: 50, h: 104 },
     track: { length: 60, axis: 'v' },
+    nameless: true,
+    legends: [],
     detents: [
       { id: 'closed', label: 'CLOSED', pos: 0 },
       { id: 'open', label: 'OPEN', pos: 1 },
@@ -122,9 +125,9 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     kind: 'detent-lever',
     label: 'PARKING BRAKE',
     region: 'pedestal',
-    // Global 1058, 1095. Handle square min(44, 88 - 44) = 44.
-    x: 101,
-    y: 80,
+    // Global 1008, 1110. Handle square min(44, 88 - 44) = 44.
+    x: 51,
+    y: 68,
     hit: { w: 44, h: 88 },
     track: { length: 44, axis: 'v' },
     detents: [

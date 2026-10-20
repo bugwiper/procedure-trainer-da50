@@ -244,6 +244,52 @@ describe('FLAPS, de-ice MODE and the pull handles', () => {
   });
 });
 
+describe('nameless levers and chosen legends (plan 19, G-3)', () => {
+  it('a nameless lever draws no name text, a named one draws its name', () => {
+    const power = lever('lv.power');
+    const named = texts(body({ ...power, nameless: false }, 'p70'));
+    expect(named).toContain(power.label);
+    const bare = texts(body({ ...power, nameless: true }, 'p70'));
+    expect(bare).not.toContain(power.label);
+    // The legends and the MAX placard are untouched by dropping the name.
+    expect(bare).toEqual(named.filter((t) => t !== power.label));
+  });
+
+  it('a lever with legends prints exactly those detent labels and nothing else changes', () => {
+    const temp = lever('lv.env_temp');
+    const all = texts(body({ ...temp, nameless: true }, 't50'));
+    expect(all).toEqual(expect.arrayContaining(['COLD', '25', '50', '75', 'WARM']));
+    const some = texts(body({ ...temp, nameless: true, legends: ['cold', 'warm'] }, 't50'));
+    expect(some.sort()).toEqual(['COLD', 'WARM']);
+    const none = texts(body({ ...temp, nameless: true, legends: [] }, 't50'));
+    expect(none).toEqual([]);
+    // Markers, hit and handle are the same with and without a legends list.
+    const hits = (tree: Tree) => findElements(tree, (el) => 'data-hit' in el.props).length;
+    const dets = (tree: Tree) => findElements(tree, (el) => 'data-detent' in el.props).length;
+    const a = body(temp, 't50');
+    const b = body({ ...temp, legends: [] }, 't50');
+    expect(hits(b)).toBe(hits(a));
+    expect(dets(b)).toBe(dets(a));
+  });
+
+  it('a horizontal skinned lever and an unskinned one honour legends too', () => {
+    const circ = lever('lv.env_circ');
+    expect(texts(body({ ...circ, nameless: true, legends: ['fresh'] }, 'fresh'))).toEqual([
+      'FRESH',
+    ]);
+    const plain = { ...lever('lv.gear'), skin: undefined, legends: ['down'] } as DetentLeverDef;
+    const names = texts(body({ ...plain, nameless: true }, 'down'));
+    expect(names).toEqual(['DOWN']);
+  });
+
+  it('lv.cowl_flap is nameless with no legends: no text at all in any position', () => {
+    const cowl = lever('lv.cowl_flap');
+    expect(cowl.nameless).toBe(true);
+    expect(cowl.legends).toEqual([]);
+    for (const d of cowl.detents) expect(texts(body(cowl, d.id)), d.id).toEqual([]);
+  });
+});
+
 describe('POWER grip, COWL FLAP, PARKING BRAKE and the environmental sliders', () => {
   const EXPECTED: Record<string, string> = {
     'lv.power': 'power-grip',
