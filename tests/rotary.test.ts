@@ -256,18 +256,32 @@ describe('tap-size rule for knobs', () => {
 });
 
 describe('RotaryBody art', () => {
-  it('stays within 40 elements and has one state text naming the stop, in every state', () => {
+  it('stays within 40 elements and has no state text, in every state', () => {
     for (const def of rotaries) {
       for (const stop of def.stops) {
         for (const pressed of [false, true]) {
           const tree = expand(RotaryBody({ def, state: stop.id, pressed }));
           const label = `${def.id} ${stop.id} pressed=${pressed}`;
           expect(countElements(tree), label).toBeLessThanOrEqual(40);
-          const texts = findElements(tree, (el) => 'data-state-text' in el.props);
-          expect(texts, label).toHaveLength(1);
-          expect(textOf(texts[0] ?? tree), label).toBe(stop.label);
+          expect(
+            findElements(tree, (el) => 'data-state-text' in el.props),
+            label,
+          ).toHaveLength(0);
         }
       }
+    }
+  });
+
+  it('prints the same text strings at every stop of a knob (placard and scale marks only)', () => {
+    for (const def of rotaries) {
+      const strings = (state: string) =>
+        findElements(expand(RotaryBody({ def, state, pressed: false })), (el) => el.tag === 'text')
+          .map((el) => textOf(el))
+          .sort();
+      const first = strings(def.stops[0]?.id ?? '');
+      expect(first.length, def.id).toBeGreaterThan(0);
+      for (const stop of def.stops) expect(strings(stop.id), `${def.id}/${stop.id}`).toEqual(first);
+      for (const stop of def.stops) expect(first, def.id).toContain(stop.label);
     }
   });
 
@@ -292,14 +306,21 @@ describe('RotaryBody art', () => {
     expect(rimOf(true)).toBe('#8fb8e6');
   });
 
-  it('the pointer follows the drag angle but the state text keeps the committed stop', () => {
+  it('the pointer follows the drag angle and rests at the committed stop otherwise', () => {
     const def = knob('sw.instr_light');
-    const tree = expand(RotaryBody({ def, state: 'off', dragAngle: 90, pressed: true }));
-    const pointer = findElements(tree, (el) => el.tag === 'line')[0];
-    expect(Number(pointer?.props['x2'])).toBeCloseTo(0.8 * def.r, 1);
-    expect(Number(pointer?.props['y2'])).toBeCloseTo(0, 1);
-    const text = findElements(tree, (el) => 'data-state-text' in el.props)[0];
-    expect(text === undefined ? '' : textOf(text)).toBe('OFF');
+    const pointerOf = (dragAngle?: number) =>
+      findElements(
+        expand(RotaryBody({ def, state: 'off', dragAngle, pressed: dragAngle !== undefined })),
+        (el) => el.tag === 'line',
+      )[0];
+    const dragged = pointerOf(90);
+    expect(Number(dragged?.props['x2'])).toBeCloseTo(0.8 * def.r, 1);
+    expect(Number(dragged?.props['y2'])).toBeCloseTo(0, 1);
+    // At rest the pointer sits at the angle of the committed stop OFF (-135 degrees).
+    const rest = pointerOf();
+    const rad = (stopAngle(def, 'off') * Math.PI) / 180;
+    expect(Number(rest?.props['x2'])).toBeCloseTo(0.8 * def.r * Math.sin(rad), 1);
+    expect(Number(rest?.props['y2'])).toBeCloseTo(-0.8 * def.r * Math.cos(rad), 1);
   });
 
   it('prints the labels of every stop of a multi-stop knob', () => {
@@ -316,7 +337,7 @@ describe('Rotary.tsx type scale', () => {
     const sizes = Array.from(source.matchAll(/font-size\s*=\s*\{\s*([0-9.]+)\s*\}/g), (m) =>
       Number(m[1]),
     );
-    expect(sizes.length).toBeGreaterThanOrEqual(3);
+    expect(sizes.length).toBeGreaterThanOrEqual(2);
     expect(sizes.filter((s) => ![6, 8, 10, 14].includes(s))).toEqual([]);
   });
 });

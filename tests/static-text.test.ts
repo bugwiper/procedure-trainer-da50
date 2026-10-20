@@ -5,6 +5,7 @@ import type {
   DetentLeverDef,
   GuardedToggleDef,
   MomentaryButtonDef,
+  RotaryDef,
   ToggleDef,
 } from '../src/engine/registry';
 import { BatBody } from '../src/ui/panel/skins/Bat';
@@ -13,6 +14,7 @@ import { PushButtonBody } from '../src/ui/panel/skins/PushButton';
 import type { PressedSide } from '../src/ui/panel/skins/PushButton';
 import { LeverBody } from '../src/ui/panel/widgets/DetentLever';
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
+import { RotaryBody } from '../src/ui/panel/widgets/Rotary';
 import { SoftkeyBody } from '../src/ui/panel/widgets/Toggle';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { Tree } from './vnode-walk';
@@ -153,5 +155,31 @@ describe('push button family text is state-independent', () => {
     expect(def).toBeDefined();
     const tree = expand(PushButtonBody({ def: def!, state: 'neutral', pressedSide: null }));
     expect(textStrings(tree)).toEqual(['GEAR', 'STALL', 'TEST', 'TEST']);
+  });
+});
+
+describe('knob family text is state-independent', () => {
+  const knobs = DA50RG.controls.filter((c): c is RotaryDef => c.kind === 'rotary');
+
+  it('every knob at every stop: no state text, the same text strings, at most 40 elements', () => {
+    expect(knobs.length).toBeGreaterThan(0);
+    for (const def of knobs) {
+      const first = textStrings(
+        expand(RotaryBody({ def, state: def.stops[0]!.id, pressed: false })),
+      );
+      expect(first, def.id).toContain(def.label.split(' ')[0]);
+      for (const stop of def.stops) {
+        for (const pressed of [false, true]) {
+          const tree = expand(RotaryBody({ def, state: stop.id, pressed }));
+          const id = `${def.id}/${stop.id}`;
+          expect(
+            findElements(tree, (el) => 'data-state-text' in el.props),
+            id,
+          ).toHaveLength(0);
+          expect(textStrings(tree), id).toEqual(first);
+          expect(countElements(tree), id).toBeLessThanOrEqual(40);
+        }
+      }
+    }
   });
 });

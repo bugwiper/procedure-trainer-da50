@@ -76,7 +76,7 @@ function arcTicks(def: RotaryDef): string {
 
 export interface RotaryBodyProps {
   readonly def: RotaryDef;
-  /** Committed stop id: the pointer rests there and the state text names it. */
+  /** Committed stop id: the pointer rests there. */
   readonly state: string;
   /** Angle the pointer follows while a drag is in progress; never reaches the store. */
   readonly dragAngle?: number | null;
@@ -86,14 +86,13 @@ export interface RotaryBodyProps {
 
 /**
  * Knob art (UI-SPEC 8.4), pure: black disc with rim and knurl ticks, white pointer line, printed
- * scale, placard and state text. Wide footprints (the FAN, twice as wide as high) put the placard
- * left and the state text right; others put the placard above and the state text below.
+ * scale and placard, all static (G-0.1: the knob shows its stop by the pointer, never as text). Wide
+ * footprints (the FAN, twice as wide as high) put the placard left; others put it above.
  */
 export function RotaryBody({ def, state, dragAngle, pressed }: RotaryBodyProps) {
   const { r } = def;
   const scale = def.scale ?? 'none';
   const current = def.stops.find((s) => s.id === state) ?? def.stops[0];
-  const stateLabel = current?.label ?? '';
   const angle = dragAngle ?? (current === undefined ? 0 : stopAngle(def, current.id));
   const tip = polar(angle, 0.8 * r);
   const root = polar(angle, 4);
@@ -169,18 +168,6 @@ export function RotaryBody({ def, state, dragAngle, pressed }: RotaryBodyProps) 
         stroke-width={2}
         stroke-linecap="round"
       />
-      <text
-        data-state-text
-        x={wide ? def.hit.w / 2 - 1 : 0}
-        y={wide ? 3.5 : Math.max(def.hit.h / 2 - 3, r + 9)}
-        text-anchor={wide ? 'end' : 'middle'}
-        font-family={FONT}
-        font-size={10}
-        font-weight={700}
-        fill="#d8dde3"
-      >
-        {stateLabel}
-      </text>
     </g>
   );
 }

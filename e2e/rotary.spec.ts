@@ -59,15 +59,12 @@ test('FUEL TRANS is a knob that starts OFF and toggles ON and OFF by tap or clic
   await expect(knob).toHaveCount(1);
   await expect(knob).toHaveAttribute('data-kind', 'rotary');
   await expect(knob).toHaveAttribute('data-state', 'off');
-  await expect(knob.locator('[data-state-text]')).toHaveText('OFF');
 
   await activate(hit, hasTouch);
   await expect(knob).toHaveAttribute('data-state', 'on');
-  await expect(knob.locator('[data-state-text]')).toHaveText('ON');
 
   await activate(hit, hasTouch);
   await expect(knob).toHaveAttribute('data-state', 'off');
-  await expect(knob.locator('[data-state-text]')).toHaveText('OFF');
 });
 
 test('a two-stop knob toggles from either half', async ({ page, hasTouch }) => {
@@ -147,14 +144,11 @@ test('INSTRUMENT LIGHT steps one stop per tap on the right half and back on the 
   const knob = control(page, 'sw.instr_light');
   await expect(knob).toHaveAttribute('data-kind', 'rotary');
   await expect(knob).toHaveAttribute('data-state', 'off');
-  await expect(knob.locator('[data-state-text]')).toHaveText('OFF');
 
   await tapHalf(page, 'sw.instr_light', 'right', hasTouch);
   await expect(knob).toHaveAttribute('data-state', 's25');
-  await expect(knob.locator('[data-state-text]')).toHaveText('25');
   await tapHalf(page, 'sw.instr_light', 'right', hasTouch);
   await expect(knob).toHaveAttribute('data-state', 's50');
-  await expect(knob.locator('[data-state-text]')).toHaveText('50');
 
   await tapHalf(page, 'sw.instr_light', 'left', hasTouch);
   await expect(knob).toHaveAttribute('data-state', 's25');
@@ -166,7 +160,6 @@ test('a left tap at OFF stays at OFF (no wrap-around)', async ({ page, hasTouch 
   await tapHalf(page, 'sw.flood_light', 'left', hasTouch);
   await tapHalf(page, 'sw.flood_light', 'left', hasTouch);
   await expect(control(page, 'sw.flood_light')).toHaveAttribute('data-state', 'off');
-  await expect(control(page, 'sw.flood_light').locator('[data-state-text]')).toHaveText('OFF');
 });
 
 test('@hooks four right taps from OFF end at MAX and a fifth records no event', async ({
@@ -178,7 +171,7 @@ test('@hooks four right taps from OFF end at MAX and a fifth records no event', 
     await tapHalf(page, 'sw.instr_light', 'right', hasTouch);
     await expect(knob).toHaveAttribute('data-state', expected);
   }
-  await expect(knob.locator('[data-state-text]')).toHaveText('MAX');
+  await expect(knob).toHaveAttribute('data-state', 'max');
   expect(await eventCount(page)).toBe(4);
 
   await tapHalf(page, 'sw.instr_light', 'right', hasTouch);
@@ -189,17 +182,9 @@ test('@hooks four right taps from OFF end at MAX and a fifth records no event', 
 test('FAN steps OFF, 1, 2, 3, 4 and clamps at both ends', async ({ page, hasTouch }) => {
   const knob = control(page, 'sw.env_fan');
   await expect(knob).toHaveAttribute('data-state', 'off');
-  await expect(knob.locator('[data-state-text]')).toHaveText('OFF');
-  for (const [state, text] of [
-    ['f1', '1'],
-    ['f2', '2'],
-    ['f3', '3'],
-    ['f4', '4'],
-    ['f4', '4'],
-  ] as const) {
+  for (const state of ['f1', 'f2', 'f3', 'f4', 'f4'] as const) {
     await tapHalf(page, 'sw.env_fan', 'right', hasTouch);
     await expect(knob).toHaveAttribute('data-state', state);
-    await expect(knob.locator('[data-state-text]')).toHaveText(text);
   }
   await tapHalf(page, 'sw.env_fan', 'left', hasTouch);
   await expect(knob).toHaveAttribute('data-state', 'f3');
@@ -221,7 +206,6 @@ test('a mouse drag to the 3 o clock direction snaps INSTRUMENT LIGHT to 75 on re
   await expect(control(page, 'sw.instr_light')).toHaveAttribute('data-state', 'off');
   await page.mouse.up();
   await expect(control(page, 'sw.instr_light')).toHaveAttribute('data-state', 's75');
-  await expect(control(page, 'sw.instr_light').locator('[data-state-text]')).toHaveText('75');
 });
 
 test('@hooks a drag in progress records nothing and a drag back to the same stop records no event', async ({
