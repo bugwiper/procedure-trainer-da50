@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
-export const LOCAL_BASE = 'http://localhost:4173/procedure-trainer-da-50/';
+// PW_PORT lets parallel worktrees run their own preview server (Phase 1 plan 06 deviation:
+// a foreign server on 4173 was silently reused and tested another worktree's build).
+const port = process.env['PW_PORT'] ?? '4173';
+export const LOCAL_BASE = `http://localhost:${port}/procedure-trainer-da-50/`;
 const liveBase = process.env['PW_BASE_URL'];
 const baseURL = liveBase ?? LOCAL_BASE;
 
@@ -16,9 +19,11 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: 'npm run build:e2e && npm run preview:e2e',
+          // The npm preview:e2e script stays for manual use; here the port is variable and
+          // --strictPort makes a clash fail loudly instead of testing a foreign build.
+          command: `npm run build:e2e && BASE_PATH=/procedure-trainer-da-50/ npx vite preview --outDir dist-e2e --port ${port} --strictPort`,
           url: LOCAL_BASE,
-          reuseExistingServer: !process.env['CI'],
+          reuseExistingServer: !process.env['CI'] && !process.env['PW_PORT'],
           timeout: 180000,
         },
       }),

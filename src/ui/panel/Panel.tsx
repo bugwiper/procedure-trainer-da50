@@ -2,9 +2,11 @@ import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { PanelBridge } from '../bridge';
 import { ControlWidget } from './ControlWidget';
+import { Defs } from './Defs';
 import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
 import { PfdFrame } from './frames/PfdFrame';
+import { PanelShell } from './PanelShell';
 import { attachZoomGestures, viewBoxAttr } from './zoom';
 
 /** Glass-display frames by region id; frames are presentational and carry no handlers (D-09). */
@@ -12,6 +14,13 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   pfd: PfdFrame,
   mfd: MfdFrame,
 };
+
+/**
+ * Development flag, read once: ?regions=1 draws the Phase 1 region frames and captions. By
+ * default the regions are invisible geometry only (UI-SPEC "Region frames").
+ */
+const SHOW_REGIONS =
+  typeof location !== 'undefined' && new URLSearchParams(location.search).get('regions') === '1';
 
 /**
  * Root panel SVG. Iterates regions and their controls; carries no pointer handlers
@@ -37,12 +46,15 @@ export function Panel({ bridge }: { bridge: PanelBridge }) {
       aria-label="DA50 RG instrument panel"
     >
       <rect data-testid="panel-background" x={0} y={0} width={w} height={h} fill="#14171c" />
+      <Defs />
+      <PanelShell registry={registry} />
       {registry.regions.map((region) => (
         <g
           key={region.id}
           data-region-id={region.id}
           transform={`translate(${region.bounds.x} ${region.bounds.y})`}
         >
+          {/* Invisible region geometry: the e2e helpers and the zoom tests read its box. */}
           <rect
             data-region-frame
             x={0}
@@ -50,21 +62,23 @@ export function Panel({ bridge }: { bridge: PanelBridge }) {
             width={region.bounds.w}
             height={region.bounds.h}
             rx={8}
-            fill="#1b1f25"
-            stroke="#2c323a"
+            fill={SHOW_REGIONS ? '#1b1f25' : 'none'}
+            stroke={SHOW_REGIONS ? '#2c323a' : 'none'}
             pointer-events="none"
           />
-          <text
-            x={4}
-            y={-4}
-            font-family="B612, system-ui, sans-serif"
-            font-size={10}
-            letter-spacing={1}
-            fill="#5c6670"
-            pointer-events="none"
-          >
-            {region.name}
-          </text>
+          {SHOW_REGIONS ? (
+            <text
+              x={4}
+              y={-4}
+              font-family="B612, system-ui, sans-serif"
+              font-size={10}
+              letter-spacing={1}
+              fill="#5c6670"
+              pointer-events="none"
+            >
+              {region.name}
+            </text>
+          ) : null}
           {(() => {
             const Frame = FRAMES[region.id];
             return Frame === undefined ? null : <Frame region={region} bridge={bridge} />;
