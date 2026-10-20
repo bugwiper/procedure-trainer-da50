@@ -4,7 +4,7 @@ import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { ROCKER_COLOURS, ROCKER_SIZES } from '../src/engine/registry';
 import type { ControlDef, GuardedToggleDef, ToggleDef } from '../src/engine/registry';
 import { BatBody, COMPACT_BAT_HEIGHT } from '../src/ui/panel/skins/Bat';
-import { ROCKER_FACE, RockerBody, rockerExtent } from '../src/ui/panel/skins/Rocker';
+import { ROCKER_FACE, ROCKER_LIFT, RockerBody, rockerExtent } from '../src/ui/panel/skins/Rocker';
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
 import { SoftkeyBody } from '../src/ui/panel/widgets/Toggle';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
@@ -45,27 +45,40 @@ function stateTexts(tree: Tree): El[] {
 }
 
 describe('RockerBody', () => {
-  const states = [
-    { id: 'off', label: 'OFF' },
-    { id: 'on', label: 'ON' },
-  ] as const;
+  const POSITIONS = ['low', 'mid', 'high'] as const;
 
-  it('stays within 40 nodes with one state text equal to the label, in every size and colour', () => {
+  it('stays within 40 nodes with only the name as text, in every size, colour and position', () => {
     for (const size of ROCKER_SIZES) {
       for (const colour of ROCKER_COLOURS) {
-        for (const isSecond of [false, true]) {
+        for (const position of POSITIONS) {
           for (const pressed of [false, true]) {
-            const label = isSecond ? 'ON' : 'OFF';
-            const def = { label: 'TEST', hit: { w: 66, h: 70 }, states, size, colour };
-            const tree = expand(RockerBody({ def, isSecond, pressed, stateLabel: label }));
-            const id = `${size}/${colour}/${String(isSecond)}/${String(pressed)}`;
+            const def = { label: 'TEST', hit: { w: 66, h: 70 }, size, colour };
+            const tree = expand(RockerBody({ def, position, pressed }));
+            const id = `${size}/${colour}/${position}/${String(pressed)}`;
             expect(countElements(tree), id).toBeLessThanOrEqual(40);
-            const texts = stateTexts(tree);
-            expect(texts, id).toHaveLength(1);
-            expect(textOf(texts[0] as El), id).toBe(label);
+            expect(stateTexts(tree), id).toHaveLength(0);
+            const texts = findElements(tree, (el) => el.tag === 'text');
+            expect(
+              texts.map((t) => textOf(t)),
+              id,
+            ).toEqual(['TEST']);
+            expect(
+              texts.filter((t) => t.props['font-size'] === 6),
+              id,
+            ).toHaveLength(0);
           }
         }
       }
+    }
+  });
+
+  it('puts the name below the bezel on the LIGHT size and above it on the others', () => {
+    for (const size of ROCKER_SIZES) {
+      const def = { label: 'TEST', hit: { w: 66, h: 70 }, size, colour: 'white' } as const;
+      const tree = expand(RockerBody({ def, position: 'low', pressed: false }));
+      const y = Number(findElements(tree, (el) => el.tag === 'text')[0]?.props['y']);
+      if (size === 'LIGHT') expect(y, size).toBeGreaterThan(0);
+      else expect(y, size).toBeLessThan(0);
     }
   });
 
@@ -74,35 +87,73 @@ describe('RockerBody', () => {
       const def = {
         label: 'TEST',
         hit: { w: 66, h: 70 },
-        states,
         size,
         colour: 'white' as const,
       };
-      const idle = expand(RockerBody({ def, isSecond: true, pressed: false, stateLabel: 'ON' }));
-      const held = expand(RockerBody({ def, isSecond: true, pressed: true, stateLabel: 'ON' }));
+      const idle = expand(RockerBody({ def, position: 'high', pressed: false }));
+      const held = expand(RockerBody({ def, position: 'high', pressed: true }));
       expect(allProps(idle), size).not.toContain(PRESSED_RING);
       expect(allProps(held), size).toContain(PRESSED_RING);
     }
   });
 
-  it('swaps the half tones with the state: second state presses the upper half', () => {
-    const def = { label: 'T', hit: { w: 66, h: 70 }, states, size: 'M', colour: 'white' } as const;
-    const paths = (isSecond: boolean) =>
+  it('swaps the half tones with the position: high presses the upper half', () => {
+    const def = { label: 'T', hit: { w: 66, h: 70 }, size: 'M', colour: 'white' } as const;
+    const paths = (position: 'low' | 'mid' | 'high') =>
       findElements(
-        expand(RockerBody({ def, isSecond, pressed: false, stateLabel: 'X' })),
+        expand(RockerBody({ def, position, pressed: false })),
         (el) => el.tag === 'path',
       ).map((p) => p.props['fill']);
-    expect(paths(true)).toEqual(['#c7c6bd', '#f1f0e8']);
-    expect(paths(false)).toEqual(['#f1f0e8', '#c7c6bd']);
+    expect(paths('high')).toEqual(['#c7c6bd', '#f1f0e8']);
+    expect(paths('low')).toEqual(['#f1f0e8', '#c7c6bd']);
+    expect(paths('mid')).toEqual(['#f1f0e8', '#f1f0e8']);
   });
 
-  it('names the end states on the face: second above, first below', () => {
-    const def = { label: 'T', hit: { w: 50, h: 70 }, states, size: 'S', colour: 'red' } as const;
-    const tree = expand(RockerBody({ def, isSecond: false, pressed: false, stateLabel: 'OFF' }));
-    const micro = findElements(tree, (el) => el.tag === 'text' && el.props['font-size'] === 6);
-    expect(micro.map((t) => textOf(t))).toEqual(['ON', 'OFF']);
-    const ys = micro.map((t) => Number(t.props['y']));
-    expect(ys[0]).toBeLessThan(ys[1] as number);
+  it('tags a wall on the raised half: low raises the upper, high the lower, mid both', () => {
+    const walls = (colour: 'white' | 'red', position: 'low' | 'mid' | 'high') =>
+      findElements(
+        expand(
+          RockerBody({
+            def: { label: 'T', hit: { w: 66, h: 70 }, size: 'M', colour },
+            position,
+            pressed: false,
+          }),
+        ),
+        (el) => 'data-rocker-wall' in el.props,
+      );
+    for (const colour of ROCKER_COLOURS) {
+      const tone = colour === 'white' ? '#8a897f' : '#5a0a0f';
+      expect(walls(colour, 'low').map((w) => w.props['data-rocker-wall'])).toEqual(['upper']);
+      expect(walls(colour, 'high').map((w) => w.props['data-rocker-wall'])).toEqual(['lower']);
+      expect(walls(colour, 'mid').map((w) => w.props['data-rocker-wall'])).toEqual([
+        'upper',
+        'lower',
+      ]);
+      for (const position of ['low', 'mid', 'high'] as const) {
+        for (const wall of walls(colour, position)) {
+          expect(wall.tag).toBe('polygon');
+          expect(wall.props['fill']).toBe(tone);
+        }
+      }
+    }
+  });
+
+  it('draws the walls after the two half face paths', () => {
+    const def = { label: 'T', hit: { w: 66, h: 70 }, size: 'S', colour: 'red' } as const;
+    const tree = expand(RockerBody({ def, position: 'mid', pressed: false }));
+    const tags = findElements(tree, () => true).map((el) => el.tag);
+    const firstPaths = tags.indexOf('path');
+    expect(tags.slice(firstPaths, firstPaths + 2)).toEqual(['path', 'path']);
+    expect(tags.indexOf('polygon')).toBeGreaterThan(firstPaths + 1);
+  });
+
+  it('rockerExtent includes the lift', () => {
+    for (const size of ROCKER_SIZES) {
+      const face = ROCKER_FACE[size];
+      const { halfW, halfH } = rockerExtent(size);
+      expect(halfH, size).toBeGreaterThanOrEqual(face.h / 2 + ROCKER_LIFT);
+      expect(halfW, size).toBeGreaterThanOrEqual(face.w / 2 + ROCKER_LIFT);
+    }
   });
 
   it('has ears only on size L', () => {
@@ -177,7 +228,7 @@ describe('D-08 colour and size gate', () => {
     expect(TOGGLES.filter((t) => t.ball === true).map((t) => t.id)).toEqual(['sw.engine_master']);
   });
 
-  it('the four light rockers use state text size 8 and keep ON as the second state', () => {
+  it('the four light rockers keep ON as the second state and draw no state text', () => {
     for (const id of [
       'sw.light_landing',
       'sw.light_taxi',
@@ -186,11 +237,8 @@ describe('D-08 colour and size gate', () => {
     ]) {
       const def = toggle(id);
       expect(def.states[1].id, id).toBe('on');
-      const tree = expand(
-        RockerBody({ def, isSecond: true, pressed: false, stateLabel: def.states[1].label }),
-      );
-      const text = stateTexts(tree)[0];
-      expect(text?.props['font-size'], id).toBe(8);
+      const tree = expand(RockerBody({ def, position: 'high', pressed: false }));
+      expect(stateTexts(tree), id).toHaveLength(0);
     }
   });
 });
@@ -276,9 +324,7 @@ describe('guarded ALTERNATE', () => {
   it('rocker plus cover stay within 40 nodes, closed and open, and use the shared hatch', () => {
     if (alt?.kind !== 'guarded-toggle') throw new Error('no ALTERNATE');
     for (const guardOpen of [false, true]) {
-      const rocker = expand(
-        RockerBody({ def: alt, isSecond: false, pressed: false, stateLabel: 'OFF' }),
-      );
+      const rocker = expand(RockerBody({ def: alt, position: 'low', pressed: false }));
       const cover = expand(
         GuardCover({ def: alt, guardOpen, guardLabel: guardOpen ? 'OPEN' : 'CLOSED' }),
       );

@@ -69,7 +69,7 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
       transform={`translate(${def.x} ${def.y})`}
     >
       {skin === 'rocker' ? (
-        <RockerBody def={def} isSecond={isSecond} pressed={pressed.value} stateLabel={stateLabel} />
+        <RockerBody def={def} position={isSecond ? 'high' : 'low'} pressed={pressed.value} />
       ) : skin === 'bat' ? (
         <BatBody def={def} isSecond={isSecond} pressed={pressed.value} stateLabel={stateLabel} />
       ) : (

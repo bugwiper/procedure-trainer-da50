@@ -29,15 +29,16 @@ test('ELECT. MASTER is the big red rocker and its pressed half follows its state
   await expect(sw).toHaveAttribute('data-size', 'L');
   await expect(sw).toHaveAttribute('data-colour', 'red');
   await expect(sw).toHaveAttribute('data-pressed-half', 'upper');
-  await expect(sw.locator('[data-state-text]')).toHaveText('ON');
+  await expect(sw).toHaveAttribute('data-state', 'on');
+  await expect(sw.locator('text')).toHaveCount(1);
 
   await activate(hit, hasTouch);
   await expect(sw).toHaveAttribute('data-pressed-half', 'lower');
-  await expect(sw.locator('[data-state-text]')).toHaveText('OFF');
+  await expect(sw).toHaveAttribute('data-state', 'off');
 
   await activate(hit, hasTouch);
   await expect(sw).toHaveAttribute('data-pressed-half', 'upper');
-  await expect(sw.locator('[data-state-text]')).toHaveText('ON');
+  await expect(sw).toHaveAttribute('data-state', 'on');
 });
 
 const RED_IDS = ['sw.deice_alternate', 'sw.elect_master', 'sw.elt'];
@@ -117,5 +118,5 @@ test('the guarded ALTERNATE rocker follows its state once the guard is lifted', 
   await activate(page.locator('[data-hit="sw.deice_alternate.guard"]'), hasTouch);
   await activate(page.locator('[data-hit="sw.deice_alternate"]'), hasTouch);
   await expect(sw).toHaveAttribute('data-pressed-half', 'upper');
-  await expect(sw.locator('[data-state-text]')).toHaveText('ON');
+  await expect(sw).toHaveAttribute('data-state', 'on');
 });

@@ -60,6 +60,13 @@ export type RockerColour = (typeof ROCKER_COLOURS)[number];
 export type ButtonSkin = (typeof BUTTON_SKINS)[number];
 export type LeverSkin = (typeof LEVER_SKINS)[number];
 
+/**
+ * Drawn position of a toggle body. A two-state toggle draws its first state as `low` and its
+ * second state as `high`; `mid` is never produced by a two-state toggle (the three-state toggle
+ * adds it). Bats point up for `high` and down for `low`; rockers press the upper half for `high`.
+ */
+export type TogglePosition = 'low' | 'mid' | 'high';
+
 export interface ToggleDef extends ControlBase {
   readonly kind: 'toggle';
   readonly states: readonly [StateDef, StateDef];

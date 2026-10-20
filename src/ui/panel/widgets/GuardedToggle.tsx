@@ -93,12 +93,7 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
         aria-label={`${def.label}: ${stateLabel}`}
         transform={`translate(${def.x} ${def.y})`}
       >
-        <RockerBody
-          def={def}
-          isSecond={isSecond}
-          pressed={switchTap.pressed}
-          stateLabel={stateLabel}
-        />
+        <RockerBody def={def} position={isSecond ? 'high' : 'low'} pressed={switchTap.pressed} />
         {guardOpen ? (
           <rect
             data-hit={def.id}

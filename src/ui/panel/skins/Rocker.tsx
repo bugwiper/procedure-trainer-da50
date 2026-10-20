@@ -3,6 +3,7 @@ import type {
   RockerColour,
   RockerSize,
   ToggleDef,
+  TogglePosition,
 } from '../../../engine/registry';
 
 const FONT = 'B612, system-ui, sans-serif';
@@ -29,14 +30,27 @@ export const ROCKER_FACE: Record<
 /** Black bezel padding around the face and its corner radius. */
 const BEZEL_PAD = 4;
 
+/**
+ * How far a fully raised half stands toward the viewer, in viewBox units (Table R1): the outer
+ * end is displaced this far to the left (the viewer looks slightly from the right) and away from
+ * the groove. The middle position lifts each half by half of it.
+ */
+export const ROCKER_LIFT = 3;
+
+/** Corner radius of the outer face corners. */
+const CORNER = 3;
+
+/** Height of the end lip of a wall (the outer end of the raised half seen from the side). */
+const LIP = 2;
+
 interface Tones {
   readonly raised: string;
   readonly pressed: string;
   readonly groove: string;
   readonly highlight: string;
   readonly shadow: string;
-  /** Colour of the end placards printed on the face. */
-  readonly ink: string;
+  /** Side wall of a raised half; darker than the face. */
+  readonly wall: string;
 }
 
 const TONES: Record<RockerColour, Tones> = {
@@ -46,7 +60,7 @@ const TONES: Record<RockerColour, Tones> = {
     groove: '#a3a299',
     highlight: '#ffffff',
     shadow: '#8a897f',
-    ink: '#2a2d31',
+    wall: '#8a897f',
   },
   red: {
     raised: '#e5323c',
@@ -54,30 +68,33 @@ const TONES: Record<RockerColour, Tones> = {
     groove: '#6a0d13',
     highlight: '#f0535b',
     shadow: '#5a0a0f',
-    ink: '#ffffff',
+    wall: '#5a0a0f',
   },
 };
 
 export interface RockerBodyProps {
-  readonly def: Pick<ToggleDef | GuardedToggleDef, 'label' | 'hit' | 'states' | 'size' | 'colour'>;
-  /** The second state in registry order is the upper end pressed. */
-  readonly isSecond: boolean;
+  readonly def: Pick<ToggleDef | GuardedToggleDef, 'label' | 'hit' | 'size' | 'colour'>;
+  /** high presses the upper half, low the lower half, mid leaves both level (Table T1). */
+  readonly position: TogglePosition;
   /** True only while a pointer is down on the control. */
   readonly pressed: boolean;
-  readonly stateLabel: string;
 }
 
-/** Half extents of the visible art (bezel and ears included) around the control centre. */
+/**
+ * Half extents of the visible art (bezel, ears and the lift of a raised half) around the centre.
+ * The lift is measured from the face, so a raised half reaches face + ROCKER_LIFT; the 4-unit
+ * bezel pad absorbs it, which keeps every rocker inside the footprint it had before.
+ */
 export function rockerExtent(size: RockerSize): { readonly halfW: number; readonly halfH: number } {
   const face = ROCKER_FACE[size];
   const bezelHalfW = face.w / 2 + BEZEL_PAD;
   const earsHalfW = face.ears === undefined ? 0 : bezelHalfW + face.ears.w;
-  return { halfW: Math.max(bezelHalfW, earsHalfW), halfH: face.h / 2 + BEZEL_PAD };
-}
-
-/** State text size: 8 on the narrow footprints (LIGHT and S), else 10 (UI-SPEC Typography). */
-export function rockerStateSize(size: RockerSize): 8 | 10 {
-  return size === 'LIGHT' || size === 'S' ? 8 : 10;
+  const liftHalfW = face.w / 2 + ROCKER_LIFT;
+  const liftHalfH = face.h / 2 + ROCKER_LIFT;
+  return {
+    halfW: Math.max(bezelHalfW, earsHalfW, liftHalfW),
+    halfH: Math.max(face.h / 2 + BEZEL_PAD, liftHalfH),
+  };
 }
 
 /** Width estimate of B612 text; also used as textLength so tests match renders. */
@@ -88,7 +105,7 @@ function textWidth(text: string, size: number): number {
 const f = (n: number): string => n.toFixed(2).replace(/\.?0+$/, '');
 
 /**
- * One half of the face as a path: the outer end corners are rounded (radius r), the corners
+ * One flat half of the face as a path: the outer end corners are rounded (radius r), the corners
  * at the groove are square.
  */
 function halfPath(x0: number, x1: number, y0: number, y1: number, r: number, top: boolean): string {
@@ -99,11 +116,46 @@ function halfPath(x0: number, x1: number, y0: number, y1: number, r: number, top
 }
 
 /**
- * Pure rocker art (UI-SPEC 8.1): bezel, optional ears, two face halves in different tones,
- * groove, end placards, name placard and state text. ON (the second state) is the upper half
- * pressed. No hooks, no state, no per-widget defs, so node tests can expand and count it.
+ * One raised half, tilted up from the groove toward the viewer. The groove edge stays in place,
+ * the outer end is displaced `lift` to the left and `lift` away from the groove. `sign` is -1 for
+ * the upper half and +1 for the lower half. Returns the face path and the side wall polygon (the
+ * right edge plus a short lip at the outer end).
  */
-export function RockerBody({ def, isSecond, pressed, stateLabel }: RockerBodyProps) {
+function raisedHalf(
+  hw: number,
+  hh: number,
+  lift: number,
+  sign: -1 | 1,
+): { readonly face: string; readonly wall: string } {
+  const outer = sign * (hh + lift);
+  const rim = sign * (hh + lift - LIP);
+  // The right edge runs from the groove corner (hw, 0) to the displaced outer corner.
+  const rightAtRim = hw - lift + (lift * LIP) / (hh + lift);
+  const left = -hw - lift;
+  const face =
+    `M${f(-hw)} 0H${f(hw)}L${f(hw - lift)} ${f(outer)}H${f(left + CORNER)}` +
+    `Q${f(left)} ${f(outer)} ${f(left)} ${f(outer - sign * CORNER)}Z`;
+  const wall = [
+    [hw, 0],
+    [hw, sign * hh],
+    [hw - lift, outer],
+    [left + CORNER, outer],
+    [left + CORNER, rim],
+    [rightAtRim, rim],
+  ]
+    .map(([x, y]) => `${f(x as number)},${f(y as number)}`)
+    .join(' ');
+  return { face, wall };
+}
+
+/**
+ * Pure rocker art (UI-SPEC 8.1, Table R1): bezel, optional ears, two face halves in different
+ * tones, groove and the name placard, drawn slightly from the right. The pressed half lies flat;
+ * the raised half stands up with a darker side wall. Position is shown by shape and tone only,
+ * the body draws no state text. No hooks, no state, no per-widget defs, so node tests can expand
+ * and count it.
+ */
+export function RockerBody({ def, position, pressed }: RockerBodyProps) {
   const size = def.size ?? 'M';
   const tones = TONES[def.colour ?? 'white'];
   const face = ROCKER_FACE[size];
@@ -112,21 +164,43 @@ export function RockerBody({ def, isSecond, pressed, stateLabel }: RockerBodyPro
   const hh = face.h / 2;
   const bezelW = face.w + 2 * BEZEL_PAD;
   const bezelH = face.h + 2 * BEZEL_PAD;
-  const stateSize = rockerStateSize(size);
   const light = size === 'LIGHT';
 
-  const [first, second] = def.states;
-  const upperPressed = isSecond;
+  const upperPressed = position === 'high';
+  const lowerPressed = position === 'low';
+  const level = position === 'mid';
+  const halfLift = ROCKER_LIFT / 2;
 
-  // Pressed half: darker, its outer end 1 unit nearer the groove, a 2-unit shadow band toward
-  // the groove. Raised half: lighter with a 1-unit highlight on its top edge.
-  const upperY0 = upperPressed ? -hh + 1 : -hh;
-  const lowerY1 = upperPressed ? hh : hh - 1;
-  const pressedBand = upperPressed ? { y: -2, tone: tones.shadow } : { y: 0, tone: tones.shadow };
-  const highlightY = upperPressed ? 0 : -hh;
+  const upperFlat = halfPath(-hw, hw, -hh + 1, 0, CORNER, true);
+  const lowerFlat = halfPath(-hw, hw, 0, hh - 1, CORNER, false);
 
-  const stateY = halfH + 1.5 + 0.72 * stateSize;
-  const labelY = light ? stateY + 9 : -(halfH + 2.5);
+  const upperRaised = level
+    ? raisedHalf(hw, hh, halfLift, -1)
+    : lowerPressed
+      ? raisedHalf(hw, hh, ROCKER_LIFT, -1)
+      : null;
+  const lowerRaised = level
+    ? raisedHalf(hw, hh, halfLift, 1)
+    : upperPressed
+      ? raisedHalf(hw, hh, ROCKER_LIFT, 1)
+      : null;
+
+  const upperFace = upperRaised?.face ?? upperFlat;
+  const lowerFace = lowerRaised?.face ?? lowerFlat;
+  const upperFill = upperPressed ? tones.pressed : tones.raised;
+  const lowerFill = lowerPressed ? tones.pressed : tones.raised;
+
+  // Highlight: 1 unit on the top edge of the raised half (the displaced outer end of the upper
+  // half, the groove edge of the lower half). A level rocker highlights its upper half only.
+  const upperLift = level ? halfLift : ROCKER_LIFT;
+  const highlight = upperPressed
+    ? { x: -hw + 1, y: 0, w: face.w - 2 }
+    : { x: -hw - upperLift + CORNER, y: -hh - upperLift, w: face.w - CORNER - 1 };
+  // A 2-unit shadow band across the groove side of the pressed half.
+  const band = upperPressed ? { y: -2 } : lowerPressed ? { y: 0 } : null;
+
+  // The name sits above the bezel; on the LIGHT rockers it sits below, clear of the neighbours.
+  const labelY = light ? halfH + 1.5 + 0.72 * 8 : -(halfH + 2.5);
   const labelWidth = Math.min(textWidth(def.label, 8), def.hit.w - 2);
 
   return (
@@ -175,58 +249,26 @@ export function RockerBody({ def, isSecond, pressed, stateLabel }: RockerBodyPro
         stroke={pressed ? PRESSED_RING : '#2d3138'}
         stroke-width={pressed ? 2 : 1}
       />
-      <path
-        d={halfPath(-hw, hw, upperY0, 0, 3, true)}
-        fill={upperPressed ? tones.pressed : tones.raised}
-      />
-      <path
-        d={halfPath(-hw, hw, 0, lowerY1, 3, false)}
-        fill={upperPressed ? tones.raised : tones.pressed}
-      />
-      <rect x={-hw + 1} y={highlightY} width={face.w - 2} height={1} fill={tones.highlight} />
-      <rect
-        x={-hw}
-        y={pressedBand.y}
-        width={face.w}
-        height={2}
-        fill={pressedBand.tone}
-        fill-opacity={0.45}
-      />
+      <path d={upperFace} fill={upperFill} />
+      <path d={lowerFace} fill={lowerFill} />
+      <rect x={highlight.x} y={highlight.y} width={highlight.w} height={1} fill={tones.highlight} />
+      {band === null ? null : (
+        <rect
+          x={-hw}
+          y={band.y}
+          width={face.w}
+          height={2}
+          fill={tones.shadow}
+          fill-opacity={0.45}
+        />
+      )}
       <line x1={-hw} y1={0} x2={hw} y2={0} stroke={tones.groove} stroke-width={1} />
-      <text
-        x={0}
-        y={-hh + 8}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={6}
-        fill={tones.ink}
-      >
-        {second.label}
-      </text>
-      <text
-        x={0}
-        y={hh - 3.5}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={6}
-        fill={tones.ink}
-      >
-        {first.label}
-      </text>
-      <text
-        data-state-text
-        x={0}
-        y={stateY}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={stateSize}
-        font-weight={700}
-        fill="#e6e9ed"
-        textLength={Math.max(textWidth(stateLabel, stateSize), 1)}
-        lengthAdjust="spacingAndGlyphs"
-      >
-        {stateLabel}
-      </text>
+      {upperRaised === null ? null : (
+        <polygon data-rocker-wall="upper" points={upperRaised.wall} fill={tones.wall} />
+      )}
+      {lowerRaised === null ? null : (
+        <polygon data-rocker-wall="lower" points={lowerRaised.wall} fill={tones.wall} />
+      )}
     </g>
   );
 }
