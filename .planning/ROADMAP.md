@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 13/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
+**Plans:** 14/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
 
 Plans:
 **Wave 1**
@@ -105,7 +105,7 @@ Plans:
 - [x] 01.1-13-PLAN.md — Static toggle family (rockers, bats, softkey, guard cover), rocker side perspective, state-independent text gate
 
 **Wave 8**
-- [ ] 01.1-14-PLAN.md — Static levers and push buttons
+- [x] 01.1-14-PLAN.md — Static levers and push buttons
 
 **Wave 9**
 - [ ] 01.1-15-PLAN.md — Static knobs, lamp-group readouts removed, built-panel static-text gate

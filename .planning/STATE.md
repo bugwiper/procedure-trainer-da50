@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
-current_plan: 13 (complete)
+current_plan: 14 (complete)
 status: executing
-stopped_at: Completed 01.1-13-PLAN.md
-last_updated: "2026-10-20T22:31:25.248Z"
+stopped_at: Completed 01.1-14-PLAN.md
+last_updated: "2026-10-20T22:34:48.426Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 7ef10d81be299068e57839a73bb644bc5903dcbc
+state_head: 180f847108da9a3a74c21362933525da33cc7634
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 32
-  completed_plans: 22
+  completed_plans: 23
   percent: 14
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.1 (Panel shape, controls and indicator lights) — GAP CLOSURE IN PROGRESS (plans 12 to 23 from the owner first-render review)
-Current Plan: 13 (complete)
+Current Plan: 14 (complete)
 Total Plans in Phase: 23
 Status: Plans 01.1-01 to 01.1-13 complete; plan 13 made the toggle family static (no state text, no status dot) and drew rockers in side perspective; plans 14 to 23 pending
 Last activity: 2026-10-21 — Plan 01.1-13 complete (static rockers, bats, softkey, guard cover; text gate)
@@ -71,6 +71,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P11 | 90min | 4 tasks | 3 files |
 | Phase 01.1 P12 | 20min | 3 tasks | 4 files |
 | Phase 01.1 P13 | 25min | 2 tasks | 13 files |
+| Phase 01.1 P14 | 20min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: PD-09: lever names drawn above the highest handle position (inside the region); skinned legends right of the handle; MODE state text left of the track
 - [Phase 01.1]: 01.1-10: docs/PANEL-REVIEW.md is the owner first-render review list; tests/panel-review.test.ts keeps it complete against layout-reference review rows and the UI-SPEC
 - [Phase 01.1]: Rocker raised half drawn as tilted face with tagged side wall; rockerExtent absorbs the 3-unit lift in the 4-unit bezel pad
+- [Phase 01.1]: Plan 14: levers and buttons show state by position only; horizontal slider legends print below the handle and never hide
 
 ### Pending Todos
 
@@ -130,6 +132,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T22:31:25.163Z
-Stopped at: Completed 01.1-13-PLAN.md
+Last session: 2026-10-20T22:34:48.334Z
+Stopped at: Completed 01.1-14-PLAN.md
 Resume file: None
