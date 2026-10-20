@@ -22,7 +22,7 @@ const DIMMER_STOPS: readonly RotaryStopDef[] = [
 const DIMMER = {
   kind: 'rotary',
   region: 'light_knobs',
-  y: 48,
+  y: 51, // global 238; the region grew 3 upward so the captions fit (G-0.5)
   hit: { w: 60, h: 60 },
   r: 20,
   scale: 'arc',

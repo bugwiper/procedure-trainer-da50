@@ -68,14 +68,14 @@ export const REGIONS: readonly RegionDef[] = [
   {
     id: 'light_knobs',
     name: 'INSTRUMENT AND FLOOD LIGHT',
-    bounds: { x: 1010, y: 190, w: 150, h: 100 },
+    bounds: { x: 1010, y: 187, w: 150, h: 103 },
   },
   { id: 'mfd', name: 'MFD', bounds: { x: 1269, y: 200, w: 495, h: 367 } },
   // The softkey strip under the MFD screen. Ends at 608, one unit under the softkey (G-4: the
   // flap region above it grew upward by 5).
   { id: 'mfd_softkeys', name: 'MFD SOFTKEYS', bounds: { x: 1262, y: 570, w: 510, h: 38 } },
   // Under the left column and the PFD.
-  { id: 'switch_bank', name: 'SWITCH ROW', bounds: { x: 70, y: 625, w: 764, h: 80 } },
+  { id: 'switch_bank', name: 'SWITCH ROW', bounds: { x: 70, y: 621, w: 764, h: 84 } },
   // Gear lever, gear lamps and the STALL/GEAR TEST part.
   { id: 'landing_gear', name: 'LANDING GEAR', bounds: { x: 836, y: 575, w: 239, h: 165 } },
   // The LEVEL button between the gear and flap blocks.
@@ -87,14 +87,14 @@ export const REGIONS: readonly RegionDef[] = [
   // Under the panel: left of the pilot's left knee.
   { id: 'under_panel_left', name: 'UNDER PANEL L', bounds: { x: 15, y: 745, w: 80, h: 120 } },
   // Left of the pedestal.
-  { id: 'under_panel_centre', name: 'UNDER PANEL C', bounds: { x: 860, y: 745, w: 90, h: 120 } },
+  { id: 'under_panel_centre', name: 'UNDER PANEL C', bounds: { x: 860, y: 740, w: 90, h: 125 } },
   // Environmental plate, top of the centre console. Split from the pedestal (PD-01): in one
   // 540-tall region the phone shows 0.56 px per unit and POWER reaches only 34 px.
   { id: 'env_control', name: 'ENVIRONMENTAL CONTROL', bounds: { x: 957, y: 750, w: 211, h: 265 } },
   // Drawn as a plan view below the panel, fore at the top; fore-aft length not to scale.
   { id: 'pedestal', name: 'PEDESTAL', bounds: { x: 957, y: 1015, w: 211, h: 275 } },
   // Right of the pedestal.
-  { id: 'under_panel_right', name: 'UNDER PANEL R', bounds: { x: 1170, y: 745, w: 90, h: 120 } },
+  { id: 'under_panel_right', name: 'UNDER PANEL R', bounds: { x: 1170, y: 740, w: 90, h: 125 } },
 ];
 
 export const DA50RG = defineRegistry({

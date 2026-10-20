@@ -19,11 +19,6 @@ const KNOWN_OPEN: readonly string[] = [
   'env_control',
   'deice',
   'deice_switches',
-  // Fixed by task 3 of plan 16, then removed from this list.
-  'light_knobs',
-  'switch_bank',
-  'under_panel_centre',
-  'under_panel_right',
 ];
 
 /** ART_FIT_STRICT=1 also checks the known-open regions, to see what a rebuild still has to fix. */
@@ -45,11 +40,19 @@ interface Painted {
   readonly box: Box;
 }
 
+interface TextBox {
+  /** Region id, or `shell` for text that belongs to no region. */
+  readonly owner: string;
+  readonly text: string;
+  readonly box: Box;
+}
+
 interface PanelGeometry {
   readonly frames: Readonly<Record<string, Box>>;
   readonly plates: readonly { id: string; regions: string[]; box: Box }[];
   readonly painted: readonly Painted[];
   readonly wordmark: Box | null;
+  readonly texts: readonly TextBox[];
 }
 
 test.beforeEach(async ({ page }, testInfo) => {
@@ -103,8 +106,25 @@ async function readGeometry(page: Page): Promise<PanelGeometry> {
       regions: (el.getAttribute('data-plate-regions') ?? '').split(' ').filter((r) => r !== ''),
       box: toBox(el),
     }));
+    // Every text of the panel svg except the glass displays (instrument data, not placards).
+    const texts: TextBox[] = [];
+    for (const el of Array.from(svg.querySelectorAll('text'))) {
+      const group = el.closest('[data-region-id]');
+      const owner = group?.getAttribute('data-region-id') ?? 'shell';
+      if (owner === 'pfd' || owner === 'mfd') continue;
+      const text = (el.textContent ?? '').trim();
+      if (text === '') continue;
+      // The glyph band: the middle 60 percent of the text box, about the cap height. The full
+      // box includes the font's ascent and descent, which makes stacked lines touch.
+      const full = toBox(el);
+      texts.push({
+        owner,
+        text,
+        box: { x: full.x, y: full.y + full.h * 0.2, w: full.w, h: full.h * 0.6 },
+      });
+    }
     const mark = svg.querySelector('[data-shell="wordmark"]');
-    return { frames, plates, painted, wordmark: mark === null ? null : toBox(mark) };
+    return { frames, plates, painted, texts, wordmark: mark === null ? null : toBox(mark) };
   });
 }
 
@@ -164,4 +184,42 @@ test('the RUBIN mark and the LEVEL button lie on one plate and no plate seam cro
   for (const item of level) {
     expect(outside(item.box, gear.box), `level ${item.tag} "${item.text}"`).toBeNull();
   }
+});
+
+/**
+ * Text pairs known to overlap because they belong to areas plans 17 to 22 rebuild. Entries are
+ * "owner:text" of both strings, sorted and joined with a bar (owner is a region id or `shell`).
+ * Each plan removes the pairs of the area it rebuilds; the list ends empty.
+ */
+const TEXT_OVERLAP_KNOWN: readonly string[] = [
+  // The ENVIRONMENTAL CONTROL heading runs over the DEFROST and WARM captions (plan 20).
+  'env_control:DEFROST|shell:ENVIRONMENTAL CONTROL',
+  'env_control:WARM|shell:ENVIRONMENTAL CONTROL',
+];
+
+/** Overlap area in square units of two glyph bands. */
+function overlapArea(a: Box, b: Box): number {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+test('no two text strings of the panel overlap', async ({ page }) => {
+  const geo = await readGeometry(page);
+  expect(geo.texts.length).toBeGreaterThan(60);
+  const found = new Set<string>();
+  for (let i = 0; i < geo.texts.length; i++) {
+    for (let j = i + 1; j < geo.texts.length; j++) {
+      const a = geo.texts[i];
+      const b = geo.texts[j];
+      if (a === undefined || b === undefined) continue;
+      if (overlapArea(a.box, b.box) <= 0.5) continue;
+      found.add([`${a.owner}:${a.text}`, `${b.owner}:${b.text}`].sort().join('|'));
+    }
+  }
+  const unexpected = [...found].filter((pair) => !TEXT_OVERLAP_KNOWN.includes(pair)).sort();
+  expect(unexpected).toEqual([]);
+  // A stale entry would hide a regression of a fixed area: the list may only name live overlaps.
+  const stale = TEXT_OVERLAP_KNOWN.filter((pair) => !found.has(pair));
+  expect(stale).toEqual([]);
 });

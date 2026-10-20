@@ -2,7 +2,7 @@ import type { ControlSpec, StateDef, ToggleDef } from '../../../engine/registry'
 
 // Lower switch row of the instrument panel (D-07c). Control inventory: AFM section 7-23
 // and the private reference photos IMG_0650 / DA50_virtual (layout facts only, no AFM
-// wording). Region-local y 39; slot centres x at the true spacing (D-21):
+// wording). Region-local y 43; slot centres x at the true spacing (D-21):
 //   0 PROP DE-ICE 44      1 FUEL TRANS 119     2 EMERG FUEL PUMP 206
 //   3 ENGINE START 316 (momentary, lives in buttons.ts)    4 ENGINE MASTER 400
 //   5 ESS BUS 502         6 ELECT. MASTER 586  7 AV MASTER 661
@@ -34,7 +34,7 @@ function rowSwitch(
     label,
     region: 'switch_bank',
     x,
-    y: 39,
+    y: 43, // global 664; the region grew 4 upward so the captions fit (G-0.5)
     hit: { w: 66, h: 70 },
     states: OFF_ON,
     default: initial,
@@ -57,7 +57,7 @@ export const SWITCH_BANK_CONTROLS: readonly ControlSpec[] = [
     label: 'FUEL TRANS',
     region: 'switch_bank',
     x: 119,
-    y: 39,
+    y: 43,
     hit: { w: 66, h: 70 },
     r: 16,
     scale: 'none',

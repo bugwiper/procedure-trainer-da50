@@ -18,7 +18,7 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
     label: 'ENGINE START',
     region: 'switch_bank',
     x: 316,
-    y: 39,
+    y: 43,
     hit: { w: 66, h: 70 },
     states: RELEASED_PRESSED,
     default: 'released',

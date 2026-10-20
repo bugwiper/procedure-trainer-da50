@@ -3,7 +3,7 @@ import type { ControlSpec } from '../../../engine/registry';
 // Under-panel pull handles (D-07c positions, D-07d confirmed states), modelled as vertical
 // two-detent levers stowed at the top (pos 1) and pulled at the bottom (pos 0). Positions are
 // layout facts from the private reference photo DA50_virtual (D-04b), redrawn schematically.
-// All three share y 60, hit 44 x 110 and a 60-unit track, each in its own small region.
+// All three share the global y 805, hit 44 x 110 and a 60-unit track, each in its own small region.
 
 export const UNDER_PANEL_CONTROLS: readonly ControlSpec[] = [
   {
@@ -33,7 +33,7 @@ export const UNDER_PANEL_CONTROLS: readonly ControlSpec[] = [
     label: 'EMERGENCY GEAR EXTENSION',
     region: 'under_panel_centre',
     x: 47,
-    y: 60,
+    y: 65, // global 805; the region grew 5 upward so the name fits (G-0.5)
     hit: { w: 44, h: 110 }, // 44 wide (was 60): free background for region tap at full view (PD-06)
     track: { length: 60, axis: 'v' },
     detents: [
@@ -52,7 +52,7 @@ export const UNDER_PANEL_CONTROLS: readonly ControlSpec[] = [
     label: 'ALTERNATE AIR',
     region: 'under_panel_right',
     x: 35,
-    y: 60,
+    y: 65, // global 805; the region grew 5 upward so the name fits (G-0.5)
     hit: { w: 44, h: 110 }, // 44 wide (was 60): free background for region tap at full view (PD-06)
     track: { length: 60, axis: 'v' },
     detents: [
