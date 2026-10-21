@@ -319,3 +319,71 @@ describe('phase 01.2 review list (Q2, U2, P2, Round 3)', () => {
     }
   });
 });
+
+// Plan 31 (R2-Z1): the owner superseded the single-tap zoom. The wording is current everywhere
+// it is stated: README, REQUIREMENTS PNL-15 and PNL-09, the ROADMAP criterion 4 of phase 01.1.
+describe('zoom wording (R2-Z1, plan 31)', () => {
+  const lineOf = (text: string, needle: string): string =>
+    text.split('\n').find((line) => line.includes(needle)) ?? '';
+  const requirements = read('.planning/REQUIREMENTS.md');
+  const roadmap = read('.planning/ROADMAP.md');
+  const readme = read('README.md');
+
+  it('the README says a single click or tap never zooms and a double one on the background does', () => {
+    expect(readme).toMatch(/single click or tap never zooms/);
+    expect(readme).toMatch(/double click or double tap on the (panel )?background/);
+    expect(readme).toMatch(/double tap on a control is two (control )?taps/);
+    expect(readme).not.toContain("a tap or click on a region's background zooms into it");
+  });
+
+  it('the README says a single tap on an inert part does nothing and a double tap only zooms', () => {
+    expect(readme).toMatch(/a single tap on them does nothing/);
+    expect(readme).toMatch(/a double tap only zooms/);
+  });
+
+  it('the README names the Full panel button corners', () => {
+    expect(readme).toMatch(/Full panel.{0,80}three corners/);
+  });
+
+  it.each(['PNL-15', 'PNL-09'])('REQUIREMENTS %s carries the double-tap wording', (id) => {
+    const line = lineOf(requirements, `**${id}**`);
+    expect(line, `${id} missing`).not.toBe('');
+    expect(line).toMatch(/double (click|tap)/);
+    expect(line).not.toMatch(/single tap on the panel background/);
+    expect(line).not.toMatch(/pinch or region tap/);
+  });
+
+  it('REQUIREMENTS PNL-15 states the single click never zooms, the control rule and the button', () => {
+    const line = lineOf(requirements, '**PNL-15**');
+    expect(line).toMatch(/single click or tap never zooms/);
+    expect(line).toMatch(/double tap on a control stays two control taps/);
+    expect(line).toMatch(/never covers a control/);
+  });
+
+  it('no line of REQUIREMENTS says a single tap zooms', () => {
+    expect(requirements).not.toContain('single tap on the panel background while zoomed');
+    expect(requirements).not.toContain('pinch or region tap');
+  });
+
+  it('ROADMAP criterion 4 of phase 01.1 carries the new contract and not the old sentence', () => {
+    expect(roadmap).not.toContain('A single tap on the panel background while zoomed');
+    const at = roadmap.indexOf('### Phase 01.1');
+    expect(at).toBeGreaterThan(-1);
+    const block = roadmap.slice(roadmap.indexOf('**Success Criteria**', at));
+    const line = block.split('\n').find((l) => /^\s*4\. /.test(l)) ?? '';
+    expect(line).toMatch(/single click or tap never zooms/);
+    expect(line).toMatch(/double click or double tap/);
+    expect(line).toMatch(/Full panel/);
+  });
+
+  it('the supersession notes stand under D-12 and under the gesture table', () => {
+    const context = read(
+      '.planning/phases/01.1-panel-shape-controls-and-indicator-lights/01.1-CONTEXT.md',
+    );
+    expect(context).toContain('R2-Z1');
+    if (uiSpecExists) {
+      const spec = read(UI_SPEC_PATH);
+      expect(spec).toContain('R2-Z1');
+    }
+  });
+});

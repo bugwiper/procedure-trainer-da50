@@ -16,14 +16,14 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-05**: Panel scales to desktop, tablet and phone screens without horizontal page scroll; panel regions (e.g. PFD, engine page, switch bank, pedestal) are part of the data model so region zoom can be added later without a rewrite
 - [x] **PNL-06**: Controls with safety consequences are guarded or confirm-to-actuate, and stray touches on neutral areas are never graded as forbidden actions
 - [x] **PNL-08**: Panel layout reproduces the real DA50 RG positions (which control is where, relative placement and grouping, incl. under-panel controls) closely enough to build position memory for emergencies; touch sizing must never relocate a control
-- [x] **PNL-09**: On phones, the user can zoom into a panel region (pinch or region tap) with enlarged hit targets, without changing the true layout (promoted from PNL-V2-01)
+- [x] **PNL-09**: On phones, the user can zoom into a panel region (pinch or double tap) with enlarged hit targets, without changing the true layout (promoted from PNL-V2-01)
 - [ ] **PNL-07**: A simplified transponder section lets the user enter a squawk code (no full G1000 menu structure)
 - [x] **PNL-10**: The panel visually reproduces the real DA50 RG (instrument panel outline, centre console, under-panel areas) in kind-of real shapes and real colours; brand marks are replaced (GARMIN with GO-AROUND, DIAMOND with RUBIN, DA50RG kept)
 - [x] **PNL-11**: Every switch, rocker, push button, lever and knob exists at its real position in kind-of real shape and colour; all of them work by mouse or touch (state shown by position and text); the light switches are white rockers and movable
 - [x] **PNL-12**: Every circuit breaker of the Essential, Main and Avionics bus exists at its real position as a control kind with states in and out (pushed in by default, pulled out shows a raised cap with a white ring and no state text, owner rule G-0.1); tap toggles
 - [x] **PNL-13**: The G1000 NXi PFD and MFD appear in their well-known shape incl. all softkeys (inert except the MFD page softkey and the engine page); the audio panel, autopilot panel and the static backup EFIS are visible in their real positions (buttons not functional)
 - [x] **PNL-14**: The gear indicator is three separate green lights (each green or off; all three green = down and locked) plus a separate red light (red or off; on for unsafe or in transition; all off for up and locked); the flap lights follow flap state; transition timing arrives with Phase 3
-- [x] **PNL-15**: A single tap on the panel background while zoomed zooms fully out (also from intermediate zoom levels); the "Full panel" button is never hidden by the footer
+- [x] **PNL-15**: A single click or tap never zooms; a double click (mouse) or double tap (touch) on the panel background zooms into the tapped region and, while zoomed, zooms fully out again (also from intermediate pinch levels); a double tap on a control stays two control taps and never zooms; the "Full panel" button is never hidden by the footer and never covers a control
 
 ### Scenario Engine
 

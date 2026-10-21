@@ -69,7 +69,7 @@ Plans:
   1. The panel outline, centre console and under-panel areas match the real DA50 RG, with all switches, rockers, push buttons, levers and knobs at their real positions, in kind-of real shape and real colour (ELECT. MASTER big red rocker, ELT small red rocker, ESS BUS white rocker, light switches white).
   2. Every switch and lever works by mouse or touch with state shown by position plus text; the light rockers move.
   3. The gear indicator has three separate green lights (each green or off; all three green means down and locked) and a separate red light (red or off; on for unsafe or in transition); all off means up and locked. The flap lights follow flap state. Transition timing is Phase 3.
-  4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
+  4. A single click or tap never zooms; a double click or double tap on the panel background zooms in and, while zoomed, fully out (a double tap on a control stays two control taps); the "Full panel" button is never hidden behind the footer and never covers a control.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
 **Plans:** 30/31 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch)

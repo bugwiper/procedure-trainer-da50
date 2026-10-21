@@ -12,11 +12,11 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 The panel has 92 controls and 13 indicator lamps in 30 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
 
-- **LIGHTS**, glareshield: LANDING, TAXI, POSITION, STROBE
+- **LIGHTS**, glareshield: LANDING, TAXI, POSITION, STROBE (ON above OFF is printed once on each side of the four rockers, as on the aircraft)
 - **INSTRUMENT AND FLOOD LIGHT**, between the displays: INSTRUMENT LIGHT and FLOOD LIGHT knobs
 - **DE ICE**, top far left: MAX (push button), the mode toggle (HIGH / NORM / OFF) with its three lamps, and ALTERNATE (the guarded switch)
 - **DE-ICE SWITCHES**, below DE ICE: WIND SHIELD (push button), the ICE LIGHT / OFF / ANNUN-TEST toggle, the PUMP toggle (PUMP 1 / PUMP 2)
-- **ENGINE**, left edge below DE-ICE: FADEC (AUTO / FORCE B), FADEC TEST (push button), ALTERNATOR 1, ALTERNATOR 2
+- **ENGINE**, left edge below DE-ICE: the FADEC group (heading FADEC on a bracket over the switch and the button; AUTO above and FORCE B below the switch, TEST over the FADEC TEST push button) and the ALTERNATOR group (heading ALTERNATOR on a bracket over both switches; ON and OFF once between the switches, the numerals 1 and 2 in white frames beside them)
 - **MFD SOFTKEYS**, under the MFD screen: a row of 12 triangle keys; the first one switches the MFD between the map page and the engine page (its legend, Engine, stands on the glass above it), the other 11 are art only
 - **PFD SOFTKEYS**, under the PFD screen: a row of 12 triangle keys, art only
 - **KNOB AND KEY COLUMNS**, beside both displays: the PFD left column (VOL, NAV, HDG and ALT knobs, swap button), the PFD right column and the MFD right column (VOL, COM, CRS/BARO and FMS knobs, swap button, RANGE joystick, six keys), all art only
@@ -30,8 +30,8 @@ The panel has 92 controls and 13 indicator lamps in 30 regions, placed where the
 - **RIGHT PANEL**, lower right: ELT (three positions: ON, ARMED, RESET / TEST) with its red lamp
 - **UNDER PANEL L**: ALTERNATE STATIC
 - **UNDER PANEL C**: EMERGENCY GEAR EXTENSION (drag-only: tapping does nothing, the handle must be dragged all the way)
-- **ENVIRONMENTAL CONTROL**, top of the centre console: FAN, DIRECTION, TEMPERATURE and CIRCULATING AIR, each in its own box with pictograms instead of words
-- **PEDESTAL**: PARKING BRAKE (pulled up to set), THROTTLE (0 to 100 % in 5 % steps), COWL FLAP (CLOSED / OPEN) with its two position lamps
+- **ENVIRONMENTAL CONTROL**, top of the centre console: FAN (its four positions OFF and three fan stops are direct click spots: a tap on a position sets it at once), DIRECTION, TEMPERATURE and CIRCULATING AIR, each in its own box with pictograms instead of words
+- **PEDESTAL**: PARKING BRAKE (a hinged flap: a tap pulls it up to set and a second tap releases it, no dragging), THROTTLE (0 to 100 % in 5 % steps), COWL FLAP (CLOSED / OPEN) with its two position lamps
 - **UNDER PANEL R**: ALTERNATE AIR
 - **BUS PANEL FRAME**, far right: the ESSENTIAL, MAIN and AVIONICS bus outlines with their titles, three blank plugs, three pump boxes and the lower-row panel (art only)
 - **CIRCUIT BREAKERS**, bus panel at the far right: 51 breakers with their printed labels and ratings, 38 in the ESSENTIAL, MAIN and AVIONICS bus boxes (three blank plugs between them), 10 in the lower row and 3 on the flap strip under the MFD (STALL/AOA, PROP DE-ICE, DE-ICE); all start pushed in
@@ -44,10 +44,10 @@ How it behaves:
 - The gear and flap lamps follow the GEAR and FLAPS levers. Holding GEAR TEST lights all four gear lamps. Lamps are derived from the control states; nothing pulses.
 - The de-ice mode lamps follow the mode toggle (HIGH amber, NORM white); the MAX lamp stays dark until the 120 s run exists in the engine phase.
 - A tap on a circuit breaker pulls it out, showing a raised cap and a white ring (no text); a second tap pushes it back in. Nothing else in the cockpit reacts to a pulled breaker yet.
-- The softkeys other than the first MFD key, the knob and key columns, and every key, knob and button of the audio panel (including DISPLAY BACKUP), the backup EFIS and the autopilot panel do nothing: a tap on them only zooms into their region.
+- The softkeys other than the first MFD key, the knob and key columns, and every key, knob and button of the audio panel (including DISPLAY BACKUP), the backup EFIS and the autopilot panel do nothing: a single tap on them does nothing and a double tap only zooms into their region.
 - ENGINE START, FADEC TEST, MAX, WIND SHIELD, LEVEL and the STALL TEST / GEAR TEST toggle are momentary: they act while held and return when you let go, also when you slide off the button first.
 - The de-ice, lighting and environmental controls move and are recorded, but their systems are not simulated yet (spray, ice light, annunciator test and the MAX run belong to the engine phase).
-- The panel keeps the true spacing and proportions of the aircraft, so some controls are small at the full view. On every device, a tap or click on a region's background zooms into it at full tap size; "Full panel" (or a double tap or double click) zooms out.
+- The panel keeps the true spacing and proportions of the aircraft, so some controls are small at the full view. On every device, a single click or tap never zooms; a double click or double tap on the background (between controls, never on a control) zooms into that region at full tap size and, while zoomed, zooms fully out again, as do pinch and the "Full panel" button. A double tap on a control is two control taps and never zooms. The "Full panel" button moves between three corners so it never covers a control.
 - Tapping a neutral area (panel background, display artwork, gaps between controls) never changes anything.
 - The default positions and step sizes flagged as assumptions in the plans are still to be confirmed against the aircraft.
 
