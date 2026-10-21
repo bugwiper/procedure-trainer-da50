@@ -72,7 +72,7 @@ Plans:
   4. A single click or tap never zooms; a double click or double tap on the panel background zooms in and, while zoomed, fully out (a double tap on a control stays two control taps); the "Full panel" button is never hidden behind the footer and never covers a control.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 31/31 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch)
+**Plans:** 31/40 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch; plan 32 was a quick fix of two WebKit findings without a plan file; 9 more gap-closure plans 33 to 41 planned from the owner live-site review, round 3 (R3 findings), executed on the phase 01.2 branch)
 
 Plans:
 **Wave 1**
@@ -159,6 +159,35 @@ Plans:
 
 **Wave 25**
 - [x] 01.1-31-PLAN.md — Documents, README, ROADMAP and REQUIREMENTS wording (PNL-15), R2-5.1 verified, final gates incl. tablet chromium, live rehearsal and one WebKit attempt
+
+**Gap closure, round 3** *(owner live-site review of 2026-10-21 at 8e4aa70, R3 findings in 01.1-OWNER-FINDINGS-R2.md; plans stored here, executed on the phase 01.2 branch; sequential, unattended, no push)*
+
+**Wave 26**
+- [ ] 01.1-33-PLAN.md — R3-1.1: bus box titles as unstroked text over a plate-coloured cut rectangle, no-stroke gate, WebKit check
+
+**Wave 27**
+- [ ] 01.1-34-PLAN.md — R3-4.1: pulled parking brake as a hinged plate drawn from the owner sketch, geometry gate
+
+**Wave 28**
+- [ ] 01.1-35-PLAN.md — R3-Z3 (engine side): store retract of the last event, state replayed from the log, bridge hook, Phase 3 rule
+
+**Wave 29**
+- [ ] 01.1-36-PLAN.md — R3-Z2 core: pure press arbitration machine (pending, tap, pan, pinch, hold, slops 10 px touch and 5 px mouse), background gestures moved onto it
+
+**Wave 30**
+- [ ] 01.1-37-PLAN.md — R3-Z2: toggles, rockers, bats, circuit breakers and guards act on release; pan and pinch over them
+
+**Wave 31**
+- [ ] 01.1-38-PLAN.md — R3-Z2: parking brake flap, lever marker taps and FAN spots act on release
+
+**Wave 32**
+- [ ] 01.1-39-PLAN.md — R3-Z2: momentary controls commit after 100 ms held still; drag controls keep their gesture and can be pinched over
+
+**Wave 33**
+- [ ] 01.1-40-PLAN.md — R3-Z3: a double click or double tap on a latching control zooms and retracts the first actuation; PNL-15, ROADMAP and README wording
+
+**Wave 34**
+- [ ] 01.1-41-PLAN.md — Documents (Round 5 and decisions R3-D1 to R3-D8), supersession notes, final gates, live rehearsal, one full WebKit run on four projects
 
 ### Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels (INSERTED)
 
