@@ -95,6 +95,36 @@ export const PLACARDS: readonly PlacardDef[] = [
     anchor: 'middle',
     size: 6,
   },
+  // ICE LIGHT / ANNUN-TEST toggle (sw.deice_ice_light, global centre 171, 425; plan 22, owner finding
+  // G-1): ICE LIGHT centred above the highest handle position, OFF right of the middle one,
+  // ANNUN- and TEST as two lines centred below the lowest. The pivot sits 4.5 below the centre.
+  {
+    id: 'deice_ice_light.ice_light',
+    near: 'sw.deice_ice_light',
+    dx: 0,
+    dy: -27,
+    lines: ['ICE LIGHT'],
+    anchor: 'middle',
+    size: 6,
+  },
+  {
+    id: 'deice_ice_light.off',
+    near: 'sw.deice_ice_light',
+    dx: 13,
+    dy: 7,
+    lines: ['OFF'],
+    anchor: 'start',
+    size: 6,
+  },
+  {
+    id: 'deice_ice_light.annun_test',
+    near: 'sw.deice_ice_light',
+    dx: 0,
+    dy: 28,
+    lines: ['ANNUN-', 'TEST'],
+    anchor: 'middle',
+    size: 6,
+  },
   {
     id: 'cowl_flap.name',
     near: 'lv.cowl_flap',

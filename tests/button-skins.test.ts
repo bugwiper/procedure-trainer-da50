@@ -42,9 +42,8 @@ function allProps(tree: Tree): unknown[] {
 }
 
 describe('momentary button inventory', () => {
-  it('has six buttons, each with a skin', () => {
+  it('has five buttons, each with a skin (the ANNUN TEST button is a toggle position now)', () => {
     expect(BUTTONS.map((b) => b.id).sort()).toEqual([
-      'btn.deice_annun_test',
       'btn.deice_max',
       'btn.engine_start',
       'btn.fadec_test',
@@ -65,7 +64,6 @@ describe('momentary button inventory', () => {
     expect(skins).toEqual({
       'btn.engine_start': 'chrome-round',
       'btn.fadec_test': 'small-black',
-      'btn.deice_annun_test': 'small-black',
       'btn.deice_max': 'black-dome',
       'btn.level': 'blue-dome',
       'btn.stall_gear_test': 'spring-bat',

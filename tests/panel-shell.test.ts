@@ -283,6 +283,29 @@ describe('plate placards', () => {
     expect(mode[2]?.dx).toBe(0);
   });
 
+  it('the ICE LIGHT toggle has ICE LIGHT above, OFF right of the middle and ANNUN- / TEST below', () => {
+    const own = PLACARDS.filter((p) => p.near === 'sw.deice_ice_light');
+    expect(own.map((p) => p.lines.join(' '))).toEqual(['ICE LIGHT', 'OFF', 'ANNUN- TEST']);
+    expect(own.map((p) => p.anchor)).toEqual(['middle', 'start', 'middle']);
+    expect(own.every((p) => p.size === 6)).toBe(true);
+    expect(own[2]?.lines).toHaveLength(2);
+    const hit = DA50RG.get('sw.deice_ice_light')?.hit;
+    expect(hit).toEqual({ w: 30, h: 69 });
+    if (hit === undefined) return;
+    // ICE LIGHT, OFF and the first ANNUN- line lie in the top, middle and bottom third.
+    const third = hit.h / 3;
+    const tops = [-hit.h / 2 - 8, -hit.h / 2 + third, -hit.h / 2 + 2 * third];
+    own.forEach((p, i) => {
+      const y = placardLineY(p, 0);
+      expect(y, p.id).toBeGreaterThanOrEqual(tops[i] ?? 0);
+      expect(y, p.id).toBeLessThanOrEqual((tops[i] ?? 0) + third + 8);
+    });
+    // OFF stands right of the toggle body (the bezel r 7), the other two are centred on it.
+    expect(own[1]?.dx).toBeGreaterThan(7);
+    expect(own[0]?.dx).toBe(0);
+    expect(own[2]?.dx).toBe(0);
+  });
+
   it('PARKING / BRAKE (two lines) and THROTTLE are centred above their levers, COWL FLAP above its group', () => {
     const by = (id: string) => PLACARDS.find((p) => p.id === id);
     const brake = by('parking_brake.name');

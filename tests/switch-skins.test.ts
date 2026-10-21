@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { ROCKER_COLOURS, ROCKER_SIZES } from '../src/engine/registry';
 import type { ControlDef, GuardedToggleDef, ToggleDef } from '../src/engine/registry';
-import { BatBody, COMPACT_BAT_HEIGHT } from '../src/ui/panel/skins/Bat';
+import { BAT_THROW, BatBody, COMPACT_BAT_HEIGHT } from '../src/ui/panel/skins/Bat';
 import { ROCKER_FACE, ROCKER_LIFT, RockerBody, rockerExtent } from '../src/ui/panel/skins/Rocker';
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
 import {
@@ -262,6 +262,7 @@ describe('three-position toggle contract (plan 18, Table T2)', () => {
   it('only the ELT and the de-ice mode toggle have three states among the toggles', () => {
     expect(TOGGLES.filter((t) => t.states.length === 3).map((t) => t.id)).toEqual([
       'sw.deice_mode',
+      'sw.deice_ice_light',
       'sw.elt',
     ]);
   });
@@ -395,7 +396,6 @@ describe('BatBody', () => {
   it('the de-ice bats, under 39 tall, use the compact variant: name in 6 above the footprint', () => {
     const compact = BATS.filter((b) => b.hit.h < COMPACT_BAT_HEIGHT);
     expect(compact.map((b) => b.id).sort()).toEqual([
-      'sw.deice_ice_light',
       'sw.deice_pump1',
       'sw.deice_pump2',
       'sw.deice_windshield',
@@ -442,6 +442,58 @@ describe('de-ice mode toggle (plan 21, G-1)', () => {
         mode.label,
       ]);
     }
+  });
+});
+
+describe('de-ice ICE LIGHT / ANNUN-TEST toggle (plan 22, G-1)', () => {
+  const sw = toggle('sw.deice_ice_light');
+
+  it('is a nameless three-position bat: bottom ANNUN-TEST, middle OFF, top ICE LIGHT, default OFF', () => {
+    expect(sw.states.map((st) => st.id)).toEqual(['annun_test', 'off', 'ice_light']);
+    expect(sw.default).toBe('off');
+    expect(sw.skin ?? 'bat').toBe('bat');
+    expect(sw.nameless).toBe(true);
+    expect(sw.hit).toEqual({ w: 30, h: 69 });
+    expect(sw.region).toBe('deice_switches');
+    expect(DA50RG.get('btn.deice_annun_test')).toBeUndefined();
+  });
+
+  it('a tap in the top, middle and bottom third selects ICE LIGHT, OFF and ANNUN-TEST', () => {
+    expect(tapTarget(sw.states, 'off', 0.1)).toBe('ice_light');
+    expect(tapTarget(sw.states, 'ice_light', 0.5)).toBe('off');
+    expect(tapTarget(sw.states, 'off', 0.9)).toBe('annun_test');
+    // Each third of the 69-high hit is 23 units, enough for 44 px in a pinch-in view.
+    expect(sw.hit.h / 3).toBe(23);
+  });
+
+  it('throws the handle as far as the taller mode toggle: the throw does not depend on the footprint', () => {
+    const tipDistance = (def: ToggleDef) => {
+      const circles = findElements(
+        expand(BatBody({ def, position: 'high', pressed: false })),
+        (el) => el.tag === 'circle' && 'cy' in el.props,
+      );
+      return Number(circles[0]?.props['cy']) - Number(circles[circles.length - 1]?.props['cy']);
+    };
+    expect(tipDistance(sw)).toBe(BAT_THROW);
+    expect(tipDistance(toggle('sw.deice_mode'))).toBe(BAT_THROW);
+    // The handle and its cap lie inside the 69-high footprint in both end positions.
+    for (const position of ['low', 'high'] as const) {
+      const tree = expand(BatBody({ def: sw, position, pressed: false }));
+      const cap = findElements(tree, (el) => el.tag === 'circle').pop();
+      const cy = Number(cap?.props['cy']);
+      expect(Math.abs(cy) + Number(cap?.props['r'])).toBeLessThan(sw.hit.h / 2);
+    }
+  });
+
+  it('draws three distinct handle positions and no text', () => {
+    const tips = (['low', 'mid', 'high'] as const).map((position) => {
+      const tree = expand(BatBody({ def: sw, position, pressed: false }));
+      expect(findElements(tree, (el) => el.tag === 'text')).toEqual([]);
+      return Number(findElements(tree, (el) => el.tag === 'circle').pop()?.props['cy']);
+    });
+    expect(new Set(tips).size).toBe(3);
+    expect(tips[0] ?? 0).toBeGreaterThan(tips[1] ?? 0);
+    expect(tips[1] ?? 0).toBeGreaterThan(tips[2] ?? 0);
   });
 });
 

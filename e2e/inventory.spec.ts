@@ -32,8 +32,8 @@ test('de-ice WIND SHIELD flips by mouse or tap', async ({ page, hasTouch }) => {
   await expect(sw).toHaveAttribute('data-state', 'off');
 });
 
-test('de-ice ICE LIGHT, PUMP 2 and PUMP 1 flip by mouse or tap', async ({ page, hasTouch }) => {
-  for (const id of ['sw.deice_ice_light', 'sw.deice_pump2', 'sw.deice_pump1']) {
+test('de-ice PUMP 2 and PUMP 1 flip by mouse or tap', async ({ page, hasTouch }) => {
+  for (const id of ['sw.deice_pump2', 'sw.deice_pump1']) {
     const sw = control(page, id);
     await expect(sw, id).toHaveCount(1);
     await expect(sw, id).toHaveAttribute('data-state', 'off');
@@ -72,12 +72,47 @@ test('de-ice MODE toggle reaches HIGH, NORM and OFF by a tap in the top, middle 
   }
 });
 
-test('ANNUN TEST, MAX and LEVEL show PRESSED while held and RELEASED after release', async ({
+test('de-ice ICE LIGHT toggle reaches ICE LIGHT, OFF and ANNUN-TEST by a tap in the top, middle and bottom third', async ({
+  page,
+  hasTouch,
+}) => {
+  const sw = control(page, 'sw.deice_ice_light');
+  const hit = page.locator('[data-hit="sw.deice_ice_light"]');
+  await expect(sw).toHaveCount(1);
+  await expect(sw).toHaveAttribute('data-state', 'off');
+  await expect(page.locator('[data-control-id="btn.deice_annun_test"]')).toHaveCount(0);
+  for (const [fraction, state] of [
+    [1 / 6, 'ice_light'],
+    [1 / 2, 'off'],
+    [5 / 6, 'annun_test'],
+    [1 / 2, 'off'],
+  ] as const) {
+    const box = await hit.boundingBox();
+    if (box === null) throw new Error('no hit box for the ICE LIGHT toggle');
+    const position = { x: box.width / 2, y: box.height * fraction };
+    if (hasTouch) await hit.tap({ position });
+    else await hit.click({ position });
+    await expect(sw, state).toHaveAttribute('data-state', state);
+  }
+  // Nameless: the toggle prints nothing itself, the static placards name the positions.
+  await expect(sw.locator('text')).toHaveCount(0);
+  for (const id of [
+    'deice_ice_light.ice_light',
+    'deice_ice_light.off',
+    'deice_ice_light.annun_test',
+  ]) {
+    await expect(page.locator(`[data-placard="${id}"]`), id).toHaveCount(
+      id.endsWith('test') ? 2 : 1,
+    );
+  }
+});
+
+test('MAX and LEVEL show PRESSED while held and RELEASED after release', async ({
   page,
   hasTouch,
 }) => {
   test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
-  for (const id of ['btn.deice_annun_test', 'btn.deice_max', 'btn.level']) {
+  for (const id of ['btn.deice_max', 'btn.level']) {
     const button = control(page, id);
     await expect(button, id).toHaveCount(1);
     await expect(button, id).toHaveAttribute('data-state', 'released');
@@ -91,8 +126,8 @@ test('ANNUN TEST, MAX and LEVEL show PRESSED while held and RELEASED after relea
   }
 });
 
-test('a tap leaves ANNUN TEST, MAX and LEVEL RELEASED', async ({ page, hasTouch }) => {
-  for (const id of ['btn.deice_annun_test', 'btn.deice_max', 'btn.level']) {
+test('a tap leaves MAX and LEVEL RELEASED', async ({ page, hasTouch }) => {
+  for (const id of ['btn.deice_max', 'btn.level']) {
     await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
     await expect(control(page, id), id).toHaveAttribute('data-state', 'released');
   }

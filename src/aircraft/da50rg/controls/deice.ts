@@ -89,15 +89,26 @@ export const DEICE_CONTROLS: readonly ControlSpec[] = [
     default: 'off',
   },
   {
+    // One three-position toggle (owner finding G-1, plan 22): bottom to top ANNUN-TEST, OFF, ICE
+    // LIGHT, default OFF (Q-02: maintained, no spring return). Nameless: the placards ICE LIGHT,
+    // OFF and ANNUN- / TEST (placards.ts) name the positions. Neither the ice light nor the
+    // annunciator self-test has a simulated effect yet; both come with the scenarios.
     id: 'sw.deice_ice_light',
     kind: 'toggle',
     label: 'ICE LIGHT',
     region: 'deice_switches',
-    x: 91,
-    y: 20,
-    hit: { w: 30, h: 36 },
-    states: ONOFF,
+    x: 86,
+    y: 35,
+    // 69 tall so each of the three tap thirds is 23 units: 44 px or more with a pinch-in view
+    // (the 66 of the first design gave 43 px).
+    hit: { w: 30, h: 69 },
+    states: [
+      { id: 'annun_test', label: 'ANNUN TEST' },
+      { id: 'off', label: 'OFF' },
+      { id: 'ice_light', label: 'ICE LIGHT' },
+    ],
     default: 'off',
+    nameless: true,
   },
   {
     id: 'sw.deice_pump2',

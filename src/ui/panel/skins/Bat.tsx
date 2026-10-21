@@ -6,6 +6,13 @@ const FONT = 'B612, system-ui, sans-serif';
 /** The pressed ring: drawn only while a pointer is down, never a persistent state (Color 5). */
 const PRESSED_RING = '#8fb8e6';
 
+/**
+ * How far the handle tip is thrown from the pivot, up or down. A fixed value that fits every bat
+ * footprint (the shortest, the 66-tall de-ice toggles, still has the tip and its cap inside), so
+ * all toggles read alike whatever their footprint height.
+ */
+export const BAT_THROW = 14;
+
 /** Footprints shorter than this use the compact variant (PD-08). */
 export const COMPACT_BAT_HEIGHT = 39;
 
@@ -46,7 +53,7 @@ export function BatBody({ def, position, pressed }: BatBodyProps) {
   const top = -h / 2;
 
   const pivotY = compact ? -3 : 4.5;
-  const reach = compact ? 8 : Math.min(14, (h - 37) / 2 - 1);
+  const reach = compact ? 8 : BAT_THROW;
   const handle: Handle = {
     pivotY,
     tipY: position === 'high' ? pivotY - reach : position === 'low' ? pivotY + reach : pivotY,
