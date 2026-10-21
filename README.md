@@ -10,7 +10,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ## Demo controls
 
-The panel has 60 controls and 13 indicator lamps in 23 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
+The panel has 92 controls and 13 indicator lamps in 23 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
 
 - **LIGHTS**, glareshield: LANDING, TAXI, POSITION, STROBE
 - **INSTRUMENT AND FLOOD LIGHT**, between the displays: INSTRUMENT LIGHT and FLOOD LIGHT knobs
@@ -29,7 +29,7 @@ The panel has 60 controls and 13 indicator lamps in 23 regions, placed where the
 - **PEDESTAL**: PARKING BRAKE (pulled up to set), THROTTLE (0 to 100 % in 5 % steps), COWL FLAP (CLOSED / OPEN) with its two position lamps
 - **UNDER PANEL R**: ALTERNATE AIR
 - **BUS PANEL FRAME**, far right: the ESSENTIAL, MAIN and AVIONICS bus outlines with their titles, three blank plugs, three pump boxes and the lower-row panel (art only)
-- **CIRCUIT BREAKERS ESSENTIAL**, bus panel at the far right: 19 breakers in three rows (SAM, AHRS, COM 1, GPS/NAV 1, ADC, ENG INST, XPDR, FLAPS, PITOT, LANDING, FLOOD, GEAR WARN, EMERG PUMP, PFD, MASTER CTRL., COWL FLAP, AV/GDU FAN, GEAR, MAIN PUMP); a tap pulls a breaker out, showing a raised cap and a white ring, a second tap pushes it back in
+- **CIRCUIT BREAKERS**, bus panel at the far right: 51 breakers with their printed labels and ratings, 38 in the ESSENTIAL, MAIN and AVIONICS bus boxes (three blank plugs between them), 10 in the lower row and 3 on the flap strip under the MFD (STALL/AOA, PROP DE-ICE, DE-ICE); all start pushed in, a tap pulls a breaker out, showing a raised cap and a white ring, a second tap pushes it back in
 
 How it behaves:
 

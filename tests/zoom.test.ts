@@ -292,6 +292,28 @@ describe('zoomed tap-size guarantee (D-21)', () => {
     expect(phone).toBeCloseTo(51.3, 1);
   });
 
+  it('every breaker region reaches 44 px on all three profiles, with the phone values of the budget', () => {
+    const phoneBudget: Record<string, number> = {
+      cb_essential: 51.3,
+      cb_main: 47.4,
+      cb_low: 62.9,
+      cb_strip: 116.1,
+    };
+    for (const [id, expected] of Object.entries(phoneBudget)) {
+      const region = DA50RG.regions.find((r) => r.id === id);
+      expect(region, id).toBeDefined();
+      if (region === undefined) continue;
+      const smallest = Math.min(...regionControls(id).map(targetSide));
+      expect(regionControls(id).length, id).toBeGreaterThan(0);
+      for (const [name, screen] of Object.entries(VIEW_PROFILES)) {
+        const scale = fitScale(zoomRect(region.bounds, VIEWBOX), screen);
+        expect(smallest * scale, `${id} on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+      }
+      const phone = fitScale(zoomRect(region.bounds, VIEWBOX), VIEW_PROFILES.phone) * smallest;
+      expect(phone, `${id} phone`).toBeCloseTo(expected, 0);
+    }
+  });
+
   it('portrait via pinch: a MIN_VIEW_WIDTH-wide view brings every control to 44 px', () => {
     const screen = { w: 393, h: 631 };
     const view = { w: MIN_VIEW_WIDTH, h: (MIN_VIEW_WIDTH * screen.h) / screen.w };

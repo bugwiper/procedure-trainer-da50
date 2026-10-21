@@ -5,7 +5,7 @@ import { BREAKER_ROWS } from '../src/aircraft/da50rg/controls/breakers';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { PLATES } from '../src/aircraft/da50rg/plates';
 import type { CircuitBreakerDef, Rect } from '../src/engine/registry';
-import { CB_COLUMNS, CB_REFERENCE, CB_ROWS } from './layout-reference';
+import { CB_COLUMNS, CB_LOWER_ROW, CB_REFERENCE, CB_ROWS, CB_STRIP_ROW } from './layout-reference';
 
 // Data table and relation gate of the circuit breakers (PNL-12, D-01 to D-03, Tables C1 and C2 of
 // the 01.2-04 plan). EXPECTED is typed in by hand from the printed layout; positions come from
@@ -48,6 +48,38 @@ const EXPECTED: readonly Expected[] = [
   E('cb.av_gdu_fan', ['AV/GDU', 'FAN'], '3', 'main', 'cb_essential'),
   E('cb.gear', ['GEAR'], '5', 'main', 'cb_essential'),
   E('cb.main_pump', ['MAIN', 'PUMP'], '5', 'main', 'cb_essential'),
+  E('cb.mfd', ['MFD'], '5', 'main', 'cb_main'),
+  E('cb.strobe', ['STROBE'], '5', 'main', 'cb_main'),
+  E('cb.position', ['POSITION'], '5', 'main', 'cb_main'),
+  E('cb.taxi_map', ['TAXI/MAP'], '5', 'main', 'cb_main'),
+  E('cb.inst_lt', ['INST.', 'LT'], '3', 'main', 'cb_main'),
+  E('cb.av_bus', ['AV BUS'], '25', 'main', 'cb_main'),
+  E('cb.xfr_pump', ['XFR', 'PUMP'], '5', 'main', 'cb_main'),
+  E('cb.gcu', ['GCU'], '2', 'main', 'cb_main'),
+  E('cb.stall_ht', ['STALL', 'HT.'], '10', 'main', 'cb_main'),
+  E('cb.rudder_trim', ['RUDDER', 'TRIM'], '3', 'main', 'cb_main'),
+  E('cb.air_ctrl', ['AIR', 'CTRL.'], '5', 'main', 'cb_main'),
+  E('cb.tas', ['TAS'], '3', 'avionics', 'cb_main'),
+  E('cb.iridium', ['IRIDIUM'], '1', 'avionics', 'cb_main'),
+  E('cb.com2', ['COM2'], '5', 'avionics', 'cb_main'),
+  E('cb.gps_nav2', ['GPS/', 'NAV 2'], '5', 'avionics', 'cb_main'),
+  E('cb.audio', ['AUDIO'], '5', 'avionics', 'cb_main'),
+  E('cb.afcs_esp', ['AFCS/ESP'], '7½', 'avionics', 'cb_main'),
+  E('cb.dme', ['DME'], '3', 'avionics', 'cb_main'),
+  E('cb.twx', ['TWX'], '3', 'avionics', 'cb_main'),
+  E('cb.ecu_a', ['ECU', 'A'], '10', 'lower', 'cb_low'),
+  E('cb.ecu_b', ['ECU', 'B'], '10', 'lower', 'cb_low'),
+  E('cb.ess_tie', ['ESS', 'TIE'], '50', 'lower', 'cb_low'),
+  E('cb.batt', ['BATT'], '60', 'lower', 'cb_low'),
+  E('cb.alt1', ['ALT', '1'], '60', 'lower', 'cb_low'),
+  E('cb.alt2', ['ALT', '2'], '60', 'lower', 'cb_low'),
+  E('cb.main_tie', ['MAIN', 'TIE'], '50', 'lower', 'cb_low'),
+  E('cb.ecs', ['ECS'], '10', 'lower', 'cb_low'),
+  E('cb.usb_ports', ['USB', 'PORTS'], '5', 'lower', 'cb_low'),
+  E('cb.pedals', ['PEDALS'], '5', 'lower', 'cb_low'),
+  E('cb.stall_aoa', ['STALL/', 'AOA'], '2', 'strip', 'cb_strip'),
+  E('cb.prop_deice', ['PROP', 'DE-ICE'], '15', 'strip', 'cb_strip'),
+  E('cb.deice', ['DE-ICE'], '7½', 'strip', 'cb_strip'),
 ];
 
 /** Pump breakers sit in their own pump box instead of a bus outline. */
@@ -58,7 +90,11 @@ const PUMP_BOX: Readonly<Record<string, string>> = {
 };
 
 /** The blank plug cells (global centres) that hold no breaker. */
-const PLUG_CELLS: readonly { x: number; y: number }[] = [{ x: 1978, y: 349 }];
+const PLUG_CELLS: readonly { x: number; y: number }[] = [
+  { x: 1978, y: 349 },
+  { x: 2086, y: 456 },
+  { x: 2122, y: 514 },
+];
 
 const breakers = (): CircuitBreakerDef[] =>
   DA50RG.controls.filter((c): c is CircuitBreakerDef => c.kind === 'circuit-breaker');
@@ -141,7 +177,7 @@ describe('breaker data table', () => {
 
   it('the typed table, the reference table and the row lists name the same breakers', () => {
     expect([...CB_REFERENCE.map((r) => r.id)].sort()).toEqual(EXPECTED.map((e) => e.id).sort());
-    const listed = Object.values(CB_ROWS).flat();
+    const listed = [...Object.values(CB_ROWS).flat(), ...CB_LOWER_ROW, ...CB_STRIP_ROW];
     expect([...listed].sort()).toEqual(EXPECTED.map((e) => e.id).sort());
     expect(BREAKER_ROWS).toHaveLength(EXPECTED.length);
   });
@@ -200,10 +236,43 @@ describe('breaker grid relations', () => {
     }
   });
 
-  it('rows A1, A2 and A3 are 44 apart', () => {
+  it('the grid rows keep their pitch: 44 inside the Essential and Main regions, 58 to the Avionics row', () => {
     const y = (id: string) => centre(def(id)).y;
     expect(y('cb.xpdr') - y('cb.sam')).toBe(44);
     expect(y('cb.pfd') - y('cb.xpdr')).toBe(44);
+    expect(y('cb.gcu') - y('cb.mfd')).toBe(44);
+    // The Avionics row stands one title strip lower (Table C1: M5 456, V6 514).
+    expect(y('cb.com2') - y('cb.gcu')).toBe(58);
+    // Between the regions: A3 349 to M4 412.
+    expect(y('cb.mfd') - y('cb.pfd')).toBe(63);
+  });
+
+  it('the lower row has pitch 26 and the flap strip pitch 36, each on one y', () => {
+    const lower = CB_LOWER_ROW.map((id) => centre(def(id)));
+    expect(new Set(lower.map((c) => c.y)).size).toBe(1);
+    for (let i = 1; i < lower.length; i++) {
+      expect((lower[i]?.x ?? 0) - (lower[i - 1]?.x ?? 0)).toBe(26);
+    }
+    const strip = CB_STRIP_ROW.map((id) => centre(def(id)));
+    expect(new Set(strip.map((c) => c.y)).size).toBe(1);
+    for (let i = 1; i < strip.length; i++) {
+      expect((strip[i]?.x ?? 0) - (strip[i - 1]?.x ?? 0)).toBe(36);
+    }
+  });
+
+  it('the region counts and the group counts follow the table', () => {
+    const count = (key: 'region' | 'group', value: string) =>
+      breakers().filter((b) => b[key] === value).length;
+    expect([
+      count('region', 'cb_essential'),
+      count('region', 'cb_main'),
+      count('region', 'cb_low'),
+      count('region', 'cb_strip'),
+    ]).toEqual([19, 19, 10, 3]);
+    expect(
+      ['essential', 'main', 'avionics', 'lower', 'strip'].map((g) => count('group', g)),
+    ).toEqual([15, 15, 8, 10, 3]);
+    expect(breakers()).toHaveLength(51);
   });
 
   it('the blank plug cells hold no breaker', () => {

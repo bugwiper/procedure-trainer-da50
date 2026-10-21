@@ -180,6 +180,11 @@ The bus panel at the far right of the panel carries the circuit breakers. Each p
 | `cb.sam`, `cb.ahrs`, `cb.com1`, `cb.gps_nav1`, `cb.adc`, `cb.eng_inst` (row A1, new in plan 04) | SAM (3), AHRS (5), COM 1 (5), GPS/, NAV 1 (5), ADC (5), ENG, INST (5); the rating is on the cap | none | photo read, assumption | `controls/breakers.ts` |
 | `cb.xpdr`, `cb.flaps`, `cb.pitot` (new in plan 02), `cb.landing`, `cb.flood`, `cb.gear_warn`, `cb.emerg_pump` (row A2, new in plan 04) | XPDR (5), FLAPS (4), PITOT (20), LANDING (5), FLOOD (5), GEAR, WARN (5), EMERG, PUMP (5) | none | photo read, assumption | `controls/breakers.ts` |
 | `cb.pfd`, `cb.master_ctrl`, `cb.cowl_flap`, `cb.av_gdu_fan`, `cb.gear`, `cb.main_pump` (row A3, new in plan 04; the cell between MASTER CTRL. and COWL FLAP is a blank plug) | PFD (5), MASTER, CTRL. (2), COWL, FLAP (3), AV/GDU, FAN (3), GEAR (5), MAIN, PUMP (5) | none | photo read, assumption | `controls/breakers.ts` |
+| `cb.mfd`, `cb.strobe`, `cb.position`, `cb.taxi_map`, `cb.inst_lt`, `cb.av_bus`, `cb.xfr_pump` (row M4, new in plan 04) | MFD (5), STROBE (5), POSITION (5), TAXI/MAP (5), INST., LT (3), AV BUS (25), XFR, PUMP (5) | none | photo read, assumption | `controls/breakers.ts` |
+| `cb.gcu`, `cb.stall_ht`, `cb.rudder_trim`, `cb.air_ctrl`, `cb.tas`, `cb.iridium` (row M5, new in plan 04; the cell between TAS and IRIDIUM is a blank plug) | GCU (2), STALL, HT. (10), RUDDER, TRIM (3), AIR, CTRL. (5), TAS (3), IRIDIUM (1) | none | photo read, assumption | `controls/breakers.ts` |
+| `cb.com2`, `cb.gps_nav2`, `cb.audio`, `cb.afcs_esp`, `cb.dme`, `cb.twx` (row V6, new in plan 04) | COM2 (5), GPS/, NAV 2 (5), AUDIO (5), AFCS/ESP (7½), DME (3), TWX (3) | none | photo read, assumption | `controls/breakers.ts` |
+| `cb.ecu_a`, `cb.ecu_b`, `cb.ess_tie`, `cb.batt`, `cb.alt1`, `cb.alt2`, `cb.main_tie`, `cb.ecs`, `cb.usb_ports`, `cb.pedals` (lower row, new in plan 04) | ECU, A (10), ECU, B (10), ESS, TIE (50), BATT (60), ALT, 1 (60), ALT, 2 (60), MAIN, TIE (50), ECS (10), USB, PORTS (5), PEDALS (5, rating assumed) | none | photo read, assumption | `controls/breakers.ts` |
+| `cb.stall_aoa`, `cb.prop_deice`, `cb.deice` (flap strip, new in plan 04) | STALL/, AOA (2), PROP, DE-ICE (15), DE-ICE (7½) | none | photo read, assumption | `controls/breakers.ts` |
 
 ## Bus panel static text
 

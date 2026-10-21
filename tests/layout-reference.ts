@@ -105,6 +105,43 @@ export const CB_REFERENCE: readonly ReferencePosition[] = [
   { id: 'cb.av_gdu_fan', x: 2050, y: 349, tol: 8, review: true },
   { id: 'cb.gear', x: 2086, y: 349, tol: 8, review: true },
   { id: 'cb.main_pump', x: 2122, y: 349, tol: 8, review: true },
+  // Row M4, y 412 (region cb_main).
+  { id: 'cb.mfd', x: 1906, y: 412, tol: 8, review: true },
+  { id: 'cb.strobe', x: 1942, y: 412, tol: 8, review: true },
+  { id: 'cb.position', x: 1978, y: 412, tol: 8, review: true },
+  { id: 'cb.taxi_map', x: 2014, y: 412, tol: 8, review: true },
+  { id: 'cb.inst_lt', x: 2050, y: 412, tol: 8, review: true },
+  { id: 'cb.av_bus', x: 2086, y: 412, tol: 8, review: true },
+  { id: 'cb.xfr_pump', x: 2122, y: 412, tol: 8, review: true },
+  // Row M5, y 456 (the cell at x 2086 is a blank plug).
+  { id: 'cb.gcu', x: 1906, y: 456, tol: 8, review: true },
+  { id: 'cb.stall_ht', x: 1942, y: 456, tol: 8, review: true },
+  { id: 'cb.rudder_trim', x: 1978, y: 456, tol: 8, review: true },
+  { id: 'cb.air_ctrl', x: 2014, y: 456, tol: 8, review: true },
+  { id: 'cb.tas', x: 2050, y: 456, tol: 8, review: true },
+  { id: 'cb.iridium', x: 2122, y: 456, tol: 8, review: true },
+  // Row V6, y 514 (avionics bus; the cell at x 2122 is a blank plug).
+  { id: 'cb.com2', x: 1906, y: 514, tol: 8, review: true },
+  { id: 'cb.gps_nav2', x: 1942, y: 514, tol: 8, review: true },
+  { id: 'cb.audio', x: 1978, y: 514, tol: 8, review: true },
+  { id: 'cb.afcs_esp', x: 2014, y: 514, tol: 8, review: true },
+  { id: 'cb.dme', x: 2050, y: 514, tol: 8, review: true },
+  { id: 'cb.twx', x: 2086, y: 514, tol: 8, review: true },
+  // Lower row, y 690, pitch 26 (region cb_low).
+  { id: 'cb.ecu_a', x: 1897, y: 690, tol: 8, review: true },
+  { id: 'cb.ecu_b', x: 1923, y: 690, tol: 8, review: true },
+  { id: 'cb.ess_tie', x: 1949, y: 690, tol: 8, review: true },
+  { id: 'cb.batt', x: 1975, y: 690, tol: 8, review: true },
+  { id: 'cb.alt1', x: 2001, y: 690, tol: 8, review: true },
+  { id: 'cb.alt2', x: 2027, y: 690, tol: 8, review: true },
+  { id: 'cb.main_tie', x: 2053, y: 690, tol: 8, review: true },
+  { id: 'cb.ecs', x: 2079, y: 690, tol: 8, review: true },
+  { id: 'cb.usb_ports', x: 2105, y: 690, tol: 8, review: true },
+  { id: 'cb.pedals', x: 2131, y: 690, tol: 8, review: true },
+  // Flap strip under the MFD, y 690, pitch 36 (region cb_strip).
+  { id: 'cb.stall_aoa', x: 1458, y: 690, tol: 8, review: true },
+  { id: 'cb.prop_deice', x: 1494, y: 690, tol: 8, review: true },
+  { id: 'cb.deice', x: 1530, y: 690, tol: 8, review: true },
 ];
 
 /**
@@ -124,13 +161,41 @@ export const CB_ROWS = {
     'cb.emerg_pump',
   ],
   A3: ['cb.pfd', 'cb.master_ctrl', 'cb.cowl_flap', 'cb.av_gdu_fan', 'cb.gear', 'cb.main_pump'],
+  M4: [
+    'cb.mfd',
+    'cb.strobe',
+    'cb.position',
+    'cb.taxi_map',
+    'cb.inst_lt',
+    'cb.av_bus',
+    'cb.xfr_pump',
+  ],
+  M5: ['cb.gcu', 'cb.stall_ht', 'cb.rudder_trim', 'cb.air_ctrl', 'cb.tas', 'cb.iridium'],
+  V6: ['cb.com2', 'cb.gps_nav2', 'cb.audio', 'cb.afcs_esp', 'cb.dme', 'cb.twx'],
 } as const;
+
+/** The lower row, left to right (pitch 26). */
+export const CB_LOWER_ROW = [
+  'cb.ecu_a',
+  'cb.ecu_b',
+  'cb.ess_tie',
+  'cb.batt',
+  'cb.alt1',
+  'cb.alt2',
+  'cb.main_tie',
+  'cb.ecs',
+  'cb.usb_ports',
+  'cb.pedals',
+] as const;
+
+/** The flap strip under the MFD, left to right (pitch 36). */
+export const CB_STRIP_ROW = ['cb.stall_aoa', 'cb.prop_deice', 'cb.deice'] as const;
 
 /** Column chains, top to bottom. */
 export const CB_COLUMNS = {
-  c1: ['cb.sam', 'cb.xpdr', 'cb.pfd'],
-  c2: ['cb.ahrs', 'cb.flaps', 'cb.master_ctrl'],
-  c7: ['cb.emerg_pump', 'cb.main_pump'],
+  c1: ['cb.sam', 'cb.xpdr', 'cb.pfd', 'cb.mfd', 'cb.gcu', 'cb.com2'],
+  c2: ['cb.ahrs', 'cb.flaps', 'cb.master_ctrl', 'cb.strobe', 'cb.stall_ht', 'cb.gps_nav2'],
+  c7: ['cb.emerg_pump', 'cb.main_pump', 'cb.xfr_pump', 'cb.iridium'],
 } as const;
 
 /** The thirteen derived lamps (seven gear and flap lamps, the ELT lamp, two cowl-flap lamps, three de-ice lamps). */
@@ -279,9 +344,19 @@ export const ORDERING: readonly OrderRow[] = [
   ]),
   ...Object.values(CB_COLUMNS).flatMap((ids): OrderRow[] => chain(ids, 'above')),
   ['cb.master_ctrl', 'left-of', 'cb.cowl_flap'],
-  ...Object.values(CB_ROWS)
-    .flat()
-    .map((id): OrderRow => [id, 'right-of', 'region:mfd']),
+  ...chain(CB_LOWER_ROW, 'left-of'),
+  ...chain(CB_LOWER_ROW, 'same-row'),
+  ...chain(CB_STRIP_ROW, 'same-row'),
+  ...chain(['lv.flaps', ...CB_STRIP_ROW, 'sw.elt'], 'left-of'),
+  ['cb.ecu_a', 'below', 'cb.com2'],
+  ['sw.elt', 'left-of', 'cb.ecu_a'],
+  // The 48 breakers outside the flap strip sit right of the MFD; the strip sits under it.
+  ...[...Object.values(CB_ROWS).flat(), ...CB_LOWER_ROW].map((id): OrderRow => [
+    id,
+    'right-of',
+    'region:mfd',
+  ]),
+  ...CB_STRIP_ROW.map((id): OrderRow => [id, 'below', 'region:mfd']),
 ];
 
 /**
