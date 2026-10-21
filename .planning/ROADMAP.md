@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can flip switches, lift a guard before actuating a guarded switch, step levers (POWER, flaps, gear, cowl flap; the DA50 RG has a single power lever and no prop lever, per D-05a) between detents and press buttons by mouse or touch (including real iOS Safari and Android), and every control visibly shows its new state; each control comes from the control registry with a stable id and can only reach its defined legal states.
   4. Controls with safety consequences are guarded or require confirmation, and tapping or clicking neutral panel areas changes nothing and produces no control event that could ever be graded.
   5. A written content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is in the repo before any procedure text is committed.
-  6. The panel layout matches the real DA50 RG: every control sits where it is in the aircraft (relative position and grouping, incl. under-panel controls), and on a phone the user can zoom into any region to operate its controls at full tap size without the layout changing.
+  6. The panel layout matches the real DA50 RG: every control sits where it is in the aircraft (relative position and grouping, incl. under-panel controls), and on every device the user can zoom into any region (double click or double tap, or pinch) to operate its controls at full tap size without the layout changing.
 
 **Plans:** 9/9 plans complete
 
@@ -62,15 +62,15 @@ Plans:
 
 ### Phase 01.1: Panel shape, controls and indicator lights (INSERTED)
 
-**Goal**: The panel looks like the real DA50 RG: instrument panel outline, centre console, and every switch, rocker, push button, lever and knob at its real position in kind-of real shape and real colour. Light switches are movable; the gear and flap lights work. Brand marks are replaced (GARMIN becomes GO-AROUND, DIAMOND becomes RUBIN, DA50RG stays). The two zoom usability findings from the Phase 1 UAT are fixed. Every later phase builds on this settled layout.
+**Goal**: The panel looks like the real DA50 RG: instrument panel outline, centre console, and every switch, rocker, push button, lever and knob at its real position in kind-of real shape and real colour. Light switches are movable; the gear and flap lights work. Brand marks are replaced (GARMIN becomes GO-AROUND, no airframe maker mark is drawn, DA50RG stays). The two zoom usability findings from the Phase 1 UAT are fixed. Every later phase builds on this settled layout.
 **Depends on**: Phase 1
 **Requirements**: PNL-10, PNL-11, PNL-14, PNL-15
 **Success Criteria** (what must be TRUE):
   1. The panel outline, centre console and under-panel areas match the real DA50 RG, with all switches, rockers, push buttons, levers and knobs at their real positions, in kind-of real shape and real colour (ELECT. MASTER big red rocker, ELT small red rocker, ESS BUS white rocker, light switches white).
-  2. Every switch and lever works by mouse or touch with state shown by position plus text; the light rockers move.
+  2. Every switch and lever works by mouse or touch with state shown by position and lamps only (all labels are static placards, no text changes with a state, owner rule G-0.1); the light rockers move.
   3. The gear indicator has three separate green lights (each green or off; all three green means down and locked) and a separate red light (red or off; on for unsafe or in transition); all off means up and locked. The flap lights follow flap state. Transition timing is Phase 3.
   4. A single click or tap never zooms; a double click or double tap zooms in and, while zoomed, fully out, on the panel background and on a latching control (the first tap actuates, the recognised pair retracts it, so the control stays unchanged; momentary and drag controls stay two presses); a press that moves or gains a second finger pans or pinches; the "Full panel" button is never hidden behind the footer and never covers a control.
-  5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
+  5. Brand marks read GO-AROUND and DA50RG (no maker name, no RUBIN mark); the layout reference tests pass and the live site serves the result.
 
 **Plans:** 40/40 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch; plan 32 was a quick fix of two WebKit findings without a plan file; 9 more gap-closure plans 33 to 41 planned from the owner live-site review, round 3 (R3 findings), executed on the phase 01.2 branch)
 
@@ -191,13 +191,13 @@ Plans:
 
 ### Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels (INSERTED)
 
-**Goal**: The panel is complete before scenarios start: every circuit breaker at its real position (pushed in by default, pulled out showing a white ring, tap toggles), the G1000 NXi PFD and MFD in their well-known shape with softkeys (the MFD engine page and page softkey work, the rest is inert), the audio panel and autopilot panel visible (buttons not functional), and the static backup EFIS and other fixed items. Nothing a pilot would find on the real panel is missing.
+**Goal**: The panel is complete before scenarios start: every circuit breaker at its real position (pushed in by default, pulled out showing a white ring, tap toggles), the G1000 NXi PFD and MFD in their well-known shape with softkeys (the MFD engine page and page softkey work, the rest is inert), the audio panel and autopilot panel visible (buttons not functional), the knob and key columns beside both displays, and the static backup EFIS and other fixed items. The panel space is 2180 x 1300. Nothing a pilot would find on the real panel is missing.
 **Depends on**: Phase 01.1
 **Requirements**: PNL-12, PNL-13
 **Success Criteria** (what must be TRUE):
   1. All circuit breakers (Essential, Main and Avionics bus) sit at their real positions with legible labels and work as a new control kind with states in and out, all pushed in by default, a pulled breaker shown by a raised cap and a white ring and no state text (owner rule G-0.1, which supersedes the earlier wording; see the 01.2 UI-SPEC "Override and Decision Record").
   2. The PFD and MFD show the G1000 NXi shape with all softkeys; the MFD page softkey and the engine page still work.
-  3. The audio panel, autopilot panel and backup EFIS are visible in their real positions and look like the real units; their buttons do nothing for now.
+  3. The audio panel, autopilot panel, backup EFIS and the knob and key columns beside the displays are visible in their real positions and look like the real units; their buttons do nothing for now (a tap only zooms into the unit).
   4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.
 
 **Plans:** 9/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
