@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 20/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
+**Plans:** 21/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
 
 Plans:
 **Wave 1**
@@ -126,7 +126,7 @@ Plans:
 - [x] 01.1-20-PLAN.md — Environmental control rebuild: temperature, direction, fan, circulating air
 
 **Wave 15**
-- [ ] 01.1-21-PLAN.md — De-ice unit part 1: mode toggle, amber and white lamps, MAX button
+- [x] 01.1-21-PLAN.md — De-ice unit part 1: mode toggle, amber and white lamps, MAX button
 
 **Wave 16**
 - [ ] 01.1-22-PLAN.md — De-ice unit part 2: lower row, ALTERNATE under its guard, framed heading
