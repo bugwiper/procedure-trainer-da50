@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { afterPairWindow } from './support/zoom';
 
 // Lever skins (PNL-11, D-09): the art is in place and every Phase 1 lever behaviour is kept on
 // every device. Detailed drag and tap behaviour stays in lever.spec.ts.
@@ -200,6 +201,7 @@ test('PARKING BRAKE is a flap: a tap pulls it up (one plate), a second tap relea
   await expect(brake.locator('[data-flap-wall]')).toHaveCount(0);
   // Nothing is printed on the flap: the plate placard names it.
   await expect(brake.locator('text')).toHaveCount(0);
+  await afterPairWindow(page);
   await activate(hit, hasTouch);
   await expect(brake).toHaveAttribute('data-state', 'off');
   await expect(brake.locator('[data-flap-plate]')).toHaveCount(0);

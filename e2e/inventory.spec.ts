@@ -183,6 +183,7 @@ test('two taps on the PARKING BRAKE flap set it and return it to off', async ({
   await expect(page.locator('[data-detent^="lv.parking_brake:"]')).toHaveCount(0);
   await activate(hit, hasTouch);
   await expect(brake).toHaveAttribute('data-state', 'set');
+  await afterPairWindow(page);
   await activate(hit, hasTouch);
   await expect(brake).toHaveAttribute('data-state', 'off');
 });
