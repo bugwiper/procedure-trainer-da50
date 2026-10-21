@@ -130,6 +130,20 @@ test('a tap leaves WIND SHIELD, MAX and LEVEL RELEASED', async ({ page, hasTouch
   }
 });
 
+test('the de-ice unit shows the framed DE ICE heading and ALTERNATE as nine stacked letters', async ({
+  page,
+}) => {
+  const heading = page.locator('[data-shell="plate-heading"][data-heading="deice"]');
+  await expect(heading).toHaveCount(1);
+  await expect(heading.locator('text')).toHaveText('DE ICE');
+  await expect(heading.locator('rect')).toHaveAttribute('fill', 'none');
+  const letters = page.locator('[data-placard="deice_alternate.name"]');
+  await expect(letters).toHaveCount(9);
+  expect((await letters.allTextContents()).join('')).toBe('ALTERNATE');
+  // The old ALTERNATE name is no longer drawn by the switch itself.
+  await expect(page.locator('[data-control-id="sw.deice_alternate"] text')).toHaveCount(0);
+});
+
 test('the ALTERNATE switch is the only guarded control', async ({ page }) => {
   await expect(page.locator('[data-kind="guarded-toggle"]')).toHaveCount(1);
   await expect(control(page, 'sw.deice_alternate')).toHaveAttribute('data-kind', 'guarded-toggle');

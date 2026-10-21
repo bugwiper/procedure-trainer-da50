@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { defineRegistry } from '../src/engine/registry';
 import { PanelStore } from '../src/engine/store';
 
@@ -202,5 +203,37 @@ describe('store contract', () => {
     expect(() => store.dispatch('sw.engine_master', 'on', t)).toThrow(RangeError);
     expect(store.events()).toHaveLength(0);
     expect(store.get('sw.engine_master')).toBe('off');
+  });
+});
+
+// The real ALTERNATE switch after plan 22: a bat toggle (no rocker) under its guard, states in the
+// order on, off, default off (the guarded position is up). The interlock is unchanged (T-01.1-44).
+describe('guard interlock of the real ALTERNATE switch (plan 22)', () => {
+  const SW = 'sw.deice_alternate';
+  const GUARD = 'sw.deice_alternate.guard';
+
+  it('starts off with the guard closed and blocks the switch', () => {
+    const store = new PanelStore(DA50RG);
+    expect(store.get(SW)).toBe('off');
+    expect(store.get(GUARD)).toBe('closed');
+    expect(store.isBlocked(SW)).toBe(true);
+    expect(store.dispatch(SW, 'on', 1)).toEqual({ ok: false, reason: 'blocked' });
+    expect(store.events()).toHaveLength(0);
+  });
+
+  it('lift, switch on, switch off, close records exactly those four events', () => {
+    const store = new PanelStore(DA50RG);
+    expect(store.dispatch(GUARD, 'open', 1).ok).toBe(true);
+    expect(store.dispatch(SW, 'on', 2).ok).toBe(true);
+    expect(store.dispatch(SW, 'off', 3).ok).toBe(true);
+    expect(store.dispatch(GUARD, 'closed', 4).ok).toBe(true);
+    expect(store.events().map((e) => [e.id, e.value])).toEqual([
+      [GUARD, 'open'],
+      [SW, 'on'],
+      [SW, 'off'],
+      [GUARD, 'closed'],
+    ]);
+    // Closed again: blocked again.
+    expect(store.dispatch(SW, 'on', 5)).toEqual({ ok: false, reason: 'blocked' });
   });
 });

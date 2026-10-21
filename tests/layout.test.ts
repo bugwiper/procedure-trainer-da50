@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
-import { GEAR_BLOCK, PLATES } from '../src/aircraft/da50rg/plates';
+import { PLACARDS, placardLineY } from '../src/aircraft/da50rg/placards';
+import { GEAR_BLOCK, PLATES, PLATE_HEADINGS } from '../src/aircraft/da50rg/plates';
 import { BEZEL_EXTRA } from '../src/engine/indicators';
 import type { ControlDef, Rect } from '../src/engine/registry';
+import { BEZEL_RADIUS, buttonTextLayout, textWidth } from '../src/ui/panel/skins/PushButton';
 import {
   FRONT_PANEL_REGIONS,
   INDICATOR_POSITIONS,
@@ -441,8 +443,8 @@ describe('inventory complete', () => {
 // are fixed by enlarging the plate or the region, never by shrinking a tap target.
 describe('plates', () => {
   const BEZEL_GROW = 16;
-  /** Regions rebuilt by plans 21 and 22; their footprints are checked once those plans land. */
-  const FOOTPRINT_KNOWN_OPEN: readonly string[] = ['deice', 'deice_switches'];
+  /** No region is open any more: plans 21 and 22 rebuilt the de-ice unit and it passes. */
+  const FOOTPRINT_KNOWN_OPEN: readonly string[] = [];
 
   const rectOf = (p: { x: number; y: number; w: number; h: number }): Rect => ({
     x: p.x,
@@ -576,6 +578,186 @@ describe('de-ice upper block (plan 21, G-1)', () => {
             h: c.openHit.h,
           };
           expect(overlaps(bezel(id), open), `${id} over the open guard`).toBe(false);
+        }
+      }
+    }
+  });
+});
+
+// Owner finding G-1, plan 22: the lower row, the ALTERNATE switch with its stacked letters and the
+// framed heading, all global units, all on the de-ice plate and clear of each other.
+describe('de-ice unit, lower row, ALTERNATE and heading (plan 22, G-1)', () => {
+  const plate = PLATES.find((p) => p.id === 'deice');
+  const globalFootprint = (id: string): Rect => {
+    const def = DA50RG.get(id);
+    if (def === undefined) throw new Error(`no control ${id}`);
+    const c = globalCentre(def);
+    return { x: c.x - def.hit.w / 2, y: c.y - def.hit.h / 2, w: def.hit.w, h: def.hit.h };
+  };
+  /** Glyph box of one placard line: width 0.62 of the size per character, cap height 0.7. */
+  const lineBoxes = (near: string): Rect[] =>
+    PLACARDS.filter((p) => p.near === near).flatMap((p) => {
+      const def = DA50RG.get(near);
+      if (def === undefined) throw new Error(`no control ${near}`);
+      const c = globalCentre(def);
+      return p.lines.map((line, i) => {
+        const w = line.length * p.size * 0.62;
+        const x =
+          p.anchor === 'start'
+            ? c.x + p.dx
+            : p.anchor === 'end'
+              ? c.x + p.dx - w
+              : c.x + p.dx - w / 2;
+        const y = c.y + placardLineY(p, i);
+        return { x, y: y - p.size * 0.7, w, h: p.size * 0.7 };
+      });
+    });
+  const DEICE_IDS = [
+    'btn.deice_max',
+    'sw.deice_mode',
+    'sw.deice_alternate',
+    'btn.deice_windshield',
+    'sw.deice_ice_light',
+    'sw.deice_pump',
+  ];
+
+  it('the lower row is exactly the WIND SHIELD button, the ICE LIGHT toggle and the PUMP toggle', () => {
+    const lower = DA50RG.controls.filter((c) => c.region === 'deice_switches').map((c) => c.id);
+    expect(new Set(lower)).toEqual(
+      new Set(['btn.deice_windshield', 'sw.deice_ice_light', 'sw.deice_pump']),
+    );
+    const upper = DA50RG.controls.filter((c) => c.region === 'deice').map((c) => c.id);
+    expect(new Set(upper)).toEqual(
+      new Set(['btn.deice_max', 'sw.deice_mode', 'sw.deice_alternate', 'sw.deice_alternate.guard']),
+    );
+  });
+
+  it('the three lower controls stand left to right on one row, 12 units either way', () => {
+    const [w, i, p] = ['btn.deice_windshield', 'sw.deice_ice_light', 'sw.deice_pump'].map((id) =>
+      globalCentre(DA50RG.get(id) as ControlDef),
+    );
+    expect(w?.x ?? 0).toBeLessThan(i?.x ?? 0);
+    expect(i?.x ?? 0).toBeLessThan(p?.x ?? 0);
+    expect(Math.abs((w?.y ?? 0) - (i?.y ?? 0))).toBeLessThanOrEqual(1);
+    expect(Math.abs((i?.y ?? 0) - (p?.y ?? 0))).toBeLessThanOrEqual(1);
+  });
+
+  it('every de-ice footprint lies on the de-ice plate', () => {
+    expect(plate).toBeDefined();
+    if (plate === undefined) return;
+    for (const id of DEICE_IDS) {
+      expect(inside(globalFootprint(id), plate), id).toBe(true);
+    }
+  });
+
+  it('the lifted guard is a flap at global y 214 to 246 above the footprint, inside the region and on the plate', () => {
+    const alt = DA50RG.get('sw.deice_alternate.guard');
+    if (alt?.kind !== 'guard') throw new Error('no guard');
+    const c = globalCentre(alt);
+    const flap: Rect = {
+      x: c.x + alt.openHit.x,
+      y: c.y + alt.openHit.y,
+      w: alt.openHit.w,
+      h: alt.openHit.h,
+    };
+    expect([flap.y, flap.y + flap.h]).toEqual([214, 246]);
+    expect(flap.y + flap.h).toBeLessThanOrEqual(globalFootprint('sw.deice_alternate').y);
+    expect(inside(flap, regionBounds('deice'))).toBe(true);
+    if (plate !== undefined) expect(inside(flap, plate)).toBe(true);
+    for (const id of DEICE_IDS) expect(overlaps(flap, globalFootprint(id)), id).toBe(false);
+  });
+
+  it('the stacked ALTERNATE letters stand left of the guard, lie in the region and touch no footprint, lamp or flap', () => {
+    const letters = lineBoxes('sw.deice_alternate');
+    expect(letters).toHaveLength(9);
+    const region = regionBounds('deice');
+    for (const [i, box] of letters.entries()) {
+      expect(inside(box, region), `letter ${i} in the region`).toBe(true);
+      if (plate !== undefined) expect(inside(box, plate), `letter ${i} on the plate`).toBe(true);
+      for (const id of DEICE_IDS)
+        expect(overlaps(box, globalFootprint(id)), `letter ${i} / ${id}`).toBe(false);
+      for (const lamp of ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm']) {
+        const d = DA50RG_INDICATORS.get(lamp);
+        if (d === undefined) throw new Error(lamp);
+        const reach = d.r + BEZEL_EXTRA;
+        const bezel: Rect = {
+          x: region.x + d.x - reach,
+          y: region.y + d.y - reach,
+          w: 2 * reach,
+          h: 2 * reach,
+        };
+        expect(overlaps(box, bezel), `letter ${i} / ${lamp}`).toBe(false);
+      }
+    }
+    // One column, centred on the height of the switch, 7.2 apart.
+    const alt = globalCentre(DA50RG.get('sw.deice_alternate') as ControlDef);
+    const xs = new Set(letters.map((b) => b.x + b.w / 2));
+    expect(xs.size).toBe(1);
+    expect([...xs][0]).toBeLessThan(alt.x - 26);
+    const mid = (letters[0]!.y + letters[8]!.y + letters[8]!.h) / 2;
+    expect(Math.abs(mid - alt.y)).toBeLessThanOrEqual(6);
+    for (let i = 1; i < letters.length; i++) {
+      expect((letters[i]!.y - letters[i - 1]!.y).toFixed(1)).toBe('7.2');
+    }
+  });
+
+  it('the DE ICE heading frame overlaps no footprint, lamp, flap, MAX label or placard', () => {
+    const [heading] = PLATE_HEADINGS;
+    if (heading === undefined) throw new Error('no heading');
+    const frame: Rect = { x: heading.x, y: heading.y, w: heading.w, h: heading.h };
+    const region = regionBounds('deice');
+    for (const id of DEICE_IDS) expect(overlaps(frame, globalFootprint(id)), id).toBe(false);
+    const alt = DA50RG.get('sw.deice_alternate.guard');
+    if (alt?.kind !== 'guard') throw new Error('no guard');
+    const c = globalCentre(alt);
+    const flap: Rect = {
+      x: c.x + alt.openHit.x,
+      y: c.y + alt.openHit.y,
+      w: alt.openHit.w,
+      h: alt.openHit.h,
+    };
+    expect(overlaps(frame, flap)).toBe(false);
+    for (const lamp of ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm']) {
+      const d = DA50RG_INDICATORS.get(lamp);
+      if (d === undefined) throw new Error(lamp);
+      const reach = d.r + BEZEL_EXTRA;
+      const bezel: Rect = {
+        x: region.x + d.x - reach,
+        y: region.y + d.y - reach,
+        w: 2 * reach,
+        h: 2 * reach,
+      };
+      expect(overlaps(frame, bezel), lamp).toBe(false);
+    }
+    // The MAX label above its button.
+    const max = DA50RG.get('btn.deice_max');
+    if (max?.kind !== 'momentary-button') throw new Error('no MAX');
+    const mc = globalCentre(max);
+    const layout = buttonTextLayout(max, BEZEL_RADIUS['black-dome']);
+    layout.labelLines.forEach((line, i) => {
+      const w = textWidth(line, layout.labelSize);
+      const label: Rect = {
+        x: mc.x - w / 2,
+        y: mc.y + (layout.labelYs[i] ?? 0) - layout.labelSize * 0.75,
+        w,
+        h: layout.labelSize * 0.95,
+      };
+      expect(overlaps(frame, label), 'MAX label').toBe(false);
+    });
+    for (const p of PLACARDS) {
+      for (const box of lineBoxes(p.near)) expect(overlaps(frame, box), p.id).toBe(false);
+    }
+  });
+
+  it('every de-ice placard lies inside its region or the plate and clear of every other footprint', () => {
+    const owners = ['sw.deice_mode', 'sw.deice_ice_light', 'sw.deice_pump'];
+    for (const near of owners) {
+      for (const box of lineBoxes(near)) {
+        if (plate !== undefined) expect(inside(box, plate), near).toBe(true);
+        for (const id of DEICE_IDS) {
+          // A placard may stand over the hit of the toggle it names, never over another control.
+          if (id === near) continue;
+          expect(overlaps(box, globalFootprint(id)), `${near} placard / ${id}`).toBe(false);
         }
       }
     }

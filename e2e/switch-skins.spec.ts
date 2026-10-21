@@ -41,7 +41,7 @@ test('ELECT. MASTER is the big red rocker and its pressed half follows its state
   await expect(sw).toHaveAttribute('data-state', 'on');
 });
 
-const RED_IDS = ['sw.deice_alternate', 'sw.elect_master', 'sw.elt'];
+const RED_IDS = ['sw.elect_master', 'sw.elt'];
 
 /** Taps or clicks at a fraction of the height of the hit rectangle (0 top, 1 bottom). */
 async function activateAt(hit: Locator, hasTouch: boolean, fraction: number): Promise<void> {
@@ -104,7 +104,7 @@ test('every rocker pressed half matches its state before and after one tap', asy
   }
 });
 
-test('red rockers are exactly ELECT. MASTER, ELT and the guarded ALTERNATE, the rest white', async ({
+test('red rockers are exactly ELECT. MASTER and ELT, the rest white; the ALTERNATE switch is a bat under its guard', async ({
   page,
 }) => {
   const red = await page
@@ -143,17 +143,19 @@ test('the pressed ring is transient: present while the mouse is held, gone after
   await expect(group).not.toHaveAttribute('data-pressed', 'true');
 });
 
-test('the guarded ALTERNATE rocker follows its state once the guard is lifted', async ({
+test('the guarded ALTERNATE toggle is a bat that follows its state once the guard is lifted', async ({
   page,
   hasTouch,
 }) => {
   const sw = control(page, 'sw.deice_alternate');
-  await expect(sw).toHaveAttribute('data-skin', 'rocker');
-  await expect(sw).toHaveAttribute('data-size', 'M');
-  await expect(sw).toHaveAttribute('data-colour', 'red');
-  await expect(sw).toHaveAttribute('data-pressed-half', 'lower');
+  await expect(sw).toHaveAttribute('data-skin', 'bat');
+  await expect(sw).not.toHaveAttribute('data-size', /.*/);
+  await expect(sw).not.toHaveAttribute('data-colour', /.*/);
+  await expect(sw).toHaveAttribute('data-state', 'off');
+  await expect(sw.locator('text')).toHaveCount(0);
   await activate(page.locator('[data-hit="sw.deice_alternate.guard"]'), hasTouch);
   await activate(page.locator('[data-hit="sw.deice_alternate"]'), hasTouch);
-  await expect(sw).toHaveAttribute('data-pressed-half', 'upper');
   await expect(sw).toHaveAttribute('data-state', 'on');
+  await activate(page.locator('[data-hit="sw.deice_alternate"]'), hasTouch);
+  await expect(sw).toHaveAttribute('data-state', 'off');
 });

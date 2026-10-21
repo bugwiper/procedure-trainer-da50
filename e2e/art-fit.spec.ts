@@ -8,13 +8,9 @@ import type { Page } from '@playwright/test';
 
 /**
  * Regions the gate does not fail yet because a later plan rebuilds them; each plan removes its
- * entry. The upper de-ice block (region deice) was rebuilt by plan 21; deice_switches follows in
- * plan 22.
+ * entry. The list is empty: plan 21 rebuilt the upper de-ice block and plan 22 the lower row.
  */
-const KNOWN_OPEN: readonly string[] = [
-  // Rebuilt by plan 22.
-  'deice_switches',
-];
+const KNOWN_OPEN: readonly string[] = [];
 
 /** ART_FIT_STRICT=1 also checks the known-open regions, to see what a rebuild still has to fix. */
 const STRICT = process.env['ART_FIT_STRICT'] === '1';

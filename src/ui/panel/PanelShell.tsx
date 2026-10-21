@@ -1,6 +1,13 @@
 import type { Registry } from '../../engine/registry';
 import { PLACARDS, placardLineY } from '../../aircraft/da50rg/placards';
-import { ENV_BOXES, ENV_TITLE, GEAR_BLOCK, PLATES } from '../../aircraft/da50rg/plates';
+import {
+  ENV_BOXES,
+  ENV_TITLE,
+  GEAR_BLOCK,
+  HEADING_FRAME,
+  PLATES,
+  PLATE_HEADINGS,
+} from '../../aircraft/da50rg/plates';
 import type { GroupBoxDef, PlateDef } from '../../aircraft/da50rg/plates';
 import { detentOffset } from '../../engine/detents';
 import { paint } from './Defs';
@@ -447,12 +454,44 @@ function BusPanel() {
   );
 }
 
+/** Plate headings drawn from data: the text centred in its white outline frame (owner finding G-1). */
+function PlateHeadings() {
+  return (
+    <g data-shell="plate-headings">
+      {PLATE_HEADINGS.map((h) => (
+        <g key={h.id} data-shell="plate-heading" data-heading={h.id}>
+          <rect
+            x={h.x}
+            y={h.y}
+            width={h.w}
+            height={h.h}
+            rx={h.rx}
+            fill="none"
+            stroke={HEADING_FRAME.stroke}
+            stroke-width={HEADING_FRAME.width}
+          />
+          <text
+            x={h.x + h.w / 2}
+            y={h.y + h.h / 2 + h.size * 0.35}
+            text-anchor="middle"
+            font-size={h.size}
+            fill={LEGEND}
+          >
+            {h.text}
+          </text>
+        </g>
+      ))}
+    </g>
+  );
+}
+
 /** Layer 11: de-ice and engine plates of the left strip and the static vent. */
 function LeftStrip() {
   return (
     <g data-shell="left-strip">
       <Plate id="deice" />
       <Plate id="engine" />
+      <PlateHeadings />
       <g data-shell="vent">
         <circle cx={60} cy={700} r={28} fill="#0a0b0d" stroke={RIM} stroke-width={1} />
         {[21, 14, 7].map((r) => (

@@ -218,9 +218,14 @@ describe('D-08 colour and size gate', () => {
     expect(ids.sort()).toEqual(Object.keys(EXPECTED).sort());
   });
 
-  it('red switch parts are exactly ELECT. MASTER, ELT and the de-ice ALTERNATE', () => {
+  it('red rocker parts are exactly ELECT. MASTER and ELT; the red of the de-ice unit is the guard cover only', () => {
     const red = ROCKERS.filter((t) => t.colour === 'red').map((t) => t.id);
-    expect(red.sort()).toEqual(['sw.deice_alternate', 'sw.elect_master', 'sw.elt']);
+    expect(red.sort()).toEqual(['sw.elect_master', 'sw.elt']);
+    // The ALTERNATE switch has no rocker size and colour: it is the normal toggle under its guard.
+    const alt = DA50RG.controls.find((c) => c.id === 'sw.deice_alternate');
+    expect(alt?.kind).toBe('guarded-toggle');
+    if (alt?.kind !== 'guarded-toggle') return;
+    expect([alt.size, alt.colour]).toEqual([undefined, undefined]);
   });
 
   it('keeps the bats: alternators, FADEC and ENGINE MASTER (with ball)', () => {
@@ -519,22 +524,49 @@ describe('de-ice ICE LIGHT / ANNUN-TEST toggle (plan 22, G-1)', () => {
   });
 });
 
-describe('guarded ALTERNATE', () => {
+describe('guarded ALTERNATE (plan 22, G-1, D-08 amended)', () => {
   const alt = DA50RG.controls.find((c) => c.id === 'sw.deice_alternate');
+  if (alt?.kind !== 'guarded-toggle') throw new Error('no ALTERNATE');
 
-  it('is a red size M rocker under the cover', () => {
-    expect(alt?.kind).toBe('guarded-toggle');
-    if (alt?.kind !== 'guarded-toggle') return;
-    expect([alt.size, alt.colour]).toEqual(['M', 'red']);
+  it('is a nameless guarded toggle: states on then off, off (the up position) by default', () => {
+    expect(alt.states.map((st) => st.id)).toEqual(['on', 'off']);
+    expect(alt.default).toBe('off');
+    expect(alt.nameless).toBe(true);
+    expect(alt.hit).toEqual({ w: 52, h: 100 });
+    expect(alt.guardOpenHit).toEqual({ x: -26, y: -82, w: 52, h: 32 });
+    expect(alt.region).toBe('deice');
   });
 
-  it('rocker plus cover stay within 40 nodes, closed and open, and use the shared hatch', () => {
-    if (alt?.kind !== 'guarded-toggle') throw new Error('no ALTERNATE');
+  it('draws the bat toggle: the up handle for off, the down handle for on, no text', () => {
+    // GuardedToggle passes position high for the second state (off) and low for the first (on).
+    const tipOf = (position: 'low' | 'high') => {
+      const circles = findElements(
+        expand(BatBody({ def: alt, position, pressed: false })),
+        (el) => el.tag === 'circle' && 'cy' in el.props,
+      );
+      return Number(circles[circles.length - 1]?.props['cy']) - Number(circles[0]?.props['cy']);
+    };
+    expect(tipOf('high')).toBe(-BAT_THROW);
+    expect(tipOf('low')).toBe(BAT_THROW);
+    for (const position of ['low', 'high'] as const) {
+      const tree = expand(BatBody({ def: alt, position, pressed: false }));
+      expect(findElements(tree, (el) => el.tag === 'text')).toEqual([]);
+      expect(allProps(tree)).not.toContain('#c43030');
+    }
+  });
+
+  it('the widget source picks the bat when size and colour are absent', () => {
+    const src = readFileSync('src/ui/panel/widgets/GuardedToggle.tsx', 'utf8');
+    expect(src).toContain('BatBody');
+    expect(src).toMatch(/def\.size !== undefined/);
+  });
+
+  it('bat plus cover stay within 40 nodes, closed and open, and use the shared hatch', () => {
     for (const guardOpen of [false, true]) {
-      const rocker = expand(RockerBody({ def: alt, position: 'low', pressed: false }));
+      const bat = expand(BatBody({ def: alt, position: 'low', pressed: false }));
       const cover = expand(GuardCover({ def: alt, guardOpen }));
       const id = guardOpen ? 'open' : 'closed';
-      expect(countElements(rocker) + countElements(cover), id).toBeLessThanOrEqual(40);
+      expect(countElements(bat) + countElements(cover), id).toBeLessThanOrEqual(40);
       expect(allProps(cover), id).toContain('url(#p-hatch)');
       expect(
         findElements(cover, (el) => el.tag === 'pattern' || el.tag === 'defs'),
@@ -546,6 +578,40 @@ describe('guarded ALTERNATE', () => {
       ).toHaveLength(0);
       expect(textOf(cover), id).toBe('');
     }
+  });
+
+  it('the closed cover is a red translucent block over the footprint, the only red of the unit', () => {
+    const cover = expand(GuardCover({ def: alt, guardOpen: false }));
+    const block = findElements(
+      cover,
+      (el) => el.tag === 'rect' && el.props['fill'] === '#c43030',
+    )[0];
+    expect(block).toBeDefined();
+    expect(block?.props['fill-opacity']).toBe(0.35);
+    const x = Number(block?.props['x']);
+    const y = Number(block?.props['y']);
+    const w = Number(block?.props['width']);
+    const h = Number(block?.props['height']);
+    // Over the footprint (inset 2), not larger than it.
+    expect([x, y, w, h]).toEqual([-24, -48, 48, 96]);
+    expect(findElements(cover, (el) => el.props['fill'] === 'url(#p-hatch)')).toHaveLength(3);
+  });
+
+  it('the open cover is a flap above the footprint with its hinge at the footprint top', () => {
+    const cover = expand(GuardCover({ def: alt, guardOpen: true }));
+    const flap = findElements(
+      cover,
+      (el) => el.tag === 'rect' && el.props['fill'] === '#c43030',
+    )[0];
+    expect(Number(flap?.props['y']) + Number(flap?.props['height'])).toBeLessThanOrEqual(
+      -alt.hit.h / 2,
+    );
+    const hinge = findElements(cover, (el) => el.tag === 'line')[0];
+    expect(Number(hinge?.props['y1'])).toBe(-alt.hit.h / 2);
+    // Global y 214 to 246: the flap of Table J1.
+    const region = DA50RG.regions.find((r) => r.id === alt.region);
+    const top = (region?.bounds.y ?? 0) + alt.y + alt.guardOpenHit.y;
+    expect([top, top + alt.guardOpenHit.h]).toEqual([214, 246]);
   });
 });
 

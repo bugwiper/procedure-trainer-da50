@@ -48,6 +48,8 @@ test('guard must be lifted before ALTERNATE moves and stays up until tapped', as
     1,
   );
   await expect(sw).toHaveAttribute('data-state', 'off');
+  // The normal toggle under the red guard: the guarded position is up (off), the bat is the skin.
+  await expect(sw).toHaveAttribute('data-skin', 'bat');
   await expect(guard).toHaveAttribute('data-state', 'closed');
   // While the guard is closed the covered switch has no tap target of its own.
   await expect(page.locator(`[data-hit="${SWITCH}"]`)).toHaveCount(0);
@@ -79,7 +81,7 @@ test('guard must be lifted before ALTERNATE moves and stays up until tapped', as
   await expect(sw).toHaveAttribute('data-state', 'on');
 });
 
-test('@hooks the guard sequence appends exactly guard-open, switch-on, guard-closed', async ({
+test('@hooks the guard sequence appends exactly guard-open, switch-on, switch-off, guard-closed', async ({
   page,
   hasTouch,
 }) => {
@@ -88,6 +90,9 @@ test('@hooks the guard sequence appends exactly guard-open, switch-on, guard-clo
 
   await activate(page.locator(`[data-hit="${GUARD}"]`), hasTouch);
   await activate(page.locator(`[data-hit="${SWITCH}"]`), hasTouch);
+  await expect(control(page, SWITCH)).toHaveAttribute('data-state', 'on');
+  await activate(page.locator(`[data-hit="${SWITCH}"]`), hasTouch);
+  await expect(control(page, SWITCH)).toHaveAttribute('data-state', 'off');
   await activate(page.locator(`[data-hit="${GUARD}"]`), hasTouch);
   await expect(control(page, GUARD)).toHaveAttribute('data-state', 'closed');
 
@@ -95,6 +100,7 @@ test('@hooks the guard sequence appends exactly guard-open, switch-on, guard-clo
   expect(log.map((e) => [e.id, e.value])).toEqual([
     [GUARD, 'open'],
     [SWITCH, 'on'],
+    [SWITCH, 'off'],
     [GUARD, 'closed'],
   ]);
 });

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { PLACARDS, placardLineY } from '../src/aircraft/da50rg/placards';
 import { LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
-import { ENV_BOXES, PLATES } from '../src/aircraft/da50rg/plates';
+import { ENV_BOXES, HEADING_FRAME, PLATES, PLATE_HEADINGS } from '../src/aircraft/da50rg/plates';
 import { DEF_IDS, Defs } from '../src/ui/panel/Defs';
 import { PanelShell, groupBoxPath, temperatureTriangle } from '../src/ui/panel/PanelShell';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
@@ -354,6 +354,45 @@ describe('plate placards', () => {
 
 // Environmental control plate (plan 20, owner finding G-3): the plate, four outlined group boxes
 // with titles and the temperature triangle are static shell art.
+describe('plate headings (plan 22, G-1)', () => {
+  const headings = findElements(shell, (el) => el.props['data-shell'] === 'plate-heading');
+
+  it('the shell draws every heading of the data, the de-ice one reading DE ICE without a hyphen', () => {
+    expect(PLATE_HEADINGS.map((h) => h.text)).toEqual(['DE ICE']);
+    expect(headings).toHaveLength(PLATE_HEADINGS.length);
+    expect(headings.map((el) => textOf(el))).toEqual(PLATE_HEADINGS.map((h) => h.text));
+    expect(shellText).not.toContain('DE-ICE');
+  });
+
+  it('draws a white outline frame around the text and nothing else (no fill)', () => {
+    for (const [i, h] of PLATE_HEADINGS.entries()) {
+      const el = headings[i];
+      if (el === undefined) throw new Error('missing heading');
+      const frame = findElements(el, (e) => e.tag === 'rect')[0];
+      expect(frame?.props['fill'], h.id).toBe('none');
+      expect(frame?.props['stroke'], h.id).toBe('#e6e9ed');
+      expect(frame?.props['stroke-width'], h.id).toBe(1.2);
+      expect(HEADING_FRAME).toEqual({ stroke: '#e6e9ed', width: 1.2 });
+      expect([frame?.props['x'], frame?.props['y']]).toEqual([h.x, h.y]);
+      expect([frame?.props['width'], frame?.props['height']]).toEqual([h.w, h.h]);
+    }
+  });
+
+  it('each frame lies on its plate and holds its text', () => {
+    for (const h of PLATE_HEADINGS) {
+      const plate = PLATES.find((pl) => pl.id === h.plate);
+      expect(plate, h.id).toBeDefined();
+      if (plate === undefined) continue;
+      expect(h.x).toBeGreaterThanOrEqual(plate.x);
+      expect(h.y).toBeGreaterThanOrEqual(plate.y);
+      expect(h.x + h.w).toBeLessThanOrEqual(plate.x + plate.w);
+      expect(h.y + h.h).toBeLessThanOrEqual(plate.y + plate.h);
+      expect(h.text.length * h.size * 0.62).toBeLessThan(h.w - 8);
+      expect(h.size + 4).toBeLessThanOrEqual(h.h);
+    }
+  });
+});
+
 describe('environmental control plate (G-3)', () => {
   const env = PLATES.find((pl) => pl.id === 'environmental');
 

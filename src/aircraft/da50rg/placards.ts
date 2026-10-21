@@ -17,6 +17,8 @@ export interface PlacardDef {
   readonly anchor: 'start' | 'middle' | 'end';
   /** On the font scale of the panel (UI-SPEC Typography): 6 or 8. */
   readonly size: 6 | 8;
+  /** Baseline distance of the lines when it differs from the default of the size (stacked letters). */
+  readonly pitch?: number;
 }
 
 /** Baseline distance of two printed lines of a placard, by size. */
@@ -24,7 +26,7 @@ const LINE_PITCH: Readonly<Record<PlacardDef['size'], number>> = { 6: 7, 8: 10 }
 
 /** Offset from the control centre to the baseline of line `index` of a placard. */
 export function placardLineY(placard: PlacardDef, index: number): number {
-  return placard.dy + index * LINE_PITCH[placard.size];
+  return placard.dy + index * (placard.pitch ?? LINE_PITCH[placard.size]);
 }
 
 // ELT (sw.elt, global centre 1776, 656): the three positions of the rocker, printed on the right
@@ -144,6 +146,18 @@ export const PLACARDS: readonly PlacardDef[] = [
     lines: ['PUMP 1'],
     anchor: 'middle',
     size: 6,
+  },
+  // ALTERNATE as nine stacked upright letters left of the red guard (sw.deice_alternate, global
+  // centre 232, 296; plan 22): centred on x 194 and on the height of the switch, 7.2 apart.
+  {
+    id: 'deice_alternate.name',
+    near: 'sw.deice_alternate',
+    dx: -38,
+    dy: -26.7,
+    lines: ['A', 'L', 'T', 'E', 'R', 'N', 'A', 'T', 'E'],
+    anchor: 'middle',
+    size: 6,
+    pitch: 7.2,
   },
   {
     id: 'cowl_flap.name',

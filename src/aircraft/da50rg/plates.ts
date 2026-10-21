@@ -91,3 +91,30 @@ export const ENV_TITLE = { text: 'ENVIRONMENTAL CONTROL', x: 1062, y: 766 } as c
  * TEST toggle. Baselines in the 2000 x 1300 space; one source for the shell and the tests.
  */
 export const GEAR_BLOCK = { headingY: 640, speedLineY: 654 } as const;
+
+/** One heading printed on a plate inside a white outline frame (static shell art). */
+export interface PlateHeadingDef {
+  readonly id: string;
+  /** Id of the plate the heading sits on. */
+  readonly plate: string;
+  readonly text: string;
+  /** The outline frame, global units. */
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+  readonly rx: number;
+  /** Font size on the panel scale; the text is centred in the frame. */
+  readonly size: 6 | 8;
+}
+
+/** Outline colour and width of a heading frame. */
+export const HEADING_FRAME = { stroke: '#e6e9ed', width: 1.2 } as const;
+
+/**
+ * Headings of plates. The de-ice unit reads DE ICE (no hyphen) in a white outlined frame between
+ * the MAX label and the top of the plate (owner finding G-1, plan 22).
+ */
+export const PLATE_HEADINGS: readonly PlateHeadingDef[] = [
+  { id: 'deice', plate: 'deice', text: 'DE ICE', x: 118, y: 209, w: 64, h: 16, rx: 5, size: 8 },
+];

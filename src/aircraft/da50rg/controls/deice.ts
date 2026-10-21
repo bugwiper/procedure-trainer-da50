@@ -51,23 +51,26 @@ export const DEICE_CONTROLS: readonly ControlSpec[] = [
     skin: 'black-dome',
   },
   {
+    // The cockpit's only guarded switch (owner finding G-1, plan 22; D-08 amended: no red rocker).
+    // A normal toggle under a red guard cover: the guarded position is UP (off), flipped DOWN (on)
+    // once the guard is lifted. States in the order on, off so that the second state, off, is the
+    // up position. Without rocker size and colour the widget draws the bat toggle. Nameless: the
+    // stacked letters ALTERNATE (placards.ts) stand beside it. The footprint is x 121..173, y
+    // 41..141; the lifted guard is a flap above it, y 9..41, inside the region.
     id: 'sw.deice_alternate',
     kind: 'guarded-toggle',
     label: 'ALTERNATE',
     region: 'deice',
     x: 147,
     y: 91,
-    hit: { w: 56, h: 68 },
+    hit: { w: 52, h: 100 },
     states: [
-      { id: 'off', label: 'OFF' },
       { id: 'on', label: 'ON' },
+      { id: 'off', label: 'OFF' },
     ],
     default: 'off',
-    guardOpenHit: { x: -28, y: -64, w: 56, h: 30 },
-    // Red rocker under the translucent red guard cover (D-08, UI-SPEC 8.6; photos P650, SIM).
-    // Size M is a proposal within +/- 10 percent (unconfirmed item 2).
-    size: 'M',
-    colour: 'red',
+    guardOpenHit: { x: -26, y: -82, w: 52, h: 32 },
+    nameless: true,
   },
   {
     // One three-position toggle (owner finding G-1, plan 22): bottom to top ANNUN-TEST, OFF, ICE

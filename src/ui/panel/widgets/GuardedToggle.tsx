@@ -3,6 +3,7 @@ import { guardIdFor } from '../../../engine/registry';
 import type { GuardedToggleDef } from '../../../engine/registry';
 import type { WidgetProps } from '../ControlWidget';
 import { paint } from '../Defs';
+import { BatBody } from '../skins/Bat';
 import { RockerBody } from '../skins/Rocker';
 
 const TAP_SLOP_PX = 10;
@@ -76,6 +77,10 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
   });
 
   const open = def.guardOpenHit;
+  // The registry rule: size and colour together draw a rocker under the guard, neither draws the
+  // normal bat toggle (the de-ice ALTERNATE switch, owner finding G-1).
+  const rocker = def.size !== undefined;
+  const position = isSecond ? 'high' : 'low';
 
   return (
     <>
@@ -83,7 +88,7 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
         data-control-id={def.id}
         data-kind={def.kind}
         data-state={state}
-        data-skin="rocker"
+        data-skin={rocker ? 'rocker' : 'bat'}
         data-size={def.size}
         data-colour={def.colour}
         data-pressed-half={isSecond ? 'upper' : 'lower'}
@@ -92,7 +97,11 @@ export function GuardedToggle({ def, bridge }: WidgetProps<GuardedToggleDef>) {
         aria-label={`${def.label}: ${stateLabel}`}
         transform={`translate(${def.x} ${def.y})`}
       >
-        <RockerBody def={def} position={isSecond ? 'high' : 'low'} pressed={switchTap.pressed} />
+        {rocker ? (
+          <RockerBody def={def} position={position} pressed={switchTap.pressed} />
+        ) : (
+          <BatBody def={def} position={position} pressed={switchTap.pressed} />
+        )}
         {guardOpen ? (
           <rect
             data-hit={def.id}
@@ -135,18 +144,24 @@ export interface GuardCoverProps {
   readonly guardOpen: boolean;
 }
 
-/** Y offsets of the three hatch bars inside the closed cover (rect 40 x 54 centred on the rocker). */
-const COVER_BARS = [-15, -4, 7] as const;
+/** Distance of the first hatch bar from the top of the closed cover, and the bar pitch. */
+const COVER_BAR_TOP = 10;
+const COVER_BAR_PITCH = 7;
+const COVER_BARS = 3;
 
 /**
- * Pure art of the translucent red guard cover (UI-SPEC 8.6): closed it covers the rocker
- * (rect 40 x 54, rx 4, #c43030 at 35 percent, border #e04040 1.5) with three hatch bars from the
- * shared p-hatch; open it is drawn lifted above the rocker with the hinge line. It draws no text
- * at all (G-0.1); the guard state is in data-state and the aria-label of its group.
+ * Pure art of the translucent red guard cover (UI-SPEC 8.6, rebuilt for the bat toggle by plan 22):
+ * closed it is a block over the whole footprint (the hit rectangle inset 2, rx 4, #c43030 at 35
+ * percent, border #e04040 1.5) with three hatch bars from the shared p-hatch near its top edge;
+ * open it is drawn as a flap above the footprint (the lifted-guard rectangle) with the hinge line
+ * at the top edge of the footprint, so the toggle is fully visible. It is the only red part of the
+ * switch and draws no text at all (G-0.1); the guard state is in data-state and the aria-label of
+ * its group.
  */
 export function GuardCover({ def, guardOpen }: GuardCoverProps) {
   const open = def.guardOpenHit;
   const tint = { fill: '#c43030', 'fill-opacity': 0.35, stroke: '#e04040', 'stroke-width': 1.5 };
+  const bars = Array.from({ length: COVER_BARS }, (_, i) => i);
   return (
     <g pointer-events="none">
       {guardOpen ? (
@@ -160,9 +175,9 @@ export function GuardCover({ def, guardOpen }: GuardCoverProps) {
             rx={3}
             {...tint}
           />
-          {COVER_BARS.map((dy, i) => (
+          {bars.map((i) => (
             <rect
-              key={dy}
+              key={i}
               x={open.x + 8}
               y={open.y + 7 + i * 7}
               width={open.w - 16}
@@ -181,9 +196,23 @@ export function GuardCover({ def, guardOpen }: GuardCoverProps) {
         </>
       ) : (
         <>
-          <rect x={-20} y={-27} width={40} height={54} rx={4} {...tint} />
-          {COVER_BARS.map((dy) => (
-            <rect key={dy} x={-16} y={dy - 1.5} width={32} height={3} fill={paint('p-hatch')} />
+          <rect
+            x={-def.hit.w / 2 + 2}
+            y={-def.hit.h / 2 + 2}
+            width={def.hit.w - 4}
+            height={def.hit.h - 4}
+            rx={4}
+            {...tint}
+          />
+          {bars.map((i) => (
+            <rect
+              key={i}
+              x={-def.hit.w / 2 + 8}
+              y={-def.hit.h / 2 + COVER_BAR_TOP + i * COVER_BAR_PITCH}
+              width={def.hit.w - 16}
+              height={3}
+              fill={paint('p-hatch')}
+            />
           ))}
         </>
       )}
