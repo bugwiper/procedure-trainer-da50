@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 
 Phase: 2 — First Gradable Scenario
 Current Plan: Not started
-Total Plans in Phase: 9
+Total Plans in Phase: not planned yet
 Status: Ready to plan
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
 Last activity: 2026-10-21 — Phase 01.2 complete, transitioned to Phase 2
