@@ -779,3 +779,70 @@ describe('declared font-size scale 6, 8, 10, 14', () => {
     expect(sizesIn('style="font-size: 9px"')).toEqual([9]);
   });
 });
+
+// Glareshield light placards (plan 30, R2-1.1): the real panel prints ON above OFF once per side of
+// the four light switches, left of LANDING and right of STROBE. Static plate text; the rockers print
+// none.
+describe('glareshield light placards (plan 30, R2-1.1)', () => {
+  const lights = PLACARDS.filter(
+    (p) => p.near === 'sw.light_landing' || p.near === 'sw.light_strobe',
+  );
+  const by = (id: string) => {
+    const p = PLACARDS.find((q) => q.id === id);
+    if (p === undefined) throw new Error(`no placard ${id}`);
+    return p;
+  };
+
+  it('has exactly the four placards ON and OFF per side, size 6, one line each', () => {
+    expect(lights.map((p) => p.id).sort()).toEqual([
+      'lights.left_off',
+      'lights.left_on',
+      'lights.right_off',
+      'lights.right_on',
+    ]);
+    expect(lights.map((p) => p.lines.join('')).sort()).toEqual(['OFF', 'OFF', 'ON', 'ON']);
+    expect(lights.every((p) => p.size === 6 && p.lines.length === 1)).toBe(true);
+    expect(by('lights.left_on').lines).toEqual(['ON']);
+    expect(by('lights.left_off').lines).toEqual(['OFF']);
+    expect(by('lights.right_on').lines).toEqual(['ON']);
+    expect(by('lights.right_off').lines).toEqual(['OFF']);
+  });
+
+  it('the left pair stands left of the LANDING footprint and the right pair right of the STROBE one', () => {
+    const landing = DA50RG.get('sw.light_landing');
+    const strobe = DA50RG.get('sw.light_strobe');
+    if (landing === undefined || strobe === undefined) throw new Error('no light rocker');
+    for (const id of ['lights.left_on', 'lights.left_off']) {
+      const p = by(id);
+      expect(p.near, id).toBe('sw.light_landing');
+      expect(p.anchor, id).toBe('end');
+      expect(p.dx, id).toBeLessThanOrEqual(-landing.hit.w / 2);
+    }
+    for (const id of ['lights.right_on', 'lights.right_off']) {
+      const p = by(id);
+      expect(p.near, id).toBe('sw.light_strobe');
+      expect(p.anchor, id).toBe('start');
+      expect(p.dx, id).toBeGreaterThanOrEqual(strobe.hit.w / 2);
+    }
+  });
+
+  it('on each side ON stands above OFF', () => {
+    for (const side of ['left', 'right']) {
+      expect(by(`lights.${side}_on`).dy).toBeLessThan(by(`lights.${side}_off`).dy);
+    }
+  });
+
+  it('the TAXI and POSITION rockers have no placard of their own (once per side)', () => {
+    expect(
+      PLACARDS.filter((p) => p.near === 'sw.light_taxi' || p.near === 'sw.light_position'),
+    ).toEqual([]);
+  });
+
+  it('the shell draws the four words as plate text', () => {
+    const ids = new Set(lights.map((p) => p.id));
+    const words = findElements(shell, (el) => ids.has(el.props['data-placard'] as string)).map(
+      (el) => textOf(el),
+    );
+    expect(words).toEqual(['ON', 'OFF', 'ON', 'OFF']);
+  });
+});

@@ -194,3 +194,49 @@ test('operating both alternator switches changes no printed text', async ({ page
   }
   expect(await panelText(page)).toEqual(before);
 });
+
+const LIGHT_IDS = ['sw.light_landing', 'sw.light_taxi', 'sw.light_position', 'sw.light_strobe'];
+
+// Plan 30, R2-1.1: ON and OFF are printed once per side of the four light switches, as plate text.
+test('the glareshield prints ON and OFF once per side, as plate text, and the rockers print none', async ({
+  page,
+}) => {
+  const words = await page.locator('[data-testid="panel"]').evaluate((node) =>
+    Array.from(node.querySelectorAll('text[data-placard^="lights"]')).map((el) => ({
+      text: (el.textContent ?? '').trim(),
+      id: el.getAttribute('data-placard'),
+      y: Number(el.getAttribute('y')),
+    })),
+  );
+  expect(words.filter((w) => w.text === 'ON')).toHaveLength(2);
+  expect(words.filter((w) => w.text === 'OFF')).toHaveLength(2);
+  expect(words).toHaveLength(4);
+  // All four stand on the glareshield, above y 170 in panel units.
+  for (const w of words) expect(w.y, w.id ?? '').toBeLessThan(170);
+  // The rockers carry no text but their own names.
+  const names: Record<string, string> = {
+    'sw.light_landing': 'LANDING',
+    'sw.light_taxi': 'TAXI',
+    'sw.light_position': 'POSITION',
+    'sw.light_strobe': 'STROBE',
+  };
+  for (const id of LIGHT_IDS) {
+    const texts = await page
+      .locator(`[data-control-id="${id}"] text`)
+      .evaluateAll((els) => els.map((el) => (el.textContent ?? '').trim()));
+    expect(texts, id).toEqual([names[id]]);
+  }
+});
+
+test('operating all four light rockers changes no printed text', async ({ page, hasTouch }) => {
+  const before = await panelText(page);
+  for (const id of LIGHT_IDS) {
+    const state = await page.locator(`[data-control-id="${id}"]`).getAttribute('data-state');
+    await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
+    await expect(page.locator(`[data-control-id="${id}"]`)).not.toHaveAttribute(
+      'data-state',
+      state ?? '',
+    );
+  }
+  expect(await panelText(page)).toEqual(before);
+});
