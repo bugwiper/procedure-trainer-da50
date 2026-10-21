@@ -181,7 +181,7 @@ test('DIRECTION draws pictograms only and TEMPERATURE prints only COLD and WARM'
   await expect(page.locator('[data-shell="group-box"]')).toHaveCount(4);
 });
 
-test('PARKING BRAKE is a flap: a tap pulls it up (one wall), a second tap releases it (no wall)', async ({
+test('PARKING BRAKE is a flap: a tap pulls it up (one plate), a second tap releases it (no plate)', async ({
   page,
   hasTouch,
 }) => {
@@ -192,14 +192,17 @@ test('PARKING BRAKE is a flap: a tap pulls it up (one wall), a second tap releas
   // One hit over the whole footprint, no detent markers.
   await expect(hit).toHaveCount(1);
   await expect(page.locator('[data-detent^="lv.parking_brake:"]')).toHaveCount(0);
+  await expect(brake.locator('[data-flap-plate]')).toHaveCount(0);
   await expect(brake.locator('[data-flap-wall]')).toHaveCount(0);
   await activate(hit, hasTouch);
   await expect(brake).toHaveAttribute('data-state', 'set');
-  await expect(brake.locator('[data-flap-wall]')).toHaveCount(1);
+  await expect(brake.locator('[data-flap-plate]')).toHaveCount(1);
+  await expect(brake.locator('[data-flap-wall]')).toHaveCount(0);
   // Nothing is printed on the flap: the plate placard names it.
   await expect(brake.locator('text')).toHaveCount(0);
   await activate(hit, hasTouch);
   await expect(brake).toHaveAttribute('data-state', 'off');
+  await expect(brake.locator('[data-flap-plate]')).toHaveCount(0);
   await expect(brake.locator('[data-flap-wall]')).toHaveCount(0);
   await expect(brake.locator('text')).toHaveCount(0);
 });

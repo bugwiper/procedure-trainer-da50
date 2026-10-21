@@ -11,20 +11,33 @@ export const FLAP = {
   halfW: 15,
   length: 34,
   hingeY: 22,
-  /** Pulled angle about the hinge in degrees; allowed 45 to 75 (R2-4.2: at least 45). */
+  /**
+   * Documented geometric model: the pulled flap stands this many degrees about its hinge (allowed
+   * 45 to 75, R2-4.2). The drawn rise of the plate lies between length x cos and length x sin of it.
+   */
   angleDeg: 60,
-  /** Offset of the lifted face from the hinge-to-tip edge, toward the viewer (the right of the panel). */
-  lift: 4,
+} as const;
+
+/**
+ * The pulled plate in perspective (R3-4.1, owner sketch): a quadrilateral over the hinge line. Its
+ * bottom edge is the level hinge line; its top edge is level, shorter than the base and shifted to
+ * the right of the base's left end; the left side slants up to the right and the right side up and
+ * slightly right. The sketch measures a top edge of 0.83 of the base and the owner's words say
+ * 55 to 60 percent; 0.7 is the middle and keeps the plate inside the 44 wide footprint.
+ */
+export const PLATE = {
+  /** Top edge length as a fraction of the base (the hinge line, 30 wide). */
+  topFraction: 0.7,
+  /** Shift of the top edge's left end to the right of the base's left end, as a fraction of the base. */
+  shiftFraction: 0.5,
+  /** Projected rise from the hinge line to the top edge, control-local units (17 to 29.4 for 60 degrees). */
+  rise: 22,
 } as const;
 
 const TONE = {
   face: '#2b3036',
   edge: '#4a525c',
   freeEdge: '#6b7580',
-  wall: '#222830',
-  wallEdge: '#4a525c',
-  lifted: '#56606b',
-  highlight: '#6b7580',
 } as const;
 
 export interface Point {
@@ -37,34 +50,19 @@ const pts = (points: readonly Point[]): string =>
   points.map((p) => `${f(p.x)},${f(p.y)}`).join(' ');
 
 /**
- * The side wall of the pulled flap, seen from the right: the hinge corner H, the released free
- * corner R (straight up the panel) and the lifted tip T, a true rotation of R about H by the
- * angle, so |HR| = |HT| = the flap length. Control-local coordinates, y down.
+ * The four points of the pulled plate, control-local, y down: A hinge left, B hinge right (the
+ * level bottom edge, as wide as the flap), C top right, D top left (the level top edge).
  */
-export function flapWall(angleDeg: number = FLAP.angleDeg): readonly [Point, Point, Point] {
-  const rad = (angleDeg * Math.PI) / 180;
-  const h: Point = { x: FLAP.halfW, y: FLAP.hingeY };
-  const r: Point = { x: FLAP.halfW, y: FLAP.hingeY - FLAP.length };
-  const t: Point = {
-    x: h.x - FLAP.length * Math.sin(rad),
-    y: h.y - FLAP.length * Math.cos(rad),
-  };
-  return [h, r, t];
-}
-
-/**
- * The lifted face of the pulled flap: the thin quadrilateral along the hinge-to-tip edge,
- * offset `lift` toward the viewer (perpendicular to the edge, away from the wall).
- */
-export function flapFace(angleDeg: number = FLAP.angleDeg): readonly [Point, Point, Point, Point] {
-  const [h, , t] = flapWall(angleDeg);
-  const dx = t.x - h.x;
-  const dy = t.y - h.y;
-  const len = Math.hypot(dx, dy);
-  // For a pull between 0 and 90 degrees the edge runs up and to the left, so this normal points
-  // down and to the left: away from the wall interior, toward the viewer.
-  const o: Point = { x: (dy / len) * FLAP.lift, y: (-dx / len) * FLAP.lift };
-  return [h, t, { x: t.x + o.x, y: t.y + o.y }, { x: h.x + o.x, y: h.y + o.y }];
+export function flapPlate(): readonly [Point, Point, Point, Point] {
+  const base = FLAP.halfW * 2;
+  const topY = FLAP.hingeY - PLATE.rise;
+  const dx = -FLAP.halfW + base * PLATE.shiftFraction;
+  return [
+    { x: -FLAP.halfW, y: FLAP.hingeY },
+    { x: FLAP.halfW, y: FLAP.hingeY },
+    { x: dx + base * PLATE.topFraction, y: topY },
+    { x: dx, y: topY },
+  ];
 }
 
 export interface FlapBodyProps {
@@ -76,15 +74,14 @@ export interface FlapBodyProps {
 }
 
 /**
- * Pure body of the hinged flap (R2-4.2, D-09): a recess in the console and, released, the flap
- * flat in the panel surface; pulled, the flap stands up by FLAP.angleDeg about its lower hinge,
- * seen from the right as a dark wedge (the side wall) with a lighter lifted face and a highlight
- * on the free edge. Prints no text in either state (G-0.1); the placard names it. No hooks.
+ * Pure body of the hinged flap (R2-4.2, D-09, R3-4.1): a recess in the console and, released, the
+ * flap flat in the panel surface; pulled, one plate in the flap's grey hinged on the same bottom
+ * line and tilted back (see PLATE), with a highlight on its top edge. Prints no text in either
+ * state (G-0.1); the placard names it. No hooks.
  */
 export function FlapBody({ state, pressed }: FlapBodyProps) {
   const pulled = state === 'set';
-  const [h, , t] = flapWall();
-  const face = flapFace();
+  const plate = flapPlate();
   const top = FLAP.hingeY - FLAP.length;
   return (
     <g data-flap={pulled ? 'set' : 'off'} pointer-events="none">
@@ -101,38 +98,22 @@ export function FlapBody({ state, pressed }: FlapBodyProps) {
       {pulled ? (
         <>
           <polygon
-            data-flap-wall=""
-            points={pts(flapWall())}
-            fill={TONE.wall}
-            stroke={TONE.wallEdge}
-            stroke-width={0.8}
-            stroke-linejoin="round"
-          />
-          <polygon
-            data-flap-face=""
-            points={pts(face)}
-            fill={TONE.lifted}
+            data-flap-plate=""
+            points={pts(plate)}
+            fill={TONE.face}
             stroke={TONE.edge}
-            stroke-width={0.8}
+            stroke-width={1}
             stroke-linejoin="round"
           />
           <line
             data-flap-free=""
-            x1={t.x}
-            y1={t.y}
-            x2={face[2].x}
-            y2={face[2].y}
-            stroke={TONE.highlight}
+            x1={plate[3].x + 1}
+            y1={plate[3].y}
+            x2={plate[2].x - 1}
+            y2={plate[2].y}
+            stroke={TONE.freeEdge}
             stroke-width={1}
             stroke-linecap="round"
-          />
-          <line
-            x1={-FLAP.halfW}
-            y1={h.y}
-            x2={FLAP.halfW}
-            y2={h.y}
-            stroke={TONE.edge}
-            stroke-width={1}
           />
         </>
       ) : (

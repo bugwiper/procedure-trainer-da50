@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { PLACARDS } from '../src/aircraft/da50rg/placards';
 import type { ControlDef, DetentLeverDef } from '../src/engine/registry';
-import { FLAP, FlapBody, flapWall } from '../src/ui/panel/skins/Flap';
+import { FLAP, FlapBody, flapPlate } from '../src/ui/panel/skins/Flap';
 import { ENV_ICONS, LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
 import {
   LeverBody,
@@ -419,7 +419,7 @@ describe('pedestal levers (plan 19, G-3)', () => {
   });
 });
 
-describe('PARKING BRAKE flap geometry (R2-4.2, Table P1)', () => {
+describe('PARKING BRAKE flap geometry (R2-4.2, R3-4.1)', () => {
   const brake = lever('lv.parking_brake');
   const flap = (state: string, pressed = false): El =>
     expand(FlapBody({ def: brake, state, pressed }));
@@ -451,9 +451,9 @@ describe('PARKING BRAKE flap geometry (R2-4.2, Table P1)', () => {
     return out;
   }
 
-  it('released: a flat face, the recess, no wall; pulled: exactly one wall polygon of three points', () => {
+  it('released: a flat face, the recess, no plate; pulled: the recess and exactly one four-point plate (R3-4.1)', () => {
     const off = flap('off');
-    expect(findElements(off, (el) => 'data-flap-wall' in el.props)).toHaveLength(0);
+    expect(findElements(off, (el) => 'data-flap-plate' in el.props)).toHaveLength(0);
     expect(findElements(off, (el) => 'data-flap-face' in el.props)).toHaveLength(1);
     // The released face is axis-aligned: a rect, not a polygon.
     expect(findElements(off, (el) => el.tag === 'polygon')).toHaveLength(0);
@@ -462,53 +462,111 @@ describe('PARKING BRAKE flap geometry (R2-4.2, Table P1)', () => {
     for (const tree of [off, set]) {
       expect(findElements(tree, (el) => el.tag === 'rect')[0]?.props['fill']).toBe('#050506');
     }
-    const walls = findElements(set, (el) => 'data-flap-wall' in el.props);
-    expect(walls).toHaveLength(1);
-    expect(polygonPoints(walls[0]!)).toHaveLength(3);
-  });
-
-  it('the wall is a true rotation about the hinge by 45 to 75 degrees, recomputable from the constants', () => {
-    const wall = polygonPoints(findElements(flap('set'), (el) => 'data-flap-wall' in el.props)[0]!);
-    const [h, r, t] = wall as [P, P, P];
-    const edge = (a: P, b: P): number => Math.hypot(a[0] - b[0], a[1] - b[1]);
-    // The hinge corner is the one whose two edges have the flap length.
-    expect(edge(h, r)).toBeCloseTo(FLAP.length, 2);
-    expect(edge(h, t)).toBeCloseTo(FLAP.length, 2);
-    const angle =
-      (Math.acos(
-        ((r[0] - h[0]) * (t[0] - h[0]) + (r[1] - h[1]) * (t[1] - h[1])) / (edge(h, r) * edge(h, t)),
-      ) *
-        180) /
-      Math.PI;
-    expect(angle).toBeGreaterThanOrEqual(45);
-    expect(angle).toBeLessThanOrEqual(75);
-    expect(angle).toBeCloseTo(FLAP.angleDeg, 1);
-    // The pure helper gives the same numbers, and the hinge sits on the lower edge of the flat flap.
-    const [ph, pr, pt] = flapWall();
-    expect(h[0]).toBeCloseTo(ph.x, 2);
-    expect(r[1]).toBeCloseTo(pr.y, 2);
-    expect(t[0]).toBeCloseTo(pt.x, 2);
-    expect(ph.y).toBe(FLAP.hingeY);
-    expect(pr.y).toBe(FLAP.hingeY - FLAP.length);
-    // Any allowed angle keeps both edges at the flap length.
-    for (const deg of [45, 60, 75]) {
-      const [a, b, c] = flapWall(deg);
-      expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeCloseTo(FLAP.length, 6);
-      expect(Math.hypot(c.x - a.x, c.y - a.y)).toBeCloseTo(FLAP.length, 6);
-    }
-  });
-
-  it('draws a lifted face lighter than the wall and a highlight on the free edge when pulled', () => {
-    const set = flap('set');
-    const wall = findElements(set, (el) => 'data-flap-wall' in el.props)[0]!;
-    const face = findElements(set, (el) => 'data-flap-face' in el.props);
-    expect(face).toHaveLength(1);
-    expect(face[0]?.tag).toBe('polygon');
-    expect(polygonPoints(face[0]!)).toHaveLength(4);
-    expect(face[0]?.props['fill']).not.toBe(wall.props['fill']);
-    const lum = (hex: unknown): number => parseInt(String(hex).slice(1, 3), 16);
-    expect(lum(face[0]?.props['fill'])).toBeGreaterThan(lum(wall.props['fill']));
+    const plates = findElements(set, (el) => 'data-flap-plate' in el.props);
+    expect(plates).toHaveLength(1);
+    expect(plates[0]?.tag).toBe('polygon');
+    expect(polygonPoints(plates[0]!)).toHaveLength(4);
     expect(findElements(set, (el) => 'data-flap-free' in el.props)).toHaveLength(1);
+    expect(findElements(set, (el) => 'data-flap-face' in el.props)).toHaveLength(0);
+  });
+
+  describe('the pulled plate follows the owner sketch (R3-4.1)', () => {
+    const plate = (): P[] =>
+      polygonPoints(findElements(flap('set'), (el) => 'data-flap-plate' in el.props)[0]!);
+    const baseEnds = (pts: readonly P[]): { bottom: P[]; top: P[] } => {
+      const sorted = [...pts].sort((p, q) => q[1] - p[1]);
+      const bottom = sorted.slice(0, 2).sort((p, q) => p[0] - q[0]);
+      const top = sorted.slice(2).sort((p, q) => p[0] - q[0]);
+      return { bottom, top };
+    };
+    const dist = (a: P, b: P): number => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+    it('the bottom edge is the level hinge line of the released flap, as wide as the flap', () => {
+      const { bottom } = baseEnds(plate());
+      const [l, r] = bottom as [P, P];
+      expect(l[1]).toBe(r[1]);
+      expect(l[1]).toBe(FLAP.hingeY);
+      expect(l[0]).toBe(-FLAP.halfW);
+      expect(r[0]).toBe(FLAP.halfW);
+    });
+
+    it('the top edge is level, parallel to the bottom edge and at least 15 units above it', () => {
+      const { bottom, top } = baseEnds(plate());
+      expect(top[0]?.[1]).toBe(top[1]?.[1]);
+      expect(bottom[0]![1] - top[0]![1]).toBeGreaterThanOrEqual(15);
+    });
+
+    it('the top edge is shorter than the base, between 0.5 and 0.9 of it', () => {
+      const { bottom, top } = baseEnds(plate());
+      const ratio = dist(top[0]!, top[1]!) / dist(bottom[0]!, bottom[1]!);
+      expect(ratio).toBeGreaterThanOrEqual(0.5);
+      expect(ratio).toBeLessThanOrEqual(0.9);
+    });
+
+    it('the top edge is shifted right: its left end is at least 0.3 of the base right of the base start', () => {
+      const { bottom, top } = baseEnds(plate());
+      const base = dist(bottom[0]!, bottom[1]!);
+      expect((top[0]![0] - bottom[0]![0]) / base).toBeGreaterThanOrEqual(0.3);
+    });
+
+    it('the left side slants up to the right; the right side slants up and slightly right', () => {
+      const { bottom, top } = baseEnds(plate());
+      const base = dist(bottom[0]!, bottom[1]!);
+      // Left side: moving up it moves right.
+      expect(top[0]![0]).toBeGreaterThan(bottom[0]![0]);
+      // Right side: the top right end is right of the bottom right end by more than 0 and at most 0.35 base.
+      const lean = (top[1]![0] - bottom[1]![0]) / base;
+      expect(lean).toBeGreaterThan(0);
+      expect(lean).toBeLessThanOrEqual(0.35);
+    });
+
+    it('is a convex quadrilateral with a consistent winding', () => {
+      const pts = plate();
+      const signs = pts.map((p, i) => {
+        const q = pts[(i + 1) % 4]!;
+        const r = pts[(i + 2) % 4]!;
+        return Math.sign((q[0] - p[0]) * (r[1] - q[1]) - (q[1] - p[1]) * (r[0] - q[0]));
+      });
+      expect(signs.every((s) => s === signs[0] && s !== 0)).toBe(true);
+    });
+
+    it('the projected rise lies between length x cos and length x sin of the standing angle', () => {
+      const { bottom, top } = baseEnds(plate());
+      const rise = bottom[0]![1] - top[0]![1];
+      const rad = (FLAP.angleDeg * Math.PI) / 180;
+      expect(FLAP.angleDeg).toBeGreaterThanOrEqual(45);
+      expect(FLAP.angleDeg).toBeLessThanOrEqual(75);
+      expect(rise).toBeGreaterThanOrEqual(FLAP.length * Math.cos(rad));
+      expect(rise).toBeLessThanOrEqual(FLAP.length * Math.sin(rad));
+    });
+
+    it('the pure helper gives the drawn points, in the order A, B, C, D', () => {
+      const [a, b, c, d] = flapPlate();
+      const drawn = plate();
+      expect(drawn.map((p) => [p[0], p[1]])).toEqual([a, b, c, d].map((p) => [p.x, p.y]));
+    });
+
+    it('the plate is drawn in the grey of the released face, with an edge and a top highlight line', () => {
+      const face = findElements(flap('off'), (el) => 'data-flap-face' in el.props)[0]!;
+      const set = flap('set');
+      const pl = findElements(set, (el) => 'data-flap-plate' in el.props)[0]!;
+      expect(pl.props['fill']).toBe(face.props['fill']);
+      expect(pl.props['stroke']).toBe(face.props['stroke']);
+      const free = findElements(set, (el) => 'data-flap-free' in el.props)[0]!;
+      const { top } = baseEnds(plate());
+      expect(Number(free.props['y1'])).toBeCloseTo(top[0]![1], 5);
+      expect(Number(free.props['y2'])).toBeCloseTo(top[0]![1], 5);
+    });
+
+    it('no state draws a wall, in any pressed value', () => {
+      for (const state of ['off', 'set']) {
+        for (const pressed of [false, true]) {
+          expect(findElements(flap(state, pressed), (el) => 'data-flap-wall' in el.props)).toEqual(
+            [],
+          );
+        }
+      }
+    });
   });
 
   it('the pressed ring is transient: it differs only while a pointer is down', () => {
