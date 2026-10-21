@@ -421,3 +421,40 @@ export const STANDBY_EFIS: StandbyEfisData = {
 /** Idle tape numerals (proposals, U-18): speed from 180 down to 100, altitude around 1400. */
 export const EFIS_SPEED_TAPE: readonly number[] = [180, 160, 140, 120, 100];
 export const EFIS_ALTITUDE_TAPE: readonly number[] = [1600, 1500, 1400, 1300, 1200];
+
+/** Table G3 key legends, left key then right key per row; NOSE UP and NOSE DN are two lines. */
+const AP_ROWS: readonly (readonly [string, string])[] = [
+  ['AP', 'YD'],
+  ['FD', 'HDG'],
+  ['NAV', 'APR'],
+  ['ALT', 'VNV'],
+  ['VS', 'NOSE UP'],
+  ['FLC', 'NOSE DN'],
+];
+
+const AUTOPILOT_GLOBAL: readonly UnitElement[] = [
+  knob('vol', 1196, 212, 7),
+  sub('VOL', 1206, 210, 'start'),
+  sub('PUSH ID', 1206, 217, 'start'),
+  swap('swap', 1214, 234, 24),
+  knob('nav', 1206, 278, 16),
+  name('NAV', 1206, 258),
+  sub('PUSH', 1206, 302),
+  sub('1-2', 1206, 309),
+  knob('hdg', 1206, 350, 16),
+  name('HDG', 1206, 330),
+  sub('PUSH', 1206, 374),
+  sub('HDG SYNC', 1206, 381),
+  ...AP_ROWS.flatMap(([left, right], row): ColumnKey[] => {
+    const cy = 404 + 26 * row;
+    return [unitKey(1189, cy, left, 30, 22), unitKey(1223, cy, right, 30, 22)];
+  }),
+  knob('alt', 1206, 582, 15),
+  name('ALT', 1206, 562),
+];
+
+/**
+ * Table G3: the autopilot panel in the local space of `autopilot_panel` (1164, 196). In the photos
+ * this column is the left strip of the MFD; it is treated as the autopilot panel (U-17).
+ */
+export const AUTOPILOT_PANEL: readonly UnitElement[] = toLocal(1164, 196, AUTOPILOT_GLOBAL);

@@ -9,7 +9,7 @@ import type { FrameProps } from './MfdFrame';
 import { HousingRect, UnitGroup } from './UnitHousing';
 
 // Backup EFIS art (phase 01.2 plan 08, D-06): a bezelled unit with a small attitude display, a
-// tape display and one round knob without a logo. Static artwork with idle values, hook-free, no
+// tape display and one plain round knob with no markings. Static artwork with idle values, hook-free, no
 // handler, no hit rectangle, no control id. Content and sizes are proposals (U-18). Colours repeat
 // the PFD frame's sky, ground and symbol literals; the PFD component itself is not imported.
 

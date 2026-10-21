@@ -4,13 +4,13 @@ import type { PanelBridge } from '../bridge';
 import { ControlWidget } from './ControlWidget';
 import { Defs } from './Defs';
 import { AudioPanelFrame } from './frames/AudioPanelFrame';
+import { AutopilotPanelFrame } from './frames/AutopilotPanelFrame';
 import { BezelColumnFrame } from './frames/BezelColumnFrame';
 import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
 import { PfdFrame } from './frames/PfdFrame';
 import { SoftkeysFrame } from './frames/SoftkeysFrame';
 import { StandbyEfisFrame } from './frames/StandbyEfisFrame';
-import { UnitHousing } from './frames/UnitHousing';
 import { PanelShell } from './PanelShell';
 import { IndicatorLight } from './widgets/IndicatorLight';
 import { attachZoomGestures, viewBoxAttr } from './zoom';
@@ -29,7 +29,7 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   // Inert avionics units: housing and a not-operable label, no control, no handler (D-05, D-06).
   audio_panel: AudioPanelFrame,
   standby_efis: StandbyEfisFrame,
-  autopilot_panel: UnitHousing,
+  autopilot_panel: AutopilotPanelFrame,
 };
 
 /**

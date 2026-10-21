@@ -330,6 +330,58 @@ test('the backup EFIS shows two displays, one knob and its tape strings', async 
   );
 });
 
+// Plan 08: the autopilot panel: 12 keys in six rows, four knobs and the swap button.
+test('the autopilot panel shows 12 keys, four knobs, one swap button and its legends', async ({
+  page,
+}) => {
+  const unit = page.locator('[data-unit="autopilot_panel"]');
+  await expect(unit.locator('[data-key]')).toHaveCount(12);
+  await expect(unit.locator('[data-knob]')).toHaveCount(4);
+  await expect(unit.locator('[data-swap]')).toHaveCount(1);
+  await expect(unit.locator('[data-lamp], [data-display-backup]')).toHaveCount(0);
+  await expect(unit.locator('[data-hit], [data-control-id], [tabindex]')).toHaveCount(0);
+  const shown = await unit.locator('text').allTextContents();
+  expect([...shown].sort()).toEqual(
+    [
+      'AP',
+      'YD',
+      'FD',
+      'HDG',
+      'NAV',
+      'APR',
+      'ALT',
+      'VNV',
+      'VS',
+      'NOSE',
+      'UP',
+      'FLC',
+      'NOSE',
+      'DN',
+      'VOL',
+      'PUSH ID',
+      'NAV',
+      'PUSH',
+      '1-2',
+      'HDG',
+      'PUSH',
+      'HDG SYNC',
+      'ALT',
+    ].sort(),
+  );
+});
+
+test('the six units together hold 18 knobs, 2 joysticks, 4 swap buttons, 45 keys and no hit', async ({
+  page,
+}) => {
+  await expect(page.locator('[data-unit] [data-knob]')).toHaveCount(18);
+  await expect(page.locator('[data-unit] [data-joystick]')).toHaveCount(2);
+  await expect(page.locator('[data-unit] [data-swap]')).toHaveCount(4);
+  await expect(page.locator('[data-unit] [data-key]')).toHaveCount(45);
+  await expect(page.locator('[data-unit] [data-hit], [data-unit] [data-control-id]')).toHaveCount(
+    0,
+  );
+});
+
 for (const [id] of UNITS) {
   test(`@hooks a tap on ${id} only zooms: no event, no state change, back to the full view`, async ({
     page,

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   AUDIO_PANEL,
+  AUTOPILOT_PANEL,
   BEZEL_COLUMNS,
   GLASS,
   MFD_ENGINE_LEGENDS,
@@ -22,6 +23,7 @@ import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
 import { PLATES } from '../src/aircraft/da50rg/plates';
 import type { PanelBridge } from '../src/ui/bridge';
 import { AudioPanelFrame } from '../src/ui/panel/frames/AudioPanelFrame';
+import { AutopilotPanelFrame } from '../src/ui/panel/frames/AutopilotPanelFrame';
 import { BezelColumnFrame } from '../src/ui/panel/frames/BezelColumnFrame';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
@@ -1505,5 +1507,283 @@ describe('StandbyEfisFrame', () => {
       ),
     ).toEqual([]);
     expect(region('standby_efis').controlIds).toEqual([]);
+  });
+});
+
+// Plan 08 task 3: the autopilot panel (D-05): four knobs, a swap button and 12 keys in six rows.
+// Positions are typed in as global literals (Table G3).
+
+const AP_LEGENDS = [
+  'AP',
+  'YD',
+  'FD',
+  'HDG',
+  'NAV',
+  'APR',
+  'ALT',
+  'VNV',
+  'VS',
+  'NOSE UP',
+  'FLC',
+  'NOSE DN',
+] as const;
+
+describe('autopilot panel data (Table G3)', () => {
+  const origin = region('autopilot_panel').bounds;
+  const keys = AUTOPILOT_PANEL.filter((e) => e.kind === 'key');
+  const knobs = AUTOPILOT_PANEL.filter((e) => e.kind === 'knob');
+  const glob = (e: { cx: number; cy: number }) => ({ x: e.cx + origin.x, y: e.cy + origin.y });
+
+  it('has 12 keys 30 x 22 in two columns (1189, 1223) and six rows 404 to 534 in steps of 26', () => {
+    expect(origin).toEqual({ x: 1164, y: 196, w: 86, h: 408 });
+    expect(keys).toHaveLength(12);
+    const rows = [404, 430, 456, 482, 508, 534];
+    expect(keys.map((k) => [glob(k).x, glob(k).y])).toEqual(
+      rows.flatMap((y) => [
+        [1189, y],
+        [1223, y],
+      ]),
+    );
+    for (const k of keys) expect([k.w, k.h]).toEqual([30, 22]);
+    expect(keys.map((k) => k.legend)).toEqual([...AP_LEGENDS]);
+    expect(keys.filter((k) => k.lamp !== undefined)).toEqual([]);
+  });
+
+  it('has four knobs (VOL 1196, 212 r 7; NAV 1206, 278 r 16; HDG 1206, 350 r 16; ALT 1206, 582 r 15)', () => {
+    expect(knobs.map((k) => [k.id, glob(k).x, glob(k).y, k.r])).toEqual([
+      ['vol', 1196, 212, 7],
+      ['nav', 1206, 278, 16],
+      ['hdg', 1206, 350, 16],
+      ['alt', 1206, 582, 15],
+    ]);
+  });
+
+  it('has the swap button at (1214, 234), 24 x 12', () => {
+    const swaps = AUTOPILOT_PANEL.filter((e) => e.kind === 'swap');
+    expect(swaps).toHaveLength(1);
+    const sw = swaps[0];
+    expect(sw && [glob(sw).x, glob(sw).y, sw.w, sw.h]).toEqual([1214, 234, 24, 12]);
+  });
+
+  it('carries the static texts at the Table G3 baselines', () => {
+    const texts = AUTOPILOT_PANEL.filter((e) => e.kind === 'text').map((e) => [
+      e.text,
+      e.x + origin.x,
+      e.y + origin.y,
+      e.size,
+      e.anchor,
+    ]);
+    expect(texts).toEqual([
+      ['VOL', 1206, 210, 6, 'start'],
+      ['PUSH ID', 1206, 217, 6, 'start'],
+      ['NAV', 1206, 258, 8, 'middle'],
+      ['PUSH', 1206, 302, 6, 'middle'],
+      ['1-2', 1206, 309, 6, 'middle'],
+      ['HDG', 1206, 330, 8, 'middle'],
+      ['PUSH', 1206, 374, 6, 'middle'],
+      ['HDG SYNC', 1206, 381, 6, 'middle'],
+      ['ALT', 1206, 562, 8, 'middle'],
+    ]);
+  });
+
+  it('every part lies inside the region and the ap-unit plate; no two parts overlap', () => {
+    const plate = PLATES.find((p) => p.regions.includes('autopilot_panel'));
+    expect(plate?.id).toBe('ap-unit');
+    const boxes = AUTOPILOT_PANEL.flatMap((e) => (e.kind === 'text' ? [] : [e])).map((e) => {
+      const g = glob(e);
+      const hw = 'r' in e ? e.r : e.w / 2;
+      const hh = 'r' in e ? e.r : e.h / 2;
+      return {
+        name: 'id' in e ? e.id : '',
+        x0: g.x - hw,
+        y0: g.y - hh,
+        x1: g.x + hw,
+        y1: g.y + hh,
+      };
+    });
+    for (const b of boxes) {
+      expect(b.x0, b.name).toBeGreaterThanOrEqual(origin.x);
+      expect(b.y0, b.name).toBeGreaterThanOrEqual(origin.y);
+      expect(b.x1, b.name).toBeLessThanOrEqual(origin.x + origin.w);
+      expect(b.y1, b.name).toBeLessThanOrEqual(origin.y + origin.h);
+      expect(b.x0, b.name).toBeGreaterThanOrEqual(plate?.x ?? Infinity);
+      expect(b.y0, b.name).toBeGreaterThanOrEqual(plate?.y ?? Infinity);
+      expect(b.x1, b.name).toBeLessThanOrEqual((plate?.x ?? 0) + (plate?.w ?? 0));
+      expect(b.y1, b.name).toBeLessThanOrEqual((plate?.y ?? 0) + (plate?.h ?? 0));
+    }
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i];
+        const b = boxes[j];
+        if (a === undefined || b === undefined) continue;
+        const apart = a.x1 <= b.x0 || b.x1 <= a.x0 || a.y1 <= b.y0 || b.y1 <= a.y0;
+        expect(apart, `${a.name} and ${b.name}`).toBe(true);
+      }
+    }
+  });
+
+  it('the first key row clears the HDG SYNC legend (row top 393, baseline 381)', () => {
+    const first = keys[0];
+    expect(first && glob(first).y - 11).toBe(393);
+    const sync = AUTOPILOT_PANEL.find((e) => e.kind === 'text' && e.text === 'HDG SYNC');
+    expect(sync?.kind === 'text' && sync.y + origin.y).toBe(381);
+    expect(393).toBeGreaterThan(381);
+  });
+});
+
+describe('AutopilotPanelFrame', () => {
+  const render = () =>
+    expand(AutopilotPanelFrame({ region: region('autopilot_panel'), bridge: fakeBridge('map') }));
+
+  it('keeps the not-operable group and the housing equal to the region frame', () => {
+    const tree = render();
+    expect(tree.props['role']).toBe('img');
+    expect(tree.props['aria-label']).toBe('AUTOPILOT PANEL (NOT OPERABLE)');
+    expect(tree.props['data-unit']).toBe('autopilot_panel');
+    const { w, h } = region('autopilot_panel').bounds;
+    const housing = findElements(tree, (e) => e.props['data-unit-housing'] !== undefined);
+    expect(housing).toHaveLength(1);
+    expect(
+      ['x', 'y', 'width', 'height', 'rx', 'fill', 'stroke'].map((k) => housing[0]?.props[k]),
+    ).toEqual([0, 0, w, h, 4, '#0c0d0f', '#2d3138']);
+  });
+
+  it('draws 12 keys, four knobs and one swap button, no lamps and no button', () => {
+    const tree = render();
+    expect(findElements(tree, (e) => e.props['data-key'] !== undefined)).toHaveLength(12);
+    expect(findElements(tree, (e) => e.props['data-knob'] !== undefined)).toHaveLength(4);
+    expect(findElements(tree, (e) => e.props['data-swap'] !== undefined)).toHaveLength(1);
+    expect(findElements(tree, (e) => e.props['data-lamp'] !== undefined)).toHaveLength(0);
+    expect(findElements(tree, (e) => e.props['data-display-backup'] !== undefined)).toHaveLength(0);
+  });
+
+  it('NOSE UP and NOSE DN are two lines, the other legends one line', () => {
+    const tree = render();
+    const linesOf = (legend: string) => {
+      const data = AUTOPILOT_PANEL.find((e) => e.kind === 'key' && e.legend === legend);
+      if (data?.kind !== 'key') throw new Error(legend);
+      const el = findElements(tree, (e) => e.props['data-key'] === data.id)[0];
+      return el === undefined
+        ? []
+        : findElements(el, (e) => e.tag === 'text').map((t) => textOf(t));
+    };
+    expect(linesOf('NOSE UP')).toEqual(['NOSE', 'UP']);
+    expect(linesOf('NOSE DN')).toEqual(['NOSE', 'DN']);
+    for (const legend of ['AP', 'YD', 'FD', 'HDG', 'NAV', 'APR', 'ALT', 'VNV', 'VS', 'FLC']) {
+      expect(linesOf(legend), legend).toEqual([legend]);
+    }
+  });
+
+  it('prints the key legends and the knob names and sub-legends of Table G3', () => {
+    const strings = findElements(render(), (e) => e.tag === 'text').map((e) => textOf(e));
+    const expected = [
+      'AP',
+      'YD',
+      'FD',
+      'HDG',
+      'NAV',
+      'APR',
+      'ALT',
+      'VNV',
+      'VS',
+      'NOSE',
+      'UP',
+      'FLC',
+      'NOSE',
+      'DN',
+      'VOL',
+      'PUSH ID',
+      'NAV',
+      'PUSH',
+      '1-2',
+      'HDG',
+      'PUSH',
+      'HDG SYNC',
+      'ALT',
+    ];
+    expect([...strings].sort()).toEqual([...expected].sort());
+  });
+
+  it('carries no handler, hit rectangle, control id or tabindex; sizes 6 and 8; at most 150 elements', () => {
+    const tree = render();
+    const offenders = findElements(tree, (el) =>
+      Object.keys(el.props).some(
+        (k) =>
+          /^on[A-Z]/.test(k) || k === 'data-hit' || k === 'data-control-id' || k === 'tabindex',
+      ),
+    );
+    expect(offenders).toEqual([]);
+    for (const el of findElements(tree, (e) => e.tag === 'text')) {
+      expect([6, 8]).toContain(el.props['font-size']);
+    }
+    expect(countElements(tree)).toBeLessThanOrEqual(150);
+    expect(region('autopilot_panel').controlIds).toEqual([]);
+  });
+});
+
+describe('centre-stack units: element budget, inertness and brand rule', () => {
+  const units = [
+    ['audio_panel', AudioPanelFrame],
+    ['standby_efis', StandbyEfisFrame],
+    ['autopilot_panel', AutopilotPanelFrame],
+  ] as const;
+
+  it.each(units)('%s stays within 150 svg elements', (id, Frame) => {
+    const tree = expand(Frame({ region: region(id), bridge: fakeBridge('map') }));
+    expect(countElements(tree)).toBeLessThanOrEqual(150);
+  });
+
+  it('adds no control: the registry has no id for any unit part and no unit region holds one', () => {
+    for (const id of ['audio_panel', 'standby_efis', 'autopilot_panel']) {
+      expect(region(id).controlIds, id).toEqual([]);
+    }
+    expect(
+      DA50RG.controls.filter((c) => /audio_panel|efis|display_backup|autopilot/.test(c.id)),
+    ).toEqual([]);
+  });
+
+  it('the sources of the three units name no avionics maker, product family, model or logo', () => {
+    const files = [
+      '../src/ui/panel/frames/AudioPanelFrame.tsx',
+      '../src/ui/panel/frames/StandbyEfisFrame.tsx',
+      '../src/ui/panel/frames/AutopilotPanelFrame.tsx',
+    ];
+    for (const f of files) {
+      const text = readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
+      expect(text, f).not.toMatch(/garmin|g1000|nxi|gma|gfc|gdu|logo|wordmark|swoosh/i);
+    }
+  });
+
+  it('the red DISPLAY BACKUP cap colour appears only in the shared renderer file', () => {
+    for (const f of ['AudioPanelFrame', 'StandbyEfisFrame', 'AutopilotPanelFrame']) {
+      const text = readFileSync(
+        fileURLToPath(new URL(`../src/ui/panel/frames/${f}.tsx`, import.meta.url)),
+        'utf8',
+      );
+      expect(text, f).not.toContain('c4161f');
+    }
+  });
+});
+
+describe('review document on the audio panel, backup EFIS and autopilot panel (plan 08)', () => {
+  const review = readFileSync(
+    fileURLToPath(new URL('../docs/PANEL-REVIEW.md', import.meta.url)),
+    'utf8',
+  );
+
+  it('describes the three units as assumptions with the file to change', () => {
+    for (const needle of [
+      '`AUDIO_PANEL`',
+      '`STANDBY_EFIS`',
+      '`AUTOPILOT_PANEL`',
+      'DISPLAY BACKUP',
+      'three lit',
+      'volume knob legends',
+      'left strip of the MFD',
+      'src/aircraft/da50rg/avionics.ts',
+    ]) {
+      expect(review, needle).toContain(needle);
+    }
+    expect(review).not.toContain('artwork come in plan 08');
   });
 });
