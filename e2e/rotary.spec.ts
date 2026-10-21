@@ -246,8 +246,12 @@ test('@hooks FAN: a tap on each mark and on the body sets one stop and records o
     count += 1;
     expect(await eventCount(page), stop).toBe(count);
   }
-  // The exact centre does nothing, and the repeated tap on the current stop records no event.
-  await tapFanAt(page, hasTouch, 0, 0);
+  // The exact centre does nothing (the dead zone is 2 units wide, tests/rotary.test.ts checks it
+  // exactly), and the repeated tap on the current stop records no event. Touch coordinates round to
+  // whole px, so the centre is only a fair test when 2 units span more than 1 px; at the full
+  // phone view a unit is 0.24 px and the rounding alone moves the tap onto a stop.
+  const unit = (await box(page.locator('[data-hit="sw.env_fan"]'))).w / 112;
+  if (!hasTouch || unit * 2 > 1) await tapFanAt(page, hasTouch, 0, 0);
   await tapFanAt(page, hasTouch, -28, 0);
   await expect(knob).toHaveAttribute('data-state', 'f1');
   expect(await eventCount(page)).toBe(count);
