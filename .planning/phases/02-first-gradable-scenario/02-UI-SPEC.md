@@ -26,6 +26,7 @@ Sources read for this contract: `02-CONTEXT.md`, `02-RESEARCH.md`, `01.2-UI-SPEC
 | D-15 | "Procedure complete" is a clear button in the footer bar outside the panel | **Confirmed and kept in the footer.** Reasons and the rule for the two session surfaces are in "D-15 against the legroom area". |
 | D-06, D-06a, D-07a | Static red text in a black block, PFD right side, about one third from the bottom, left of the altitude tape; warnings red, cautions yellow; oil temperature and pressure gauges are on the MFD | Exact chip geometry, colours and stacking rule (section "CAS Chip on the PFD"); MFD gauges are only re-bound, no new art. |
 | D-16 | Debrief: PASS/FAIL, verdict per step, order violations, harmful actions, non-graded lines, no timeline | Layout, copy and states of the debrief (section "Debrief"). The forbidden entry shows its time (D-11) as m:ss. |
+| D-25 (with D-23) | Format and rendering must model checklist branches and nested sub-conditions, not a flat list; Phase 2 authors only the green branch | Shared recursive `ChecklistOutline` for briefing and debrief: decision lines, branches with condition labels, nesting, "Not applicable" for inapplicable branches (section "Checklist outline"). |
 | D-17 | First-run acknowledgment, blocking, remembered, shown again on a text version change | Copy and layout (section "First-Run Acknowledgment"). |
 | G-0.1 static labels | No text on the panel changes with a control state | Kept for every registry control. The session area swaps its button set with the **session** state (free / choosing), never with a control state; its region is excluded from the static-text gate on that ground (U-06). |
 
@@ -46,9 +47,9 @@ Sources read for this contract: `02-CONTEXT.md`, `02-RESEARCH.md`, `01.2-UI-SPEC
 
 ## Component Inventory
 
-Enumerated by `ls src/ui/panel/widgets/*.tsx | wc -l` — 7 components — procedure-trainer-da-50@0.0.0 (name and version read by `node -p "const p=require('./package.json');p.name+'@'+p.version"`; project-owned, not a published package, so there is no registry or lockfile entry) — 2026-10-22.
+Enumerated by `find src/ui -name '*.tsx' | wc -l` — 30 components — procedure-trainer-da-50@0.0.0 (name and version read by `node -p "const p=require('./package.json');p.name+'@'+p.version"`; project-owned, not a published package, so there is no registry or lockfile entry) — 2026-10-22.
 
-Second source: `ls src/ui/panel/skins/*.tsx | wc -l` returns 6, `ls src/ui/panel/frames/*.tsx | wc -l` returns 10 and `find src/ui -name '*.tsx' | wc -l` returns 30 (7 widgets, 6 skins, 10 frames, 7 shell and app files). No design-system tool exists. The table is the **non-exhaustive** list of what exists today, not a closed allowlist.
+Second source (same package, same date, 2026-10-22): `ls src/ui/panel/widgets/*.tsx | wc -l` returns 7, `ls src/ui/panel/skins/*.tsx | wc -l` returns 6, `ls src/ui/panel/frames/*.tsx | wc -l` returns 10, and the files outside those three folders (`find src/ui -name '*.tsx' | grep -v '/widgets/\|/skins/\|/frames/'`) number 7: `App`, `About`, `Panel`, `PanelShell`, `BusPanelArt`, `ControlWidget`, `Defs`. 7 + 6 + 10 + 7 = 30, so the two sources agree (no mismatch). No design-system tool exists. The table is the **non-exhaustive** list of what exists today, not a closed allowlist; the seven widgets are listed by name in its second block.
 
 | Component (existing) | Import path | Notes for this phase |
 |----------------------|-------------|----------------------|
@@ -60,7 +61,19 @@ Second source: `ls src/ui/panel/skins/*.tsx | wc -l` returns 6, `ls src/ui/panel
 | PanelShell, plates | `src/ui/panel/PanelShell.tsx`, `src/aircraft/da50rg/plates.ts` | One new plate `session-pad`; `PLATE_FILLS` gets its entry. |
 | Zoom glue (`zoomToRegion`, `controlFootprints`, `chooseButtonCorner`) | `src/ui/panel/zoom.ts`, `viewport.ts` | Session buttons count as footprints for the Full panel corner choice (U-07). |
 
-New components required: `frames/ScenarioAreaFrame.tsx` (the area art and its buttons), `widgets/SessionButton.tsx` (SVG button using the Toggle pointer contract, but dispatching to the session, never to the store), `screens/Modal.tsx` (scrim, card, focus trap, input shield), `screens/Ack.tsx`, `screens/Briefing.tsx`, `screens/Debrief.tsx`, `screens/Confirm.tsx` (leave-run and load-error use the same shell), `frames/CasChips.tsx` (the PFD chip group). Footer button lives in `App.tsx`.
+The seven widgets (`src/ui/panel/widgets/`), listed so the planner does not look for a shared base:
+
+| Widget (existing) | Phase 2 use |
+|-------------------|-------------|
+| `Toggle` | Pointer contract copied by `SessionButton`; otherwise unchanged. |
+| `GuardedToggle` | unchanged |
+| `DetentLever` | POWER (`lv.power`) and COWL FLAP (`lv.cowl_flap`) are operated through it; unchanged |
+| `Rotary` | unchanged |
+| `MomentaryButton` | unchanged; its commit-after-hold rule does not apply to session buttons (see "Gesture contract") |
+| `CircuitBreaker` | unchanged |
+| `IndicatorLight` | unchanged; the CAS chip is not a lamp and does not use it |
+
+New components required: `frames/ScenarioAreaFrame.tsx` (the area art and its buttons), `widgets/SessionButton.tsx` (SVG button using the Toggle pointer contract, but dispatching to the session, never to the store), `screens/Modal.tsx` (scrim, card, focus trap, input shield), `screens/Ack.tsx`, `screens/Briefing.tsx`, `screens/Debrief.tsx`, `screens/ChecklistOutline.tsx` (the nested outline shared by briefing and debrief, see "Checklist outline"), `screens/Confirm.tsx` (leave-run and load-error use the same shell), `frames/CasChips.tsx` (the PFD chip group). Footer button lives in `App.tsx`.
 
 ---
 
@@ -77,6 +90,15 @@ New components required: `frames/ScenarioAreaFrame.tsx` (the area art and its bu
 
 The pilot legroom (left of the console, x 20..930, y 760..1290) carries no art and no region in this phase. A layout test asserts that no region or plate intersects that rectangle (U-13).
 
+### Focal points (one per state)
+
+| State | Focal point | How the layout keeps it |
+|-------|-------------|-------------------------|
+| running | The **CAS chip on the PFD**: a black block with red text inside the lit PFD glass, the only scenario-driven mark on the panel | Chip is the only red text on the PFD; the session area is dark and quiet; the only filled accent surface on screen is the footer button, which is outside the panel and small |
+| briefing | Scenario title (Heading), then the primary button Start run | Title first in the card; Start run is the only filled accent surface in the card; the outline and source lines are Body and Meta |
+| debrief | The PASS or FAIL word (Display 28, green or red) | First element in the card, largest type in the phase; everything below is Body, Label or Meta |
+| free | None by design (the panel is the content); the session area is reachable but not highlighted | No accent or colour on the area |
+
 ---
 
 ## Session Control Area (D-14)
@@ -91,32 +113,32 @@ Free space check: the console body ends at x 1188, `under_panel_right` ends x 12
 | Region `scenario_area` (name `SESSION`) | x 1300, y 780, w 820, h 480 (inside the plate by 20, clear of every other region) |
 | Region count | one more region and one more plate than after phase 01.2; tests derive counts from the reference tables (project convention), no literal |
 | Main view (state free) | button NEW SITUATION: region-local x 20, y 20, w 780, h 120; button CHOOSE SITUATION: x 20, y 160, w 780, h 120. Free slot y 300..440 is reserved for a third session action (retry in Phase 4) and stays background. |
-| Choose view (state choosing) | row BACK: x 20, y 20, w 780, h 80; scenario rows follow at pitch 90 (y 110, 200, 290, 380), each x 20, w 780, h 80. At most 4 scenario rows. |
-| Button/row look | face `#1b2127`, rim `#3a424b` width 2, rx 10; label size 48, weight 700, fill `#e6e9ed`, `text-anchor` middle at x 410, baseline = top + h/2 + 17 (77 for h 120, 57 for h 80); tracking 0.06em inherited from `.panel-svg text` |
+| Choose view (state choosing) | row CLOSE LIST: x 20, y 20, w 780, h 80; scenario rows follow at pitch 90 (y 110, 200, 290, 380), each x 20, w 780, h 80. At most 4 scenario rows. |
+| Button/row look | face `#1b2127`, rim `#3a424b` width 2, rx 10; label **size 14** (the existing panel size), weight 700, fill `#e6e9ed`, `text-anchor` middle at x 410, baseline = top + h/2 + 5 (65 for h 120, 45 for h 80); tracking 0.06em inherited from `.panel-svg text` |
 | Pressed | rim `#8fb8e6` width 3 while the pointer is down, gone on release (same transient mark as 01.1 item 5) |
 | Keyboard focus | outline `#8fb8e6` width 4, offset 4 outside the rim (stays inside the region: margin is 20) |
 | Hit | the whole rect; labels are `pointer-events="none"`; the gaps (20 and 10) and the free slot are background that zooms |
 
 ### Tap-size budget (project formula: `zoomRect` = bounds plus 10 each side = 840 x 500)
 
-| Profile | Region zoom scale (px per unit) | 80 row | 120 button | 48 label |
+| Profile | Region zoom scale (px per unit) | 80 row | 120 button | 14 label |
 |---------|---------------------------------|--------|------------|----------|
-| phone 734 x 315 | 0.630 | 50 px | 76 px | 30 px |
-| tablet 944 x 628 | 1.124 | 90 px | 135 px | 54 px |
-| desktop 1280 x 692 | 1.384 | 111 px | 166 px | 66 px |
+| phone 734 x 315 | 0.630 | 50 px | 76 px | 8.8 px |
+| tablet 944 x 628 | 1.124 | 90 px | 135 px | 15.7 px |
+| desktop 1280 x 692 | 1.384 | 111 px | 166 px | 19.4 px |
 
-Full view (scale 0.242 phone landscape, 0.433 tablet, 0.532 desktop): button height 29, 52, 64 px; label 11.6, 20.8, 25.5 px. The 44 px rule is met by region zoom on phones, as for every other panel control (01.1 D-04); on tablet and desktop it is met at full view. Slack against the 7-unit free-background rule: 10 in the choose view, 20 elsewhere.
+Full view (scale 0.242 phone landscape, 0.433 tablet, 0.532 desktop): button height 29, 52, 64 px; label 3.4, 6.1, 7.4 px. The 44 px rule applies to the **button rectangles** and is met by region zoom on phones, as for every other panel control (01.1 D-04); on tablet and desktop it is met at full view. Slack against the 7-unit free-background rule: 10 in the choose view, 20 elsewhere.
 
-### Typography exception (the only one in the SVG)
+### Typography: no new size in the SVG
 
-The area label is **size 48, weight 700**, outside the 6/8/10/14 panel set, because it is app chrome that must read at 11 px or more on a phone at full view. No second area size exists: secondary information uses colour or position, never a smaller size. Longest label CHOOSE SITUATION (16 characters, about 570 units) and the longest scenario title (limit 18 characters, about 640 units) fit the 716 units left inside a 780 button. The art-fit and text-overlap gates measure the real boxes.
+The area label uses the **existing panel size 14, weight 700**. This phase adds no SVG font size: the area label is 14, the CAS chip is 10, and the 6/8/10/14 set of 01.1 and 01.2 stays closed and frozen. Consequence, accepted and flagged (U-05, U-06): the label is a placard-sized text, not chrome-sized. It is legible after region zoom on tablet and desktop (15.7 and 19.4 px) and small on a phone after region zoom (8.8 px, comparable to the other panel placards at that zoom); at full view it is a shape plus a caption, and the user zooms in by double tap, as for every other control. Compensation without a new size: caps, weight 700, tracking 0.06em, and a button face wide enough that the label sits centred in a clear 780 x 120 (or 80) tap target. Secondary information uses colour or position, never a smaller size. Longest label CHOOSE SITUATION (16 characters, about 170 units) and the longest scenario title (limit 18 characters, about 190 units) leave more than 580 units free inside a 780 button. The art-fit and text-overlap gates measure the real boxes.
 
 ### Content and states
 
 | Session state | Area shows | Notes |
 |---------------|-----------|-------|
 | free (also during briefing and debrief behind the modal) | NEW SITUATION, CHOOSE SITUATION | Always enabled; there is no disabled style in this phase. |
-| choosing | BACK plus one row per scenario of every pack the AccessPolicy allows, in manifest order | Titles come from the pack manifest, so no scenario text is loaded to list them. The area returns to free on BACK, Escape, a scenario row or Start/Cancel. |
+| choosing | CLOSE LIST plus one row per scenario of every pack the AccessPolicy allows, in manifest order | Titles come from the pack manifest, so no scenario text is loaded to list them. The area returns to free on CLOSE LIST, Escape, a scenario row, Start run or Back to panel. |
 | loading a pack chunk | the tapped row keeps its pressed rim (`#8fb8e6`, width 3) until the briefing opens; further presses on the area are ignored | No spinner and no animation (nothing pulses). |
 | running | unchanged (same two buttons) | A press goes through the leave-run confirm below. |
 
@@ -126,9 +148,9 @@ NEW SITUATION picks a random scenario (injected RNG in `src/ui`) and opens its b
 
 - Act on release, inside the slop (10 px touch and pen, 5 px mouse); beyond it the press becomes a pan; a second finger pinches, also over a button. Only the main mouse button acts.
 - A session button is **momentary-like**: it acts on the first release and **never zooms**; a double press stays two presses and never retracts anything (an opened briefing cannot be retracted). Zooming into the area is a double tap on the background around the buttons.
-- **Input shield.** Every surface that appears as the result of a tap (briefing, debrief, confirm, error, the choose list rows) ignores presses for **400 ms** after it opens (pair window 350 ms plus margin), so the second tap of a double tap cannot select a row or press Start.
-- Session buttons are not registry controls: they never enter the store log, are never graded and need no control id. `role="button"`, `tabindex="0"`, `aria-label` ("New situation, random" and "Choose situation"; rows "Start briefing: {title}"; "Back"), Enter and Space activate.
-- Starting a run resets the view to the full panel (`zoomOut`), so the PFD chip is on screen.
+- **Input shield.** Every surface that appears as the result of a tap (briefing, debrief, confirm, error, the choose list rows) ignores presses for **400 ms** after it opens (pair window 350 ms plus margin), so the second tap of a double tap cannot select a row or press Start run.
+- Session buttons are not registry controls: they never enter the store log, are never graded and need no control id. `role="button"`, `tabindex="0"`, `aria-label` ("New situation, random" and "Choose situation"; rows "Open briefing: {title}"; "Close list"), Enter and Space activate.
+- Pressing Start run resets the view to the full panel (`zoomOut`), so the PFD chip is on screen.
 
 ### Leave-run confirm (new, U-03)
 
@@ -195,17 +217,19 @@ Exceptions (closed list):
 
 ## Typography
 
+**Scope of the four-size rule.** The rule (at most four font sizes, two weights) applies to **the typography this phase introduces**. That is the new HTML chrome: 14, 16, 20, 28. The SVG panel keeps its inherited, frozen art sizes 6, 8, 10, 14 from the real-layout data of Phases 01.1 and 01.2; this phase adds **no** new SVG size (the area label uses 14, the chip uses 10). Size 14 appears in both sets, so across the whole app the declared sizes are 6, 8, 10, 14, 16, 20, 28; the inherited panel set is not re-specified or changed here.
+
 HTML chrome: exactly four sizes and two weights.
 
 | Role | Size | Weight | Line height | Used by |
 |------|------|--------|-------------|---------|
 | Body | 16 | 400 | 1.5 | situation text, ack body, debrief step text, list lines |
-| Label | 14 | 700 | 1.2 | buttons, severity tags (CRITICAL, STANDARD, OPTIONAL), verdict words, section headings |
-| Meta | 14 | 400 | 1.5 | source lines, disclaimer line, footer text (unchanged), "not graded" notes |
+| Label | 14 | 700 | 1.2 | buttons, severity tags (CRITICAL, STANDARD, OPTIONAL), verdict words, section headings, branch condition labels ("If too low:") |
+| Meta | 14 | 400 | 1.5 | source lines, disclaimer line, footer text (unchanged), "Not graded" and "Not applicable" notes |
 | Heading | 20 | 700 | 1.2 | modal titles, scenario title |
 | Display | 28 | 700 | 1.2 | PASS / FAIL |
 
-Sizes used: 14, 16, 20, 28. Weights: 400, 700. Tracking 0.02em on body, 0.04em on uppercase labels (as the footer today). Panel SVG text keeps the 01.1 set (6, 8, 10, 14); this phase adds the single area size 48 (above) and uses the existing size 10 for the chip. Nothing new is loaded: B612 400 and 700 only.
+Sizes used: 14, 16, 20, 28. Weights: 400, 700. Tracking 0.02em on body, 0.04em on uppercase labels (as the footer today). Panel SVG text keeps the 01.1 set (6, 8, 10, 14) unchanged: the session area label uses 14, the chip uses 10. Nothing new is loaded: B612 400 and 700 only.
 
 ---
 
@@ -226,7 +250,7 @@ Dark cockpit palette of 01.1 and 01.2; all values already exist in the code base
 Scrim: `rgba(11, 13, 16, 0.88)` (the panel stays faintly visible behind the briefing, as the owner described an overlay). Contrast: `#e6e9ed` on `#1b1f25` about 12:1; `#aab3bd` on `#1b1f25` about 7:1; `#0b0d10` on `#8fb8e6` about 9:1; `#ff5a50` on `#1b1f25` about 5.4:1 (always paired with a word); `#2fd36f` on `#1b1f25` about 8:1.
 
 Accent reserved for (never "all interactive elements"):
-1. The single primary button of each overlay (I understand, Start, Keep going, OK, Back to panel) and the footer button Procedure complete.
+1. The single primary button of each overlay (I understand, Start run, Keep going, Back to panel) and the footer button Procedure complete.
 2. The transient pressed rim of an area button and its keyboard focus outline (SVG).
 3. The existing About link and Full panel border (unchanged).
 
@@ -242,8 +266,8 @@ Colour is never the only carrier: PASS and FAIL are words, step verdicts are wor
 |-------|---------|-----------|
 | ack-gate (orthogonal, first) | Ack modal over everything | I understand (stored); also shown again when the disclaimer version changes |
 | free | panel, area (2 buttons), footer without run button | NEW SITUATION or a list row, then briefing |
-| choosing | area list | BACK, Escape, a row |
-| briefing | briefing modal over the free panel (panel unchanged until Start) | Start (run begins), Back or Escape (free) |
+| choosing | area list | CLOSE LIST, Escape, a row |
+| briefing | briefing modal over the free panel (panel unchanged until Start run) | Start run (run begins), Back to panel or Escape (free) |
 | running | panel in the scenario's initial state, CAS chip, footer with Procedure complete, silent | Procedure complete (debrief), Leave run via confirm (free) |
 | debrief | debrief modal | Back to panel or Escape (free, panel reset to registry defaults, quantities idle) |
 
@@ -253,17 +277,17 @@ Exam silence (SES-03): nothing in `running` reflects correctness: no toast, lamp
 
 - Full-viewport container above the stage, `z-index` **50** (acknowledgment **60**), above Full panel (30), About (20) and the rotate hint (10); it covers the SVG hit area so no tap reaches a control behind it.
 - `role="dialog" aria-modal="true"` (`role="alertdialog"` for the error), `aria-labelledby` the heading; focus moves to the primary button on open and returns to the opener on close; Tab and Shift+Tab are trapped inside; Escape follows the table below.
-- The card scrolls inside itself (`max-height: calc(100dvh - 32px)`, `overflow: auto`, `touch-action: pan-y`); the **action row is sticky at the card bottom** so Start, Back to panel and I understand stay visible on a phone in landscape (315 px high).
+- The card scrolls inside itself (`max-height: calc(100dvh - 32px)`, `overflow: auto`, `touch-action: pan-y`); the **action row is sticky at the card bottom** so Start run, Back to panel and I understand stay visible on a phone in landscape (315 px high).
 - The 400 ms input shield (above) applies to every modal.
 - No animation or transition anywhere in this phase.
 
 | Modal | Escape | Backdrop tap |
 |-------|--------|--------------|
 | Acknowledgment | does nothing | does nothing |
-| Briefing | Back | does nothing |
+| Briefing | Back to panel | does nothing |
 | Leave-run confirm | Keep going | does nothing |
 | Debrief | Back to panel | does nothing |
-| Load error | OK | does nothing |
+| Load error | Back to panel | does nothing |
 
 ### First-Run Acknowledgment (PLT-04, D-17)
 
@@ -276,21 +300,75 @@ Order inside the card, top to bottom:
 2. Situation: Body, own words from the scenario data, at most 60 words.
 3. Source block (Meta): line 1 `Source: {source.section}, issue {source.issue}`; line 2 `{source.document}, checked {source.verified}`. The section value in the data carries the "AFM" prefix (U-11). All source fields are required by the schema; none is optional in the layout.
 4. Disclaimer line (Meta): "Training aid only. Not a replacement for the AFM or for instruction."
-5. Label heading "Steps outside the panel (not graded in this version)" and the checklist lines as a plain list (Body, lines of at most 12 words); omitted when the scenario has none.
+5. Label heading "Steps outside the panel (not graded in this version)" and the **checklist outline** (next section) in its briefing form: the non-graded lines, decision lines and branches with their condition labels, nested to the depth the data has. Omitted when the scenario has none.
 6. Exam note (Meta): "Exam mode: no hints. When you are done, press Procedure complete."
-7. Sticky action row: **Start** (primary, min 120 wide) and **Back** (secondary: transparent, 1 px `#3a424b` border, text `#e6e9ed`).
+7. Sticky action row: **Start run** (primary, min 120 wide) and **Back to panel** (secondary: transparent, 1 px `#3a424b` border, text `#e6e9ed`).
 
-Panel steps (power, cowl flap) are never listed in the briefing or during the run (exam); they appear only in the debrief verdicts.
+Panel steps (power, cowl flap) are never listed in the briefing or during the run (exam); they appear only in the debrief verdicts. For the same reason the briefing never lists the children of a branch that does not apply (they may contain panel steps); it shows that branch's label and "Not applicable" only.
+
+### Checklist outline (D-25, D-23: briefing and debrief never assume a flat list)
+
+One recursive component, `ChecklistOutline`, renders the scenario's step tree in both screens. A node is one of four kinds; the tree has no fixed depth in the component, and a schema lint caps it at **3 branch levels**.
+
+| Node | What it is | Rendering |
+|------|------------|-----------|
+| Line | A non-graded checklist line without a panel control (Body 16/400, at most 12 words) | Text; in the debrief followed by the Meta note "Not graded" |
+| Step | A graded panel step (debrief only; hidden in the briefing) | Severity tag, text, verdict word as in the Debrief section |
+| Decision | A line whose answer chooses a branch ("Check oil pressure") | Rendered as a Line (Body); its branches are nested directly under it, one level in |
+| Branch | A condition label plus child nodes (lines, steps, groups, decisions; a branch may hold another decision, so branches nest) | Condition label as text in Label style (14/700), ends with a colon, taken from the data (at most 8 words, for example "If in green range:"); children one level in |
+
+**Structure.** Nested `<ul>` and `<li>`: each level adds `padding-left: 16px` and a 2 px left rule `#3a424b` (the rule makes the nesting readable without colour). Three branch levels at 18 px per level leave 257 px of text width on a 375 px portrait phone (card inner width 311 px), so no horizontal scroll and no smaller text. Long lines wrap inside their level.
+
+**Branch status** is computed by the engine from the branch condition against the scenario's initial quantities and handed to the view as data; the view never evaluates conditions.
+
+| Status | Meaning | Briefing | Debrief |
+|--------|---------|----------|---------|
+| applies | The condition holds at the start | Label in `#e6e9ed`; children listed (non-graded lines only) | Label in `#e6e9ed`; children listed with verdicts (steps) or "Not graded" (lines); only these branches count for PASS or FAIL |
+| not applicable | The condition does not hold at the start | Label in `#aab3bd` followed by the Meta word "Not applicable"; **children omitted** (exam rule above) | Same label and word; children listed in `#aab3bd` **without tag or verdict**, because they are not graded in this run; a branch with no authored children shows the label and the word only |
+| open | The condition depends on a quantity that changes during the run (the nested "If not returning to green range:") | Label in `#e6e9ed`; children listed | Label in `#e6e9ed`; children listed as non-graded lines ("Not graded"); Phase 4 grades them (SES-05) |
+
+Inapplicable branches are **shown as "Not applicable", never omitted**, so the user sees the whole decision card and which branch the situation selected. Phase 2 authors and grades only the green branch; the sibling "If too low:" appears as a label-only branch with "Not applicable" (U-17).
+
+**The card to model** (pocket card for the first scenario), as the briefing shows it:
+
+```
+Steps outside the panel (not graded in this version)
+  Check oil pressure
+    If too low:  Not applicable
+    If in green range:
+      Increase airspeed
+      Check oil temp in green range
+      If not returning to green range:
+        Land at nearest suitable airfield
+```
+
+and as the debrief shows it (steps are the graded rows, the other rows carry "Not graded"):
+
+```
+Steps
+  Check oil pressure                              Not graded
+    If too low:  Not applicable
+    If in green range:
+      CRITICAL  Reduce power ...                  Done
+      CRITICAL  Open cowl flap ...                Done
+      Increase airspeed                           Not graded
+      Check oil temp in green range               Not graded
+      If not returning to green range:
+        Land at nearest suitable airfield         Not graded
+```
+
+**Accessibility.** The list nesting is real DOM nesting, so a screen reader announces level and position. Status is a visible word ("Not applicable"), never colour alone. Row reading: graded "{tag}, {text}, {verdict}"; non-graded "{text}, not graded"; branch "{label} not applicable" when it does not apply.
+
+**Test contract.** A pure view-model test (`buildOutline`) and a DOM test over a fixture that has a decision with two branches, one not-applicable branch with children, an open nested branch and a 3-level depth; the fixture is the pocket card above with the "If too low:" branch populated. The DOM test asserts nesting depth, the visible "Not applicable" word, that the briefing form omits children and panel steps of an inapplicable branch, and that no code path reads a flat step array.
 
 ### Debrief (SES-04, D-09 to D-13, D-16)
 
 Order inside the card:
 1. **Result**: Display word PASS (`#2fd36f`) or FAIL (`#ff5a50`), then one Body reason line per cause (see copy). No score, no percentage, no timeline.
-2. **Steps**: for every applicable group (conditions that do not hold at the start are not shown): rows of [severity tag, step text, verdict word]. Severity tag Label caps CRITICAL, STANDARD or OPTIONAL in `#aab3bd`. Verdict word: "Done" in `#2fd36f`; missed critical "Missed" in `#ff5a50`; missed standard "Missed" in `#f2c230`; missed optional "Not done" in `#aab3bd`. On narrow screens the row wraps: tag and verdict on the first line, text below.
-3. **Order**: only for an ordered group, one Meta line under the group: "Order kept" or "Order wrong: {step b} was expected before {step a}" (one line per violation). An order-critical violation also appears among the reason lines. Unordered groups show no order line.
+2. **Steps**: the checklist outline (previous section, debrief form), in scenario order, so decisions, branches and nested sub-conditions are visible. Branches that do not apply are shown as "Not applicable" (muted, not graded), not omitted. Graded rows inside applying branches are [severity tag, step text, verdict word]; non-graded lines carry "Not graded". Severity tag Label caps CRITICAL, STANDARD or OPTIONAL in `#aab3bd`. Verdict word: "Done" in `#2fd36f`; missed critical "Missed" in `#ff5a50`; missed standard "Missed" in `#f2c230`; missed optional "Not done" in `#aab3bd`. On narrow screens the row wraps: tag and verdict on the first line, text below.
+3. **Order**: only for an ordered group (at its own nesting level inside the outline), one Meta line under the group: "Order kept" or "Order wrong: {step b} was expected before {step a}" (one line per violation). An order-critical violation also appears among the reason lines. Unordered groups show no order line.
 4. **Harmful actions**: heading with count; one row per forbidden entry "{text} at {m:ss}" (virtual clock, floor to seconds); when none: "None." The first scenario's forbidden item is increasing power.
-5. **Not graded in this version**: the checklist lines again (Body); section omitted when there are none.
-6. Sticky action row: **Back to panel** (primary). Phase 4 adds retry and next here and in the area's free slot.
+5. Sticky action row: **Back to panel** (primary). Phase 4 adds retry and next here and in the area's free slot.
 
 Closing the debrief resets the panel to the registry defaults and the quantities to idle (U-10).
 
@@ -301,9 +379,9 @@ Closing the debrief resets the panel to the registry defaults and the quantities
 | Element | Copy |
 |---------|------|
 | Primary CTA (run) | Procedure complete (footer) |
-| Primary CTA (briefing) | Start |
-| Secondary (briefing) | Back |
-| Area buttons (SVG, caps) | NEW SITUATION, CHOOSE SITUATION, BACK |
+| Primary CTA (briefing) | Start run |
+| Secondary (briefing) | Back to panel |
+| Area buttons (SVG, caps) | NEW SITUATION, CHOOSE SITUATION, CLOSE LIST |
 | Acknowledgment heading | Training aid only |
 | Acknowledgment body | "This trainer lets you rehearse emergency procedures on a 2D panel. It is not the AFM, not an approved or certified training device and not a substitute for instruction." / "Always fly by the AFM of your aircraft. This trainer is not affiliated with or endorsed by Diamond Aircraft Industries or Garmin." |
 | Acknowledgment CTA | I understand |
@@ -315,12 +393,14 @@ Closing the debrief resets the panel to the registry defaults and the quantities
 | Debrief reason, FAIL | "1 critical step was missed." / "{n} critical steps were missed." / "Steps were done in the wrong order." / "A harmful action counts as a fail in this scenario." (one line per applicable cause) |
 | Debrief verdict words | Done, Missed, Not done |
 | Debrief tags | CRITICAL, STANDARD, OPTIONAL |
-| Debrief section headings | Steps, Harmful actions ({n}), Not graded in this version |
+| Debrief section headings | Steps, Harmful actions ({n}) |
+| Outline notes | Not graded, Not applicable (Meta words next to a line or a branch label) |
+| Outline branch labels | From scenario data, ending with a colon, at most 8 words (example: "If in green range:"); no label text lives in code |
 | Debrief empty harmful list | None. |
 | Debrief CTA | Back to panel |
 | Empty state heading | No situations available |
 | Empty state body | Reload the page. If this stays, the scenario files are missing from this build. |
-| Error state | "This situation could not be loaded." / "Check your connection, then try again." Button: OK. |
+| Error state | "This situation could not be loaded." / "Check your connection, then try again." Button: Back to panel (closes the message, state returns to free). |
 | Destructive confirmation | Leave run: "Leave this run? The current run ends without a result." Buttons "Keep going" (primary, default) and "Leave run" (outline, `#ff5a50` text and border). |
 | Source line | `Source: {section}, issue {issue}` and `{document}, checked {verified}` |
 | Footer notice | Training aid only, not the AFM (unchanged) |
@@ -332,20 +412,21 @@ Scenario data constraints that the layout relies on (lint, owner of the check is
 
 ## UI Considerations
 
-Applicable state considerations resolved: 11 covered, 3 backstop, 2 unresolved.
+Applicable state considerations resolved: 12 covered, 3 backstop, 2 unresolved.
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
 | empty | scenario list (no packs or none allowed) | ✅ covered | The documented empty-state modal "No situations available" opens on NEW SITUATION and CHOOSE SITUATION; the list view never renders zero rows |
 | zero-one-many | scenario list rows | ✅ covered | One row now, three in Phase 3, four fit; singular and plural never appear in row text |
 | overflow | scenario list above 4 rows | ⚠ unresolved | Planner treats as assumption: a Vitest guard fails above 4 listed scenarios; paging or scrolling is Phase 4 (U-08) |
-| long-text | scenario title in a row | ✅ covered | Title limit 18 characters (schema), fits 716 units at size 48; text-overlap gate measures it |
+| long-text | scenario title in a row | ✅ covered | Title limit 18 characters (schema), fits the 780-unit button at size 14 (about 190 units); text-overlap gate measures it |
 | loading | pack chunk fetch after a row or NEW SITUATION | ✅ covered | Pressed rim stays until the briefing opens, other presses ignored, no spinner (nothing animates) |
-| error | chunk fetch or scenario parse failure at runtime | ✅ covered | Error modal "This situation could not be loaded." with OK; state returns to free |
+| error | chunk fetch or scenario parse failure at runtime | ✅ covered | Error modal "This situation could not be loaded." with Back to panel; state returns to free |
 | long-text | briefing situation and checklist lines | ✅ covered | 60 and 12 word limits; the card wraps and scrolls; sticky action row |
 | overflow | briefing/debrief card on phone landscape (315 px high) | ✅ covered | Card scrolls internally, action row sticky, result stays first |
 | zero-one-many | harmful actions in the debrief | ✅ covered | "None.", one row, many rows, heading carries the count |
-| partial | steps whose condition block does not apply | ✅ covered | Not shown in briefing or debrief; the first scenario has one applicable group |
+| partial | decision branches and nested sub-conditions (applies, not applicable, open) | ✅ covered | Shown through the checklist outline: not-applicable branches appear as muted "Not applicable", never omitted; briefing omits their children (exam), debrief lists them ungraded |
+| overflow | outline nesting depth on a 375 px portrait phone | ✅ covered | Cap of 3 branch levels, 18 px per level, text wraps, 257 px of text width left, no horizontal scroll |
 | zero-one-many | critical steps missed (reason line) | ✅ covered | Singular and plural reason copy defined |
 | populated | CAS chip with 1 to 6 active messages | 🧪 backstop | Only one chip exists in Phase 2; stacking rule is unit-tested on synthetic rules and checked visually on the first multi-message scenario |
 | populated | session area at full view on a phone | 🧪 backstop | 29 px buttons at 0.242 scale; region zoom is the answer; owner reviews the first render on a real phone (U-05) |
@@ -361,8 +442,9 @@ Applicable state considerations resolved: 11 covered, 3 backstop, 2 unresolved.
 - **Layout and zoom tests:** the region has no overlap with any region or plate; the pilot-legroom rectangle stays empty (U-13); `tests/zoom.test.ts` rows for `scenario_area` on the three profiles (80 and 120 unit targets at scale 0.63, 1.124, 1.384 give at least 44 px); session buttons contribute footprints to `controlFootprints` for the Full panel corner (U-07); art-fit gate and text-overlap gate cover `ScenarioAreaFrame` and the chip.
 - **Static-text gate:** `e2e/static-text.spec.ts` excludes `scenario_area` next to `pfd` and `mfd`, because its text follows the **session** state, not a control state (U-06). Registry controls keep G-0.1; the brand gates (GO-AROUND exactly twice, no maker names on the panel) are unchanged. HTML overlay text is not panel text.
 - **Existing e2e:** 22 specs call `page.goto('./')`. With the non-modal D-14 no menu dismissal is needed; only the acknowledgment modal blocks, so `playwright.config.ts` seeds the accepted version through `storageState` (and live mode uses the same helper). Dedicated ack specs use a fresh context.
-- **New e2e (production build, desktop-chromium for speed, plus webkit and phone projects in the gate):** ack once and not again; area -> briefing -> Start -> chip visible and MFD oil temp in the red band -> operate POWER and COWL FLAP -> Procedure complete -> PASS; do-nothing -> FAIL; leave-run confirm; double tap on NEW SITUATION opens exactly one briefing; briefing action row reachable at 734 x 315; footer height 52 px during a run and Procedure complete at least 44 px high; Full panel never covers a session button when zoomed into the area.
+- **New e2e (production build, desktop-chromium for speed, plus webkit and phone projects in the gate):** ack once and not again; area -> briefing -> Start run -> chip visible and MFD oil temp in the red band -> operate POWER and COWL FLAP -> Procedure complete -> PASS; do-nothing -> FAIL; leave-run confirm; double tap on NEW SITUATION opens exactly one briefing; briefing action row reachable at 734 x 315; footer height 52 px during a run and Procedure complete at least 44 px high; Full panel never covers a session button when zoomed into the area.
 - **Blueprint gate:** no scenario-specific literals (`lv.power`, `125`, `eng_oil_temp`, "ENG OIL TEMP") in `src/ui`, `src/engine` or `src/scenario`; titles and messages come from data.
+- **Outline gates:** the `ChecklistOutline` test contract above (pure view-model plus DOM over the pocket-card fixture); the schema lint rejects more than 3 branch levels and a branch label over 8 words or without a trailing colon.
 - **Accessibility gates:** every overlay has a heading, focus on open, Tab trap, Escape per the table; contrast pairs above.
 
 ---
@@ -384,8 +466,8 @@ Defaults are taken in the spec above; none is one-way.
 2. **U-02 Footer 28 to 52 px.** Grows at the briefing, not at Start, to avoid a layout shift. Alternative: a permanent 44 px footer (costs 16 px of panel height in the free state on every device).
 3. **U-03 Leave-run confirm.** Not in CONTEXT. Pressing a session button during a run asks first. Alternative: area buttons hidden while running.
 4. **U-04 No confirm on Procedure complete** (research open question 3). An accidental tap ends the run; a retry costs seconds. Add a confirm only on the owner's word.
-5. **U-05 Phone at full view.** Area buttons are 29 px tall and labels 11.6 px at the phone landscape full view (0.242), 22 px tall and 8.6 px label on the portrait phone (0.180): the 44 px rule is met only after region zoom, as for the rest of the panel. A first-time phone user must discover the lower-right pad or zoom in; no hint is added in this phase.
-6. **U-06 Area drawn as SVG, text swaps with session state.** Chosen over an HTML overlay so pinch and pan work over it and it scales with the legroom; cost: the static-text gate excludes the region and the Full panel corner logic needs the extra footprints (U-07). The single size 48 is a declared exception to the panel's four-size rule.
+5. **U-05 Phone at full view and the label size.** Area buttons are 29 px tall at the phone landscape full view (0.242) and 22 px on the portrait phone (0.180): the 44 px rule is met only after region zoom, as for the rest of the panel. Because the label uses the existing panel size 14 (no new SVG size), it renders at 3.4 px (phone landscape) and 2.5 px (phone portrait) at full view and 8.8 px after region zoom on a phone; on tablet it is 6.1 px at full view and 15.7 px zoomed, on desktop 7.4 and 19.4 px. A first-time phone user must discover the lower-right pad and zoom in; no hint is added in this phase. If the owner finds this too small on a real phone, the reversible fix is a fifth, area-only SVG size (for example 48) or an HTML overlay; both are one-number or one-component changes.
+6. **U-06 Area drawn as SVG, text swaps with session state.** Chosen over an HTML overlay so pinch and pan work over it and it scales with the legroom; cost: the static-text gate excludes the region and the Full panel corner logic needs the extra footprints (U-07). The area label uses the existing panel size 14 (no new SVG size), so it is small at full view and on a phone after region zoom (see U-05).
 7. **U-07 Footprints.** `controlFootprints` reads the registry only; the planner extends it with the session buttons (and the Phase 4 free slot) so the Full panel button never covers one.
 8. **U-08 Choose list limit.** At most 4 scenario rows fit the region. Phase 3 has 3. Beyond 4 needs scrolling or paging (Phase 4); a test fails at 5 so it cannot pass unnoticed. Rows are flat in manifest order; there are no pack headings yet (one pack).
 9. **U-09 Chip geometry.** x 294..394, y 236 (one third from the bottom), size 10, 100 x 20, derived from D-06 and the PFD frame constants, not from the owner's reference image (not read in this session). Re-check against `.input/` when the image arrives; only the numbers in the chip table change.
@@ -396,6 +478,8 @@ Defaults are taken in the spec above; none is one-way.
 14. **U-14 Briefing lists the non-panel checklist lines** (D-04 read literally: briefing and debrief). Exam purists may prefer them only in the debrief; one line in `Briefing.tsx` removes them.
 15. **U-15 Acknowledgment and disclaimer wording** is mine, in own words; maker and avionics names appear only in this DOM text (the About dialog already does the same), never on the panel.
 16. **U-16 Error and empty copy** is mine; the empty state can only occur with a broken build.
+17. **U-17 Branches in briefing and debrief (D-25).** The first scenario file carries the decision "Check oil pressure" with the branch "If in green range:" (authored and graded) and the sibling "If too low:" as a **label-only** branch, so the outline shows it as "Not applicable" instead of hiding it. The briefing omits the children of any not-applicable branch (they can contain panel steps, which the exam never shows); the debrief lists them muted and ungraded once they exist (Phase 3 authors the "If too low:" content). Alternative: leave the sibling out of the Phase 2 file (the outline then shows only the green branch; the renderer is unchanged). Nested "If not returning to green range:" is an `open` branch: shown, ungraded, in Phase 2.
+18. **U-18 Button wording.** CTAs are verb plus noun: Start run, Back to panel (briefing, error and debrief), CLOSE LIST (area), Keep going, Leave run, I understand, Procedure complete. "OK" and the bare "Start" and "Back" are not used. The error button closes the message and returns to the free panel; it does not retry (the user presses NEW SITUATION again); "Try again" is the alternative if the owner wants a retry button.
 
 ---
 
