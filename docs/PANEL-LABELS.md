@@ -1,6 +1,6 @@
 # Panel Label Table (static placard text, owner review)
 
-This is a training aid, not the AFM. This document lists, for every switch, lever, knob, button and lamp of the finished panel, the static text that is printed on or beside it: the assumed name placard and the position placards. It holds placard words only: no photo, crop, trace or aircraft manual text. The owner reviews it in the morning; nothing waits for that review. The following plans build the panel with the labels written here, and a different answer is a data edit in the file named in the last column of each row.
+This is a training aid, not the AFM. This document lists, for every switch, lever, knob, button and lamp of the finished panel, the static text that is printed on or beside it: the assumed name placard and the position placards. It holds placard words only: no photo, crop, trace or aircraft manual text. The owner reviews it in the morning; nothing waits for that review. The panel is built with the labels written here, and a different answer is a data edit in the file named in the last column of each row.
 
 ## Rules in force
 
@@ -25,9 +25,9 @@ This is a training aid, not the AFM. This document lists, for every switch, leve
 | Name placard of a control | the `label` field in `src/aircraft/da50rg/controls/*.ts` |
 | Lever and knob legends | the detent or stop labels in the same files |
 | Lamp captions | `src/aircraft/da50rg/indicators.ts` |
-| Plate text and plate placards | `src/ui/panel/PanelShell.tsx` and, once plan 18 lands, `src/aircraft/da50rg/placards.ts` |
+| Plate text and plate placards | `src/ui/panel/PanelShell.tsx` and `src/aircraft/da50rg/placards.ts` |
 
-Ids marked "planned, plan NN" do not exist yet and are created by the plan with that number. Ids marked "changed" keep their name and change meaning in that plan. Ids marked "removed" are listed under "Superseded by the owner findings".
+Ids marked "new in plan NN" were created by the plan with that number. Ids marked "since plan NN" kept their name and changed meaning in that plan. Ids that were removed are listed under "Superseded by the owner findings". Every id named here exists in the registry or the lamp set, except the removed ones.
 
 ## Glareshield
 
@@ -117,8 +117,8 @@ The ELT rocker has three positions; the placards stand beside the rocker and nam
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
-| `sw.elt` (changed, plan 18: 3 positions) | ELT | ON (top), ARMED (middle), RESET / TEST (bottom) beside the rocker | owner finding | `controls/switch-bank.ts`, `src/aircraft/da50rg/placards.ts` (planned, plan 18) |
-| `lt.elt` (planned, plan 18) | none; small red lamp left of the rocker | none | owner finding | `indicators.ts` |
+| `sw.elt` (three positions since plan 18) | ELT | ON (top), ARMED (middle), RESET / TEST (bottom) beside the rocker | owner finding | `controls/switch-bank.ts`, `src/aircraft/da50rg/placards.ts` |
+| `lt.elt` (new in plan 18) | none; small red lamp left of the rocker | none | owner finding | `indicators.ts` |
 
 ## Under panel
 
@@ -151,29 +151,29 @@ Parking brake, throttle and cowl flap. The throttle plate says THROTTLE although
 | `lv.parking_brake` | PARKING BRAKE | none; the lever pulled up sets the brake | owner finding | `controls/pedestal.ts` |
 | `lv.power` | THROTTLE (as on the plate in the owner photo; the id stays `lv.power`; replaces POWER); MAX at the forward end | the legends 0 %, 50 %, 100 % (Q-05) | existing, assumption | `controls/pedestal.ts` |
 | `lv.cowl_flap` | COWL FLAP | none (the lever legends CLOSED and OPEN move to the two lamps) | owner finding | `controls/pedestal.ts` |
-| `lt.cowl_open` (planned, plan 19) | OPEN beside a white lamp | none | owner finding | `indicators.ts` |
-| `lt.cowl_closed` (planned, plan 19) | CLOSED beside a white lamp | none | owner finding | `indicators.ts` |
+| `lt.cowl_open` (new in plan 19) | OPEN beside a white lamp | none | owner finding | `indicators.ts` |
+| `lt.cowl_closed` (new in plan 19) | CLOSED beside a white lamp | none | owner finding | `indicators.ts` |
 
 ## De-ice
 
-The de-ice unit at the top far left, as the owner described it. Most of it is rebuilt by plans 21 and 22; the heading is a white outlined frame with the words DE ICE, no hyphen. The lamps are top amber, middle amber, bottom white. The top MAX lamp stays unlit until the engine phase adds the 120 s timer (Q-14).
+The de-ice unit at the top far left, as the owner described it. It was rebuilt by plans 21 and 22; the heading is a white outlined frame with the words DE ICE, no hyphen. The lamps are top amber, middle amber, bottom white. The top MAX lamp stays unlit until the engine phase adds the 120 s timer (Q-14); the todo is `.planning/todos/pending/2026-10-21-deice-max-timer-engine.md`.
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
 | plate heading | DE ICE in a white outlined frame (no hyphen) | none | owner finding | `src/ui/panel/PanelShell.tsx` |
-| `sw.deice_mode` (planned, plan 21; replaces `lv.deice_mode`) | none of its own | HIGH (above), NORM (left of the middle), OFF (below) | owner finding | `controls/deice.ts` |
-| `btn.deice_max` (planned, plan 21) | MAX (above the button) | none | owner finding | `controls/deice.ts` |
-| `lt.deice_max` (planned, plan 21) | none (top lamp, amber) | none | owner finding | `indicators.ts` |
-| `lt.deice_high` (planned, plan 21) | none (middle lamp, amber) | none | owner finding | `indicators.ts` |
-| `lt.deice_norm` (planned, plan 21) | none (bottom lamp, white) | none | owner finding | `indicators.ts` |
-| `sw.deice_alternate` (changed, plan 22: normal toggle look) | ALTERNATE as stacked upright letters beside the red guard | none | owner finding | `controls/deice.ts` |
-| `btn.deice_windshield` (planned, plan 22; replaces `sw.deice_windshield`) | WIND / SHIELD, two lines above the button | none | owner finding | `controls/deice.ts` |
-| `sw.deice_ice_light` (changed, plan 22: 3 positions) | none of its own | ICE LIGHT (above), OFF (right of the middle), ANNUN- / TEST (two lines, below); Q-02 | owner finding | `controls/deice.ts` |
-| `sw.deice_pump` (planned, plan 22; replaces `sw.deice_pump1` and `sw.deice_pump2`) | none of its own | PUMP 2 (above), PUMP 1 (below); Q-03 | owner finding | `controls/deice.ts` |
+| `sw.deice_mode` (new in plan 21; replaces `lv.deice_mode`) | none of its own | HIGH (above), NORM (left of the middle), OFF (below) | owner finding | `controls/deice.ts` |
+| `btn.deice_max` (new in plan 21) | MAX (above the button) | none | owner finding | `controls/deice.ts` |
+| `lt.deice_max` (new in plan 21) | none (top lamp, amber) | none | owner finding | `indicators.ts` |
+| `lt.deice_high` (new in plan 21) | none (middle lamp, amber) | none | owner finding | `indicators.ts` |
+| `lt.deice_norm` (new in plan 21) | none (bottom lamp, white) | none | owner finding | `indicators.ts` |
+| `sw.deice_alternate` (normal toggle look since plan 22) | ALTERNATE as stacked upright letters beside the red guard | none | owner finding | `controls/deice.ts` |
+| `btn.deice_windshield` (new in plan 22; replaces `sw.deice_windshield`) | WIND / SHIELD, two lines above the button | none | owner finding | `controls/deice.ts` |
+| `sw.deice_ice_light` (three positions since plan 22) | none of its own | ICE LIGHT (above), OFF (right of the middle), ANNUN- / TEST (two lines, below); Q-02 | owner finding | `controls/deice.ts` |
+| `sw.deice_pump` (new in plan 22; replaces `sw.deice_pump1` and `sw.deice_pump2`) | none of its own | PUMP 2 (above), PUMP 1 (below); Q-03 | owner finding | `controls/deice.ts` |
 
 ## Superseded by the owner findings
 
-These ids exist today and are removed by the plan named; the labels they carried (MODE, WIND SHIELD, PUMP 1, PUMP 2, ANNUN TEST) move to the placards of the planned ids above.
+These ids existed in the first render and were removed by the plan named; the labels they carried (MODE, WIND SHIELD, PUMP 1, PUMP 2, ANNUN TEST) move to the placards of the new ids above.
 
 | Id | Removed in | Replaced by | Basis | File to edit |
 |----|------------|-------------|-------|--------------|

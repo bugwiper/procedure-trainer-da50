@@ -417,6 +417,15 @@ describe('reference ordering (PNL-08, D-19)', () => {
 // exist yet (so later phases can add rows early); this block is what fails if a control or
 // lamp of the inventory goes missing, so no reference or ordering row is ever skipped silently.
 describe('inventory complete', () => {
+  // Final inventory after the gap-closure plans 12 to 22 (plan 23, Table F1): the de-ice unit lost
+  // the lever, the WIND SHIELD toggle, the two PUMP toggles and the ANNUN TEST button and gained the
+  // mode toggle, MAX, the WIND SHIELD button and one PUMP toggle (net minus one from 42).
+  it('has exactly 41 non-guard controls, 13 lamps and 19 regions', () => {
+    expect(DA50RG.controls.filter((c) => c.kind !== 'guard')).toHaveLength(41);
+    expect(DA50RG_INDICATORS.indicators).toHaveLength(13);
+    expect(DA50RG.regions).toHaveLength(19);
+  });
+
   it('every reference position resolves to a DA50RG control', () => {
     for (const row of REFERENCE_POSITIONS) {
       expect(DA50RG.get(row.id), row.id).toBeDefined();

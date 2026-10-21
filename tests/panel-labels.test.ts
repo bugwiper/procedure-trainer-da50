@@ -10,7 +10,7 @@ import { DA50RG } from '../src/aircraft/da50rg/panel';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const doc = readFileSync(join(root, 'docs/PANEL-LABELS.md'), 'utf8');
 
-/** Ids that Table P1 of plan 12 lets later plans create (plan number in the comment). */
+/** Ids that Table P1 of plan 12 let later plans create (plan number in the comment); all exist now. */
 const PLANNED_IDS: readonly string[] = [
   'lt.elt', // plan 18
   'lt.cowl_open', // plan 19
@@ -122,17 +122,33 @@ const STATE_WORDS = [
   'FLAPS UP',
 ];
 
-describe('panel label table: planned and removed ids', () => {
+describe('panel label table: created and removed ids', () => {
   it.each(Object.entries(PLANNED_BY_PLAN))(
-    'marks %s as planned with the number of the plan that creates it',
+    'has a table row for %s that names the plan that created it and no longer says planned',
     (id, plan) => {
       const row = doc
         .split('\n')
         .find((line) => line.startsWith('|') && line.includes(`\`${id}\``));
       expect(row, `${id} has no table row`).toBeDefined();
-      expect(row).toContain(`planned, plan ${String(plan)}`);
+      expect(row).toContain(`plan ${String(plan)}`);
+      expect(row).not.toMatch(/planned/i);
     },
   );
+
+  it.each(PLANNED_IDS)('the created id %s exists in the registry or the indicator set', (id) => {
+    expect(controlIds.includes(id) || lampIds.includes(id), id).toBe(true);
+  });
+
+  it.each(REMOVED_IDS)(
+    'the removed id %s is gone from the registry and the indicator set',
+    (id) => {
+      expect(controlIds.includes(id) || lampIds.includes(id), id).toBe(false);
+    },
+  );
+
+  it('does not say "planned" anywhere in the document', () => {
+    expect(doc).not.toMatch(/planned/i);
+  });
 
   it('lists the five removed ids in the section "Superseded by the owner findings"', () => {
     const start = doc.indexOf('## Superseded by the owner findings');

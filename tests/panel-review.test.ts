@@ -41,6 +41,13 @@ describe('panel review document basics', () => {
   it('is linked from the README', () => {
     expect(read('README.md')).toContain('](docs/PANEL-REVIEW.md)');
   });
+
+  it('links the label table from the README and states the final counts', () => {
+    const readme = read('README.md');
+    expect(readme).toContain('](docs/PANEL-LABELS.md)');
+    expect(readme).toContain('41 controls and 13 indicator lamps in 19 regions');
+    expect(readme).not.toContain('42 controls');
+  });
 });
 
 describe('panel review hygiene (D-06)', () => {
@@ -102,10 +109,40 @@ describe('panel review completeness (D-03, D-10)', () => {
   it.each([
     ['rudder trim', /rudder trim/i],
     ['rudder pedals adjustment', /rudder pedals adjustment/i],
-    ['cowl-flap and ELT status lamps', /cowl-flap position lamps and elt status lamp/i],
     ['left far panel strip', /left far panel strip/i],
   ])('has the open item %s', (_name, pattern) => {
     expect(review).toMatch(pattern);
+  });
+
+  it('records the cowl-flap lamps and the ELT lamp as drawn', () => {
+    for (const id of ['lt.cowl_open', 'lt.cowl_closed', 'lt.elt']) {
+      expect(review, id).toContain(`\`${id}\``);
+    }
+    const entry = review.split('\n').find((line) => line.includes('**U-13**')) ?? '';
+    expect(entry).toMatch(/drawn/i);
+    expect(entry).toContain('RESOLVED');
+  });
+
+  it('has the Round 2 morning-review section and the superseded-ids section', () => {
+    expect(review).toMatch(/^## .*Round 2/m);
+    expect(review).toContain('## Superseded by the owner findings');
+    for (const id of [
+      'lv.deice_mode',
+      'sw.deice_windshield',
+      'sw.deice_pump1',
+      'sw.deice_pump2',
+      'btn.deice_annun_test',
+    ]) {
+      const at = review.indexOf('## Superseded by the owner findings');
+      expect(review.slice(at), id).toContain(`\`${id}\``);
+    }
+  });
+
+  it('marks the owner-resolved items U-06, U-08, U-09 and U-10 as RESOLVED', () => {
+    for (const label of ['U-06', 'U-08', 'U-09', 'U-10']) {
+      const entry = review.split('\n').find((line) => line.includes(`**${label}**`)) ?? '';
+      expect(entry, label).toContain('RESOLVED');
+    }
   });
 
   it('keeps U-01 as a RESOLVED entry naming white', () => {
