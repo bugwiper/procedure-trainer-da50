@@ -231,6 +231,76 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
     for (const t of titles) expect(t.props['font-size']).toBe(8);
   });
 
+  it('draws three plugs, three pump boxes and the sub-panel as inert shell shapes', () => {
+    const plugs = findElements(shell, (el) => el.props['data-shell'] === 'bus-plug');
+    expect(plugs).toHaveLength(3);
+    expect(plugs.map((el) => [el.props['cx'], el.props['cy'], el.props['r']])).toEqual([
+      [1978, 349, 11],
+      [2086, 456, 11],
+      [2122, 514, 11],
+    ]);
+    for (const el of plugs) {
+      expect(el.props['fill']).toBe('#050506');
+      expect(el.props['stroke']).toBe('#2d3138');
+    }
+    const boxes = findElements(shell, (el) => el.props['data-shell'] === 'bus-pump-box');
+    expect(boxes.map((el) => [el.props['x'], el.props['y'], el.props['width']])).toEqual([
+      [2106, 275, 32],
+      [2106, 319, 32],
+      [2106, 382, 32],
+    ]);
+    const sub = findElements(shell, (el) => el.props['data-shell'] === 'bus-subpanel');
+    expect(sub).toHaveLength(1);
+    expect([sub[0]?.props['x'], sub[0]?.props['y']]).toEqual([1878, 642]);
+    expect(sub[0]?.props['fill']).toBe('#101215');
+    // Nothing of the bus layer takes a pointer.
+    const layer = findElements(shell, (el) => el.props['data-shell'] === 'bus-panel')[0];
+    const live = findElements(layer ?? shell, (el) =>
+      Object.keys(el.props).some((k) => /^on[A-Z]/.test(k) || k === 'data-hit' || k === 'role'),
+    );
+    expect(live).toEqual([]);
+  });
+
+  it('the plug labels are ADF, and DATA over LINK, with the breaker label baselines', () => {
+    const labels = findElements(shell, (el) => el.props['data-shell'] === 'bus-plug-label');
+    expect(labels.map((el) => textOf(el))).toEqual(['ADF', 'DATA', 'LINK']);
+    // The last line sits 16 above the plug centre, earlier lines 7 higher (breaker label rule).
+    expect(labels.map((el) => el.props['y'])).toEqual([456 - 16, 514 - 23, 514 - 16]);
+    for (const el of labels) {
+      expect(el.props['font-size']).toBe(6);
+      expect(el.props['fill']).toBe('#aab3bd');
+      expect(el.props['text-anchor']).toBe('middle');
+    }
+    expect(labels.map((el) => el.props['x'])).toEqual([2086, 2122, 2122]);
+  });
+
+  it('the shell text holds ADF, DATA and LINK once each', () => {
+    expect(occurrences(shellText, 'ADF')).toBe(1);
+    expect(occurrences(shellText, 'DATA')).toBe(1);
+    expect(occurrences(shellText, 'LINK')).toBe(1);
+  });
+
+  it('draws in order: plate, sub-panel, outlines, pump boxes, plugs, titles', () => {
+    const layer = findElements(shell, (el) => el.props['data-shell'] === 'bus-panel')[0];
+    if (layer === undefined) throw new Error('no bus layer');
+    const marks = findElements(
+      layer,
+      (el) =>
+        el.props['data-plate'] === 'bus-panel' ||
+        ['bus-subpanel', 'bus-outline', 'bus-pump-box', 'bus-plug', 'bus-title'].includes(
+          String(el.props['data-shell']),
+        ),
+    ).map((el) => String(el.props['data-plate'] ?? el.props['data-shell']));
+    const first = (name: string) => marks.indexOf(name);
+    const last = (name: string) => marks.lastIndexOf(name);
+    expect(first('bus-panel')).toBe(0);
+    expect(last('bus-panel')).toBeLessThan(first('bus-subpanel'));
+    expect(last('bus-subpanel')).toBeLessThan(first('bus-outline'));
+    expect(last('bus-outline')).toBeLessThan(first('bus-pump-box'));
+    expect(last('bus-pump-box')).toBeLessThan(first('bus-plug'));
+    expect(last('bus-plug')).toBeLessThan(first('bus-title'));
+  });
+
   it('the old narrow bus rectangle (x 1836, width 144) is gone', () => {
     const old = findElements(
       shell,

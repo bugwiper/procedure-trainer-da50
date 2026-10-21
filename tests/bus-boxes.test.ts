@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { BUS_ORDER, BUS_OUTLINES, BUS_TITLES } from '../src/aircraft/da50rg/bus-boxes';
+import {
+  BUS_ORDER,
+  BUS_OUTLINES,
+  BUS_PLUGS,
+  BUS_PUMP_BOXES,
+  BUS_SUBPANEL,
+  BUS_TITLES,
+} from '../src/aircraft/da50rg/bus-boxes';
 import type { BusId } from '../src/aircraft/da50rg/bus-boxes';
+import { CB_REGIONS } from '../src/aircraft/da50rg/controls/breakers';
 import { PLATES } from '../src/aircraft/da50rg/plates';
 
 // D-01: the bus panel art is data. The vertex tables below are typed in as literals (UI-SPEC 01.2
@@ -105,5 +113,166 @@ describe('bus panel titles (D-01)', () => {
       (e) => title.y >= e.y && title.y - e.y <= 4 && title.x >= e.x1 && title.x <= e.x2,
     );
     expect(hit.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// Table B3: pump boxes, lower-row sub-panel and blank plugs, typed in as literals.
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+const overlapArea = (a: Box, b: Box): number => {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+};
+
+/** Point in a rectilinear polygon, boundary inclusive. */
+function inPolygon(pt: Pt, poly: readonly Pt[]): boolean {
+  let inside = false;
+  poly.forEach((a, i) => {
+    const b = poly[(i + 1) % poly.length];
+    if (b === undefined) return;
+    const onEdge =
+      a.x === b.x
+        ? pt.x === a.x && pt.y >= Math.min(a.y, b.y) && pt.y <= Math.max(a.y, b.y)
+        : pt.y === a.y && pt.x >= Math.min(a.x, b.x) && pt.x <= Math.max(a.x, b.x);
+    if (onEdge) inside = true;
+  });
+  if (inside) return true;
+  let crossings = 0;
+  poly.forEach((a, i) => {
+    const b = poly[(i + 1) % poly.length];
+    if (b === undefined || a.x !== b.x) return;
+    const lo = Math.min(a.y, b.y);
+    const hi = Math.max(a.y, b.y);
+    if (a.x > pt.x && pt.y >= lo && pt.y < hi) crossings += 1;
+  });
+  return crossings % 2 === 1;
+}
+
+/** Distance from a point to the nearest outline edge. */
+function edgeDistance(pt: Pt, poly: readonly Pt[]): number {
+  let best = Infinity;
+  poly.forEach((a, i) => {
+    const b = poly[(i + 1) % poly.length];
+    if (b === undefined) return;
+    const cx = Math.min(Math.max(pt.x, Math.min(a.x, b.x)), Math.max(a.x, b.x));
+    const cy = Math.min(Math.max(pt.y, Math.min(a.y, b.y)), Math.max(a.y, b.y));
+    best = Math.min(best, Math.hypot(pt.x - cx, pt.y - cy));
+  });
+  return best;
+}
+
+describe('bus panel pump boxes (D-01, Table B3)', () => {
+  const EXPECTED: readonly (readonly [string, Box])[] = [
+    ['EMERG PUMP', { x: 2106, y: 275, w: 32, h: 44 }],
+    ['MAIN PUMP', { x: 2106, y: 319, w: 32, h: 44 }],
+    ['XFR PUMP', { x: 2106, y: 382, w: 32, h: 44 }],
+  ];
+
+  it('are the three Table B3 rectangles', () => {
+    expect(BUS_PUMP_BOXES.map((b) => [b.name, { x: b.x, y: b.y, w: b.w, h: b.h }])).toEqual(
+      EXPECTED,
+    );
+    for (const b of BUS_PUMP_BOXES) expect(b.rx).toBe(3);
+  });
+
+  it('do not overlap each other with positive area (touching is allowed)', () => {
+    for (let i = 0; i < BUS_PUMP_BOXES.length; i++) {
+      for (let j = i + 1; j < BUS_PUMP_BOXES.length; j++) {
+        const a = BUS_PUMP_BOXES[i];
+        const b = BUS_PUMP_BOXES[j];
+        if (a === undefined || b === undefined) continue;
+        expect(overlapArea(a, b), `${a.name} / ${b.name}`).toBe(0);
+      }
+    }
+  });
+
+  it('EMERG PUMP stands right of the ESSENTIAL outline within its vertical range', () => {
+    const box = BUS_PUMP_BOXES.find((b) => b.name === 'EMERG PUMP');
+    expect(box).toBeDefined();
+    if (box === undefined) return;
+    const xs = BUS_OUTLINES.essential.map((p) => p.x);
+    const ys = BUS_OUTLINES.essential.map((p) => p.y);
+    expect(box.x).toBeGreaterThanOrEqual(Math.max(...xs));
+    expect(box.y).toBeGreaterThanOrEqual(Math.min(...ys));
+    expect(box.y + box.h).toBeLessThanOrEqual(Math.max(...ys));
+    // 275 to 319 against 223 to 319.
+    expect([box.y, box.y + box.h]).toEqual([275, 319]);
+  });
+
+  it('MAIN PUMP and XFR PUMP lie inside the MAIN outline', () => {
+    for (const name of ['MAIN PUMP', 'XFR PUMP']) {
+      const box = BUS_PUMP_BOXES.find((b) => b.name === name);
+      expect(box, name).toBeDefined();
+      if (box === undefined) continue;
+      for (const corner of [
+        { x: box.x, y: box.y },
+        { x: box.x + box.w, y: box.y },
+        { x: box.x, y: box.y + box.h },
+        { x: box.x + box.w, y: box.y + box.h },
+      ]) {
+        expect(inPolygon(corner, BUS_OUTLINES.main), `${name} ${corner.x},${corner.y}`).toBe(true);
+      }
+    }
+  });
+});
+
+describe('bus panel lower-row sub-panel (D-01, Table B3)', () => {
+  it('is the Table B3 rectangle', () => {
+    expect([BUS_SUBPANEL.x, BUS_SUBPANEL.y, BUS_SUBPANEL.w, BUS_SUBPANEL.h]).toEqual([
+      1878, 642, 272, 68,
+    ]);
+    expect(BUS_SUBPANEL.rx).toBe(4);
+  });
+
+  it('lies inside the plate, below the AVIONICS outline, and contains the whole cb_low region', () => {
+    expect(plate).toBeDefined();
+    if (plate === undefined) return;
+    expect(BUS_SUBPANEL.x).toBeGreaterThanOrEqual(plate.x);
+    expect(BUS_SUBPANEL.y).toBeGreaterThanOrEqual(plate.y);
+    expect(BUS_SUBPANEL.x + BUS_SUBPANEL.w).toBeLessThanOrEqual(plate.x + plate.w);
+    expect(BUS_SUBPANEL.y + BUS_SUBPANEL.h).toBeLessThanOrEqual(plate.y + plate.h);
+    expect(BUS_SUBPANEL.y).toBeGreaterThan(Math.max(...BUS_OUTLINES.avionics.map((p) => p.y)));
+    const low = CB_REGIONS.find((r) => r.id === 'cb_low');
+    expect(low).toBeDefined();
+    if (low === undefined) return;
+    expect(low.bounds.x).toBeGreaterThanOrEqual(BUS_SUBPANEL.x);
+    expect(low.bounds.y).toBeGreaterThanOrEqual(BUS_SUBPANEL.y);
+    expect(low.bounds.x + low.bounds.w).toBeLessThanOrEqual(BUS_SUBPANEL.x + BUS_SUBPANEL.w);
+    expect(low.bounds.y + low.bounds.h).toBeLessThanOrEqual(BUS_SUBPANEL.y + BUS_SUBPANEL.h);
+  });
+});
+
+describe('bus panel blank plugs (D-01, Table B3)', () => {
+  it('are three plugs of radius 11 at the Table B3 centres with their printed labels', () => {
+    expect(BUS_PLUGS.map((p) => [p.x, p.y, p.r, [...p.labelLines]])).toEqual([
+      [1978, 349, 11, []],
+      [2086, 456, 11, ['ADF']],
+      [2122, 514, 11, ['DATA', 'LINK']],
+    ]);
+  });
+
+  it('the first plug is inside ESSENTIAL, the other two inside AVIONICS, whole discs', () => {
+    const buses = BUS_PLUGS.map((p) => p.bus);
+    expect(buses).toEqual(['essential', 'avionics', 'avionics']);
+    for (const p of BUS_PLUGS) {
+      const poly = BUS_OUTLINES[p.bus];
+      expect(inPolygon(p, poly), p.id).toBe(true);
+      expect(edgeDistance(p, poly), `${p.id} clears the edges`).toBeGreaterThanOrEqual(p.r);
+    }
+  });
+
+  it('every plug lies inside the bus-panel plate and carries no control id', () => {
+    expect(plate).toBeDefined();
+    for (const p of BUS_PLUGS) {
+      expect(insidePlate(p), p.id).toBe(true);
+      expect(p.id.startsWith('cb.'), p.id).toBe(false);
+    }
   });
 });

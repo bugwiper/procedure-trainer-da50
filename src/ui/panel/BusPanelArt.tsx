@@ -3,11 +3,16 @@ import {
   BUS_CORNER_RADIUS,
   BUS_ORDER,
   BUS_OUTLINES,
+  BUS_PLUGS,
+  BUS_PLUG_STYLE,
+  BUS_PUMP_BOXES,
   BUS_STROKE,
+  BUS_SUBPANEL,
   BUS_TITLES,
   BUS_TITLE_STYLE,
 } from '../../aircraft/da50rg/bus-boxes';
 import type { BusPoint } from '../../aircraft/da50rg/bus-boxes';
+import { labelBaseline } from './skins/Breaker';
 
 // Static shell art of the bus panel (phase 01.2, D-01), drawn from bus-boxes.ts: the stair-step
 // bus outlines and their titles. Everything is decorative: the shell root has pointer-events
@@ -47,12 +52,25 @@ export function roundedPolygonPath(points: readonly BusPoint[], radius: number):
 
 /**
  * Layer 10: the bus panel. The plate arrives as a child (drawn by the shell from the plate data,
- * so the rectangle exists once). Draw order: plate, outlines, titles.
+ * so the rectangle exists once). Draw order: plate, lower-row sub-panel, outlines, pump boxes,
+ * plugs with their labels, titles. The plug labels use the breaker label baselines, so a plug
+ * label and a breaker label can never disagree.
  */
 export function BusPanelArt({ plate }: { plate: ComponentChildren }) {
   return (
     <g data-shell="bus-panel">
       {plate}
+      <rect
+        data-shell="bus-subpanel"
+        x={BUS_SUBPANEL.x}
+        y={BUS_SUBPANEL.y}
+        width={BUS_SUBPANEL.w}
+        height={BUS_SUBPANEL.h}
+        rx={BUS_SUBPANEL.rx}
+        fill={BUS_SUBPANEL.fill}
+        stroke={BUS_SUBPANEL.stroke}
+        stroke-width={1}
+      />
       {BUS_ORDER.map((bus) => (
         <path
           key={bus}
@@ -63,6 +81,46 @@ export function BusPanelArt({ plate }: { plate: ComponentChildren }) {
           stroke={BUS_STROKE.color}
           stroke-width={BUS_STROKE.width}
         />
+      ))}
+      {BUS_PUMP_BOXES.map((box) => (
+        <rect
+          key={box.name}
+          data-shell="bus-pump-box"
+          x={box.x}
+          y={box.y}
+          width={box.w}
+          height={box.h}
+          rx={box.rx}
+          fill="none"
+          stroke={BUS_STROKE.color}
+          stroke-width={BUS_STROKE.width}
+        />
+      ))}
+      {BUS_PLUGS.map((plug) => (
+        <g key={plug.id}>
+          <circle
+            data-shell="bus-plug"
+            cx={plug.x}
+            cy={plug.y}
+            r={plug.r}
+            fill={BUS_PLUG_STYLE.fill}
+            stroke={BUS_PLUG_STYLE.rim}
+            stroke-width={BUS_PLUG_STYLE.rimWidth}
+          />
+          {plug.labelLines.map((line, index) => (
+            <text
+              key={line}
+              data-shell="bus-plug-label"
+              x={plug.x + (plug.labelDx ?? 0)}
+              y={plug.y + labelBaseline(index, plug.labelLines.length)}
+              text-anchor="middle"
+              font-size={6}
+              fill="#aab3bd"
+            >
+              {line}
+            </text>
+          ))}
+        </g>
       ))}
       {BUS_TITLES.map((title) => (
         <text
