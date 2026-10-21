@@ -152,7 +152,7 @@ Plans:
 - [x] 01.1-28-PLAN.md — R2-4.1: FAN with four direct click spots, art and stops unchanged
 
 **Wave 23**
-- [ ] 01.1-29-PLAN.md — R2-5.2: engine strip, FADEC and ALTERNATOR groups with bracket lines, headings, AUTO, FORCE B, TEST, ON, OFF and the framed numerals 1 and 2
+- [x] 01.1-29-PLAN.md — R2-5.2: engine strip, FADEC and ALTERNATOR groups with bracket lines, headings, AUTO, FORCE B, TEST, ON, OFF and the framed numerals 1 and 2
 
 **Wave 24**
 - [ ] 01.1-30-PLAN.md — R2-1.1: ON and OFF plate placards once per side of the four light rockers
