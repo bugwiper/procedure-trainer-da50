@@ -1205,4 +1205,126 @@ describe('engine strip labels (plan 29, R2-5.2)', () => {
       expect((Number(left[1]) + Number(left[2])) / 2, g.id).toBeCloseTo((g.x1 + g.x2) / 2, 5);
     }
   });
+
+  // --- ALTERNATOR group (plan 29, task 2) ---
+  const numeralFrame = (id: string): Rect => {
+    const h = PLATE_HEADINGS.find((p) => p.id === id);
+    if (h === undefined) throw new Error(`no heading ${id}`);
+    return { x: h.x, y: h.y, w: h.w, h: h.h };
+  };
+  /** The visible part of a bat: its ring r 7 around the pivot, 4.5 below the centre of the hit. */
+  const batArt = (id: string): Rect => {
+    const f = globalFootprint(id);
+    const cx = f.x + f.w / 2;
+    const cy = f.y + f.h / 2 + 4.5;
+    return { x: cx - 7, y: cy - 14 - 3, w: 14, h: 28 + 6 };
+  };
+  const ALT = ['sw.alternator_1', 'sw.alternator_2'];
+
+  it('the two alternators are nameless OFF then ON switches defaulting to on', () => {
+    for (const id of ALT) {
+      const def = DA50RG.get(id);
+      if (def?.kind !== 'toggle') throw new Error(`no toggle ${id}`);
+      expect(def.nameless, id).toBe(true);
+      expect(
+        def.states.map((st) => st.id),
+        id,
+      ).toEqual(['off', 'on']);
+      expect(def.default, id).toBe('on');
+      const index = def.states.findIndex((st) => st.id === def.default);
+      expect(togglePosition(index, def.states.length), id).toBe('high');
+    }
+  });
+
+  it('ON stands above OFF, both midway between the switches, at the upper and the lower handle height', () => {
+    const own = placardBoxes('sw.alternator_1');
+    const on = own.find((b) => b.id === 'alternator.on');
+    const off = own.find((b) => b.id === 'alternator.off');
+    if (on === undefined || off === undefined) throw new Error('missing');
+    expect(own).toHaveLength(2);
+    expect(on.box.y + on.box.h).toBeLessThan(off.box.y);
+    const a = globalFootprint('sw.alternator_1');
+    const b = globalFootprint('sw.alternator_2');
+    const mid = (a.x + a.w / 2 + b.x + b.w / 2) / 2;
+    expect(on.box.x + on.box.w / 2).toBeCloseTo(mid, 5);
+    expect(off.box.x + off.box.w / 2).toBeCloseTo(mid, 5);
+    const pivot = a.y + a.h / 2 + 4.5;
+    // ON lies at the height of the upper handle position, OFF at the lower one (within 8 units).
+    expect(Math.abs(on.box.y + on.box.h - (pivot - 14))).toBeLessThanOrEqual(8);
+    expect(Math.abs(off.box.y + off.box.h - (pivot + 14))).toBeLessThanOrEqual(8);
+  });
+
+  it('the framed numerals stand beside their switch on its height: 1 left of the left, 2 right of the right', () => {
+    const one = numeralFrame('alternator-1');
+    const two = numeralFrame('alternator-2');
+    const a = globalFootprint('sw.alternator_1');
+    const b = globalFootprint('sw.alternator_2');
+    expect(one.x + one.w).toBeLessThanOrEqual(a.x);
+    expect(two.x).toBeGreaterThanOrEqual(b.x + b.w);
+    expect(one.y + one.h / 2).toBeCloseTo(a.y + a.h / 2, 5);
+    expect(two.y + two.h / 2).toBeCloseTo(b.y + b.h / 2, 5);
+    for (const f of [one, two]) expect([f.w, f.h]).toEqual([14, 14]);
+  });
+
+  it('the heading list holds the DE ICE frame first and the two numeral frames of the engine plate', () => {
+    expect(PLATE_HEADINGS.map((h) => [h.id, h.text, h.plate])).toEqual([
+      ['deice', 'DE ICE', 'deice'],
+      ['alternator-1', '1', 'engine'],
+      ['alternator-2', '2', 'engine'],
+    ]);
+  });
+
+  it('every ALTERNATOR glyph box, frame, stub and the title lie on the engine plate and overlap none of the FADEC group', () => {
+    if (plate === undefined) throw new Error('no engine plate');
+    const alt: { name: string; box: Rect }[] = [
+      ...placardBoxes('sw.alternator_1').map((b) => ({ name: b.id, box: b.box })),
+      { name: 'title ALTERNATOR', box: titleBox('alternator') },
+      { name: 'frame 1', box: numeralFrame('alternator-1') },
+      { name: 'frame 2', box: numeralFrame('alternator-2') },
+      ...stubBoxes('alternator').map((box, i) => ({ name: `stub ${String(i)}`, box })),
+    ];
+    const fadec: { name: string; box: Rect }[] = [
+      ...placardBoxes('sw.fadec').map((b) => ({ name: b.id, box: b.box })),
+      ...placardBoxes('btn.fadec_test').map((b) => ({ name: b.id, box: b.box })),
+      { name: 'title FADEC', box: titleBox('fadec') },
+      ...stubBoxes('fadec').map((box, i) => ({ name: `fadec stub ${String(i)}`, box })),
+    ];
+    for (const { name, box } of alt) expect(inside(box, plate), name).toBe(true);
+    for (const [i, a] of alt.entries()) {
+      for (const b of [...alt.slice(i + 1), ...fadec]) {
+        expect(overlaps(a.box, b.box), `${a.name} / ${b.name}`).toBe(false);
+      }
+    }
+  });
+
+  it('the numerals cover no footprint other than the switch beside them', () => {
+    const named: Record<string, string> = {
+      'alternator-1': 'sw.alternator_1',
+      'alternator-2': 'sw.alternator_2',
+    };
+    for (const [id, owner] of Object.entries(named)) {
+      for (const other of STRIP_IDS) {
+        if (other === owner) continue;
+        expect(overlaps(numeralFrame(id), globalFootprint(other)), `${id} / ${other}`).toBe(false);
+      }
+    }
+  });
+
+  it('ON and OFF stand in the gap between the two switches: over no bat art and no control footprint but the two alternators', () => {
+    // The two alternator footprints are 6 units apart, OFF is 11 wide: its glyph box reaches 2.6
+    // units into each of them. They are hit areas only (the shell takes no pointer events), the
+    // visible bats (ring r 7, handle throw 14) stay clear of the words.
+    for (const { id, box } of placardBoxes('sw.alternator_1')) {
+      for (const art of ALT.map(batArt)) expect(overlaps(box, art), `${id} over a bat`).toBe(false);
+      for (const other of STRIP_IDS) {
+        if (ALT.includes(other)) continue;
+        expect(overlaps(box, globalFootprint(other)), `${id} / ${other}`).toBe(false);
+      }
+      for (const alt of ALT) {
+        const f = globalFootprint(alt);
+        const reach = Math.min(box.x + box.w, f.x + f.w) - Math.max(box.x, f.x);
+        expect(Math.max(0, reach), `${id} into ${alt}`).toBeLessThanOrEqual(3);
+      }
+    }
+  });
 });

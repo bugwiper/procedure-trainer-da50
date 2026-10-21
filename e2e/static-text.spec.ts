@@ -139,7 +139,9 @@ test('the FADEC group reads FADEC, AUTO, FORCE B and TEST once each on the engin
     expect(found.length, word).toBe(1);
     expect(found[0]?.inside, `${word} lies on the engine plate`).toBe(true);
   }
-  await expect(page.locator('[data-shell="bracket-title"]')).toHaveText(['FADEC']);
+  await expect(page.locator('[data-bracket="fadec"] [data-shell="bracket-title"]')).toHaveText(
+    'FADEC',
+  );
   await expect(page.locator('[data-placard="fadec.auto"]')).toHaveCount(1);
   await expect(page.locator('[data-placard="fadec.force_b"]')).toHaveCount(1);
   await expect(page.locator('[data-placard="fadec.test"]')).toHaveCount(1);
@@ -160,5 +162,35 @@ test('operating the FADEC switch and the FADEC TEST button changes no printed te
     'force_b',
   );
   await activate(page.locator('[data-hit="btn.fadec_test"]'), hasTouch);
+  expect(await panelText(page)).toEqual(before);
+});
+
+test('the ALTERNATOR group reads ALTERNATOR, ON, OFF, 1 and 2 once each on the engine plate', async ({
+  page,
+}) => {
+  const texts = await enginePlateTexts(page);
+  for (const word of ['ALTERNATOR', 'ON', 'OFF', '1', '2']) {
+    const found = texts.filter((t) => t.text === word);
+    expect(found.length, word).toBe(1);
+    expect(found[0]?.inside, `${word} lies on the engine plate`).toBe(true);
+  }
+  await expect(page.locator('[data-shell="bracket-title"]')).toHaveText(['FADEC', 'ALTERNATOR']);
+  // The switches draw no text of their own.
+  await expect(page.locator('[data-control-id="sw.alternator_1"] text')).toHaveCount(0);
+  await expect(page.locator('[data-control-id="sw.alternator_2"] text')).toHaveCount(0);
+  // The numeral frames are outlines without fill.
+  for (const id of ['alternator-1', 'alternator-2']) {
+    const frame = page.locator(`[data-shell="plate-heading"][data-heading="${id}"] rect`);
+    await expect(frame).toHaveCount(1);
+    await expect(frame).toHaveAttribute('fill', 'none');
+  }
+});
+
+test('operating both alternator switches changes no printed text', async ({ page, hasTouch }) => {
+  const before = await panelText(page);
+  for (const id of ['sw.alternator_1', 'sw.alternator_2']) {
+    await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
+    await expect(page.locator(`[data-control-id="${id}"]`)).toHaveAttribute('data-state', 'off');
+  }
   expect(await panelText(page)).toEqual(before);
 });

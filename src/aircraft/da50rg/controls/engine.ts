@@ -37,6 +37,8 @@ export const ENGINE_CONTROLS: readonly ControlSpec[] = [
     id: 'sw.alternator_1',
     kind: 'toggle',
     label: 'ALTERNATOR 1',
+    // The heading, ON, OFF and the framed numeral are plate text (plates.ts, placards.ts).
+    nameless: true,
     region: 'engine_controls',
     x: 54,
     y: 100,
@@ -48,6 +50,8 @@ export const ENGINE_CONTROLS: readonly ControlSpec[] = [
     id: 'sw.alternator_2',
     kind: 'toggle',
     label: 'ALTERNATOR 2',
+    // The heading, ON, OFF and the framed numeral are plate text (plates.ts, placards.ts).
+    nameless: true,
     region: 'engine_controls',
     x: 130,
     y: 100,

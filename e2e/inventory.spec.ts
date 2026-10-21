@@ -144,6 +144,14 @@ test('the de-ice unit shows the framed DE ICE heading and ALTERNATE as nine stac
   await expect(page.locator('[data-control-id="sw.deice_alternate"] text')).toHaveCount(0);
 });
 
+test('the plate headings are the DE ICE frame and the numeral frames 1 and 2 of the engine plate', async ({
+  page,
+}) => {
+  const headings = page.locator('[data-shell="plate-heading"]');
+  await expect(headings).toHaveCount(3);
+  await expect(headings.locator('text')).toHaveText(['DE ICE', '1', '2']);
+});
+
 test('the ALTERNATE switch is the only guarded control', async ({ page }) => {
   await expect(page.locator('[data-kind="guarded-toggle"]')).toHaveCount(1);
   await expect(control(page, 'sw.deice_alternate')).toHaveAttribute('data-kind', 'guarded-toggle');

@@ -555,8 +555,8 @@ describe('plate placards', () => {
 describe('plate headings (plan 22, G-1)', () => {
   const headings = findElements(shell, (el) => el.props['data-shell'] === 'plate-heading');
 
-  it('the shell draws every heading of the data, the de-ice one reading DE ICE without a hyphen', () => {
-    expect(PLATE_HEADINGS.map((h) => h.text)).toEqual(['DE ICE']);
+  it('the shell draws every heading of the data, the de-ice one reading DE ICE without a hyphen, then the numerals 1 and 2', () => {
+    expect(PLATE_HEADINGS.map((h) => h.text)).toEqual(['DE ICE', '1', '2']);
     expect(headings).toHaveLength(PLATE_HEADINGS.length);
     expect(headings.map((el) => textOf(el))).toEqual(PLATE_HEADINGS.map((h) => h.text));
     expect(shellText).not.toContain('DE-ICE');

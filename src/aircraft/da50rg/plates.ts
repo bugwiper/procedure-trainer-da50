@@ -164,7 +164,7 @@ export interface BracketGroupDef {
 /** Baseline of a bracket title below its line: the line runs through the middle of the glyphs. */
 export const BRACKET_TITLE_DROP = 3;
 
-/** The bracket groups of the engine strip (plan 29): FADEC over its switch and button. */
+/** The bracket groups of the engine strip (plan 29): FADEC over its switch and button, ALTERNATOR over both switches. */
 export const BRACKET_GROUPS: readonly BracketGroupDef[] = [
   {
     id: 'fadec',
@@ -177,6 +177,18 @@ export const BRACKET_GROUPS: readonly BracketGroupDef[] = [
     drop: 6,
     radius: 3,
   },
+  // ALTERNATOR over both alternator switches (plan 29): the line spans both, the title sits midway.
+  {
+    id: 'alternator',
+    plate: 'engine',
+    title: 'ALTERNATOR',
+    size: 8,
+    x1: 118,
+    x2: 226,
+    y: 546,
+    drop: 6,
+    radius: 3,
+  },
 ];
 
 /** Outline colour and width of a heading frame. */
@@ -184,8 +196,33 @@ export const HEADING_FRAME = { stroke: '#e6e9ed', width: 1.2 } as const;
 
 /**
  * Headings of plates. The de-ice unit reads DE ICE (no hyphen) in a white outlined frame between
- * the MAX label and the top of the plate (owner finding G-1, plan 22).
+ * the MAX label and the top of the plate (owner finding G-1, plan 22). The engine plate carries the
+ * framed numerals 1 and 2 of the alternators (owner finding R2-5.2, plan 29).
  */
 export const PLATE_HEADINGS: readonly PlateHeadingDef[] = [
   { id: 'deice', plate: 'deice', text: 'DE ICE', x: 118, y: 209, w: 64, h: 16, rx: 5, size: 8 },
+  // The numerals of the two alternators (plan 29, R2-5.2): 14 by 14 frames left of the left switch
+  // and right of the right one, on the height of the switch centres (570).
+  {
+    id: 'alternator-1',
+    plate: 'engine',
+    text: '1',
+    x: 80,
+    y: 563,
+    w: 14,
+    h: 14,
+    rx: 3,
+    size: 8,
+  },
+  {
+    id: 'alternator-2',
+    plate: 'engine',
+    text: '2',
+    x: 250,
+    y: 563,
+    w: 14,
+    h: 14,
+    rx: 3,
+    size: 8,
+  },
 ];

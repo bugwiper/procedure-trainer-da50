@@ -189,6 +189,28 @@ export const PLACARDS: readonly PlacardDef[] = [
     anchor: 'middle',
     size: 6,
   },
+  // ALTERNATOR switches (plan 29, R2-5.2; sw.alternator_1 global centre 134, 570, sw.alternator_2 210,
+  // 570): ON above OFF, both centred midway between the two switches (x 172) at the heights of the
+  // upper (ON, the second state) and the lower (OFF) handle position. The handle pivot sits 4.5
+  // below the centre of the hit, the tip 14 above or below the pivot.
+  {
+    id: 'alternator.on',
+    near: 'sw.alternator_1',
+    dx: 38,
+    dy: -4,
+    lines: ['ON'],
+    anchor: 'middle',
+    size: 6,
+  },
+  {
+    id: 'alternator.off',
+    near: 'sw.alternator_1',
+    dx: 38,
+    dy: 24,
+    lines: ['OFF'],
+    anchor: 'middle',
+    size: 6,
+  },
   {
     id: 'cowl_flap.name',
     near: 'lv.cowl_flap',
