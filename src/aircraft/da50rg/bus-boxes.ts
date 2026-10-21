@@ -69,8 +69,48 @@ export const BUS_TITLES: readonly BusTitle[] = [
   { bus: 'avionics', text: 'AVIONICS BUS', x: 1960, y: 480 },
 ];
 
-/** The title (font size 8, set in the art) cuts the edge with a stroke in the plate colour. */
-export const BUS_TITLE_STYLE = { fill: '#c9d0d8', cut: '#15171a', cutWidth: 5 } as const;
+/**
+ * Colours of a title: the text fill and the plate colour of the cut rectangle behind it (equal to
+ * the fill of the bus-panel plate). The title itself is plain filled text: a stroked text is
+ * painted glyph by glyph on WebKit and ran into the previous letter (R3-1.1).
+ */
+export const BUS_TITLE_STYLE = { fill: '#c9d0d8', cut: '#15171a' } as const;
+
+/** Font size of a title (set in the art). */
+export const BUS_TITLE_SIZE = 8;
+
+/**
+ * Cut geometry of a title (UI-SPEC 01.1 Table B4), design numbers: the font is not measured at
+ * build time, so the advance per character is an upper estimate (0.62 of the size plus the 0.06 em
+ * letter spacing of stage.css, rounded up for wide capitals). The built-DOM gate measures the real
+ * text box; a wider font is fixed by widening these constants.
+ */
+export const BUS_TITLE_ADVANCE = 6;
+/** Clear edge gap beside the glyphs, each side. */
+export const BUS_TITLE_MARGIN = 4;
+/** The rectangle reaches this far above the baseline (cap height 5.6 plus the edge 3 above it). */
+export const BUS_TITLE_CUT_ABOVE = 8;
+/** The rectangle reaches this far below the baseline (the edge lies 3 above the baseline). */
+export const BUS_TITLE_CUT_BELOW = 3;
+
+/**
+ * The plate-coloured rectangle that cuts the outline edge behind a title: centred on the anchor,
+ * as wide as the text estimate plus the margin on both sides, from 8 above to 3 below the baseline.
+ */
+export function busTitleCut(title: BusTitle): {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+} {
+  const w = title.text.length * BUS_TITLE_ADVANCE + 2 * BUS_TITLE_MARGIN;
+  return {
+    x: title.x - w / 2,
+    y: title.y - BUS_TITLE_CUT_ABOVE,
+    w,
+    h: BUS_TITLE_CUT_ABOVE + BUS_TITLE_CUT_BELOW,
+  };
+}
 
 /** A rounded rectangle of the bus art, global units. */
 export interface BusRect {

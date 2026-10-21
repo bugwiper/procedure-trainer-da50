@@ -13,7 +13,13 @@ import {
   PLATE_HEADINGS,
 } from '../src/aircraft/da50rg/plates';
 import { DEF_IDS, Defs } from '../src/ui/panel/Defs';
-import { BUS_ORDER, BUS_OUTLINES } from '../src/aircraft/da50rg/bus-boxes';
+import {
+  BUS_ORDER,
+  BUS_OUTLINES,
+  BUS_TITLES,
+  BUS_TITLE_STYLE,
+  busTitleCut,
+} from '../src/aircraft/da50rg/bus-boxes';
 import { roundedPolygonPath } from '../src/ui/panel/BusPanelArt';
 import {
   PanelShell,
@@ -271,6 +277,65 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
     for (const t of titles) expect(t.props['font-size']).toBe(8);
   });
 
+  it('R3-1.1: the three titles are plain filled text at the earlier anchors', () => {
+    const layer = findElements(shell, (el) => el.props['data-shell'] === 'bus-panel')[0];
+    if (layer === undefined) throw new Error('no bus layer');
+    const titles = findElements(layer, (el) => el.props['data-shell'] === 'bus-title');
+    expect(titles.map((t) => [t.props['x'], t.props['y']])).toEqual([
+      [1996, 226],
+      [1924, 378],
+      [1960, 480],
+    ]);
+    for (const t of titles) {
+      expect(t.tag).toBe('text');
+      expect(t.props['fill']).toBe('#c9d0d8');
+      expect(t.props['font-size']).toBe(8);
+      expect(t.props['text-anchor']).toBe('middle');
+    }
+  });
+
+  it('R3-1.1: no text element of the whole shell carries a stroke or a painting order', () => {
+    const texts = findElements(shell, (el) => el.tag === 'text');
+    expect(texts.length).toBeGreaterThan(60);
+    const offenders = texts.filter((el) =>
+      ['stroke', 'stroke-width', 'stroke-linejoin', 'paint-order', 'paintOrder'].some(
+        (key) => key in el.props,
+      ),
+    );
+    expect(offenders.map((el) => textOf(el))).toEqual([]);
+  });
+
+  it('R3-1.1: each title is preceded by one plate-coloured cut rectangle without a stroke', () => {
+    const layer = findElements(shell, (el) => el.props['data-shell'] === 'bus-panel')[0];
+    if (layer === undefined) throw new Error('no bus layer');
+    const plateFill = findElements(layer, (el) => el.props['data-plate'] === 'bus-panel')[0]?.props[
+      'fill'
+    ];
+    expect(BUS_TITLE_STYLE.cut).toBe(plateFill);
+    const pairs = findElements(
+      layer,
+      (el) => el.props['data-shell'] === 'bus-title-cut' || el.props['data-shell'] === 'bus-title',
+    );
+    expect(pairs.map((el) => el.props['data-shell'])).toEqual([
+      'bus-title-cut',
+      'bus-title',
+      'bus-title-cut',
+      'bus-title',
+      'bus-title-cut',
+      'bus-title',
+    ]);
+    BUS_TITLES.forEach((title, i) => {
+      const cutEl = pairs[i * 2];
+      const cut = busTitleCut(title);
+      expect(cutEl?.tag).toBe('rect');
+      expect([cutEl?.props['x'], cutEl?.props['y']]).toEqual([cut.x, cut.y]);
+      expect([cutEl?.props['width'], cutEl?.props['height']]).toEqual([cut.w, cut.h]);
+      expect(cutEl?.props['fill']).toBe('#15171a');
+      expect(cutEl?.props['stroke']).toBeUndefined();
+      expect(pairs[i * 2 + 1]?.props['data-bus']).toBe(title.bus);
+    });
+  });
+
   it('draws three plugs, three pump boxes and the sub-panel as inert shell shapes', () => {
     const plugs = findElements(shell, (el) => el.props['data-shell'] === 'bus-plug');
     expect(plugs).toHaveLength(3);
@@ -320,16 +385,21 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
     expect(occurrences(shellText, 'LINK')).toBe(1);
   });
 
-  it('draws in order: plate, sub-panel, outlines, pump boxes, plugs, titles', () => {
+  it('draws in order: plate, sub-panel, outlines, pump boxes, plugs, then the cut and title pairs', () => {
     const layer = findElements(shell, (el) => el.props['data-shell'] === 'bus-panel')[0];
     if (layer === undefined) throw new Error('no bus layer');
     const marks = findElements(
       layer,
       (el) =>
         el.props['data-plate'] === 'bus-panel' ||
-        ['bus-subpanel', 'bus-outline', 'bus-pump-box', 'bus-plug', 'bus-title'].includes(
-          String(el.props['data-shell']),
-        ),
+        [
+          'bus-subpanel',
+          'bus-outline',
+          'bus-pump-box',
+          'bus-plug',
+          'bus-title-cut',
+          'bus-title',
+        ].includes(String(el.props['data-shell'])),
     ).map((el) => String(el.props['data-plate'] ?? el.props['data-shell']));
     const first = (name: string) => marks.indexOf(name);
     const last = (name: string) => marks.lastIndexOf(name);
@@ -338,7 +408,8 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
     expect(last('bus-subpanel')).toBeLessThan(first('bus-outline'));
     expect(last('bus-outline')).toBeLessThan(first('bus-pump-box'));
     expect(last('bus-pump-box')).toBeLessThan(first('bus-plug'));
-    expect(last('bus-plug')).toBeLessThan(first('bus-title'));
+    expect(last('bus-plug')).toBeLessThan(first('bus-title-cut'));
+    expect(first('bus-title-cut')).toBeLessThan(first('bus-title'));
   });
 
   it('the old narrow bus rectangle (x 1836, width 144) is gone', () => {

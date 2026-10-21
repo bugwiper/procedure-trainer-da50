@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { BUS_OUTLINES, BUS_TITLES } from '../src/aircraft/da50rg/bus-boxes';
+import type { BusId } from '../src/aircraft/da50rg/bus-boxes';
 
 // Built-panel gate for owner finding G-0.5: no part of the visible art sticks out of its region
 // or off the plate it sits on. Hit rectangles, detent markers and the invisible region frame are
@@ -46,9 +48,19 @@ interface PanelGeometry {
   readonly texts: readonly TextBox[];
 }
 
+/** Tests of the text-rendering gate run on every landscape project (R3-1.1, no viewport change). */
+const EVERY_PROJECT = /^R3-1\.1/;
+
 test.beforeEach(async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop-chromium', 'geometry gate runs on desktop-chromium');
-  await page.setViewportSize({ width: 2200, height: 1400 });
+  if (EVERY_PROJECT.test(testInfo.title)) {
+    test.skip(testInfo.project.name === 'phone-portrait', 'landscape projects only');
+  } else {
+    test.skip(
+      testInfo.project.name !== 'desktop-chromium',
+      'geometry gate runs on desktop-chromium',
+    );
+    await page.setViewportSize({ width: 2200, height: 1400 });
+  }
   await page.goto('./');
   await expect(page.getByTestId('panel')).toBeVisible();
 });
@@ -383,4 +395,89 @@ test('every shell placard, heading and bracket title lies on a plate', async ({ 
   );
   const stale = Object.keys(SHELL_LABEL_OFF_PLATE_KNOWN).filter((key) => !off.has(key));
   expect(stale).toEqual([]);
+});
+
+/**
+ * R3-1.1 (owner finding, iPhone Safari): the bus titles ran into each other because a stroked
+ * text is painted glyph by glyph on WebKit. No text of the shell may carry a stroke, and the real
+ * text box of each bus title must lie inside the plate-coloured rectangle that cuts its edge.
+ * Runs on every landscape project, desktop and touch, Chromium and WebKit.
+ */
+test('R3-1.1 no shell text is stroked and each bus title lies inside its cut', async ({ page }) => {
+  const result = await page.getByTestId('panel').evaluate((node) => {
+    const svg = node as unknown as SVGSVGElement;
+    const ctm = svg.getScreenCTM();
+    if (ctm === null) throw new Error('no screen CTM');
+    const inv = ctm.inverse();
+    const toBox = (el: Element): Box => {
+      const r = el.getBoundingClientRect();
+      const p1 = new DOMPoint(r.left, r.top).matrixTransform(inv);
+      const p2 = new DOMPoint(r.right, r.bottom).matrixTransform(inv);
+      return { x: p1.x, y: p1.y, w: p2.x - p1.x, h: p2.y - p1.y };
+    };
+    const stroked: string[] = [];
+    let shellTexts = 0;
+    for (const el of Array.from(svg.querySelectorAll('text'))) {
+      if (el.closest('[data-shell]') === null) continue;
+      shellTexts += 1;
+      const stroke = getComputedStyle(el).stroke;
+      if (stroke !== 'none' || el.hasAttribute('paint-order') || el.hasAttribute('stroke')) {
+        stroked.push(`${(el.textContent ?? '').trim()}: stroke ${stroke}`);
+      }
+    }
+    const titles = Array.from(svg.querySelectorAll('[data-shell="bus-title"]')).map((title) => {
+      const bus = title.getAttribute('data-bus') ?? '';
+      const cut = title.previousElementSibling;
+      return {
+        bus,
+        text: (title.textContent ?? '').trim(),
+        isCut: cut !== null && cut.getAttribute('data-shell') === 'bus-title-cut',
+        text_box: toBox(title),
+        cut_box: cut === null ? null : toBox(cut),
+      };
+    });
+    return { stroked, shellTexts, titles };
+  });
+  expect(result.shellTexts).toBeGreaterThan(60);
+  expect(result.stroked).toEqual([]);
+  expect(result.titles.map((t) => t.text)).toEqual(['ESSENTIAL BUS', 'MAIN BUS', 'AVIONICS BUS']);
+  const failures: string[] = [];
+  for (const t of result.titles) {
+    if (!t.isCut || t.cut_box === null) {
+      failures.push(`${t.text}: not preceded by a cut rectangle`);
+      continue;
+    }
+    const left = t.text_box.x - t.cut_box.x;
+    const right = t.cut_box.x + t.cut_box.w - (t.text_box.x + t.text_box.w);
+    if (left < 2 || right < 2) {
+      failures.push(
+        `${t.text}: text box leaves its cut (left gap ${left.toFixed(1)}, right gap ${right.toFixed(1)})`,
+      );
+    }
+    // The horizontal edge of its own outline that the title sits on (data, not the DOM).
+    const anchor = BUS_TITLES.find((b) => b.bus === t.bus);
+    const pts = BUS_OUTLINES[t.bus as BusId];
+    const edgeY = pts
+      .filter((a, i) => {
+        const b = pts[(i + 1) % pts.length];
+        return (
+          anchor !== undefined &&
+          b !== undefined &&
+          a.y === b.y &&
+          anchor.y >= a.y &&
+          anchor.y - a.y <= 4 &&
+          anchor.x >= Math.min(a.x, b.x) &&
+          anchor.x <= Math.max(a.x, b.x)
+        );
+      })
+      .map((a) => a.y)[0];
+    if (edgeY === undefined) {
+      failures.push(`${t.text}: no outline edge under the title`);
+      continue;
+    }
+    if (edgeY < t.cut_box.y + 2 || edgeY > t.cut_box.y + t.cut_box.h - 2) {
+      failures.push(`${t.text}: the edge y ${edgeY} lies outside its cut`);
+    }
+  }
+  expect(failures).toEqual([]);
 });

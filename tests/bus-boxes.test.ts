@@ -5,11 +5,16 @@ import {
   BUS_PLUGS,
   BUS_PUMP_BOXES,
   BUS_SUBPANEL,
+  BUS_CORNER_RADIUS,
   BUS_TITLES,
+  BUS_TITLE_STYLE,
+  busTitleCut,
 } from '../src/aircraft/da50rg/bus-boxes';
 import type { BusId } from '../src/aircraft/da50rg/bus-boxes';
 import { CB_REGIONS } from '../src/aircraft/da50rg/controls/breakers';
+import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { PLATES } from '../src/aircraft/da50rg/plates';
+import type { CircuitBreakerDef } from '../src/engine/registry';
 
 // D-01: the bus panel art is data. The vertex tables below are typed in as literals (UI-SPEC 01.2
 // Table B3), independent of the data file, so a moved corner fails here.
@@ -113,6 +118,110 @@ describe('bus panel titles (D-01)', () => {
       (e) => title.y >= e.y && title.y - e.y <= 4 && title.x >= e.x1 && title.x <= e.x2,
     );
     expect(hit.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// R3-1.1 (owner finding, iPhone Safari): the titles are unstroked text and the edge behind each is
+// cut by a plate-coloured rectangle. Table B4 expected widths are typed in here: six units per
+// character plus eight.
+describe('bus panel title cuts (R3-1.1, Table B4)', () => {
+  const FONT_SIZE = 8;
+  const EXPECTED_WIDTH: Readonly<Record<BusId, number>> = {
+    essential: 86,
+    main: 56,
+    avionics: 80,
+  };
+
+  /** Horizontal edges of an outline that carry the title: the one at most 4 above the baseline. */
+  function ownEdge(bus: BusId): { y: number; x1: number; x2: number } {
+    const title = BUS_TITLES.find((t) => t.bus === bus);
+    if (title === undefined) throw new Error(`no title for ${bus}`);
+    const pts = BUS_OUTLINES[bus];
+    const edges = pts.flatMap((a, i) => {
+      const b = pts[(i + 1) % pts.length];
+      if (b === undefined || a.y !== b.y) return [];
+      return [{ y: a.y, x1: Math.min(a.x, b.x), x2: Math.max(a.x, b.x) }];
+    });
+    const hit = edges.find(
+      (e) => title.y >= e.y && title.y - e.y <= 4 && title.x >= e.x1 && title.x <= e.x2,
+    );
+    if (hit === undefined) throw new Error(`no edge for ${bus}`);
+    return hit;
+  }
+
+  const titleOf = (bus: BusId) => {
+    const t = BUS_TITLES.find((x) => x.bus === bus);
+    if (t === undefined) throw new Error(`no title for ${bus}`);
+    return t;
+  };
+
+  it('the title style has a fill and the plate colour and no stroke width', () => {
+    expect(BUS_TITLE_STYLE.fill).toBe('#c9d0d8');
+    expect(Object.keys(BUS_TITLE_STYLE).sort()).toEqual(['cut', 'fill']);
+  });
+
+  it.each(BUS_ORDER)('the %s cut is as wide as Table B4 says', (bus) => {
+    expect(busTitleCut(titleOf(bus)).w).toBe(EXPECTED_WIDTH[bus]);
+  });
+
+  it.each(BUS_ORDER)('the %s cut contains the edge line with 2 units to each side', (bus) => {
+    const cut = busTitleCut(titleOf(bus));
+    const edge = ownEdge(bus);
+    expect(edge.y - cut.y).toBeGreaterThanOrEqual(2);
+    expect(cut.y + cut.h - edge.y).toBeGreaterThanOrEqual(2);
+  });
+
+  it.each(BUS_ORDER)('the %s cut is centred on the title anchor', (bus) => {
+    const t = titleOf(bus);
+    const cut = busTitleCut(t);
+    expect(cut.x + cut.w / 2).toBe(t.x);
+  });
+
+  it.each(BUS_ORDER)('the %s cut is wider than the glyph estimate by at least 6', (bus) => {
+    const t = titleOf(bus);
+    const glyphs = t.text.length * 0.62 * FONT_SIZE;
+    expect(busTitleCut(t).w).toBeGreaterThanOrEqual(glyphs + 6);
+  });
+
+  it.each(BUS_ORDER)('the %s cut touches no corner of its outline', (bus) => {
+    const cut = busTitleCut(titleOf(bus));
+    const edge = ownEdge(bus);
+    expect(cut.x).toBeGreaterThanOrEqual(edge.x1 + BUS_CORNER_RADIUS + 2);
+    expect(cut.x + cut.w).toBeLessThanOrEqual(edge.x2 - BUS_CORNER_RADIUS - 2);
+  });
+
+  it.each(BUS_ORDER)('the %s cut lies inside the bus-panel plate', (bus) => {
+    const cut = busTitleCut(titleOf(bus));
+    expect(plate).toBeDefined();
+    if (plate === undefined) return;
+    expect(cut.x).toBeGreaterThanOrEqual(plate.x);
+    expect(cut.y).toBeGreaterThanOrEqual(plate.y);
+    expect(cut.x + cut.w).toBeLessThanOrEqual(plate.x + plate.w);
+    expect(cut.y + cut.h).toBeLessThanOrEqual(plate.y + plate.h);
+  });
+
+  it.each(BUS_ORDER)('the %s cut overlaps no breaker hit rectangle and no plug disc', (bus) => {
+    const cut = busTitleCut(titleOf(bus));
+    const breakers = DA50RG.controls.filter(
+      (c): c is CircuitBreakerDef => c.kind === 'circuit-breaker',
+    );
+    expect(breakers.length).toBeGreaterThan(30);
+    for (const b of breakers) {
+      const region = DA50RG.regions.find((r) => r.id === b.region);
+      if (region === undefined) throw new Error(`no region ${b.region}`);
+      const foot = {
+        x: region.bounds.x + b.x - b.hit.w / 2,
+        y: region.bounds.y + b.y - b.hit.h / 2,
+        w: b.hit.w,
+        h: b.hit.h,
+      };
+      expect(overlapArea(cut, foot), `${bus} cut and ${b.id}`).toBe(0);
+    }
+    for (const p of BUS_PLUGS) {
+      const nearX = Math.min(Math.max(p.x, cut.x), cut.x + cut.w);
+      const nearY = Math.min(Math.max(p.y, cut.y), cut.y + cut.h);
+      expect(Math.hypot(p.x - nearX, p.y - nearY), `${bus} cut and ${p.id}`).toBeGreaterThan(p.r);
+    }
   });
 });
 

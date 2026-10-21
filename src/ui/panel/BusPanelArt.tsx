@@ -1,3 +1,4 @@
+import { Fragment } from 'preact';
 import type { ComponentChildren } from 'preact';
 import {
   BUS_CORNER_RADIUS,
@@ -9,7 +10,9 @@ import {
   BUS_STROKE,
   BUS_SUBPANEL,
   BUS_TITLES,
+  BUS_TITLE_SIZE,
   BUS_TITLE_STYLE,
+  busTitleCut,
 } from '../../aircraft/da50rg/bus-boxes';
 import type { BusPoint } from '../../aircraft/da50rg/bus-boxes';
 import { labelBaseline } from './skins/Breaker';
@@ -53,7 +56,8 @@ export function roundedPolygonPath(points: readonly BusPoint[], radius: number):
 /**
  * Layer 10: the bus panel. The plate arrives as a child (drawn by the shell from the plate data,
  * so the rectangle exists once). Draw order: plate, lower-row sub-panel, outlines, pump boxes,
- * plugs with their labels, titles. The plug labels use the breaker label baselines, so a plug
+ * plugs with their labels, then each title preceded by its plate-coloured cut rectangle (the cut
+ * hides the outline edge behind the title; the title is plain unstroked text, R3-1.1). The plug labels use the breaker label baselines, so a plug
  * label and a breaker label can never disagree.
  */
 export function BusPanelArt({ plate }: { plate: ComponentChildren }) {
@@ -122,24 +126,33 @@ export function BusPanelArt({ plate }: { plate: ComponentChildren }) {
           ))}
         </g>
       ))}
-      {BUS_TITLES.map((title) => (
-        <text
-          key={title.bus}
-          data-shell="bus-title"
-          data-bus={title.bus}
-          x={title.x}
-          y={title.y}
-          text-anchor="middle"
-          font-size={8}
-          fill={BUS_TITLE_STYLE.fill}
-          stroke={BUS_TITLE_STYLE.cut}
-          stroke-width={BUS_TITLE_STYLE.cutWidth}
-          stroke-linejoin="round"
-          paint-order="stroke"
-        >
-          {title.text}
-        </text>
-      ))}
+      {BUS_TITLES.map((title) => {
+        const cut = busTitleCut(title);
+        return (
+          <Fragment key={title.bus}>
+            <rect
+              data-shell="bus-title-cut"
+              data-bus={title.bus}
+              x={cut.x}
+              y={cut.y}
+              width={cut.w}
+              height={cut.h}
+              fill={BUS_TITLE_STYLE.cut}
+            />
+            <text
+              data-shell="bus-title"
+              data-bus={title.bus}
+              x={title.x}
+              y={title.y}
+              text-anchor="middle"
+              font-size={BUS_TITLE_SIZE}
+              fill={BUS_TITLE_STYLE.fill}
+            >
+              {title.text}
+            </text>
+          </Fragment>
+        );
+      })}
     </g>
   );
 }
