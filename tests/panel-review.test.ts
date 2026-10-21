@@ -231,14 +231,14 @@ describe('phase 01.2 review list (Q2, U2, P2, Round 3)', () => {
     expect(lineOf('Q2-01')).toContain('2180');
   });
 
-  it('has the Round 3 section as the last section, starting with the width decision', () => {
+  it('has the Round 3 section present, starting with the width decision', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toMatch(/Round 3: morning review/);
+    expect(headings.some((h) => /Round 3: morning review/.test(h))).toBe(true);
     const at = review.search(/^## .*Round 3/m);
-    const items = review
-      .slice(at)
-      .split('\n')
-      .filter((line) => /^\d+\. /.test(line));
+    const rest = review.slice(at);
+    const next = rest.slice(3).search(/^## /m);
+    const round3 = next === -1 ? rest : rest.slice(0, next + 3);
+    const items = round3.split('\n').filter((line) => /^\d+\. /.test(line));
     expect(items.length).toBeGreaterThanOrEqual(10);
     expect(items[0]).toContain('Q2-01');
     expect(items[0]).toMatch(/tablet/);
@@ -247,7 +247,7 @@ describe('phase 01.2 review list (Q2, U2, P2, Round 3)', () => {
 
   it('gives the owner the live check command in the Round 3 section', () => {
     const at = review.search(/^## .*Round 3/m);
-    const round3 = review.slice(at);
+    const round3 = review.slice(at, review.search(/^## .*Round 4/m));
     expect(round3).toContain('e2e/breaker.spec.ts e2e/glass.spec.ts e2e/avionics.spec.ts');
     expect(round3).toContain('PW_BASE_URL=');
     expect(round3).toMatch(/nothing was pushed/i);
@@ -384,6 +384,75 @@ describe('zoom wording (R2-Z1, plan 31)', () => {
     if (uiSpecExists) {
       const spec = read(UI_SPEC_PATH);
       expect(spec).toContain('R2-Z1');
+    }
+  });
+});
+
+// Plan 31: the Round 4 section is the owner's one entry point for the gap-closure round 2.
+describe('round 2 gap-closure review (R2 findings, plan 31)', () => {
+  const lineOf = (label: string): string =>
+    review.split('\n').find((line) => line.includes(`**${label}**`)) ?? '';
+  const round4 = (): string => {
+    const at = review.search(/^## .*Round 4/m);
+    expect(at, 'Round 4 section missing').toBeGreaterThan(-1);
+    return review.slice(at);
+  };
+
+  it('has Round 4: morning review as the last section', () => {
+    const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
+    expect(headings[headings.length - 1]).toBe('## Round 4: morning review');
+  });
+
+  it('lists at least 9 numbered items and names every R2 finding', () => {
+    const items = round4()
+      .split('\n')
+      .filter((line) => /^\d+\. /.test(line));
+    expect(items.length).toBeGreaterThanOrEqual(9);
+    for (const id of ['R2-1.1', 'R2-4.1', 'R2-4.2', 'R2-5.1', 'R2-5.2', 'R2-Z1', 'R2-T1']) {
+      expect(round4(), id).toContain(id);
+    }
+    expect(round4()).toMatch(/R2-3\.1[^\n]*withdrawn/i);
+  });
+
+  it('gives the live check command and says nothing was pushed', () => {
+    expect(round4()).toContain('PW_BASE_URL=');
+    expect(round4()).toMatch(/nothing was pushed/i);
+  });
+
+  it('has no unfilled item: the tablet project and the WebKit outcome are recorded', () => {
+    const text = round4();
+    expect(text).toMatch(/tablet-chromium/);
+    expect(text).toMatch(/WebKit/);
+    expect(text).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b/i);
+  });
+
+  it.each(Array.from({ length: 7 }, (_, i) => `R2-D${String(i + 1)}`))(
+    'records the decision %s with the cost of undoing it',
+    (label) => {
+      const line = lineOf(label);
+      expect(line, `${label} missing`).not.toBe('');
+      expect(line).toMatch(/Cost of undoing:/);
+    },
+  );
+
+  it('states the double-tap contract and no stale zoom or tablet sentence', () => {
+    expect(review).not.toContain('a single tap on the background zooms out');
+    expect(review).not.toContain('not fixed, because phase 01.2 plan 09 changes no source');
+    expect(review).toMatch(/single click or tap never zooms/);
+    expect(review).toMatch(/resolved by plan 26/i);
+  });
+
+  it('describes the round 2 build in the area sections', () => {
+    for (const needle of [
+      'FORCE B',
+      'ALTERNATOR',
+      'hinged flap',
+      'click spots',
+      'Full panel button',
+      'tablet-chromium',
+      'lights.left_on',
+    ]) {
+      expect(review, needle).toContain(needle);
     }
   });
 });

@@ -105,6 +105,37 @@ test('the MFD legend row has 12 tabs on both pages and the Engine tab is selecte
   await expect(selected).toHaveCount(0);
 });
 
+test('R2-5.1 the MFD page softkey prints no text on its key and the legend Engine stands on the glass', async ({
+  page,
+  hasTouch,
+}) => {
+  const group = page.locator('[data-control-id="sw.mfd_page"]');
+  const legendTabs = page.locator('[data-region-id="mfd"] [data-legend-tab]');
+  await expect(group).toHaveCount(1);
+
+  // Map page: the key has no text element and no word; the first legend tab on the glass reads Engine.
+  await expect(group.locator('text')).toHaveCount(0);
+  expect(((await group.textContent()) ?? '').trim()).toBe('');
+  await expect(legendTabs.first()).toHaveText('Engine');
+  await expect(legendTabs.first()).not.toHaveAttribute('data-selected', 'true');
+
+  // Engine page: still no word on the key; the Engine tab on the glass is the selected one.
+  await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
+  await expect(page.getByTestId('mfd-engine-page')).toBeVisible();
+  await expect(group.locator('text')).toHaveCount(0);
+  expect(((await group.textContent()) ?? '').trim()).toBe('');
+  await expect(legendTabs.first()).toHaveText('Engine');
+  await expect(legendTabs.first()).toHaveAttribute('data-selected', 'true');
+
+  // The word Engine is printed by the glass legend tab inside the MFD region, not by the key region.
+  await expect(
+    page.locator('[data-region-id="mfd_softkeys"] text', { hasText: /engine/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator('[data-region-id="mfd"] [data-legend-tab]', { hasText: 'Engine' }),
+  ).toHaveCount(1);
+});
+
 /** A tap or click at the centre of an element, without actionability checks (it takes no events). */
 async function tapAtCentre(page: Page, target: Locator, hasTouch: boolean): Promise<void> {
   const box = await target.boundingBox();

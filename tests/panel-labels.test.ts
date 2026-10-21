@@ -315,3 +315,58 @@ describe('panel label table: avionics static labels (phase 01.2)', () => {
     expect(row).toContain('BACKUP');
   });
 });
+
+// Plan 31: the rows of the round 2 build (R2-1.1, R2-4.1, R2-4.2, R2-5.2) carry the static words.
+describe('panel label table: round 2 rows (plan 31)', () => {
+  const rowOf = (id: string): string =>
+    doc.split('\n').find((line) => line.startsWith('|') && line.includes(`\`${id}\``)) ?? '';
+
+  it('the FADEC switch row names the heading, AUTO and FORCE B', () => {
+    const row = rowOf('sw.fadec');
+    for (const word of ['FADEC', 'AUTO', 'FORCE B']) expect(row, word).toContain(word);
+  });
+
+  it('the FADEC TEST row names the placard TEST', () => {
+    expect(rowOf('btn.fadec_test')).toContain('TEST');
+  });
+
+  it.each(['sw.alternator_1', 'sw.alternator_2'])(
+    'the row of %s names the ALTERNATOR heading, ON, OFF and its framed numeral',
+    (id) => {
+      const row = rowOf(id);
+      for (const word of ['ALTERNATOR', 'ON', 'OFF', 'framed']) expect(row, word).toContain(word);
+    },
+  );
+
+  it.each(['sw.light_landing', 'sw.light_strobe'])(
+    'the row of %s names the ON and OFF plate text on its side',
+    (id) => {
+      const row = rowOf(id);
+      expect(row).toContain('ON');
+      expect(row).toContain('OFF');
+    },
+  );
+
+  it('the FAN row names OFF, the fan glyphs and the four click spots', () => {
+    const row = rowOf('sw.env_fan');
+    expect(row).toContain('OFF');
+    expect(row).toMatch(/click spots/);
+  });
+
+  it('the PARKING BRAKE row names the placard and the flap', () => {
+    const row = rowOf('lv.parking_brake');
+    expect(row).toContain('PARKING BRAKE');
+    expect(row).toMatch(/flap/);
+  });
+
+  it('the engine strip placards are plate text, none is a state word', () => {
+    expect(doc).toMatch(/plate text/);
+  });
+
+  it('question Q-09 is answered with the planner reading of the FADEC state order', () => {
+    const line = doc.split('\n').find((l) => l.includes('**Q-09**')) ?? '';
+    expect(line).toMatch(/Default taken:/);
+    expect(line).toMatch(/AUTO/);
+    expect(line).toMatch(/FORCE B/);
+  });
+});

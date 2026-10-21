@@ -31,14 +31,14 @@ Ids marked "new in plan NN" were created by the plan with that number. Ids marke
 
 ## Glareshield
 
-Four exterior-light rockers in the hump above the displays, under the plate heading LIGHTS. No ON or OFF stands on or beside a rocker; the position shows by perspective only.
+Four exterior-light rockers in the hump above the displays, under the plate heading LIGHTS. The rockers themselves print no ON or OFF; the position shows by perspective only. The static words ON and OFF are printed once per side as plate text, representative for all four rockers: left of LANDING and right of STROBE, ON at the height of the upper rocker half and OFF at the height of the lower half (owner finding R2-1.1, plan 30).
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
-| `sw.light_landing` | LANDING | none | existing, owner finding | `controls/lights.ts` |
-| `sw.light_taxi` | TAXI | none | existing, owner finding | `controls/lights.ts` |
-| `sw.light_position` | POSITION | none | existing, owner finding | `controls/lights.ts` |
-| `sw.light_strobe` | STROBE | none | existing, owner finding | `controls/lights.ts` |
+| `sw.light_landing` | LANDING | ON (upper) above OFF (lower), plate text left of the rocker, `lights.left_on` and `lights.left_off` | existing, owner finding (R2-1.1) | `controls/lights.ts`, `src/aircraft/da50rg/placards.ts` |
+| `sw.light_taxi` | TAXI | none (the two outer sides serve all four rockers) | existing, owner finding | `controls/lights.ts` |
+| `sw.light_position` | POSITION | none (the two outer sides serve all four rockers) | existing, owner finding | `controls/lights.ts` |
+| `sw.light_strobe` | STROBE | ON (upper) above OFF (lower), plate text right of the rocker, `lights.right_on` and `lights.right_off` | existing, owner finding (R2-1.1) | `controls/lights.ts`, `src/aircraft/da50rg/placards.ts` |
 | plate text | heading LIGHTS (plate) | none | existing, owner finding | `src/ui/panel/PanelShell.tsx` |
 
 ## Centre stack
@@ -52,14 +52,14 @@ Two dimmer knobs between the displays. The marks around each knob are static sca
 
 ## Engine strip
 
-FADEC, its test button and the two alternator switches at the left edge. The real FADEC switch positions are not known, so no position text is printed (Q-09).
+The FADEC group and the ALTERNATOR group at the left edge (owner finding R2-5.2, plan 29). Every word of the strip is static plate text: the four controls print nothing themselves. Each group has a heading on a curved bracket line over its controls. The FADEC switch lists its states force_b then auto, so the default (auto) is the upper handle position, under the word AUTO; this order is the reading of the owner's description (AUTO above the switch, FORCE B below) and is listed as Q-09.
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
-| `sw.fadec` | FADEC | none (real AUTO / B placards unknown, Q-09) | existing, assumption | `controls/engine.ts` |
-| `btn.fadec_test` | FADEC TEST | none | existing | `controls/buttons.ts` |
-| `sw.alternator_1` | ALTERNATOR 1 | none | existing | `controls/engine.ts` |
-| `sw.alternator_2` | ALTERNATOR 2 | none | existing | `controls/engine.ts` |
+| `sw.fadec` | none of its own; heading FADEC on a bracket over the switch and the button | AUTO (above the switch), FORCE B (below), plate text | owner finding (R2-5.2), assumption (state order, Q-09) | `controls/engine.ts`, `src/aircraft/da50rg/placards.ts`, `src/aircraft/da50rg/plates.ts` |
+| `btn.fadec_test` | none of its own | TEST (above the button), plate text | owner finding (R2-5.2) | `controls/buttons.ts`, `src/aircraft/da50rg/placards.ts` |
+| `sw.alternator_1` | none of its own; heading ALTERNATOR on a bracket over both switches; framed numeral 1 (white outline frame) left of the switch | ON (upper) and OFF (lower), printed once between the two switches, plate text | owner finding (R2-5.2) | `controls/engine.ts`, `src/aircraft/da50rg/placards.ts`, `src/aircraft/da50rg/plates.ts` |
+| `sw.alternator_2` | none of its own; same heading ALTERNATOR; framed numeral 2 (white outline frame) right of the switch | the same ON and OFF between the switches (not repeated) | owner finding (R2-5.2) | `controls/engine.ts`, `src/aircraft/da50rg/plates.ts` |
 
 ## Switch row
 
@@ -139,16 +139,16 @@ The plate sits above the throttle. Its four controls carry a box title each and 
 | plate title | ENVIRONMENTAL CONTROL | none | existing, owner finding | `src/ui/panel/PanelShell.tsx` |
 | `lv.env_direction` | DIRECTION (box title); pictograms defrost, face, feet, no words (replaces the words DEFROST, FACE, FEET) | none | owner finding | `controls/pedestal.ts` |
 | `lv.env_temp` | TEMPERATURE (box title); long thin triangle pictogram, wide end up (replaces the scale 25, 50, 75) | WARM (top), COLD (bottom) only; no scale | owner finding | `controls/pedestal.ts` |
-| `sw.env_fan` | FAN (box title); three fan symbols small to large from upper left to upper right, no dots, no numbers | OFF at the bottom | owner finding | `controls/knobs.ts` |
+| `sw.env_fan` | FAN (box title); three fan symbols small to large from upper left to upper right, no dots, no numbers | OFF at the bottom; the four positions (OFF and the three fan glyphs) are direct click spots: a tap on a position sets it at once | owner finding (R2-4.1, plan 28) | `controls/knobs.ts` |
 | `lv.env_circ` | CIRCULATING AIR (box title); fresh-air pictogram (rectangle, inward arrow) left, recirculation pictogram (rectangle, circling arrow) right; no words (replaces the words FRESH, RECIRC) | none | owner finding | `controls/pedestal.ts` |
 
 ## Pedestal
 
-Parking brake, throttle and cowl flap. The throttle plate says THROTTLE although the id stays `lv.power` (Q-04). The cowl-flap lamps are lit by the lever position, each in its own position (Q-12).
+Parking brake (a hinged flap, a tap toggles it), throttle and cowl flap. The throttle plate says THROTTLE although the id stays `lv.power` (Q-04). The cowl-flap lamps are lit by the lever position, each in its own position (Q-12).
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
-| `lv.parking_brake` | PARKING BRAKE | none; the lever pulled up sets the brake | owner finding | `controls/pedestal.ts` |
+| `lv.parking_brake` | PARKING BRAKE (placard only, no state text); drawn as a hinged flap in side-view perspective, flat when released and standing up as a wedge when pulled | none; a tap toggles the flap, there is no dragging | owner finding (R2-4.2, plan 27) | `controls/pedestal.ts`, `src/ui/panel/skins/Flap.tsx` |
 | `lv.power` | THROTTLE (as on the plate in the owner photo; the id stays `lv.power`; replaces POWER); MAX at the forward end | the legends 0 %, 50 %, 100 % (Q-05) | existing, assumption | `controls/pedestal.ts` |
 | `lv.cowl_flap` | COWL FLAP | none (the lever legends CLOSED and OPEN move to the two lamps) | owner finding | `controls/pedestal.ts` |
 | `lt.cowl_open` (new in plan 19) | OPEN beside a white lamp | none | owner finding | `indicators.ts` |
@@ -202,7 +202,7 @@ The first blank plug (in the ESSENTIAL outline) has no label. Source file of all
 
 ## Avionics static labels
 
-The glass displays, their knob and key columns and the three centre-stack units carry printed words only; none of it changes with a control state and none of it is an id (the rows are plain unit names, so the id table checks ignore them). All keys, knobs and buttons listed here are art: a tap on them only zooms, except the first MFD softkey, which is the control `sw.mfd_page` (its row is in the section "MFD softkey" above). The hardware keys under the glass show a triangle and no word; the words below stand on the glass above them (a blank slot has no tab). No maker, model or logo text appears anywhere. Source of all of it: `src/aircraft/da50rg/avionics.ts`, drawn by the frames named in the last column.
+The glass displays, their knob and key columns and the three centre-stack units carry printed words only; none of it changes with a control state and none of it is an id (the rows are plain unit names, so the id table checks ignore them). All keys, knobs and buttons listed here are art: a single tap on them does nothing and a double tap on the background only zooms into the region (R2-Z1), except the first MFD softkey, which is the control `sw.mfd_page` (its row is in the section "MFD softkey" above). The hardware keys under the glass show a triangle and no word; the words below stand on the glass above them (a blank slot has no tab). No maker, model or logo text appears anywhere. Source of all of it: `src/aircraft/da50rg/avionics.ts`, drawn by the frames named in the last column.
 
 | Unit | Static labels | Basis | File to edit |
 |------|---------------|-------|--------------|
@@ -240,7 +240,7 @@ Each question states the default the plans take. The questions do not block anyt
 - **Q-06** Should a text placard stand beside rockers at all? Default taken: No text, perspective only.
 - **Q-07** Are the dimmer scale numbers 25, 50, 75 and the FUEL TRANS marks OFF, ON real? Default taken: kept as built.
 - **Q-08** The photo shows no name GEAR above the gear knob; keep it? Default taken: kept (the owner did not object).
-- **Q-09** FADEC: does the real switch print AUTO and B beside its positions? Default taken: no text.
+- **Q-09** FADEC: AUTO stands above the switch and FORCE B below it (owner finding R2-5.2). Is AUTO the upper position of the real switch? Default taken: yes, the states are ordered force_b then auto with the default auto drawn as the upper position (plan 29); if AUTO is the lower position, swap the two states in `controls/engine.ts` and the two placards in `placards.ts`.
 - **Q-10** What is the MFD softkey legend text, and is it printed on the key? Default taken: the key shows a triangle only and the legend Engine stands on the glass above it (amended in phase 01.2; the earlier default was the word ENGINE on the key).
 - **Q-11** ELT lamp: lit when the ELT is ON only? Default taken: lit in ON only, red.
 - **Q-12** Cowl-flap lamps: lit by the lever position, each lit in its own position? Default taken: yes.
