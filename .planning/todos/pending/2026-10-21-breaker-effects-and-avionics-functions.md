@@ -17,6 +17,10 @@ Phase 01.2 draws the 51 circuit breakers, the glass display shape and the three 
 6. **Optional arming gate for breaker taps (Q2-05).** At the full view on a phone a breaker hit is about 4.5 px, so a stray touch can pull one. Default taken: no gate (literal D-02); the region zoom is the phone answer. If the owner wants a mitigation: a widget-level gate in `src/ui/panel/widgets/CircuitBreaker.tsx` that falls through to the region zoom while the on-screen hit side is under about 20 px. The tap-size rule in `viewport.ts` already knows the on-screen size.
 7. **Width decision cost (Q2-01).** Resolved by the owner: the panel space is 2180 x 1300. The recorded cost is about 8 percent smaller full-view scale on tablet and portrait phone. Revisit only if the morning review finds the tablet or portrait view too small; the way back is described in P2-01 of `docs/PANEL-REVIEW.md`.
 
+## Layout finding of the final gates (tablet)
+
+On a tablet in landscape (the `tablet-webkit` project, iPad viewport; it reproduces with the same viewport in chromium, so it is not an engine problem) the case "the Full panel button covers no breaker hit in any breaker region" in `e2e/breaker.spec.ts` fails for the region `cb_main`: the button covers the hit of `cb.main_pump`, the right breaker of row A3 (region `cb_essential`, group main), which is still in view when the MAIN region is zoomed. The two chromium gate projects (desktop, phone landscape) pass. Options: move the Full panel button on tablet-sized viewports, or scope the case to the hits of the zoomed region and accept that a neighbouring breaker is covered until the user zooms into its own region. Not fixed in plan 09 (no source change allowed there).
+
 ## Cleanup candidates (not done, src is out of scope of the documents plan)
 
 - `UnitHousing` in `src/ui/panel/frames/UnitHousing.tsx` is no longer registered in `Panel.tsx` since plan 08 (the three housed units draw their own housing). Its helpers `HousingRect` and `UnitGroup` are used; the `UnitHousing` function and its two describe blocks in `tests/avionics.test.ts` can go in a later cleanup (P2-15).
