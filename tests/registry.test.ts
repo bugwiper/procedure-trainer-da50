@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import {
+  BREAKER_GROUPS,
   BUTTON_SKINS,
   LEVER_SKINS,
   RegistryError,
@@ -9,6 +10,7 @@ import {
   legalStates,
 } from '../src/engine/registry';
 import type {
+  CircuitBreakerDef,
   ControlSpec,
   DetentLeverDef,
   GuardedToggleDef,
@@ -84,6 +86,25 @@ function button(id: string, over: Partial<MomentaryButtonDef> = {}): MomentaryBu
       { id: 'pressed', label: 'PRESSED' },
     ],
     default: 'released',
+    ...over,
+  };
+}
+
+function breaker(id: string, over: Partial<CircuitBreakerDef> = {}): CircuitBreakerDef {
+  return {
+    ...base,
+    kind: 'circuit-breaker',
+    id,
+    label: 'PITOT',
+    hit: { w: 28, h: 28 },
+    states: [
+      { id: 'in', label: 'IN' },
+      { id: 'out', label: 'OUT' },
+    ],
+    default: 'in',
+    rating: '20',
+    labelLines: ['PITOT'],
+    group: 'essential',
     ...over,
   };
 }
@@ -534,6 +555,93 @@ describe('lever skins', () => {
 
   it('rejects a skin outside the vocabulary', () => {
     expectRejected([lever('lv.odd', { skin: 'wheel' as unknown as 'gear-knob' })], 'lv.odd');
+  });
+});
+
+describe('circuit breakers (PNL-12, D-02)', () => {
+  it('builds a well-formed breaker, default in, legal states in and out', () => {
+    const registry = build([breaker('cb.pitot')]);
+    const def = registry.get('cb.pitot');
+    expect(def?.kind).toBe('circuit-breaker');
+    expect(def?.default).toBe('in');
+    expect(legalStates(def as CircuitBreakerDef)).toEqual(['in', 'out']);
+  });
+
+  it('accepts a two-line label, a compact lower-row breaker and a label shift', () => {
+    expect(() =>
+      build([
+        breaker('cb.two', { label: 'EMERG PUMP', labelLines: ['EMERG', 'PUMP'] }),
+        breaker('cb.low', { group: 'lower', compact: true, hit: { w: 24, h: 28 }, labelDx: 2 }),
+      ]),
+    ).not.toThrow();
+    expect(BREAKER_GROUPS).toEqual(['essential', 'main', 'avionics', 'lower', 'strip']);
+    for (const group of BREAKER_GROUPS) {
+      expect(() => build([breaker('cb.g', { group })])).not.toThrow();
+    }
+  });
+
+  it('rejects an id without the prefix cb., naming it', () => {
+    expectRejected([breaker('sw.pitot')], 'sw.pitot');
+    expectRejected([breaker('btn.pitot')], 'cb.');
+    expectRejected([toggle('cb.not_a_toggle')], 'cb.not_a_toggle');
+  });
+
+  it('rejects states that are not exactly in then out', () => {
+    const swapped = [
+      { id: 'out', label: 'OUT' },
+      { id: 'in', label: 'IN' },
+    ] as unknown as CircuitBreakerDef['states'];
+    expectRejected([breaker('cb.swapped', { states: swapped })], 'cb.swapped');
+    const renamed = [
+      { id: 'in', label: 'IN' },
+      { id: 'pulled', label: 'OUT' },
+    ] as unknown as CircuitBreakerDef['states'];
+    expectRejected([breaker('cb.renamed', { states: renamed })], 'cb.renamed');
+    const third = [
+      { id: 'in', label: 'IN' },
+      { id: 'out', label: 'OUT' },
+      { id: 'tripped', label: 'TRIPPED' },
+    ] as unknown as CircuitBreakerDef['states'];
+    expectRejected([breaker('cb.third', { states: third })], 'cb.third');
+  });
+
+  it('rejects a default other than in', () => {
+    expectRejected([breaker('cb.starts_out', { default: 'out' })], 'cb.starts_out');
+  });
+
+  it('rejects an empty or blank rating', () => {
+    expectRejected([breaker('cb.no_rating', { rating: '' })], 'cb.no_rating');
+    expectRejected([breaker('cb.blank_rating', { rating: '   ' })], 'cb.blank_rating');
+  });
+
+  it('rejects empty label lines, an empty line and lines that do not match the label', () => {
+    expectRejected([breaker('cb.no_lines', { labelLines: [] })], 'cb.no_lines');
+    expectRejected([breaker('cb.empty_line', { labelLines: ['PITOT', ''] })], 'cb.empty_line');
+    expectRejected([breaker('cb.blank_line', { labelLines: ['  '] })], 'cb.blank_line');
+    expectRejected([breaker('cb.typo', { labelLines: ['PITOTT'] })], 'cb.typo');
+    expectRejected([breaker('cb.extra', { labelLines: ['PITOT', 'HEAT'] })], 'cb.extra');
+  });
+
+  it('matches label lines and label ignoring whitespace only', () => {
+    expect(() =>
+      build([breaker('cb.sp', { label: 'FUEL PUMP 2', labelLines: ['FUEL', 'PUMP 2'] })]),
+    ).not.toThrow();
+  });
+
+  it('rejects a group outside the vocabulary', () => {
+    expectRejected(
+      [breaker('cb.odd_group', { group: 'cabin' as unknown as 'essential' })],
+      'cb.odd_group',
+    );
+  });
+
+  it('rejects a non-positive hit side', () => {
+    expectRejected([breaker('cb.flat', { hit: { w: 0, h: 28 } })], 'cb.flat');
+    expectRejected([breaker('cb.thin', { hit: { w: 28, h: -1 } })], 'cb.thin');
+  });
+
+  it('rejects an unknown region, naming the breaker', () => {
+    expectRejected([breaker('cb.lost', { region: 'nowhere' })], 'cb.lost');
   });
 });
 

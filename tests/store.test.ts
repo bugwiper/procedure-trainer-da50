@@ -237,3 +237,43 @@ describe('guard interlock of the real ALTERNATE switch (plan 22)', () => {
     expect(store.dispatch(SW, 'on', 5)).toEqual({ ok: false, reason: 'blocked' });
   });
 });
+
+describe('circuit breaker events (PNL-12, D-03)', () => {
+  const ID = 'cb.pitot';
+
+  it('starts pushed in', () => {
+    expect(new PanelStore(DA50RG).get(ID)).toBe('in');
+  });
+
+  it('records a pull as one user event and rejects the same value again as unchanged', () => {
+    const store = new PanelStore(DA50RG);
+    const first = store.dispatch(ID, 'out', 1500);
+    expect(first.ok).toBe(true);
+    expect(store.get(ID)).toBe('out');
+    expect(store.events()).toEqual([{ seq: 0, t: 1500, id: ID, value: 'out', source: 'user' }]);
+    expect(store.dispatch(ID, 'out', 1600)).toEqual({ ok: false, reason: 'unchanged' });
+    expect(store.events()).toHaveLength(1);
+  });
+
+  it('records the push in as a second event', () => {
+    const store = new PanelStore(DA50RG);
+    store.dispatch(ID, 'out', 1);
+    expect(store.dispatch(ID, 'in', 2).ok).toBe(true);
+    expect(store.get(ID)).toBe('in');
+    expect(store.events().map((e) => [e.seq, e.id, e.value, e.source])).toEqual([
+      [0, ID, 'out', 'user'],
+      [1, ID, 'in', 'user'],
+    ]);
+  });
+
+  it('rejects an illegal state value and an unknown breaker id, recording nothing', () => {
+    const store = new PanelStore(DA50RG);
+    expect(store.dispatch(ID, 'stuck', 1)).toEqual({ ok: false, reason: 'illegal-state' });
+    expect(store.dispatch('cb.no_such_breaker', 'out', 2)).toEqual({
+      ok: false,
+      reason: 'unknown',
+    });
+    expect(store.events()).toHaveLength(0);
+    expect(store.get(ID)).toBe('in');
+  });
+});

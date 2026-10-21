@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import type {
+  CircuitBreakerDef,
   ControlDef,
   DetentLeverDef,
   GuardedToggleDef,
@@ -9,6 +10,7 @@ import type {
   ToggleDef,
 } from '../src/engine/registry';
 import { BatBody } from '../src/ui/panel/skins/Bat';
+import { BreakerBody } from '../src/ui/panel/skins/Breaker';
 import { RockerBody } from '../src/ui/panel/skins/Rocker';
 import { PushButtonBody } from '../src/ui/panel/skins/PushButton';
 import type { PressedSide } from '../src/ui/panel/skins/PushButton';
@@ -183,6 +185,31 @@ describe('knob family text is state-independent', () => {
           ).toHaveLength(0);
           expect(textStrings(tree), id).toEqual(first);
           expect(countElements(tree), id).toBeLessThanOrEqual(40);
+        }
+      }
+    }
+  });
+});
+
+describe('circuit breaker family text is state-independent', () => {
+  const breakers = DA50RG.controls.filter(
+    (c): c is CircuitBreakerDef => c.kind === 'circuit-breaker',
+  );
+
+  it('every breaker in both states: the label lines and the rating only, no state text, at most 12 elements', () => {
+    expect(breakers.length).toBeGreaterThan(0);
+    for (const def of breakers) {
+      const expected = [...def.labelLines, def.rating].sort();
+      for (const state of def.states.map((s) => s.id)) {
+        for (const pressed of [false, true]) {
+          const tree = expand(BreakerBody({ def, state, pressed }));
+          const id = `${def.id}/${state}/${String(pressed)}`;
+          expect(
+            findElements(tree, (el) => 'data-state-text' in el.props),
+            id,
+          ).toHaveLength(0);
+          expect(textStrings(tree), id).toEqual(expected);
+          expect(countElements(tree), id).toBeLessThanOrEqual(12);
         }
       }
     }

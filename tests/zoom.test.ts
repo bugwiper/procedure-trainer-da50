@@ -156,6 +156,28 @@ describe('targetSide', () => {
     expect(targetSide(elt)).toBe(26);
   });
 
+  it('a circuit breaker counts the smaller hit side (one tap toggles, the whole hit is the target)', () => {
+    const base = {
+      kind: 'circuit-breaker' as const,
+      id: 'cb.fixture',
+      label: 'FIXTURE',
+      region: 'cb_essential',
+      x: 50,
+      y: 50,
+      states: [
+        { id: 'in', label: 'IN' },
+        { id: 'out', label: 'OUT' },
+      ] as const,
+      default: 'in',
+      rating: '5',
+      labelLines: ['FIXTURE'],
+      group: 'lower' as const,
+    };
+    expect(targetSide({ ...base, hit: { w: 28, h: 28 } })).toBe(28);
+    expect(targetSide({ ...base, hit: { w: 24, h: 28 }, compact: true })).toBe(24);
+    expect(targetSide({ ...base, hit: { w: 30, h: 26 } })).toBe(26);
+  });
+
   it('includes the lifted-guard area for guarded toggles and guards', () => {
     const base = {
       label: 'X',
@@ -253,6 +275,22 @@ describe('zoomed tap-size guarantee (D-21)', () => {
       expect(checked).toBeGreaterThan(0);
     });
   }
+
+  it('the breaker region cb_essential keeps the 28 x 28 breaker at full size on every profile', () => {
+    const region = DA50RG.regions.find((r) => r.id === 'cb_essential');
+    expect(region?.controlIds).toContain('cb.pitot');
+    if (region === undefined) return;
+    const pitot = DA50RG.get('cb.pitot');
+    if (pitot === undefined) return;
+    expect(targetSide(pitot)).toBe(28);
+    for (const [name, screen] of Object.entries(VIEW_PROFILES)) {
+      const scale = fitScale(zoomRect(region.bounds, VIEWBOX), screen);
+      expect(targetSide(pitot) * scale, name).toBeGreaterThanOrEqual(MIN_TAP_PX);
+    }
+    // The phone profile is the tightest: 51.3 px (UI-SPEC 01.2, Table W2).
+    const phone = fitScale(zoomRect(region.bounds, VIEWBOX), VIEW_PROFILES.phone) * 28;
+    expect(phone).toBeCloseTo(51.3, 1);
+  });
 
   it('portrait via pinch: a MIN_VIEW_WIDTH-wide view brings every control to 44 px', () => {
     const screen = { w: 393, h: 631 };
