@@ -80,6 +80,13 @@ export const REGIONS: readonly RegionDef[] = [
   // The softkey strip under the PFD screen: 12 inert keys, art only (no control). Ends at x 835
   // because landing_gear starts at 836 and a key may not leave its region; y 570 is below pfd (567).
   { id: 'pfd_softkeys', name: 'PFD SOFTKEYS', bounds: { x: 356, y: 570, w: 479, h: 38 } },
+  // Right knob column of the PFD, in the free space between the PFD bezel (ends x 873) and the
+  // audio panel; ends at y 574, above landing_gear (575). View-only: holds no control (D-05).
+  { id: 'pfd_bezel_right', name: 'PFD KNOBS RIGHT', bounds: { x: 875, y: 196, w: 68, h: 378 } },
+  // Audio panel beside the PFD column, left of the dimmer knobs (light_knobs starts at x 1010).
+  { id: 'audio_panel', name: 'AUDIO PANEL', bounds: { x: 946, y: 196, w: 60, h: 378 } },
+  // Backup EFIS (static item, D-06) below the dimmer knobs (light_knobs ends y 290).
+  { id: 'standby_efis', name: 'BACKUP EFIS', bounds: { x: 1026, y: 296, w: 120, h: 278 } },
   // Under the left column and the PFD.
   { id: 'switch_bank', name: 'SWITCH ROW', bounds: { x: 70, y: 621, w: 764, h: 84 } },
   // Gear lever, gear lamps and the STALL/GEAR TEST part.

@@ -323,35 +323,15 @@ function LightsRecess() {
   );
 }
 
-/** One plain recessed outline that reserves the space of a Phase 01.2 avionics unit. */
-function ReservedOutline({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
-  return (
-    <rect
-      data-shell="reserved-outline"
-      x={x}
-      y={y}
-      width={w}
-      height={h}
-      rx={4}
-      fill="#0b0c0e"
-      stroke={RIM}
-      stroke-width={1}
-    />
-  );
-}
-
 /**
- * Layer 8: centre stack plate x 880..1240, y 185..560. The audio panel column, the standby
- * instrument and the autopilot column are outlines only (Phase 01.2 draws them); they start
- * below the two dimmer knobs (y 300).
+ * Layer 8: centre stack plate x 875..1160, y 185..575. The audio panel, the backup EFIS and the
+ * PFD right knob column are regions that draw their own housing (phase 01.2 plan 06), so the
+ * shell draws the plate only.
  */
 function CentreStack() {
   return (
     <g data-shell="centre-stack">
       <Plate id="centre-stack" />
-      <ReservedOutline x={892} y={300} w={76} h={248} />
-      <ReservedOutline x={982} y={300} w={156} h={140} />
-      <ReservedOutline x={1152} y={300} w={76} h={248} />
     </g>
   );
 }

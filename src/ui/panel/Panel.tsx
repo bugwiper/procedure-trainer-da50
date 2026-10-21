@@ -7,6 +7,7 @@ import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
 import { PfdFrame } from './frames/PfdFrame';
 import { SoftkeysFrame } from './frames/SoftkeysFrame';
+import { UnitHousing } from './frames/UnitHousing';
 import { PanelShell } from './PanelShell';
 import { IndicatorLight } from './widgets/IndicatorLight';
 import { attachZoomGestures, viewBoxAttr } from './zoom';
@@ -18,6 +19,10 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   // Inert key art (the keys that are not controls) of the softkey rows below the displays.
   mfd_softkeys: SoftkeysFrame,
   pfd_softkeys: SoftkeysFrame,
+  // Inert avionics units: housing and a not-operable label, no control, no handler (D-05, D-06).
+  pfd_bezel_right: UnitHousing,
+  audio_panel: UnitHousing,
+  standby_efis: UnitHousing,
 };
 
 /**

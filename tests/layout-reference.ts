@@ -361,7 +361,7 @@ export const ORDERING: readonly OrderRow[] = [
 
 /**
  * Every region id of the panel, written out independently of REGIONS: the 19 regions of phase
- * 01.1 plus the circuit-breaker regions of phase 01.2 (a later plan appends its own). The unit
+ * 01.1 plus the circuit-breaker regions and the avionics unit regions of phase 01.2. The unit
  * inventory and the built-panel layout spec both count against this table.
  */
 export const ALL_REGION_IDS: readonly string[] = [
@@ -389,6 +389,9 @@ export const ALL_REGION_IDS: readonly string[] = [
   'cb_main',
   'cb_low',
   'cb_strip',
+  'pfd_bezel_right',
+  'audio_panel',
+  'standby_efis',
 ];
 
 export const FRONT_PANEL_REGIONS: readonly string[] = [
@@ -410,6 +413,9 @@ export const FRONT_PANEL_REGIONS: readonly string[] = [
   'cb_main',
   'cb_low',
   'cb_strip',
+  'pfd_bezel_right',
+  'audio_panel',
+  'standby_efis',
 ];
 
 export const UNDER_PANEL_REGIONS: readonly string[] = [

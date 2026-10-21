@@ -17,7 +17,18 @@ export interface PlateDef {
 
 export const PLATES: readonly PlateDef[] = [
   { id: 'lights-recess', x: 940, y: 36, w: 360, h: 134, rx: 12, regions: ['lights'] },
-  { id: 'centre-stack', x: 880, y: 185, w: 360, h: 375, rx: 8, regions: ['light_knobs'] },
+  // Centre stack (phase 01.2 plan 06): dimmer knobs, the PFD right knob column, the audio panel and
+  // the backup EFIS. Ends x 1160 (the autopilot unit plate starts at 1162) and y 575 (the gear
+  // plate starts at 580).
+  {
+    id: 'centre-stack',
+    x: 875,
+    y: 185,
+    w: 285,
+    h: 390,
+    rx: 8,
+    regions: ['light_knobs', 'pfd_bezel_right', 'audio_panel', 'standby_efis'],
+  },
   // De-ice unit (plan 21, owner finding G-1): taller than before, the upper block (MAX, mode toggle,
   // lamps, ALTERNATE) sits above the switch rows. The engine plate below starts at 474.
   { id: 'deice', x: 80, y: 205, w: 180, h: 265, rx: 8, regions: ['deice', 'deice_switches'] },

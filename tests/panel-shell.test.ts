@@ -186,11 +186,21 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
     expect(findElements(shell, (el) => el.props['data-shell'] === layer).length).toBeGreaterThan(0);
   });
 
-  it('draws two display bezels and three reserved centre-stack outlines', () => {
+  it('draws two display bezels and no placeholder outline on the centre stack', () => {
     expect(findElements(shell, (el) => el.props['data-shell'] === 'bezel')).toHaveLength(2);
-    expect(findElements(shell, (el) => el.props['data-shell'] === 'reserved-outline')).toHaveLength(
-      3,
-    );
+    expect(findElements(shell, (el) => el.props['data-shell'] === 'reserved-outline')).toEqual([]);
+    const stack = findElements(shell, (el) => el.props['data-shell'] === 'centre-stack')[0];
+    const plate = findElements(
+      stack ?? shell,
+      (el) => el.props['data-plate'] === 'centre-stack',
+    )[0];
+    expect([
+      plate?.props['x'],
+      plate?.props['y'],
+      plate?.props['width'],
+      plate?.props['height'],
+    ]).toEqual([875, 185, 285, 390]);
+    expect(plate?.props['fill']).toBe('#101215');
   });
 
   it.each([

@@ -151,7 +151,7 @@ describe('viewBox and regions', () => {
     for (const [id, bounds] of Object.entries(expected)) {
       expect(regionBounds(id), id).toEqual(bounds);
     }
-    expect(DA50RG.regions).toHaveLength(24);
+    expect(DA50RG.regions).toHaveLength(ALL_REGION_IDS.length);
   });
 
   it('no two regions overlap with positive area', () => {
@@ -616,6 +616,89 @@ describe('plates', () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+// Phase 01.2 plan 06: the inert avionics units. The numbers are typed in by hand from the UI-SPEC
+// tables (E1 regions, E2 plates), never read from the data files under test.
+describe('avionics unit regions and plates (plan 06)', () => {
+  const UNIT_REGIONS: readonly (readonly [string, string, number, number, number, number])[] = [
+    ['pfd_bezel_right', 'PFD KNOBS RIGHT', 875, 196, 68, 378],
+    ['audio_panel', 'AUDIO PANEL', 946, 196, 60, 378],
+    ['standby_efis', 'BACKUP EFIS', 1026, 296, 120, 278],
+  ];
+  const UNIT_PLATES: readonly (readonly [string, number, number, number, number, number])[] = [
+    ['centre-stack', 875, 185, 285, 390, 8],
+  ];
+
+  it.each(UNIT_REGIONS)(
+    'region %s has the Table E1 bounds and holds no control',
+    (id, name, x, y, w, h) => {
+      const region = DA50RG.regions.find((r) => r.id === id);
+      expect(region).toBeDefined();
+      expect(region?.name).toBe(name);
+      expect(region?.bounds).toEqual({ x, y, w, h });
+      expect(region?.controlIds).toEqual([]);
+      expect(inside({ x, y, w, h }, { x: 0, y: 0, w: PANEL_VIEWBOX.w, h: PANEL_VIEWBOX.h })).toBe(
+        true,
+      );
+    },
+  );
+
+  it('no region overlaps another region', () => {
+    const regions = DA50RG.regions;
+    for (let i = 0; i < regions.length; i++) {
+      for (let j = i + 1; j < regions.length; j++) {
+        const a = regions[i];
+        const b = regions[j];
+        if (a === undefined || b === undefined) continue;
+        expect(overlaps(a.bounds, b.bounds), `${a.id} / ${b.id}`).toBe(false);
+      }
+    }
+  });
+
+  it.each(UNIT_PLATES)('plate %s has the Table E2 rectangle', (id, x, y, w, h, rx) => {
+    const plate = PLATES.find((p) => p.id === id);
+    expect(plate).toBeDefined();
+    expect([plate?.x, plate?.y, plate?.w, plate?.h, plate?.rx]).toEqual([x, y, w, h, rx]);
+  });
+
+  it('the centre-stack plate carries the dimmer knobs, the PFD right column, audio and backup EFIS', () => {
+    const plate = PLATES.find((p) => p.id === 'centre-stack');
+    expect([...(plate?.regions ?? [])]).toEqual([
+      'light_knobs',
+      'pfd_bezel_right',
+      'audio_panel',
+      'standby_efis',
+    ]);
+  });
+
+  it('both dimmer knob footprints still lie inside the centre-stack plate', () => {
+    const plate = PLATES.find((p) => p.id === 'centre-stack');
+    if (plate === undefined) throw new Error('no centre-stack plate');
+    for (const id of ['sw.instr_light', 'sw.flood_light']) {
+      const def = DA50RG.get(id);
+      if (def === undefined) throw new Error(`no ${id}`);
+      const c = globalCentre(def);
+      const f: Rect = {
+        x: c.x - def.hit.w / 2,
+        y: c.y - def.hit.h / 2,
+        w: def.hit.w,
+        h: def.hit.h,
+      };
+      expect(inside(f, { x: plate.x, y: plate.y, w: plate.w, h: plate.h }), id).toBe(true);
+    }
+  });
+
+  it('the dimmer knobs keep their positions', () => {
+    for (const [id, x, y] of [
+      ['sw.instr_light', 1047, 238],
+      ['sw.flood_light', 1126, 238],
+    ] as const) {
+      const def = DA50RG.get(id);
+      if (def === undefined) throw new Error(`no ${id}`);
+      expect(globalCentre(def)).toEqual({ x, y });
+    }
   });
 });
 

@@ -15,6 +15,7 @@ import type { PanelBridge } from '../src/ui/bridge';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
 import { SoftkeysFrame } from '../src/ui/panel/frames/SoftkeysFrame';
+import { UnitHousing } from '../src/ui/panel/frames/UnitHousing';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { El } from './vnode-walk';
 
@@ -452,5 +453,53 @@ describe('glass header, content and legend zones', () => {
     expect(title?.props['y']).toBe(46);
     const arcs = findElements(page, (e) => e.props['data-gauge'] !== undefined);
     expect(arcs).toHaveLength(12);
+  });
+});
+
+// Plan 06: region-owned housings of the inert avionics units (D-05, D-06, T-01.2-11). The housing
+// of audio, backup EFIS and autopilot is a rounded rectangle equal to the region frame; the three
+// bezel columns draw no housing (the unit plate is theirs). Every unit group is announced as not
+// operable, carries data-unit, hides its children and holds no handler or hit rectangle.
+const UNIT_NAMES: Readonly<Record<string, string>> = {
+  audio_panel: 'AUDIO PANEL',
+  standby_efis: 'BACKUP EFIS',
+};
+
+describe('UnitHousing', () => {
+  const render = (id: string) =>
+    expand(UnitHousing({ region: region(id), bridge: fakeBridge('map') }));
+
+  it.each(Object.keys(UNIT_NAMES))('%s is a not-operable image group with its housing', (id) => {
+    const tree = render(id);
+    expect(tree.tag).toBe('g');
+    expect(tree.props['role']).toBe('img');
+    expect(tree.props['aria-label']).toBe(`${UNIT_NAMES[id]} (NOT OPERABLE)`);
+    expect(tree.props['data-unit']).toBe(id);
+    const { w, h } = region(id).bounds;
+    const housing = findElements(tree, (e) => e.props['data-unit-housing'] !== undefined);
+    expect(housing).toHaveLength(1);
+    expect(housing[0]?.tag).toBe('rect');
+    expect(
+      ['x', 'y', 'width', 'height', 'rx', 'fill', 'stroke', 'stroke-width'].map(
+        (k) => housing[0]?.props[k],
+      ),
+    ).toEqual([0, 0, w, h, 4, '#0c0d0f', '#2d3138', 1]);
+  });
+
+  it.each(Object.keys(UNIT_NAMES))('%s carries no handler, hit rectangle or control id', (id) => {
+    const offenders = findElements(render(id), (el) =>
+      Object.keys(el.props).some(
+        (k) =>
+          /^on[A-Z]/.test(k) || k === 'data-hit' || k === 'data-control-id' || k === 'tabindex',
+      ),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it.each(Object.keys(UNIT_NAMES))('%s children are hidden from assistive technology', (id) => {
+    const tree = render(id);
+    const wrapper = findElements(tree, (e) => e.props['data-unit-art'] !== undefined)[0];
+    expect(wrapper?.props['aria-hidden']).toBe('true');
+    expect(wrapper?.props['pointer-events']).toBe('none');
   });
 });
