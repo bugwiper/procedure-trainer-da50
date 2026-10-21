@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
-current_plan: 21 (complete)
+current_plan: 22 (complete)
 status: executing
-stopped_at: Completed 01.1-21-PLAN.md
-last_updated: "2026-10-21T00:23:04.550Z"
+stopped_at: Completed 01.1-22-PLAN.md
+last_updated: "2026-10-21T00:34:37.113Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 139d90601c0d879ab50ca7499b301f75dfd04913
+state_head: 1306fde4eaa04c5e3b336ee7b4916c3857e3c223
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 32
-  completed_plans: 30
+  completed_plans: 31
   percent: 14
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.1 (Panel shape, controls and indicator lights) — GAP CLOSURE IN PROGRESS (plans 12 to 23 from the owner first-render review)
-Current Plan: 21 (complete)
+Current Plan: 22 (complete)
 Total Plans in Phase: 23
-Status: Plans 01.1-01 to 01.1-21 complete; plan 21 built the upper half of the de-ice unit (nameless three-position HIGH / NORM / OFF mode toggle with placards, amber, amber and white lamps, black MAX button, ALTERNATE at its final place; the 120 s MAX run is deferred to the engine phase behind the flag deice.max_active); plans 22 and 23 pending
-Last activity: 2026-10-21 — Plan 01.1-21 complete (de-ice unit, upper half)
+Status: Plans 01.1-01 to 01.1-22 complete; plan 22 finished the de-ice unit (framed DE ICE heading, ALTERNATE as the normal toggle under a rebuilt red guard with stacked letters, black momentary WIND SHIELD button, three-position ICE LIGHT / ANNUN-TEST toggle, two-way PUMP toggle; no de-ice region is on an open list of the gates any more; spray, self-test and ice light stay inert until the scenarios); plan 23 pending
+Last activity: 2026-10-21 — Plan 01.1-22 complete (de-ice unit, lower row, ALTERNATE and heading)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -116,6 +116,8 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Plan 19: levers may be nameless and choose their legends; pedestal placards drawn after every plate; throttle label THROTTLE with id lv.power
 - [Phase 01.1]: Plan 20: environmental group boxes and plate title are shell art (plates.ts), so all four environmental controls are nameless; FAN has OFF plus three stops with fan symbols
 - [Phase 01.1]: Plan 21: the 120 s MAX run is deferred to the engine phase; lt.deice_max reads the unset flag deice.max_active (no engine clock in phase 01.1)
+- [Phase 01.1]: Plan 01.1-22: the ICE LIGHT and PUMP toggles are 69 tall (thirds of 23 units) so the pinch-in tap-size gate keeps 44 px; one fixed bat throw (BAT_THROW 14) for every bat
+- [Phase 01.1]: Plan 01.1-22: a guarded toggle without rocker size and colour draws the bat toggle (ALTERNATE: states on, off, guarded position up); the guard cover is the only red part
 
 ### Pending Todos
 
@@ -145,6 +147,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T00:23:04.457Z
-Stopped at: Completed 01.1-21-PLAN.md
+Last session: 2026-10-21T00:34:30.373Z
+Stopped at: Completed 01.1-22-PLAN.md
 Resume file: None
