@@ -1,19 +1,22 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { PANEL_VIEWBOX } from '../tests/layout-reference';
+import {
+  FULL_VIEWBOX,
+  activate,
+  activateAt,
+  backgroundPoint,
+  doubleActivateAt,
+  zoomIntoRegion,
+} from './support/zoom';
+import type { Point } from './support/zoom';
 
 // Region zoom (PNL-09, PNL-06, D-20, D-21): tap or click a region's background to zoom in,
 // operate its controls at full tap size, zoom back out; pinch, pan and gesture arbitration.
 
-const FULL_VIEWBOX = `0 0 ${PANEL_VIEWBOX.w} ${PANEL_VIEWBOX.h}`;
 const MIN_TAP_PX = 43.5;
 const PORTRAIT_NOTE =
   'Portrait phones are covered by the rotate hint (D-02); pinch zoom reaches full tap size there';
-
-interface Point {
-  x: number;
-  y: number;
-}
 
 interface Box {
   x: number;
@@ -28,79 +31,6 @@ function control(page: Page, id: string): Locator {
 
 function viewBoxOf(page: Page): Promise<string | null> {
   return page.getByTestId('panel').getAttribute('viewBox');
-}
-
-/**
- * A page point inside the region's frame that is visible on screen, outside the "Full panel"
- * button and as far as possible from every tap target of the whole panel (at least 1.5 px), away from the frame edge.
- */
-async function backgroundPoint(page: Page, regionId: string): Promise<Point> {
-  const point = await page.evaluate((id) => {
-    const region = document.querySelector(`[data-region-id="${id}"]`);
-    if (region === null) return null;
-    const frame = region.querySelector('[data-region-frame]');
-    if (frame === null) return null;
-    const box = frame.getBoundingClientRect();
-    const targets = Array.from(document.querySelectorAll('[data-hit], [data-detent]')).map((el) =>
-      el.getBoundingClientRect(),
-    );
-    const button = document.querySelector('[data-testid="zoom-out"]')?.getBoundingClientRect();
-    const screenW = document.documentElement.clientWidth;
-    const screenH = document.documentElement.clientHeight - 28;
-    const clearance = (x: number, y: number): number => {
-      let best = Infinity;
-      for (const t of targets) {
-        const dx = Math.max(t.left - x, 0, x - t.right);
-        const dy = Math.max(t.top - y, 0, y - t.bottom);
-        best = Math.min(best, Math.hypot(dx, dy));
-      }
-      return best;
-    };
-    let found: { x: number; y: number } | null = null;
-    let bestClearance = 1.5;
-    const steps = 48;
-    for (let i = 0; i < steps; i++) {
-      for (let j = 0; j < steps; j++) {
-        const x = box.left + (0.1 + (0.8 * (i + 0.5)) / steps) * box.width;
-        const y = box.top + (0.1 + (0.8 * (j + 0.5)) / steps) * box.height;
-        if (x < 2 || y < 2 || x > screenW - 2 || y > screenH - 2) continue;
-        const underButton =
-          button !== undefined &&
-          x >= button.left - 4 &&
-          x <= button.right + 4 &&
-          y >= button.top - 4 &&
-          y <= button.bottom + 4;
-        if (underButton) continue;
-        const c = clearance(x, y);
-        if (c > bestClearance) {
-          bestClearance = c;
-          found = { x, y };
-        }
-      }
-    }
-    return found;
-  }, regionId);
-  if (point === null) throw new Error(`no background point in region ${regionId}`);
-  return point;
-}
-
-async function activateAt(page: Page, p: Point, hasTouch: boolean): Promise<void> {
-  if (hasTouch) await page.touchscreen.tap(p.x, p.y);
-  else await page.mouse.click(p.x, p.y);
-}
-
-async function activate(target: Locator, hasTouch: boolean): Promise<void> {
-  if (hasTouch) await target.tap();
-  else await target.click();
-}
-
-async function doubleActivateAt(page: Page, p: Point, hasTouch: boolean): Promise<void> {
-  if (hasTouch) {
-    await page.touchscreen.tap(p.x, p.y);
-    await page.touchscreen.tap(p.x, p.y);
-  } else {
-    await page.mouse.dblclick(p.x, p.y);
-  }
 }
 
 async function sizes(
@@ -248,12 +178,7 @@ test('every region with controls reaches full tap size when zoomed', async ({
   const regions = await regionsWithControls(page);
   expect(regions.length).toBeGreaterThanOrEqual(8);
   for (const id of regions) {
-    if ((await page.getByTestId('zoom-out').count()) > 0) {
-      await activate(page.getByTestId('zoom-out'), hasTouch);
-      await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
-    }
-    await activateAt(page, await backgroundPoint(page, id), hasTouch);
-    await expect(page.getByTestId('panel'), id).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+    await zoomIntoRegion(page, hasTouch, id);
     for (const s of await sizes(page, id)) {
       expect(s.w, `${id} ${s.id}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
       expect(s.h, `${id} ${s.id}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
@@ -348,9 +273,7 @@ test('from an intermediate pinch level a single tap zooms fully out', async ({
 
 test('a background drag while zoomed pans and does not zoom out', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop mouse path');
-  const click = await backgroundPoint(page, 'mfd');
-  await page.mouse.click(click.x, click.y);
-  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await zoomIntoRegion(page, false, 'mfd');
   await afterSuppression(page);
   const zoomed = await viewNumbers(page);
   const from = await backgroundPoint(page, 'mfd');
@@ -368,8 +291,7 @@ test('the Full panel button stays above the footer and the rotate hint', async (
   page,
   hasTouch,
 }, testInfo) => {
-  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
-  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await zoomIntoRegion(page, hasTouch, 'switch_bank');
   const button = page.getByTestId('zoom-out');
   await expect(button).toBeVisible();
 
@@ -414,8 +336,7 @@ test('a lever drag while zoomed is never hijacked', async ({ page }, testInfo) =
   const name = testInfo.project.name;
   test.skip(name !== 'phone-chromium' && name !== 'desktop-chromium', 'Chromium drags only');
   const touch = name === 'phone-chromium';
-  await activateAt(page, await backgroundPoint(page, 'pedestal'), touch);
-  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await zoomIntoRegion(page, touch, 'pedestal');
   const before = await viewBoxOf(page);
   const spare = await backgroundPoint(page, 'pedestal');
 
