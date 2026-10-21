@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 27/31 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch)
+**Plans:** 28/31 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch)
 
 Plans:
 **Wave 1**
@@ -149,7 +149,7 @@ Plans:
 - [x] 01.1-27-PLAN.md — R2-4.2: parking brake as a hinged flap in pseudo-perspective, a tap toggles
 
 **Wave 22**
-- [ ] 01.1-28-PLAN.md — R2-4.1: FAN with four direct click spots, art and stops unchanged
+- [x] 01.1-28-PLAN.md — R2-4.1: FAN with four direct click spots, art and stops unchanged
 
 **Wave 23**
 - [ ] 01.1-29-PLAN.md — R2-5.2: engine strip, FADEC and ALTERNATOR groups with bracket lines, headings, AUTO, FORCE B, TEST, ON, OFF and the framed numerals 1 and 2
