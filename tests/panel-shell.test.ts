@@ -84,10 +84,17 @@ describe('Defs', () => {
   const defs = expand(Defs());
   const idOf = (el: { props: Readonly<Record<string, unknown>> }) => el.props['id'];
 
-  it('defines exactly the eleven DefId ids, once each', () => {
+  it('defines exactly the twelve DefId ids, once each', () => {
     const ids = findElements(defs, (el) => typeof idOf(el) === 'string').map(idOf);
+    expect(DEF_IDS).toHaveLength(12);
     expect([...ids].sort()).toEqual([...DEF_IDS].sort());
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('has the amber lamp halo as a radial gradient of at most three stops', () => {
+    const halo = findElements(defs, (el) => idOf(el) === 'g-halo-amber');
+    expect(halo).toHaveLength(1);
+    expect(halo[0]?.tag).toBe('radialGradient');
   });
 
   it('prefixes every id with g- or p-', () => {
@@ -99,7 +106,7 @@ describe('Defs', () => {
       defs,
       (el) => el.tag === 'linearGradient' || el.tag === 'radialGradient',
     );
-    expect(gradients.length).toBe(9);
+    expect(gradients.length).toBe(10);
     for (const g of gradients) {
       const stops = g.children.filter((c) => typeof c !== 'string' && c.tag === 'stop');
       expect(stops.length).toBeGreaterThanOrEqual(2);

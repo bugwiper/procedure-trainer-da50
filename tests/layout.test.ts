@@ -523,3 +523,61 @@ describe('plates', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// Owner finding G-1: the upper block of the de-ice unit. Three lamps stand between the mode toggle
+// and the guarded ALTERNATE switch, top to bottom amber, amber, white, all inside region deice and
+// clear of every control footprint of that region (local coordinates, same region).
+describe('de-ice upper block (plan 21, G-1)', () => {
+  const LAMP_IDS = ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm'] as const;
+  const lamp = (id: string) => {
+    const d = DA50RG_INDICATORS.get(id);
+    if (d === undefined) throw new Error(`no lamp ${id}`);
+    return d;
+  };
+  const bezel = (id: string): Rect => {
+    const d = lamp(id);
+    const reach = d.r + BEZEL_EXTRA;
+    return { x: d.x - reach, y: d.y - reach, w: 2 * reach, h: 2 * reach };
+  };
+
+  it('has three lamps of r 15 with no caption, amber, amber, white from the top', () => {
+    expect(LAMP_IDS.map((id) => lamp(id).colour)).toEqual(['amber', 'amber', 'white']);
+    for (const id of LAMP_IDS) {
+      expect(lamp(id).r, id).toBe(15);
+      expect(lamp(id).caption, id).toBe('none');
+      expect(lamp(id).region, id).toBe('deice');
+    }
+  });
+
+  it('stacks the lamps top to bottom in one column with their bezels apart', () => {
+    const [a, b, c] = LAMP_IDS.map((id) => lamp(id));
+    expect(a?.x).toBe(b?.x);
+    expect(b?.x).toBe(c?.x);
+    expect(a?.y ?? 0).toBeLessThan(b?.y ?? 0);
+    expect(b?.y ?? 0).toBeLessThan(c?.y ?? 0);
+    expect(overlaps(bezel('lt.deice_max'), bezel('lt.deice_high'))).toBe(false);
+    expect(overlaps(bezel('lt.deice_high'), bezel('lt.deice_norm'))).toBe(false);
+  });
+
+  it('keeps every lamp bezel inside region deice and off every control footprint of it', () => {
+    const region = regionBounds('deice');
+    const local: Rect = { x: 0, y: 0, w: region.w, h: region.h };
+    const controls = DA50RG.controls.filter((c) => c.region === 'deice');
+    expect(controls.length).toBeGreaterThanOrEqual(3);
+    for (const id of LAMP_IDS) {
+      expect(inside(bezel(id), local), `${id} inside the region`).toBe(true);
+      for (const c of controls) {
+        expect(overlaps(bezel(id), footprint(c)), `${id} over ${c.id}`).toBe(false);
+        if (c.kind === 'guard') {
+          const open: Rect = {
+            x: c.x + c.openHit.x,
+            y: c.y + c.openHit.y,
+            w: c.openHit.w,
+            h: c.openHit.h,
+          };
+          expect(overlaps(bezel(id), open), `${id} over the open guard`).toBe(false);
+        }
+      }
+    }
+  });
+});

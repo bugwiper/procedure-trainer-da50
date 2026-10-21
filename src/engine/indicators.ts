@@ -7,7 +7,7 @@
 import { CONTROL_ID_PATTERN } from './registry';
 import type { ControlId, Registry, StateId } from './registry';
 
-export type IndicatorColour = 'green' | 'red' | 'white';
+export type IndicatorColour = 'green' | 'red' | 'white' | 'amber';
 
 export interface IndicatorInputs {
   /** Only the controls named in the spec's reads. */

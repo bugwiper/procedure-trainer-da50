@@ -21,6 +21,7 @@ export const LAMP_COLOURS: Readonly<
   green: { lit: '#3ddc84', unlit: '#16241c', ring: '#35453b', halo: 'g-halo-green' },
   red: { lit: '#ff4338', unlit: '#2a1416', ring: '#4a2a2d', halo: 'g-halo-red' },
   white: { lit: '#f6f8fa', unlit: '#24272b', ring: '#484d54', halo: 'g-halo-white' },
+  amber: { lit: '#ffb81c', unlit: '#2a2110', ring: '#4a3d22', halo: 'g-halo-amber' },
 };
 
 export interface LampBodyProps {

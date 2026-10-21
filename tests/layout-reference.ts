@@ -71,7 +71,7 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lv.cowl_flap', x: 1058, y: 1218, tol: 8, review: true },
 ];
 
-/** The eleven derived lamps (seven gear and flap lamps, the ELT lamp, two cowl-flap lamps, de-ice NORM). */
+/** The thirteen derived lamps (seven gear and flap lamps, the ELT lamp, two cowl-flap lamps, three de-ice lamps). */
 export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.gear_nose', x: 916, y: 682, tol: 8, review: true },
   { id: 'lt.gear_left', x: 894, y: 714, tol: 8, review: true },
@@ -83,6 +83,8 @@ export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.elt', x: 1752, y: 656, tol: 8, review: true },
   { id: 'lt.cowl_open', x: 1022, y: 1188, tol: 8, review: true },
   { id: 'lt.cowl_closed', x: 1022, y: 1248, tol: 8, review: true },
+  { id: 'lt.deice_max', x: 164, y: 256, tol: 12, review: true },
+  { id: 'lt.deice_high', x: 164, y: 298, tol: 12, review: true },
   { id: 'lt.deice_norm', x: 164, y: 340, tol: 12, review: true },
 ];
 
@@ -156,8 +158,12 @@ export const ORDERING: readonly OrderRow[] = [
   // De-ice panel.
   ['sw.deice_mode', 'left-of', 'sw.deice_alternate'],
   ['sw.deice_mode', 'above', 'sw.deice_windshield'],
-  ['lt.deice_norm', 'right-of', 'sw.deice_mode'],
-  ['lt.deice_norm', 'left-of', 'sw.deice_alternate'],
+  ['lt.deice_max', 'above', 'lt.deice_high'],
+  ['lt.deice_high', 'above', 'lt.deice_norm'],
+  ...['lt.deice_max', 'lt.deice_high', 'lt.deice_norm'].flatMap((id): OrderRow[] => [
+    [id, 'right-of', 'sw.deice_mode'],
+    [id, 'left-of', 'sw.deice_alternate'],
+  ]),
   ...chain(['sw.deice_windshield', 'sw.deice_ice_light', 'sw.deice_pump2'], 'left-of'),
   ...chain(['sw.deice_windshield', 'sw.deice_ice_light', 'sw.deice_pump2'], 'same-row'),
   ['btn.deice_annun_test', 'left-of', 'sw.deice_pump1'],

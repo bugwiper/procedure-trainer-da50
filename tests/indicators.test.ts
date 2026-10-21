@@ -3,7 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   DA50RG_INDICATORS,
+  DEICE_MAX_ACTIVE,
   GEAR_IN_TRANSIT,
+  deiceLamps,
   flapLamps,
   gearLamps,
 } from '../src/aircraft/da50rg/indicators';
@@ -89,8 +91,8 @@ describe('flapLamps', () => {
 });
 
 describe('DA50RG indicators', () => {
-  it('has eleven lamps and no group readouts, all indicator ids outside the control registry', () => {
-    expect(DA50RG_INDICATORS.indicators).toHaveLength(11);
+  it('has thirteen lamps and no group readouts, all indicator ids outside the control registry', () => {
+    expect(DA50RG_INDICATORS.indicators).toHaveLength(13);
     expect(Object.keys(DA50RG_INDICATORS).sort()).toEqual(['get', 'inRegion', 'indicators']);
     for (const def of DA50RG_INDICATORS.indicators) {
       expect(def.id.startsWith('lt.')).toBe(true);
@@ -210,6 +212,59 @@ describe('DA50RG indicators', () => {
     }
     // The store default (mode off) leaves it dark.
     expect(litMap(new PanelStore(DA50RG).snapshot())['lt.deice_norm']).toBe(false);
+  });
+
+  it('the de-ice lamps follow Table I2: NORM white, HIGH amber, MAX amber behind the flag', () => {
+    expect(DEICE_MAX_ACTIVE).toBe('deice.max_active');
+    expect(
+      ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm'].map((id) => [
+        DA50RG_INDICATORS.get(id)?.colour,
+        DA50RG_INDICATORS.get(id)?.r,
+        DA50RG_INDICATORS.get(id)?.caption,
+      ]),
+    ).toEqual([
+      ['amber', 15, 'none'],
+      ['amber', 15, 'none'],
+      ['white', 15, 'none'],
+    ]);
+    // Every combination of the mode and the flag.
+    const table: [string, boolean, boolean, boolean, boolean][] = [
+      // mode, flag, max, high, norm
+      ['off', false, false, false, false],
+      ['off', true, false, false, false],
+      ['norm', false, false, false, true],
+      ['norm', true, false, false, true],
+      ['high', false, false, true, false],
+      ['high', true, true, true, false],
+    ];
+    for (const [mode, flag, max, high, norm] of table) {
+      const flags: Record<string, boolean> = flag ? { [DEICE_MAX_ACTIVE]: true } : {};
+      const lit = litMap({ 'sw.deice_mode': mode }, flags);
+      const id = `${mode} flag ${String(flag)}`;
+      expect([lit['lt.deice_max'], lit['lt.deice_high'], lit['lt.deice_norm']], id).toEqual([
+        max,
+        high,
+        norm,
+      ]);
+      expect(deiceLamps(mode, flag), id).toEqual({ max, high, norm });
+    }
+  });
+
+  it('the MAX flag is never set in this phase and the MAX button lights nothing', () => {
+    const lit = litMap({ 'sw.deice_mode': 'high', 'btn.deice_max': 'pressed' });
+    expect(lit['lt.deice_max']).toBe(false);
+    expect(lit['lt.deice_high']).toBe(true);
+    for (const id of ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm']) {
+      expect(DA50RG_INDICATORS.get(id)?.reads, id).toEqual(['sw.deice_mode']);
+    }
+    expect(DA50RG_INDICATORS.get('lt.deice_max')?.flags).toEqual([DEICE_MAX_ACTIVE]);
+    // The store default (mode off) leaves all three dark.
+    const lights = litMap(new PanelStore(DA50RG).snapshot());
+    expect([lights['lt.deice_max'], lights['lt.deice_high'], lights['lt.deice_norm']]).toEqual([
+      false,
+      false,
+      false,
+    ]);
   });
 
   it('exactly one flap lamp is lit for each FLAPS state', () => {
@@ -426,7 +481,7 @@ describe('lamp art', () => {
   });
 
   it('LampBody has at most 40 elements, lit and unlit', () => {
-    for (const colour of ['green', 'red', 'white'] as const) {
+    for (const colour of ['green', 'red', 'white', 'amber'] as const) {
       for (const lit of [true, false]) {
         const tree = expand(
           LampBody({ label: 'T/O 133 KIAS', colour, r: 7, lit, caption: 'right' }),

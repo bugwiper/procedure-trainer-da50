@@ -14,6 +14,7 @@ export const DEF_IDS = [
   'g-halo-green',
   'g-halo-red',
   'g-halo-white',
+  'g-halo-amber',
   'p-carbon',
   'p-hatch',
 ] as const;
@@ -52,9 +53,10 @@ const HALOS: readonly Halo[] = [
   { id: 'g-halo-green', lit: 'rgba(61,220,132,0.45)', clear: 'rgba(61,220,132,0)' },
   { id: 'g-halo-red', lit: 'rgba(255,67,56,0.5)', clear: 'rgba(255,67,56,0)' },
   { id: 'g-halo-white', lit: 'rgba(255,255,255,0.4)', clear: 'rgba(255,255,255,0)' },
+  { id: 'g-halo-amber', lit: 'rgba(255,184,28,0.5)', clear: 'rgba(255,184,28,0)' },
 ];
 
-/** One defs element holding all eleven shared paints. Pure: no hooks, no state. */
+/** One defs element holding all twelve shared paints. Pure: no hooks, no state. */
 export function Defs() {
   return (
     <defs>

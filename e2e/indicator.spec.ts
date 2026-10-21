@@ -98,7 +98,7 @@ test('lamps are never tap targets', async ({ page }) => {
   // Selector of src/ui/panel/zoom.ts TAP_TARGET_SELECTOR.
   await expect(page.locator('[data-indicator-id] :is([data-hit], [data-detent])')).toHaveCount(0);
   await expect(page.locator('[data-indicator-id]:is([data-hit], [data-detent])')).toHaveCount(0);
-  await expect(page.locator('[data-indicator-id]')).toHaveCount(11);
+  await expect(page.locator('[data-indicator-id]')).toHaveCount(13);
   await expect(page.locator('[data-indicator-id][data-control-id]')).toHaveCount(0);
 });
 
@@ -149,7 +149,7 @@ test('the cowl-flap lamps follow the lever: closed lights CLOSED, one tap on OPE
   await expect(page.locator('[data-control-id="lv.cowl_flap"] text')).toHaveCount(0);
 });
 
-test('the de-ice NORM lamp is lit in NORM only, and prints no text (G-1)', async ({
+test('de-ice lamps: NORM lights only the white lamp, HIGH only the middle amber lamp, the top one never (G-1)', async ({
   page,
   hasTouch,
 }) => {
@@ -161,16 +161,23 @@ test('the de-ice NORM lamp is lit in NORM only, and prints no text (G-1)', async
     if (hasTouch) await hit.tap({ position });
     else await hit.click({ position });
   };
-  const norm = lamp(page, 'lt.deice_norm');
-  await expect(norm).toHaveCount(1);
-  await expect(norm).toHaveAttribute('data-lit', 'false');
+  const lamps = ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm'] as const;
+  const expectLit = async (max: string, high: string, norm: string) => {
+    await expect(lamp(page, lamps[0])).toHaveAttribute('data-lit', max);
+    await expect(lamp(page, lamps[1])).toHaveAttribute('data-lit', high);
+    await expect(lamp(page, lamps[2])).toHaveAttribute('data-lit', norm);
+  };
+  for (const id of lamps) {
+    await expect(lamp(page, id)).toHaveCount(1);
+    await expect(lamp(page, id).locator('text')).toHaveCount(0);
+  }
+  await expectLit('false', 'false', 'false');
   await tapAt(1 / 2);
-  await expect(norm).toHaveAttribute('data-lit', 'true');
+  await expectLit('false', 'false', 'true');
   await tapAt(1 / 6);
-  await expect(norm).toHaveAttribute('data-lit', 'false');
+  await expectLit('false', 'true', 'false');
   await tapAt(5 / 6);
-  await expect(norm).toHaveAttribute('data-lit', 'false');
-  await expect(norm.locator('text')).toHaveCount(0);
+  await expectLit('false', 'false', 'false');
 });
 
 test('@hooks lever moves record only lv.gear events and a tap on a lamp records none', async ({
@@ -204,7 +211,7 @@ test('@hooks window.__panel.indicators() agrees with every data-lit attribute', 
     const hook = await page.evaluate(
       () => (globalThis as unknown as PageHost).__panel?.indicators() ?? {},
     );
-    expect(Object.keys(hook)).toHaveLength(11);
+    expect(Object.keys(hook)).toHaveLength(13);
     for (const [id, state] of Object.entries(hook)) {
       await expect(lamp(page, id), id).toHaveAttribute(
         'data-lit',

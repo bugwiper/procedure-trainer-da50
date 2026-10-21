@@ -7,6 +7,19 @@ import { DA50RG } from './panel';
 // transition timing (Phase 3 sets the in-transit flag). Provenance: lamp count and colours of
 // the gear cluster confirmed (P386, PED, SIM, owner D-11); lamp coordinates unconfirmed.
 
+/**
+ * Flag the engine phase sets while a de-ice MAX run is active (owner finding G-1). Nothing sets it
+ * in this phase, exactly like GEAR_IN_TRANSIT: the bridge's flag record is empty, so the top
+ * de-ice lamp never lights here.
+ *
+ * Deferred to the engine phase, with the reason: the run lasts 120 s, and there is no engine clock
+ * in phase 01.1 (no timer or clock may live in the engine or the UI; the engine's virtual clock
+ * arrives with the scenario engine). Intended behaviour: pressing btn.deice_max while
+ * sw.deice_mode is high sets the flag for 120 s on the virtual clock, then clears it and ignores
+ * further MAX presses until MAX is pressed again; leaving the high mode clears it.
+ */
+export const DEICE_MAX_ACTIVE = 'deice.max_active';
+
 /** Flag Phase 3 sets while the gear moves or disagrees with the lever; always false now. */
 export const GEAR_IN_TRANSIT = 'gear.in_transit';
 
@@ -197,9 +210,49 @@ const COWL_LAMPS: readonly IndicatorSpec[] = [
 ];
 
 // De-ice mode lamps (owner finding G-1, G-0.3): three lamps right of the MODE toggle, top to bottom
-// amber, amber, white, no captions. NORM lights the white lamp; HIGH lights the middle amber lamp
-// (plan 21 Task 2 adds the amber ones).
+// amber, amber, white, no captions. NORM lights the white lamp; HIGH lights the middle amber lamp;
+// the top amber lamp lights only while a MAX run is active (flag DEICE_MAX_ACTIVE) and the mode is
+// high. The lamps never read the MAX button: the press alone lights nothing.
+const DEICE_MODE = 'sw.deice_mode';
+
+/** The three lamps of Table I2 as a pure function of the mode and the MAX flag. */
+export function deiceLamps(
+  mode: StateId,
+  maxActive: boolean,
+): { readonly max: boolean; readonly high: boolean; readonly norm: boolean } {
+  return { max: maxActive && mode === 'high', high: mode === 'high', norm: mode === 'norm' };
+}
+
+function deiceOf(inputs: IndicatorInputs) {
+  return deiceLamps(inputs.controls[DEICE_MODE] ?? '', inputs.flags[DEICE_MAX_ACTIVE] === true);
+}
+
 const DEICE_LAMPS: readonly IndicatorSpec[] = [
+  {
+    id: 'lt.deice_max',
+    label: 'DE-ICE MAX',
+    region: 'deice',
+    x: 79,
+    y: 51,
+    r: 15,
+    colour: 'amber',
+    caption: 'none',
+    reads: [DEICE_MODE],
+    flags: [DEICE_MAX_ACTIVE],
+    lit: (inputs) => deiceOf(inputs).max,
+  },
+  {
+    id: 'lt.deice_high',
+    label: 'DE-ICE HIGH',
+    region: 'deice',
+    x: 79,
+    y: 93,
+    r: 15,
+    colour: 'amber',
+    caption: 'none',
+    reads: [DEICE_MODE],
+    lit: (inputs) => deiceOf(inputs).high,
+  },
   {
     id: 'lt.deice_norm',
     label: 'DE-ICE NORM',
@@ -209,8 +262,8 @@ const DEICE_LAMPS: readonly IndicatorSpec[] = [
     r: 15,
     colour: 'white',
     caption: 'none',
-    reads: ['sw.deice_mode'],
-    lit: (inputs) => inputs.controls['sw.deice_mode'] === 'norm',
+    reads: [DEICE_MODE],
+    lit: (inputs) => deiceOf(inputs).norm,
   },
 ];
 
