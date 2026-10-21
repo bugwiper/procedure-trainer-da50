@@ -8,6 +8,7 @@ import {
   INDICATOR_POSITIONS,
   REFERENCE_POSITIONS,
 } from './layout-reference';
+import { MOUSE_SLOP_PX, TOUCH_SLOP_PX } from '../src/ui/panel/tap-intent';
 
 // D-03, D-06, T-01.1-21: the owner review list exists, is linked from the README and carries
 // no private photo content.
@@ -322,17 +323,26 @@ describe('phase 01.2 review list (Q2, U2, P2, Round 3)', () => {
 
 // Plan 31 (R2-Z1): the owner superseded the single-tap zoom. The wording is current everywhere
 // it is stated: README, REQUIREMENTS PNL-15 and PNL-09, the ROADMAP criterion 4 of phase 01.1.
-describe('zoom wording (R2-Z1, plan 31)', () => {
+describe('zoom wording (R2-Z1 plan 31, R3-Z3 plan 40)', () => {
   const lineOf = (text: string, needle: string): string =>
     text.split('\n').find((line) => line.includes(needle)) ?? '';
   const requirements = read('.planning/REQUIREMENTS.md');
   const roadmap = read('.planning/ROADMAP.md');
   const readme = read('README.md');
 
-  it('the README says a single click or tap never zooms and a double one on the background does', () => {
+  it('the README says a single click or tap never zooms and a double one zooms on the background and on a switch', () => {
     expect(readme).toMatch(/single click or tap never zooms/);
-    expect(readme).toMatch(/double click or double tap on the (panel )?background/);
-    expect(readme).toMatch(/double tap on a control is two (control )?taps/);
+    expect(readme).toMatch(
+      /double click or double tap zooms on the (panel )?background and on a switch/,
+    );
+    expect(readme).toMatch(/first tap actuates/);
+    expect(readme).toMatch(/retracts it/);
+    expect(readme).toMatch(/stays unchanged/);
+    expect(readme).toMatch(/two quick taps on one switch are therefore a zoom/);
+    expect(readme).toMatch(/momentary[^.]*drag[^.]*stay two presses/i);
+    expect(readme).toMatch(/moves or gains a second finger pans or pinches/);
+    expect(readme).not.toMatch(/two (control )?taps/);
+    expect(readme).not.toContain('never on a control');
     expect(readme).not.toContain("a tap or click on a region's background zooms into it");
   });
 
@@ -353,11 +363,19 @@ describe('zoom wording (R2-Z1, plan 31)', () => {
     expect(line).not.toMatch(/pinch or region tap/);
   });
 
-  it('REQUIREMENTS PNL-15 states the single click never zooms, the control rule and the button', () => {
+  it('REQUIREMENTS PNL-15 states the single click rule, the latching pair with its retraction, the exceptions, the press arbitration and the button', () => {
     const line = lineOf(requirements, '**PNL-15**');
     expect(line).toMatch(/single click or tap never zooms/);
-    expect(line).toMatch(/double tap on a control stays two control taps/);
+    expect(line).toMatch(/on the panel background and on a latching control/);
+    expect(line).toMatch(/first tap actuates at once/);
+    expect(line).toMatch(/recognised pair retracts it from the action log/);
+    expect(line).toMatch(/pair across two different controls is not a double tap/);
+    expect(line).toMatch(/double press on a momentary or drag control stays two presses/);
+    expect(line).toContain(`${TOUCH_SLOP_PX} px (touch)`);
+    expect(line).toContain(`${MOUSE_SLOP_PX} px (mouse)`);
+    expect(line).toMatch(/second finger pans or pinches the view instead of operating the control/);
     expect(line).toMatch(/never covers a control/);
+    expect(line).not.toMatch(/double tap on a control stays two control taps/);
   });
 
   it('no line of REQUIREMENTS says a single tap zooms', () => {
@@ -374,6 +392,8 @@ describe('zoom wording (R2-Z1, plan 31)', () => {
     expect(line).toMatch(/single click or tap never zooms/);
     expect(line).toMatch(/double click or double tap/);
     expect(line).toMatch(/Full panel/);
+    expect(line).toMatch(/latching control/);
+    expect(line).not.toMatch(/stays two control taps/);
   });
 
   it('the supersession notes stand under D-12 and under the gesture table', () => {
