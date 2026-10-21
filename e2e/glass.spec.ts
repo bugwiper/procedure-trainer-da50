@@ -160,3 +160,126 @@ test('@hooks a tap on a PFD key appends no event and changes no state', async ({
   }
   expect(await read()).toEqual(before);
 });
+
+interface ZoneItem {
+  readonly zone: string;
+  readonly tag: string;
+  readonly text: string;
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
+}
+
+/** Every painted element of a glass region in region-local svg units, with its zone tag. */
+async function readZones(page: Page, regionId: string): Promise<ZoneItem[]> {
+  return page.getByTestId('panel').evaluate((node, id) => {
+    const svg = node as unknown as SVGSVGElement;
+    const ctm = svg.getScreenCTM();
+    if (ctm === null) throw new Error('no screen CTM');
+    const inv = ctm.inverse();
+    const group = svg.querySelector(`[data-region-id="${id}"]`);
+    const frame = group?.querySelector('[data-region-frame]');
+    if (group === null || group === undefined || frame === null || frame === undefined) {
+      throw new Error(`region ${id} missing`);
+    }
+    const local = (px: number, py: number) => new DOMPoint(px, py).matrixTransform(inv);
+    const fr = frame.getBoundingClientRect();
+    const origin = local(fr.left, fr.top);
+    const out: ZoneItem[] = [];
+    const SELECTOR = 'text, path, circle, ellipse, rect, polygon, line, polyline';
+    for (const el of Array.from(group.querySelectorAll(SELECTOR))) {
+      if (el.hasAttribute('data-region-frame') || el.hasAttribute('data-hit')) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 && r.height <= 0) continue;
+      const p1 = local(r.left, r.top);
+      const p2 = local(r.right, r.bottom);
+      const zoneEl = el.closest('[data-glass-zone]');
+      out.push({
+        zone: zoneEl?.getAttribute('data-glass-zone') ?? 'untagged',
+        tag: el.tagName.toLowerCase(),
+        text: (el.textContent ?? '').trim().slice(0, 30),
+        x0: p1.x - origin.x,
+        y0: p1.y - origin.y,
+        x1: p2.x - origin.x,
+        y1: p2.y - origin.y,
+      });
+    }
+    return out;
+  }, regionId);
+}
+
+const ZONE_TOLERANCE = 0.75;
+
+/** The y range of a zone and, for the content zone, the x range (Table D4). */
+function zoneFailures(items: readonly ZoneItem[]): string[] {
+  const failures: string[] = [];
+  const band: Record<string, readonly [number, number]> = {
+    header: [4, 28],
+    content: [30, 343],
+    legend: [345, 363],
+  };
+  for (const item of items) {
+    if (item.zone === 'screen') continue;
+    const range = band[item.zone];
+    const label = `${item.zone}: ${item.tag} "${item.text}"`;
+    if (range === undefined) {
+      failures.push(`${label} is not in a tagged zone`);
+      continue;
+    }
+    if (item.y0 < range[0] - ZONE_TOLERANCE)
+      failures.push(`${label} starts at y ${item.y0.toFixed(1)}`);
+    if (item.y1 > range[1] + ZONE_TOLERANCE)
+      failures.push(`${label} ends at y ${item.y1.toFixed(1)}`);
+    if (item.zone === 'content') {
+      if (item.x0 < 4 - ZONE_TOLERANCE) failures.push(`${label} starts at x ${item.x0.toFixed(1)}`);
+      if (item.x1 > 491 + ZONE_TOLERANCE) failures.push(`${label} ends at x ${item.x1.toFixed(1)}`);
+    }
+  }
+  return failures;
+}
+
+test.describe('glass zones', () => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== 'desktop-chromium',
+      'geometry gate runs on desktop-chromium',
+    );
+    await page.setViewportSize({ width: 2200, height: 1400 });
+    await page.goto('./');
+    await expect(page.getByTestId('panel')).toBeVisible();
+  });
+
+  test('every painted element of the PFD lies in the zone it is tagged with', async ({ page }) => {
+    const items = await readZones(page, 'pfd');
+    expect(items.filter((i) => i.zone === 'header').length).toBeGreaterThan(5);
+    expect(items.filter((i) => i.zone === 'content').length).toBeGreaterThan(20);
+    expect(items.filter((i) => i.zone === 'legend').length).toBeGreaterThan(20);
+    expect(items.filter((i) => i.zone === 'screen')).toHaveLength(1);
+    expect(zoneFailures(items)).toEqual([]);
+  });
+
+  test('every painted element of the MFD lies in its zone on both pages', async ({ page }) => {
+    for (const mode of ['map', 'engine'] as const) {
+      if (mode === 'engine') await page.locator('[data-hit="sw.mfd_page"]').click();
+      await expect(page.locator(`[data-mfd-page="${mode}"]`)).toBeVisible();
+      const items = await readZones(page, 'mfd');
+      expect(items.filter((i) => i.zone === 'header').length, mode).toBeGreaterThan(5);
+      expect(items.filter((i) => i.zone === 'content').length, mode).toBeGreaterThan(20);
+      expect(zoneFailures(items), mode).toEqual([]);
+    }
+  });
+
+  test('the zone check bites: a moved element would be reported', () => {
+    const stray: ZoneItem = {
+      zone: 'content',
+      tag: 'text',
+      text: 'KT',
+      x0: 40,
+      y0: 18,
+      x1: 60,
+      y1: 29,
+    };
+    expect(zoneFailures([stray])).toHaveLength(1);
+  });
+});

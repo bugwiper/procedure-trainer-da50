@@ -79,11 +79,11 @@ The row of controls under the primary display, left to right, with the ESS BUS p
 
 ## MFD softkey
 
-One softkey under the multi-function display. The earlier name MFD PAGE and the words MAP and ENGINE are dropped; only the key legend is printed (Q-10).
+One softkey under the multi-function display, the first of a row of 12 keys (the other 11 are inert art, as are the 12 keys under the PFD). The key shows a triangle only: no word is printed on it. The legend Engine stands on the glass above the key, as on the real unit (Q-10); the accessible name of the control stays ENGINE and is not drawn. The earlier name MFD PAGE and the words MAP and ENGINE on the key are dropped.
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
-| `sw.mfd_page` | ENGINE (key legend; replaces MFD PAGE plus the words MAP and ENGINE) | none | assumption | `controls/mfd.ts` |
+| `sw.mfd_page` | none on the key (triangle only); accessible name ENGINE; the glass legend above it reads Engine | none | assumption | `controls/mfd.ts`, `frames/MfdFrame.tsx` |
 
 ## Landing gear and LEVEL
 
@@ -225,7 +225,7 @@ Each question states the default the plans take. The questions do not block anyt
 - **Q-07** Are the dimmer scale numbers 25, 50, 75 and the FUEL TRANS marks OFF, ON real? Default taken: kept as built.
 - **Q-08** The photo shows no name GEAR above the gear knob; keep it? Default taken: kept (the owner did not object).
 - **Q-09** FADEC: does the real switch print AUTO and B beside its positions? Default taken: no text.
-- **Q-10** What is the MFD softkey legend text? Default taken: ENGINE.
+- **Q-10** What is the MFD softkey legend text, and is it printed on the key? Default taken: the key shows a triangle only and the legend Engine stands on the glass above it (amended in phase 01.2; the earlier default was the word ENGINE on the key).
 - **Q-11** ELT lamp: lit when the ELT is ON only? Default taken: lit in ON only, red.
 - **Q-12** Cowl-flap lamps: lit by the lever position, each lit in its own position? Default taken: yes.
 - **Q-13** Does GEAR TEST light all four gear lamps including the red UNSAFE lamp? Default taken: yes, all four.

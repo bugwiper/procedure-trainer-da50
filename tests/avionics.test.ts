@@ -328,3 +328,129 @@ describe('PfdFrame legend row and test ids', () => {
     }
   });
 });
+
+// Glass zones (Table D4): every glass element belongs to one tagged zone group.
+describe('glass header, content and legend zones', () => {
+  const zoneOf = (tree: El, zone: string): El[] =>
+    findElements(tree, (el) => el.props['data-glass-zone'] === zone);
+  const textsIn = (el: El): string[] =>
+    findElements(el, (e) => e.tag === 'text').map((t) => textOf(t));
+
+  const pfd = expand(PfdFrame({ region: region('pfd'), bridge: fakeBridge('map') }));
+  const mfdMap = expand(MfdFrame({ region: region('mfd'), bridge: fakeBridge('map') }));
+  const mfdEngine = expand(MfdFrame({ region: region('mfd'), bridge: fakeBridge('engine') }));
+
+  it.each([
+    ['pfd', pfd],
+    ['mfd map page', mfdMap],
+    ['mfd engine page', mfdEngine],
+  ] as const)('%s has one header, one content, one legend and a tagged screen rect', (_n, tree) => {
+    expect(zoneOf(tree, 'header')).toHaveLength(1);
+    expect(zoneOf(tree, 'content')).toHaveLength(1);
+    expect(zoneOf(tree, 'legend')).toHaveLength(1);
+    const screen = zoneOf(tree, 'screen');
+    expect(screen).toHaveLength(1);
+    expect(screen[0]?.tag).toBe('rect');
+  });
+
+  it.each([
+    ['pfd', pfd],
+    ['mfd map page', mfdMap],
+    ['mfd engine page', mfdEngine],
+  ] as const)(
+    '%s header carries the frequency boxes, labels and one swap arrow path',
+    (_n, tree) => {
+      const header = zoneOf(tree, 'header')[0];
+      if (header === undefined) throw new Error('no header');
+      const texts = textsIn(header);
+      for (const t of [
+        '109.90',
+        '111.50',
+        '114.80',
+        '118.100',
+        'RX',
+        '123.725',
+        '121.500',
+        '133.330',
+        'N1',
+        'N2',
+        '1C',
+        '2M',
+      ]) {
+        expect(texts, t).toContain(t);
+      }
+      expect(
+        findElements(header, (e) => e.tag === 'path' && e.props['data-swap-arrow'] !== undefined),
+      ).toHaveLength(1);
+      // Sizes on the glass are 6, 8, 10 or 14 only.
+      for (const el of findElements(header, (e) => e.tag === 'text')) {
+        expect([6, 8, 10, 14]).toContain(el.props['font-size']);
+      }
+    },
+  );
+
+  it('the MFD header centre shows the page title; the PFD header centre is empty', () => {
+    const title = (tree: El): string[] =>
+      findElements(tree, (e) => e.props['data-glass-title'] !== undefined).map((t) => textOf(t));
+    expect(title(mfdMap)).toEqual(['Map - Navigation Map']);
+    expect(title(mfdEngine)).toEqual(['EIS - Engine']);
+    expect(title(pfd)).toEqual([]);
+  });
+
+  it('keeps the test ids of both screens and the page logic', () => {
+    const ids = (tree: El): unknown[] =>
+      findElements(tree, (e) => e.props['data-testid'] !== undefined).map(
+        (e) => e.props['data-testid'],
+      );
+    expect(ids(pfd)).toEqual(['pfd-attitude', 'pfd-airspeed', 'pfd-altitude', 'pfd-heading']);
+    expect(ids(mfdMap)).toEqual(['mfd-map-page', 'mfd-engine-strip', 'mfd-map']);
+    expect(ids(mfdEngine)).toEqual(['mfd-engine-page']);
+  });
+
+  it('the PFD content follows Table D5 (labels, heading block, bank arc, compass, inset map, baro box)', () => {
+    const content = zoneOf(pfd, 'content')[0];
+    if (content === undefined) throw new Error('no content');
+    const text = (s: string): El | undefined =>
+      findElements(content, (e) => e.tag === 'text' && textOf(e) === s)[0];
+    expect(text('KT')?.props['y']).toBe(276);
+    expect(text('FT')?.props['y']).toBe(276);
+    expect(text('KT')?.props['font-size']).toBe(8);
+    expect(text('360')?.props['y']).toBe(302);
+    expect(text('HDG')?.props['y']).toBe(328);
+    const head = findElements(content, (e) => e.props['data-testid'] === 'pfd-heading')[0];
+    const box = head === undefined ? undefined : findElements(head, (e) => e.tag === 'rect')[0];
+    expect([box?.props['y'], box?.props['height']]).toEqual([276, 60]);
+    // Bank arc: 10 tick marks (10, 20, 30, 45, 60 degrees each side) and a roll pointer.
+    expect(findElements(content, (e) => 'data-bank-tick' in e.props)).toHaveLength(10);
+    expect(findElements(content, (e) => 'data-roll-pointer' in e.props)).toHaveLength(1);
+    // Compass arc: 12 ticks.
+    expect(findElements(content, (e) => 'data-compass-tick' in e.props)).toHaveLength(12);
+    expect(findElements(content, (e) => 'data-compass-arc' in e.props)).toHaveLength(1);
+    // Inset map rectangle and baro box.
+    const inset = findElements(content, (e) => 'data-inset-map' in e.props)[0];
+    expect([inset?.props['x'], inset?.props['width'], inset?.props['fill']]).toEqual([
+      6,
+      90,
+      '#0e1a14',
+    ]);
+    expect(textsIn(content)).toContain('1013 HPA');
+  });
+
+  it('the MFD content follows Table D6 (strip pitch 38 height 36, engine page rows)', () => {
+    const strip = findElements(mfdMap, (e) => e.props['data-testid'] === 'mfd-engine-strip')[0];
+    if (strip === undefined) throw new Error('no strip');
+    const gauges = findElements(strip, (e) => e.props['data-gauge'] !== undefined);
+    expect(gauges).toHaveLength(8);
+    // Each bar gauge's first text sits at y + 11 (see BarGauge); y = 34 + 38 i.
+    gauges.forEach((g, i) => {
+      const label = findElements(g, (e) => e.tag === 'text')[0];
+      expect(label?.props['y'], `gauge ${i}`).toBe(34 + 38 * i + 11);
+    });
+    const page = findElements(mfdEngine, (e) => e.props['data-testid'] === 'mfd-engine-page')[0];
+    if (page === undefined) throw new Error('no engine page');
+    const title = findElements(page, (e) => e.tag === 'text' && textOf(e) === 'ENGINE')[0];
+    expect(title?.props['y']).toBe(46);
+    const arcs = findElements(page, (e) => e.props['data-gauge'] !== undefined);
+    expect(arcs).toHaveLength(12);
+  });
+});

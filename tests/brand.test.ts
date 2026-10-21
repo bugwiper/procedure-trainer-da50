@@ -27,6 +27,31 @@ describe('brand gate', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('no file under src/ui/panel or src/aircraft names the avionics product family or a unit model', () => {
+    const files = [...walk(join(root, 'src/ui/panel')), ...walk(join(root, 'src/aircraft'))];
+    // G1000 and NXi are the product family; GMA, GFC, GDU, GTX, GIA and GEA followed by a digit
+    // are unit designations. The one real label that carries a prefix (AV/GDU FAN) has no digit.
+    const family = /\bG1000\b|\bNXi\b/i;
+    const unit = /\b(?:GMA|GFC|GDU|GTX|GIA|GEA)\s?\d/i;
+    const offenders = files
+      .filter((file) => {
+        const text = readFileSync(file, 'utf8');
+        return family.test(text) || unit.test(text);
+      })
+      .map(rel);
+    expect(offenders).toEqual([]);
+  });
+
+  it('the avionics product-family check bites on a name and on a unit designation', () => {
+    const family = /\bG1000\b|\bNXi\b/i;
+    const unit = /\b(?:GMA|GFC|GDU|GTX|GIA|GEA)\s?\d/i;
+    expect(family.test('// a G1000 style display')).toBe(true);
+    expect(family.test('NXi map')).toBe(true);
+    expect(unit.test('audio panel GMA 342')).toBe(true);
+    expect(unit.test('GDU1060')).toBe(true);
+    expect(unit.test('AV/GDU FAN')).toBe(false);
+  });
+
   it('no file under src contains an image element or a data: URL', () => {
     const offenders = walk(join(root, 'src'))
       .filter((file) => /\.(tsx?|css|html|svg)$/.test(file))

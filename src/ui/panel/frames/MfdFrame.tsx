@@ -71,6 +71,90 @@ export function LegendRow({
   );
 }
 
+const HEADER_FILL = '#080b0e';
+const HEADER_RULE = '#3a424b';
+const HEADER_LABEL = '#8d97a2';
+const HEADER_ACTIVE = '#ffffff';
+const HEADER_STANDBY = '#c9d0d8';
+const HEADER_TITLE = '#d8dde3';
+
+/**
+ * The header strip of a glass screen (Table D4): two frequency lines on each side and, on the
+ * MFD, the page title in the centre. Static idle values (U-15), original layout; the swap arrow
+ * is a path. Digits use the glass font; sizes are 6 and 8.
+ */
+export function GlassHeader({ title }: { readonly title?: string }) {
+  const { y0, y1 } = GLASS.header;
+  const line1 = 15;
+  const line2 = 25;
+  return (
+    <g data-glass-zone="header">
+      <rect x={4} y={y0} width={487} height={y1 - y0} fill={HEADER_FILL} />
+      <line x1={4} y1={y1} x2={491} y2={y1} stroke={HEADER_RULE} stroke-width={1} />
+      {/* Left block: two lines, label at x 8, active and standby values. */}
+      <text x={8} y={line1} font-size={6} fill={HEADER_LABEL}>
+        N1
+      </text>
+      <text class="glass-digits" x={22} y={line1} font-size={8} fill={HEADER_ACTIVE}>
+        109.90
+      </text>
+      <path
+        data-swap-arrow
+        d="M 61 11.5 H 73 M 64 9 L 61 11.5 L 64 14 M 70 9 L 73 11.5 L 70 14"
+        fill="none"
+        stroke={HEADER_STANDBY}
+        stroke-width={1}
+      />
+      <text class="glass-digits" x={80} y={line1} font-size={8} fill={HEADER_STANDBY}>
+        111.50
+      </text>
+      <text x={8} y={line2} font-size={6} fill={HEADER_LABEL}>
+        N2
+      </text>
+      <text class="glass-digits" x={22} y={line2} font-size={8} fill={HEADER_ACTIVE}>
+        114.80
+      </text>
+      <text class="glass-digits" x={80} y={line2} font-size={8} fill={HEADER_STANDBY}>
+        111.50
+      </text>
+      {/* Right block: communication frequencies, labels at the right end. */}
+      <text class="glass-digits" x={335} y={line1} font-size={8} fill={HEADER_ACTIVE}>
+        118.100
+      </text>
+      <text x={378} y={line1} font-size={6} fill={HEADER_LABEL}>
+        RX
+      </text>
+      <text class="glass-digits" x={396} y={line1} font-size={8} fill={HEADER_STANDBY}>
+        123.725
+      </text>
+      <text x={487} y={line1} text-anchor="end" font-size={6} fill={HEADER_LABEL}>
+        1C
+      </text>
+      <text class="glass-digits" x={335} y={line2} font-size={8} fill={HEADER_ACTIVE}>
+        121.500
+      </text>
+      <text class="glass-digits" x={396} y={line2} font-size={8} fill={HEADER_STANDBY}>
+        133.330
+      </text>
+      <text x={487} y={line2} text-anchor="end" font-size={6} fill={HEADER_LABEL}>
+        2M
+      </text>
+      {title === undefined ? null : (
+        <text
+          data-glass-title
+          x={242.5}
+          y={19}
+          text-anchor="middle"
+          font-size={8}
+          fill={HEADER_TITLE}
+        >
+          {title}
+        </text>
+      )}
+    </g>
+  );
+}
+
 const GREEN = '#2fd36f';
 const YELLOW = '#f2c230';
 const RED = '#f0443c';
@@ -253,7 +337,7 @@ const AMPS: GaugeSpec = {
   ],
 };
 
-const SCREEN_FILL = '#05080b';
+export const SCREEN_FILL = '#05080b';
 const STRIP_W = 150;
 const STRIP_GAUGES: readonly GaugeSpec[] = [
   RPM,
@@ -283,8 +367,19 @@ export function MfdFrame({ region, bridge }: FrameProps) {
   const { w, h } = region.bounds;
   return (
     <g data-mfd-page={page} pointer-events="none">
-      <rect x={4} y={4} width={w - 8} height={h - 8} rx={4} fill={SCREEN_FILL} />
-      {page === 'engine' ? <EnginePage w={w} /> : <MapPage w={w} h={h} />}
+      <rect
+        data-glass-zone="screen"
+        x={4}
+        y={4}
+        width={w - 8}
+        height={h - 8}
+        rx={4}
+        fill={SCREEN_FILL}
+      />
+      <GlassHeader title={page === 'engine' ? 'EIS - Engine' : 'Map - Navigation Map'} />
+      <g data-glass-zone="content">
+        {page === 'engine' ? <EnginePage w={w} /> : <MapPage w={w} />}
+      </g>
       <LegendRow
         display="mfd"
         legends={page === 'engine' ? MFD_ENGINE_LEGENDS : MFD_MAP_LEGENDS}
@@ -294,11 +389,12 @@ export function MfdFrame({ region, bridge }: FrameProps) {
   );
 }
 
-function MapPage({ w, h }: { readonly w: number; readonly h: number }) {
+function MapPage({ w }: { readonly w: number }) {
   const mapX = STRIP_W + 8;
   const mapW = w - mapX - 8;
   const cx = mapX + mapW / 2;
-  const cy = h / 2 + 4;
+  // Map rectangle y 34..343 (Table D6); its centre line is 188.
+  const cy = 188;
   return (
     <g data-testid="mfd-map-page">
       <g data-testid="mfd-engine-strip">
@@ -312,14 +408,14 @@ function MapPage({ w, h }: { readonly w: number; readonly h: number }) {
             max={g.max}
             bands={g.bands}
             x={12}
-            y={12 + i * 43}
+            y={34 + i * 38}
             w={STRIP_W - 20}
-            h={40}
+            h={36}
           />
         ))}
       </g>
       <g data-testid="mfd-map">
-        <rect x={mapX} y={12} width={mapW} height={h - 24} fill="#0e1a14" stroke="#2c323a" />
+        <rect x={mapX} y={34} width={mapW} height={309} fill="#0e1a14" stroke="#2c323a" />
         <circle cx={cx} cy={cy} r={70} fill="none" stroke="#3a5a48" stroke-width={1.5} />
         <circle cx={cx} cy={cy} r={140} fill="none" stroke="#3a5a48" stroke-width={1.5} />
         <path
@@ -332,10 +428,7 @@ function MapPage({ w, h }: { readonly w: number; readonly h: number }) {
         <text x={cx + 12} y={cy - 138} font-size={10} fill="#8d97a2">
           N
         </text>
-        <text x={mapX + 10} y={34} font-size={14} fill="#d8dde3">
-          MAP
-        </text>
-        <text x={mapX + mapW - 10} y={34} text-anchor="end" font-size={10} fill="#8d97a2">
+        <text x={mapX + mapW - 10} y={52} text-anchor="end" font-size={10} fill="#8d97a2">
           NORTH UP
         </text>
       </g>
@@ -349,7 +442,7 @@ function EnginePage({ w }: { readonly w: number }) {
   const barW = (w - 8) / 2 - 24;
   return (
     <g data-testid="mfd-engine-page">
-      <text x={14} y={24} font-size={14} fill="#d8dde3">
+      <text x={14} y={46} font-size={14} fill="#d8dde3">
         ENGINE
       </text>
       {arcs.map((g, i) => (
@@ -362,7 +455,7 @@ function EnginePage({ w }: { readonly w: number }) {
           max={g.max}
           bands={g.bands}
           cx={4 + colW * (i + 0.5)}
-          cy={100}
+          cy={112}
           r={52}
         />
       ))}
@@ -376,9 +469,9 @@ function EnginePage({ w }: { readonly w: number }) {
           max={g.max}
           bands={g.bands}
           x={16}
-          y={184 + i * 34}
+          y={176 + i * 33}
           w={barW}
-          h={34}
+          h={33}
         />
       ))}
       {ENGINE_BARS_RIGHT.map((g, i) => (
@@ -391,9 +484,9 @@ function EnginePage({ w }: { readonly w: number }) {
           max={g.max}
           bands={g.bands}
           x={w / 2 + 8}
-          y={184 + i * 34}
+          y={176 + i * 33}
           w={barW}
-          h={34}
+          h={33}
         />
       ))}
     </g>
