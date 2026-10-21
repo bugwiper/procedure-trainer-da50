@@ -11,8 +11,8 @@ import { createPressArbiter } from './press-arbiter';
 import type { Midpoint, PressEffect, TargetDescriptor } from './press-arbiter';
 import { pressKeyOf, pressTargetOf } from './press-targets';
 import type { PressTarget } from './press-targets';
-import { createDoubleTapTracker } from './tap-intent';
-import type { PointerKind } from './tap-intent';
+import { createDoubleTapTracker, resolveControlTap } from './tap-intent';
+import type { ControlTapResult, DoubleTapIntent, PointerKind } from './tap-intent';
 import {
   chooseButtonCorner,
   controlFootprints,
@@ -109,10 +109,14 @@ function kindOf(e: PointerEvent): PointerKind {
  *  (d) a double click or double tap on the background (two taps, lift to lift within
  *      DOUBLE_TAP_MS and DOUBLE_TAP_PX) zooms fully out while zoomed, at any zoom level, and
  *      from the full view zooms to the region under the taps; in no region it does nothing;
- *  (e) anything between the two taps that is not a background tap (a control pointer going down,
- *      a pan, a pinch, a cancel, a view change by the Full panel button) ends the pair, and a
- *      pair is consumed, so a double tap on a control stays two control taps (a control tap
- *      resets the pair tracker);
+ *  (e) anything between the two taps that is not a tap of the pair (a momentary or drag control
+ *      pointer going down, a pan, a pinch, a cancel, a view change by the Full panel button) ends
+ *      the pair, and a pair is consumed, so a third quick tap starts a new pair;
+ *  (e2) control pair rule (R3-Z3): the tap of a latching control actuates at once; when a second
+ *      quick tap lands on the same pair key (the target's pairKey, else its hit key) within the
+ *      pair limits, resolveControlTap retracts the first actuation through the injected retract
+ *      option (the log, never the bridge, is touched by the caller), the second tap is not
+ *      actuated and the view zooms as for the background; momentary and drag controls never pair;
  *  (f) stale record sweep: a primary pointer going down drops every tracked pointer of its kind,
  *      so a lost pointerup or pointercancel can never leave the panel blocked;
  *  (g) a momentary target commits its press after MOMENTARY_HOLD_MS held still (one timer, see
@@ -120,7 +124,14 @@ function kindOf(e: PointerEvent): PointerKind {
  *      the slop or a second pointer before the commit discards it; after the commit it keeps
  *      the pointer and the lift or a cancel releases it.
  */
-export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registry }): () => void {
+export function attachZoomGestures(
+  svg: SVGSVGElement,
+  opts: {
+    registry: Registry;
+    /** Removes the event with this sequence number from the action log; false when refused. */
+    retract?: (seq: number) => boolean;
+  },
+): () => void {
   const { registry } = opts;
   const { viewBox } = registry;
   fullView.value = { x: 0, y: 0, w: viewBox.w, h: viewBox.h };
@@ -180,9 +191,19 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     viewRect.value = panRect(view, -dx / s, -dy / s, viewBox);
   };
 
-  const onTap = (clientX: number, clientY: number, at: number) => {
+  /**
+   * One tap that may pair with the remembered one: `resolve` feeds the tracker (a background tap
+   * directly, a latching control tap through resolveControlTap) and the zoom it asks for is applied
+   * here, the same for both paths.
+   */
+  const onTap = (
+    clientX: number,
+    clientY: number,
+    at: number,
+    resolve: () => DoubleTapIntent | ControlTapResult,
+  ) => {
     if (lastTapView !== viewRect.peek()) doubleTaps.reset();
-    const intent = doubleTaps.tap({ x: clientX, y: clientY, at }, isZoomed.peek());
+    const intent = resolve();
     lastTapView = viewRect.peek();
     if (intent === 'zoom-out') {
       zoomOut(viewBox);
@@ -247,14 +268,30 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
           break;
         case 'tap': {
           if (effect.key === null) {
-            onTap(effect.up.x, effect.up.y, effect.at);
+            onTap(effect.up.x, effect.up.y, effect.at, () =>
+              doubleTaps.tap({ x: effect.up.x, y: effect.up.y, at: effect.at }, isZoomed.peek()),
+            );
             break;
           }
           const record = records.get(effect.id);
-          record?.target?.tap?.({ down: effect.down, up: effect.up, hit: record.hit });
-          // Control taps never pair in this plan: the tracker forgets whatever it remembered.
-          doubleTaps.reset();
-          lastTapView = null;
+          const info = record && { down: effect.down, up: effect.up, hit: record.hit };
+          const act = () => (info === undefined ? null : (record?.target?.tap?.(info) ?? null));
+          if (!effect.quick) {
+            // A long press is an ordinary tap: it actuates and ends any pair.
+            act();
+            doubleTaps.reset();
+            lastTapView = null;
+            break;
+          }
+          const key = record?.target?.pairKey ?? effect.key;
+          onTap(effect.up.x, effect.up.y, effect.at, () =>
+            resolveControlTap(
+              doubleTaps,
+              { x: effect.up.x, y: effect.up.y, at: effect.at, key },
+              isZoomed.peek(),
+              { act, retract: (seq) => opts.retract?.(seq) ?? false },
+            ),
+          );
           break;
         }
         case 'pair-break':

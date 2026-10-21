@@ -51,8 +51,8 @@ export function Panel({ bridge }: { bridge: PanelBridge }) {
   useEffect(() => {
     const svg = svgRef.current;
     if (svg === null) return undefined;
-    return attachZoomGestures(svg, { registry });
-  }, [registry]);
+    return attachZoomGestures(svg, { registry, retract: (seq) => bridge.retract(seq).ok });
+  }, [registry, bridge]);
   return (
     <svg
       ref={svgRef}

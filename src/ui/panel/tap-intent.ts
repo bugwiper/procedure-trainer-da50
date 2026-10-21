@@ -1,6 +1,7 @@
-// Pure tap rules for the zoom gesture layer (R2-Z1, PNL-15). No DOM, no bridge, no timer: a
-// double tap on the panel background only ever changes the view, never a control. A single tap
-// never zooms (this supersedes D-12).
+// Pure tap rules for the zoom gesture layer (R2-Z1, R3-Z3, PNL-15). No DOM, no bridge, no timer.
+// A single tap never zooms (this supersedes D-12). A double tap zooms on the panel background and
+// on a latching control: the first tap of a control actuates at once, and the pair, when
+// recognised, retracts that actuation (resolveControlTap) so the control keeps its state.
 
 /** How the pointer reaches the panel; a pointer of unknown type is treated as touch by the glue. */
 export type PointerKind = 'mouse' | 'touch' | 'pen';
@@ -43,6 +44,8 @@ export interface TapPoint {
   readonly y: number;
   /** Lift time of the tap, in ms. */
   readonly at: number;
+  /** The pair key of a latching control (its hit key); null or absent for the background. */
+  readonly key?: string | null;
 }
 
 export type DoubleTapIntent = 'zoom-in' | 'zoom-out' | 'none';
@@ -50,8 +53,18 @@ export type DoubleTapIntent = 'zoom-in' | 'zoom-out' | 'none';
 export interface DoubleTapTracker {
   /** Feeds one background tap; returns what the pair, if this tap completes one, asks for. */
   tap(point: TapPoint, zoomed: boolean): DoubleTapIntent;
-  /** Forgets the remembered tap: anything but a background tap happened between the two. */
+  /** Forgets the remembered tap: anything that is not a tap of this kind happened between the two. */
   reset(): void;
+  /**
+   * Attaches the sequence number of the actuation just made (null: it recorded no event) to the
+   * remembered tap; a no-op when no tap is remembered (the tap just consumed a pair).
+   */
+  noteActuation(seq: number | null): void;
+  /**
+   * The sequence number recorded with the first tap of the pair just recognised, or null when it
+   * recorded none (or no pair was recognised); read once, a second call gives null.
+   */
+  takeFirstSeq(): number | null;
 }
 
 /** One finger or mouse, short and still (slop by pointer kind), started on the background: a tap. */
@@ -65,31 +78,83 @@ export function isBackgroundTap(g: GestureRecord): boolean {
 }
 
 /**
- * Remembers the last background tap. A second tap within DOUBLE_TAP_MS and DOUBLE_TAP_PX of it
- * (lift to lift, both inclusive) is a double tap: it zooms out while zoomed (any level) and in
- * from the full view, and the pair is consumed, so a third quick tap starts a new pair. Any
- * other tap only becomes the remembered one. A pure function of timestamps and coordinates.
+ * Remembers the last tap. A second tap with the same key (absent equals null: the background)
+ * within DOUBLE_TAP_MS and DOUBLE_TAP_PX of it (lift to lift, both inclusive) is a double tap: it
+ * zooms out while zoomed (any level) and in from the full view, and the pair is consumed, so a
+ * third quick tap starts a new pair. Any other tap only becomes the remembered one. A pure
+ * function of timestamps, coordinates and keys.
  */
 export function createDoubleTapTracker(): DoubleTapTracker {
-  let last: TapPoint | null = null;
+  let last: { readonly point: TapPoint; seq: number | null } | null = null;
+  let firstSeq: number | null = null;
   return {
     tap(point, zoomed) {
       const prev = last;
+      firstSeq = null;
       if (
         prev !== null &&
-        point.at - prev.at <= DOUBLE_TAP_MS &&
-        Math.hypot(point.x - prev.x, point.y - prev.y) <= DOUBLE_TAP_PX
+        (prev.point.key ?? null) === (point.key ?? null) &&
+        point.at - prev.point.at <= DOUBLE_TAP_MS &&
+        Math.hypot(point.x - prev.point.x, point.y - prev.point.y) <= DOUBLE_TAP_PX
       ) {
         last = null;
+        firstSeq = prev.seq;
         return zoomed ? 'zoom-out' : 'zoom-in';
       }
-      last = point;
+      last = { point, seq: null };
       return 'none';
     },
     reset() {
       last = null;
+      firstSeq = null;
+    },
+    noteActuation(seq) {
+      if (last !== null) last.seq = seq;
+    },
+    takeFirstSeq() {
+      const seq = firstSeq;
+      firstSeq = null;
+      return seq;
     },
   };
+}
+
+/** What a latching control tap turned out to be. */
+export type ControlTapResult = 'actuated' | 'zoom-in' | 'zoom-out';
+
+/** The two operations resolveControlTap needs; the glue supplies them, the tests fake them. */
+export interface ControlTapOps {
+  /** Actuates the control for the tap; returns the sequence number of the event, or null for none. */
+  act(): number | null;
+  /** Removes the event from the action log; false when the log refused. */
+  retract(seq: number): boolean;
+}
+
+/**
+ * The whole pair decision for the tap of a latching control (R3-Z3, Table D1). A tap that
+ * completes no pair actuates at once (no delay) and is remembered with its sequence number. A tap
+ * that completes a pair retracts the first actuation (nothing to retract when the first tap
+ * recorded no event), does not actuate itself and returns the zoom the pair asks for. When the
+ * retract is refused the pair is not a double tap: the tap actuates as an ordinary tap and
+ * becomes the first tap of a new pair.
+ */
+export function resolveControlTap(
+  tracker: DoubleTapTracker,
+  point: TapPoint,
+  zoomed: boolean,
+  ops: ControlTapOps,
+): ControlTapResult {
+  const intent = tracker.tap(point, zoomed);
+  if (intent === 'none') {
+    tracker.noteActuation(ops.act());
+    return 'actuated';
+  }
+  const first = tracker.takeFirstSeq();
+  if (first === null || ops.retract(first)) return intent;
+  tracker.reset();
+  tracker.tap(point, zoomed);
+  tracker.noteActuation(ops.act());
+  return 'actuated';
 }
 
 /**

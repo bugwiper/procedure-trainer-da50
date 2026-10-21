@@ -559,28 +559,27 @@ async function pointBesideHit(page: Page, id: string): Promise<Point> {
   return found;
 }
 
-test('@hooks a double tap on a control is two control taps and never zooms', async ({
+test('@hooks a double click or double tap on a switch zooms and leaves it unchanged (R3-Z3)', async ({
   page,
 }, testInfo) => {
   const name = testInfo.project.name;
   test.skip(name !== 'phone-chromium' && name !== 'desktop-chromium', 'Chromium gestures only');
   const touch = name === 'phone-chromium';
   expect(await eventCount(page)).toBe(0);
+  const start = (await control(page, 'sw.engine_master').getAttribute('data-state')) ?? '';
 
-  // Full view.
+  // Full view: the pair zooms into the region under the taps; the first actuation is retracted.
   await doubleActivateAt(page, await hitCentre(page, 'sw.engine_master'), touch);
-  expect(await eventCount(page)).toBe(2);
-  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'on');
-  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
+  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', start);
+  expect(await eventCount(page)).toBe(0);
 
-  // Zoomed into the switch bank.
-  await zoomIntoRegion(page, touch, 'switch_bank');
-  const zoomed = await viewBoxOf(page);
+  // Zoomed: the same pair zooms fully out, the switch is unchanged and the log stays empty.
   await afterPairWindow(page);
   await doubleActivateAt(page, await hitCentre(page, 'sw.engine_master'), touch);
-  expect(await eventCount(page)).toBe(4);
-  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'on');
-  expect(await viewBoxOf(page)).toBe(zoomed);
+  await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', start);
+  expect(await eventCount(page)).toBe(0);
 });
 
 test('@hooks a control tap followed by a background tap beside it is not a double tap', async ({

@@ -12,6 +12,7 @@ import {
   createDoubleTapTracker,
   isBackgroundTap,
   isStrayFullPanelClick,
+  resolveControlTap,
   slopPx,
 } from '../src/ui/panel/tap-intent';
 import {
@@ -478,6 +479,211 @@ describe('createDoubleTapTracker (R2-Z1)', () => {
     t.reset();
     expect(t.tap(later(100), false)).toBe('none');
     expect(t.tap(later(200), false)).toBe('zoom-in');
+  });
+});
+
+describe('createDoubleTapTracker with keys (R3-Z3)', () => {
+  const at = (dt: number, key: string | null, dx = 0) => ({
+    x: 500 + dx,
+    y: 400,
+    at: 10_000 + dt,
+    key,
+  });
+
+  it('two taps with the same key pair', () => {
+    const t = createDoubleTapTracker();
+    expect(t.tap(at(0, 'sw.a'), false)).toBe('none');
+    expect(t.tap(at(150, 'sw.a'), false)).toBe('zoom-in');
+    const z = createDoubleTapTracker();
+    z.tap(at(0, 'sw.a'), true);
+    expect(z.tap(at(150, 'sw.a'), true)).toBe('zoom-out');
+  });
+
+  it('different keys, and a key against the background, do not pair; the new tap is remembered', () => {
+    const t = createDoubleTapTracker();
+    t.tap(at(0, 'sw.a'), false);
+    expect(t.tap(at(100, 'sw.b'), false)).toBe('none');
+    expect(t.tap(at(200, 'sw.b'), false)).toBe('zoom-in');
+    const u = createDoubleTapTracker();
+    u.tap(at(0, 'sw.a'), false);
+    expect(u.tap(at(100, null), false)).toBe('none');
+    expect(u.tap(at(200, null), false)).toBe('zoom-in');
+    const v = createDoubleTapTracker();
+    v.tap(at(0, null), false);
+    expect(v.tap(at(100, 'sw.a'), false)).toBe('none');
+    expect(v.tap(at(200, 'sw.a'), false)).toBe('zoom-in');
+  });
+
+  it('an absent key equals null', () => {
+    const t = createDoubleTapTracker();
+    t.tap({ x: 1, y: 1, at: 0 }, false);
+    expect(t.tap({ x: 1, y: 1, at: 100, key: null }, false)).toBe('zoom-in');
+  });
+
+  it('the limits stay inclusive for keyed taps', () => {
+    const a = createDoubleTapTracker();
+    a.tap(at(0, 'k'), false);
+    expect(a.tap(at(DOUBLE_TAP_MS, 'k'), false)).toBe('zoom-in');
+    const b = createDoubleTapTracker();
+    b.tap(at(0, 'k'), false);
+    expect(b.tap(at(100, 'k', DOUBLE_TAP_PX), false)).toBe('zoom-in');
+    const c = createDoubleTapTracker();
+    c.tap(at(0, 'k'), false);
+    expect(c.tap(at(DOUBLE_TAP_MS + 1, 'k'), false)).toBe('none');
+    const d = createDoubleTapTracker();
+    d.tap(at(0, 'k'), false);
+    expect(d.tap(at(100, 'k', DOUBLE_TAP_PX + 1), false)).toBe('none');
+  });
+
+  it('noteActuation and takeFirstSeq carry the first tap sequence number or null', () => {
+    const t = createDoubleTapTracker();
+    t.tap(at(0, 'k'), false);
+    t.noteActuation(7);
+    expect(t.tap(at(100, 'k'), false)).toBe('zoom-in');
+    expect(t.takeFirstSeq()).toBe(7);
+    const u = createDoubleTapTracker();
+    u.tap(at(0, 'k'), false);
+    u.noteActuation(null);
+    u.tap(at(100, 'k'), false);
+    expect(u.takeFirstSeq()).toBeNull();
+    const w = createDoubleTapTracker();
+    w.tap(at(0, 'k'), false);
+    w.tap(at(100, 'k'), false);
+    expect(w.takeFirstSeq()).toBeNull();
+  });
+
+  it('a consumed pair forgets the sequence number; a new first tap carries its own', () => {
+    const t = createDoubleTapTracker();
+    t.tap(at(0, 'k'), false);
+    t.noteActuation(3);
+    t.tap(at(100, 'k'), false);
+    expect(t.takeFirstSeq()).toBe(3);
+    expect(t.takeFirstSeq()).toBeNull();
+    // noteActuation after a pair is a no-op: there is no remembered tap.
+    t.noteActuation(9);
+    expect(t.tap(at(200, 'k'), false)).toBe('none');
+    expect(t.takeFirstSeq()).toBeNull();
+  });
+
+  it('a reset forgets the sequence number too', () => {
+    const t = createDoubleTapTracker();
+    t.tap(at(0, 'k'), false);
+    t.noteActuation(4);
+    t.reset();
+    expect(t.tap(at(100, 'k'), false)).toBe('none');
+    expect(t.takeFirstSeq()).toBeNull();
+  });
+});
+
+describe('resolveControlTap (R3-Z3)', () => {
+  function fakes() {
+    const calls: string[] = [];
+    let next = 0;
+    let retractOk = true;
+    const ops = {
+      act: (): number | null => {
+        calls.push('act');
+        return next++;
+      },
+      retract: (seq: number): boolean => {
+        calls.push(`retract:${seq}`);
+        return retractOk;
+      },
+    };
+    return {
+      calls,
+      ops,
+      refuse: () => {
+        retractOk = false;
+      },
+      accept: () => {
+        retractOk = true;
+      },
+      silent: () => {
+        ops.act = () => {
+          calls.push('act');
+          return null;
+        };
+      },
+    };
+  }
+  const pt = (dt: number, key: string | null = 'sw.a', dx = 0) => ({
+    x: 300 + dx,
+    y: 200,
+    at: 5000 + dt,
+    key,
+  });
+
+  it('a lone tap acts once and records its sequence number', () => {
+    const f = fakes();
+    const t = createDoubleTapTracker();
+    expect(resolveControlTap(t, pt(0), false, f.ops)).toBe('actuated');
+    expect(f.calls).toEqual(['act']);
+  });
+
+  it('a pair retracts the recorded sequence number and does not act, in and out by the zoom state', () => {
+    const f = fakes();
+    const t = createDoubleTapTracker();
+    resolveControlTap(t, pt(0), false, f.ops);
+    expect(resolveControlTap(t, pt(150), false, f.ops)).toBe('zoom-in');
+    expect(f.calls).toEqual(['act', 'retract:0']);
+    const g = fakes();
+    const u = createDoubleTapTracker();
+    resolveControlTap(u, pt(0), true, g.ops);
+    expect(resolveControlTap(u, pt(DOUBLE_TAP_MS), true, g.ops)).toBe('zoom-out');
+    expect(g.calls).toEqual(['act', 'retract:0']);
+  });
+
+  it('a first tap that recorded no event pairs without calling retract', () => {
+    const f = fakes();
+    f.silent();
+    const t = createDoubleTapTracker();
+    resolveControlTap(t, pt(0), false, f.ops);
+    expect(resolveControlTap(t, pt(100), false, f.ops)).toBe('zoom-in');
+    expect(f.calls).toEqual(['act']);
+  });
+
+  it('a refused retract acts, gives actuated and the next quick tap pairs with this one', () => {
+    const f = fakes();
+    const t = createDoubleTapTracker();
+    resolveControlTap(t, pt(0), false, f.ops);
+    f.refuse();
+    expect(resolveControlTap(t, pt(100), false, f.ops)).toBe('actuated');
+    expect(f.calls).toEqual(['act', 'retract:0', 'act']);
+    // The tap that acted is the new first tap, with sequence number 1.
+    f.accept();
+    f.calls.length = 0;
+    expect(resolveControlTap(t, pt(200), false, f.ops)).toBe('zoom-in');
+    expect(f.calls).toEqual(['retract:1']);
+  });
+
+  it('a different key never pairs', () => {
+    const f = fakes();
+    const t = createDoubleTapTracker();
+    resolveControlTap(t, pt(0, 'sw.a'), false, f.ops);
+    expect(resolveControlTap(t, pt(100, 'sw.b'), false, f.ops)).toBe('actuated');
+    expect(f.calls).toEqual(['act', 'act']);
+  });
+
+  it('three quick taps give actuated, zoom, actuated', () => {
+    const f = fakes();
+    const t = createDoubleTapTracker();
+    expect(resolveControlTap(t, pt(0), false, f.ops)).toBe('actuated');
+    expect(resolveControlTap(t, pt(100), false, f.ops)).toBe('zoom-in');
+    expect(resolveControlTap(t, pt(200), true, f.ops)).toBe('actuated');
+    expect(f.calls).toEqual(['act', 'retract:0', 'act']);
+  });
+
+  it('the limits come from the exported constants', () => {
+    const f = fakes();
+    const t = createDoubleTapTracker();
+    resolveControlTap(t, pt(0), false, f.ops);
+    expect(resolveControlTap(t, pt(DOUBLE_TAP_MS + 1), false, f.ops)).toBe('actuated');
+    const g = fakes();
+    const u = createDoubleTapTracker();
+    resolveControlTap(u, pt(0), false, g.ops);
+    expect(resolveControlTap(u, pt(100, 'sw.a', DOUBLE_TAP_PX + 1), false, g.ops)).toBe('actuated');
+    expect(g.calls).toEqual(['act', 'act']);
   });
 });
 
