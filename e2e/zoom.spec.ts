@@ -187,9 +187,15 @@ test('every region with controls reaches full tap size when zoomed', async ({
   expect(regions.length).toBeGreaterThanOrEqual(8);
   for (const id of regions) {
     await zoomIntoRegion(page, hasTouch, id);
-    for (const s of await sizes(page, id)) {
+    const measured = await sizes(page, id);
+    for (const s of measured) {
       expect(s.w, `${id} ${s.id}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
       expect(s.h, `${id} ${s.id}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+    }
+    // The four FAN click spots are measured one by one (R2-4.1).
+    if (id === 'env_control') {
+      const ids = measured.map((s) => s.id);
+      for (const stop of ['off', 'f1', 'f2', 'f3']) expect(ids).toContain(`sw.env_fan:${stop}`);
     }
     // The "Full panel" button must not cover any control of the zoomed region.
     const covered = await page.evaluate((regionId) => {

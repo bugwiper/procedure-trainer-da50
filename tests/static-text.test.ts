@@ -213,7 +213,27 @@ describe('knob family text is state-independent', () => {
       if (def.nameless === true) expect(first, def.id).not.toContain(def.label.split(' ')[0]);
       else expect(first, def.id).toContain(def.label.split(' ')[0]);
       // The FAN prints OFF only: the three stops are fan symbols, no label, no number (G-3).
-      if (def.id === 'sw.env_fan') expect(first, def.id).toEqual(['OFF']);
+      if (def.id === 'sw.env_fan') {
+        expect(first, def.id).toEqual(['OFF']);
+        // Art unchanged by the click spots (R2-4.1): one disc, three glyphs, no hit rectangle.
+        for (const stop of def.stops) {
+          const tree = expand(RotaryBody({ def, state: stop.id, pressed: false }));
+          expect(
+            findElements(tree, (el) => el.tag === 'circle'),
+            stop.id,
+          ).toHaveLength(1);
+          expect(
+            findElements(tree, (el) => 'data-fan-symbol' in el.props).map(
+              (el) => el.props['data-fan-symbol'],
+            ),
+            stop.id,
+          ).toEqual(['f1', 'f2', 'f3']);
+          expect(
+            findElements(tree, (el) => 'data-hit' in el.props || 'data-detent' in el.props),
+            stop.id,
+          ).toHaveLength(0);
+        }
+      }
       for (const stop of def.stops) {
         for (const pressed of [false, true]) {
           const tree = expand(RotaryBody({ def, state: stop.id, pressed }));

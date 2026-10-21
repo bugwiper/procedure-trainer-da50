@@ -358,6 +358,88 @@ describe('background clearance for region tap (PNL-09)', () => {
   });
 });
 
+// Plan 28 (R2-4.1): the FAN has four direct click spots; the footprint grew to hold them.
+describe('FAN click spots (plan 28, R2-4.1)', () => {
+  const fan = DA50RG.get('sw.env_fan');
+  const rotary = fan?.kind === 'rotary' ? fan : undefined;
+  const spots = rotary?.spots ?? [];
+  const global = (): Rect => {
+    if (rotary === undefined) throw new Error('no FAN');
+    const b = regionBounds(rotary.region);
+    const f = footprint(rotary);
+    return { x: b.x + f.x, y: b.y + f.y, w: f.w, h: f.h };
+  };
+
+  it('the FAN footprint lies inside env_control and on the environmental plate', () => {
+    expect(rotary).toBeDefined();
+    if (rotary === undefined) return;
+    expect(
+      inside(footprint(rotary), {
+        x: 0,
+        y: 0,
+        w: regionBounds('env_control').w,
+        h: regionBounds('env_control').h,
+      }),
+    ).toBe(true);
+    const plate = PLATES.find((p) => p.id === 'environmental');
+    expect(plate).toBeDefined();
+    if (plate === undefined) return;
+    expect(inside(global(), { x: plate.x, y: plate.y, w: plate.w, h: plate.h })).toBe(true);
+  });
+
+  it('the footprint sits at global x 964 to 1076 and y 889 to 975 (Table F1)', () => {
+    const g = global();
+    expect([g.x, g.x + g.w, g.y, g.y + g.h]).toEqual([964, 1076, 889, 975]);
+  });
+
+  it('no other control footprint overlaps the FAN footprint (touching allowed)', () => {
+    const mine = global();
+    for (const def of DA50RG.controls) {
+      if (def.id === 'sw.env_fan') continue;
+      const b = regionBounds(def.region);
+      const f = footprint(def);
+      const other = { x: b.x + f.x, y: b.y + f.y, w: f.w, h: f.h };
+      expect(overlaps(mine, other), `FAN / ${def.id}`).toBe(false);
+    }
+  });
+
+  it('every spot lies inside the footprint and holds the mark of its own stop', () => {
+    expect(spots).toHaveLength(4);
+    if (rotary === undefined) return;
+    for (const spot of spots) {
+      const stop = rotary.stops.find((s) => s.id === spot.stop);
+      expect(stop, spot.stop).toBeDefined();
+      if (stop === undefined) continue;
+      expect(Math.abs(spot.x) + spot.w / 2, spot.stop).toBeLessThanOrEqual(rotary.hit.w / 2);
+      expect(Math.abs(spot.y) + spot.h / 2, spot.stop).toBeLessThanOrEqual(rotary.hit.h / 2);
+      const a = (stop.angle * Math.PI) / 180;
+      const mark = { x: (rotary.r + 8) * Math.sin(a), y: -(rotary.r + 8) * Math.cos(a) };
+      expect(Math.abs(mark.x - spot.x), `${spot.stop} mark x`).toBeLessThanOrEqual(spot.w / 2);
+      expect(Math.abs(mark.y - spot.y), `${spot.stop} mark y`).toBeLessThanOrEqual(spot.h / 2);
+    }
+  });
+
+  it('no spot reaches another control footprint of the panel', () => {
+    if (rotary === undefined) return;
+    const b = regionBounds(rotary.region);
+    for (const spot of spots) {
+      const rect: Rect = {
+        x: b.x + rotary.x + spot.x - spot.w / 2,
+        y: b.y + rotary.y + spot.y - spot.h / 2,
+        w: spot.w,
+        h: spot.h,
+      };
+      for (const def of DA50RG.controls) {
+        if (def.id === 'sw.env_fan') continue;
+        const rb = regionBounds(def.region);
+        const f = footprint(def);
+        const other = { x: rb.x + f.x, y: rb.y + f.y, w: f.w, h: f.h };
+        expect(overlaps(rect, other), `${spot.stop} / ${def.id}`).toBe(false);
+      }
+    }
+  });
+});
+
 // Owner finding G-2: the landing gear block reads heading, speed line, then lamps and toggle,
 // all on the gear plate and inside the landing_gear region. Glyph tops use 0.7 of the font size.
 describe('landing gear block order (G-2)', () => {

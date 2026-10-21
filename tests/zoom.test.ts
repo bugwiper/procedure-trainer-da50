@@ -308,6 +308,24 @@ describe('zoomed tap-size guarantee (D-21)', () => {
     });
   }
 
+  it('every FAN click spot reaches 44 px at the env_control zoom on every profile (R2-4.1)', () => {
+    const fan = DA50RG.get('sw.env_fan');
+    const spots = fan?.kind === 'rotary' ? (fan.spots ?? []) : [];
+    expect(spots).toHaveLength(4);
+    const region = DA50RG.regions.find((r) => r.id === 'env_control');
+    expect(region).toBeDefined();
+    if (region === undefined || fan === undefined) return;
+    for (const [name, screen] of Object.entries(VIEW_PROFILES)) {
+      const scale = fitScale(zoomRect(region.bounds, VIEWBOX), screen);
+      for (const spot of spots) {
+        const side = Math.min(spot.w, spot.h) * scale;
+        expect(side, `${spot.stop} on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+      }
+      // The rule counts the smallest spot side for a knob with spots.
+      expect(targetSide(fan) * scale, `rule on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+    }
+  });
+
   it('the breaker region cb_essential keeps the 28 x 28 breaker at full size on every profile', () => {
     const region = DA50RG.regions.find((r) => r.id === 'cb_essential');
     expect(region?.controlIds).toContain('cb.pitot');

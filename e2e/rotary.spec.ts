@@ -209,6 +209,49 @@ test('@hooks a FAN spot records exactly one event with the stop id, the current 
   ]);
 });
 
+/** Taps a knob-local point of the FAN (units from its centre) by page coordinates. */
+async function tapFanAt(page: Page, hasTouch: boolean, ux: number, uy: number): Promise<void> {
+  const hit = page.locator('[data-hit="sw.env_fan"]');
+  await hit.scrollIntoViewIfNeeded();
+  const b = await box(hit);
+  const unit = b.w / 112;
+  const x = b.x + b.w / 2 + ux * unit;
+  const y = b.y + b.h / 2 + uy * unit;
+  if (hasTouch) await page.touchscreen.tap(x, y);
+  else await page.mouse.click(x, y);
+}
+
+test('@hooks FAN: a tap on each mark and on the body sets one stop and records one event', async ({
+  page,
+  hasTouch,
+}) => {
+  const knob = control(page, 'sw.env_fan');
+  // The marks take no pointer events: the centre of the OFF word and of each glyph, by coordinates.
+  const steps: [string, number, number][] = [
+    ['f1', -19.1, -11],
+    ['f2', 0, -22],
+    ['f3', 19.1, -11],
+    ['off', 0, 21.5],
+    // The body between the spots: the right half at half height gives f3, the left half f1.
+    ['f3', 28, 0],
+    ['f1', -28, 0],
+  ];
+  let count = 0;
+  for (const [stop, ux, uy] of steps) {
+    await tapFanAt(page, hasTouch, ux, uy);
+    await expect(knob, stop).toHaveAttribute('data-state', stop);
+    count += 1;
+    expect(await eventCount(page), stop).toBe(count);
+  }
+  // The exact centre does nothing, and the repeated tap on the current stop records no event.
+  await tapFanAt(page, hasTouch, 0, 0);
+  await tapFanAt(page, hasTouch, -28, 0);
+  await expect(knob).toHaveAttribute('data-state', 'f1');
+  expect(await eventCount(page)).toBe(count);
+  const events = await page.evaluate(() => (globalThis as HookHost).__panel?.events() ?? []);
+  expect(events.map((e) => [e.id, e.value])).toEqual(steps.map(([stop]) => ['sw.env_fan', stop]));
+});
+
 test('FAN reaches OFF, 1, 2 and 3 by a drag toward each stop and prints only OFF', async ({
   page,
 }, testInfo) => {
