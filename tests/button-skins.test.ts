@@ -114,6 +114,26 @@ describe('push-button bodies', () => {
   });
 });
 
+describe('nameless round buttons (plan 29, R2-5.2)', () => {
+  it('btn.fadec_test is nameless and prints no text in any state; every other round button prints its label', () => {
+    for (const def of BUTTONS) {
+      if (def.skin === 'spring-bat') continue;
+      for (const { state, side } of renders(def)) {
+        const texts = findElements(body(def, state, side), (el) => el.tag === 'text').map((el) =>
+          textOf(el),
+        );
+        if (def.id === 'btn.fadec_test') {
+          expect(def.nameless, def.id).toBe(true);
+          expect(texts, `${def.id}/${state}`).toEqual([]);
+        } else {
+          expect(def.nameless, def.id).not.toBe(true);
+          expect(texts.length, `${def.id}/${state}`).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+});
+
 describe('push-button fit', () => {
   it('the visible diameter is at most the smaller hit side', () => {
     for (const def of BUTTONS) {
@@ -151,7 +171,7 @@ describe('push-button fit', () => {
 
   it('the label of every button stays clear of other controls and inside the region', () => {
     for (const def of BUTTONS) {
-      if (def.skin === 'spring-bat') continue;
+      if (def.skin === 'spring-bat' || def.nameless === true) continue;
       const skin = def.skin as keyof typeof BEZEL_RADIUS;
       const layout = buttonTextLayout(def, BEZEL_RADIUS[skin]);
       const region = regionOf(def.region);

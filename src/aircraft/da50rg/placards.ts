@@ -159,6 +159,36 @@ export const PLACARDS: readonly PlacardDef[] = [
     size: 6,
     pitch: 7.2,
   },
+  // FADEC group of the engine strip (plan 29, R2-5.2; sw.fadec global centre 126, 506, btn.fadec_test
+  // 206, 506): AUTO centred above the switch (its upper position, the default), FORCE B centred
+  // below it (the lower one), TEST centred above the button. The parts print no text of their own.
+  {
+    id: 'fadec.auto',
+    near: 'sw.fadec',
+    dx: 0,
+    dy: -17,
+    lines: ['AUTO'],
+    anchor: 'middle',
+    size: 6,
+  },
+  {
+    id: 'fadec.force_b',
+    near: 'sw.fadec',
+    dx: 0,
+    dy: 32,
+    lines: ['FORCE B'],
+    anchor: 'middle',
+    size: 6,
+  },
+  {
+    id: 'fadec.test',
+    near: 'btn.fadec_test',
+    dx: 0,
+    dy: -15,
+    lines: ['TEST'],
+    anchor: 'middle',
+    size: 6,
+  },
   {
     id: 'cowl_flap.name',
     near: 'lv.cowl_flap',

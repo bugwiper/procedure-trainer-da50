@@ -5,11 +5,22 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { PLACARDS, placardLineY } from '../src/aircraft/da50rg/placards';
 import { LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
-import { ENV_BOXES, HEADING_FRAME, PLATES, PLATE_HEADINGS } from '../src/aircraft/da50rg/plates';
+import {
+  BRACKET_GROUPS,
+  ENV_BOXES,
+  HEADING_FRAME,
+  PLATES,
+  PLATE_HEADINGS,
+} from '../src/aircraft/da50rg/plates';
 import { DEF_IDS, Defs } from '../src/ui/panel/Defs';
 import { BUS_ORDER, BUS_OUTLINES } from '../src/aircraft/da50rg/bus-boxes';
 import { roundedPolygonPath } from '../src/ui/panel/BusPanelArt';
-import { PanelShell, groupBoxPath, temperatureTriangle } from '../src/ui/panel/PanelShell';
+import {
+  PanelShell,
+  bracketPath,
+  groupBoxPath,
+  temperatureTriangle,
+} from '../src/ui/panel/PanelShell';
 import { PANEL_VIEWBOX } from './layout-reference';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 
@@ -576,6 +587,40 @@ describe('plate headings (plan 22, G-1)', () => {
       expect(h.y + h.h).toBeLessThanOrEqual(plate.y + plate.h);
       expect(h.text.length * h.size * 0.62).toBeLessThan(h.w - 8);
       expect(h.size + 4).toBeLessThanOrEqual(h.h);
+    }
+  });
+});
+
+describe('bracket groups of the engine strip (plan 29, R2-5.2)', () => {
+  const groups = findElements(shell, (el) => el.props['data-shell'] === 'bracket-group');
+
+  it('the shell draws every bracket group of the data with its outline path and its title', () => {
+    expect(BRACKET_GROUPS.length).toBeGreaterThan(0);
+    expect(groups).toHaveLength(BRACKET_GROUPS.length);
+    for (const g of BRACKET_GROUPS) {
+      const el = groups.find((e) => e.props['data-bracket'] === g.id);
+      if (el === undefined) throw new Error(`no group ${g.id}`);
+      const line = findElements(el, (e) => e.props['data-shell'] === 'bracket-line')[0];
+      expect(line?.props['d'], g.id).toBe(bracketPath(g));
+      expect(line?.props['fill'], g.id).toBe('none');
+      const titles = findElements(el, (e) => e.props['data-shell'] === 'bracket-title');
+      expect(
+        titles.map((t) => textOf(t)),
+        g.id,
+      ).toEqual([g.title]);
+      expect(titles[0]?.props['font-size'], g.id).toBe(g.size);
+    }
+  });
+
+  it('every bracket group lies on a plate of the data', () => {
+    for (const g of BRACKET_GROUPS) {
+      const plate = PLATES.find((p) => p.id === g.plate);
+      expect(plate, g.id).toBeDefined();
+      if (plate === undefined) continue;
+      expect(g.x1).toBeGreaterThanOrEqual(plate.x);
+      expect(g.x2).toBeLessThanOrEqual(plate.x + plate.w);
+      expect(g.y).toBeGreaterThanOrEqual(plate.y);
+      expect(g.y + g.drop).toBeLessThanOrEqual(plate.y + plate.h);
     }
   });
 });

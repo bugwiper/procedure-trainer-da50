@@ -181,7 +181,9 @@ describe('push button family text is state-independent', () => {
         expand(PushButtonBody({ def, state, pressedSide: side })),
       );
       const first = textStrings(trees[0]!);
-      expect(first.length, def.id).toBeGreaterThan(0);
+      // A nameless button (the FADEC TEST button) prints no text at all: a placard names it.
+      if (def.nameless === true) expect(first, def.id).toEqual([]);
+      else expect(first.length, def.id).toBeGreaterThan(0);
       for (const tree of trees) {
         expect(
           findElements(tree, (el) => 'data-state-text' in el.props),

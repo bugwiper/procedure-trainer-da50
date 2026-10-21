@@ -2,10 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
 import { PLACARDS, placardLineY } from '../src/aircraft/da50rg/placards';
-import { GEAR_BLOCK, PLATES, PLATE_HEADINGS } from '../src/aircraft/da50rg/plates';
+import {
+  BRACKET_GROUPS,
+  BRACKET_TITLE_DROP,
+  GEAR_BLOCK,
+  PLATES,
+  PLATE_HEADINGS,
+} from '../src/aircraft/da50rg/plates';
 import { BEZEL_EXTRA } from '../src/engine/indicators';
 import type { ControlDef, Rect } from '../src/engine/registry';
+import { bracketPath, glyphWidth } from '../src/ui/panel/PanelShell';
 import { BEZEL_RADIUS, buttonTextLayout, textWidth } from '../src/ui/panel/skins/PushButton';
+import { togglePosition } from '../src/ui/panel/widgets/Toggle';
 import {
   ALL_REGION_IDS,
   CB_REFERENCE,
@@ -1053,6 +1061,148 @@ describe('de-ice unit, lower row, ALTERNATE and heading (plan 22, G-1)', () => {
           expect(overlaps(box, globalFootprint(id)), `${near} placard / ${id}`).toBe(false);
         }
       }
+    }
+  });
+});
+
+// Owner finding R2-5.2, plan 29: the engine strip as in the aircraft. The FADEC group (heading with
+// a curved bracket line, AUTO above and FORCE B below the switch, TEST above the button) and the
+// ALTERNATOR group (plan 29, task 2) are plate text; the parts print nothing. Global units.
+describe('engine strip labels (plan 29, R2-5.2)', () => {
+  const plate = PLATES.find((p) => p.id === 'engine');
+  const STRIP_IDS = ['sw.fadec', 'btn.fadec_test', 'sw.alternator_1', 'sw.alternator_2'];
+  const globalFootprint = (id: string): Rect => {
+    const def = DA50RG.get(id);
+    if (def === undefined) throw new Error(`no control ${id}`);
+    const c = globalCentre(def);
+    return { x: c.x - def.hit.w / 2, y: c.y - def.hit.h / 2, w: def.hit.w, h: def.hit.h };
+  };
+  /** Glyph boxes of the placards of one control: 0.62 of the size per character, cap height 0.7. */
+  const placardBoxes = (near: string): { id: string; box: Rect }[] =>
+    PLACARDS.filter((p) => p.near === near).flatMap((p) => {
+      const def = DA50RG.get(near);
+      if (def === undefined) throw new Error(`no control ${near}`);
+      const c = globalCentre(def);
+      return p.lines.map((line, i) => {
+        const w = line.length * p.size * 0.62;
+        const x =
+          p.anchor === 'start'
+            ? c.x + p.dx
+            : p.anchor === 'end'
+              ? c.x + p.dx - w
+              : c.x + p.dx - w / 2;
+        const y = c.y + placardLineY(p, i);
+        return { id: p.id, box: { x, y: y - p.size * 0.7, w, h: p.size * 0.7 } };
+      });
+    });
+  const titleBox = (id: string): Rect => {
+    const g = BRACKET_GROUPS.find((b) => b.id === id);
+    if (g === undefined) throw new Error(`no bracket group ${id}`);
+    const w = glyphWidth(g.title, g.size);
+    return {
+      x: (g.x1 + g.x2) / 2 - w / 2,
+      y: g.y + BRACKET_TITLE_DROP - g.size * 0.7,
+      w,
+      h: g.size * 0.7,
+    };
+  };
+  /** The two stubs of a bracket group as thin boxes (stroke 1). */
+  const stubBoxes = (id: string): Rect[] => {
+    const g = BRACKET_GROUPS.find((b) => b.id === id);
+    if (g === undefined) throw new Error(`no bracket group ${id}`);
+    return [g.x1, g.x2].map((x) => ({ x: x - 0.5, y: g.y, w: 1, h: g.drop }));
+  };
+
+  it('the four strip controls keep their reference positions, none moved', () => {
+    for (const id of STRIP_IDS) {
+      const ref = REFERENCE_POSITIONS.find((r) => r.id === id);
+      const def = DA50RG.get(id);
+      if (ref === undefined || def === undefined) throw new Error(id);
+      const c = globalCentre(def);
+      expect(Math.abs(c.x - ref.x), `${id} x`).toBeLessThanOrEqual(ref.tol);
+      expect(Math.abs(c.y - ref.y), `${id} y`).toBeLessThanOrEqual(ref.tol);
+    }
+  });
+
+  it('sw.fadec orders force_b then auto, defaults to auto and draws the default as the upper position', () => {
+    const def = DA50RG.get('sw.fadec');
+    if (def?.kind !== 'toggle') throw new Error('no FADEC switch');
+    expect(def.states.map((st) => st.id)).toEqual(['force_b', 'auto']);
+    expect(def.default).toBe('auto');
+    const index = def.states.findIndex((st) => st.id === def.default);
+    expect(togglePosition(index, def.states.length)).toBe('high');
+    expect(def.nameless).toBe(true);
+    const test = DA50RG.get('btn.fadec_test');
+    expect(test?.nameless).toBe(true);
+  });
+
+  it('AUTO stands above FORCE B, both centred on the switch; TEST is centred on the button', () => {
+    const [auto] = placardBoxes('sw.fadec').filter((b) => b.id === 'fadec.auto');
+    const [force] = placardBoxes('sw.fadec').filter((b) => b.id === 'fadec.force_b');
+    const [test] = placardBoxes('btn.fadec_test').filter((b) => b.id === 'fadec.test');
+    if (auto === undefined || force === undefined || test === undefined) throw new Error('missing');
+    expect(auto.box.y + auto.box.h).toBeLessThan(force.box.y);
+    const sw = globalFootprint('sw.fadec');
+    const btn = globalFootprint('btn.fadec_test');
+    expect(auto.box.x + auto.box.w / 2).toBeCloseTo(sw.x + sw.w / 2, 5);
+    expect(force.box.x + force.box.w / 2).toBeCloseTo(sw.x + sw.w / 2, 5);
+    expect(test.box.x + test.box.w / 2).toBeCloseTo(btn.x + btn.w / 2, 5);
+    // The words match the drawn heights of the handle: AUTO above its tip, FORCE B below its tip.
+    const pivot = sw.y + sw.h / 2 + 4.5;
+    expect(auto.box.y + auto.box.h).toBeLessThanOrEqual(pivot - 14);
+    expect(force.box.y).toBeGreaterThanOrEqual(pivot + 14);
+  });
+
+  it('every FADEC glyph box lies on the engine plate and overlaps no other glyph box or stub', () => {
+    if (plate === undefined) throw new Error('no engine plate');
+    const boxes: { name: string; box: Rect }[] = [
+      ...placardBoxes('sw.fadec').map((b) => ({ name: b.id, box: b.box })),
+      ...placardBoxes('btn.fadec_test').map((b) => ({ name: b.id, box: b.box })),
+      { name: 'title FADEC', box: titleBox('fadec') },
+    ];
+    expect(boxes).toHaveLength(4);
+    for (const { name, box } of boxes) expect(inside(box, plate), name).toBe(true);
+    for (const [i, a] of boxes.entries()) {
+      for (const b of boxes.slice(i + 1)) {
+        expect(overlaps(a.box, b.box), `${a.name} / ${b.name}`).toBe(false);
+      }
+      for (const stub of stubBoxes('fadec')) expect(overlaps(a.box, stub), a.name).toBe(false);
+    }
+  });
+
+  it('AUTO, FORCE B and TEST cover no footprint other than the one of the control they name', () => {
+    for (const near of ['sw.fadec', 'btn.fadec_test']) {
+      for (const { id, box } of placardBoxes(near)) {
+        for (const other of STRIP_IDS) {
+          if (other === near) continue;
+          expect(overlaps(box, globalFootprint(other)), `${id} / ${other}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('the FADEC bracket and its stubs lie on the engine plate', () => {
+    const g = BRACKET_GROUPS.find((b) => b.id === 'fadec');
+    if (g === undefined || plate === undefined) throw new Error('no FADEC bracket');
+    expect(g.plate).toBe('engine');
+    const hull: Rect = { x: g.x1 - 0.5, y: g.y - 0.5, w: g.x2 - g.x1 + 1, h: g.drop + 1 };
+    expect(inside(hull, plate)).toBe(true);
+    expect(g.title).toBe('FADEC');
+  });
+
+  it('the bracket path runs stub bottom to stub bottom with two corner arcs and a gap wider than the title', () => {
+    for (const g of BRACKET_GROUPS) {
+      const d = bracketPath(g);
+      expect(d.startsWith(`M${g.x1} ${g.y + g.drop}`), g.id).toBe(true);
+      expect(d.endsWith(`${g.x2} ${g.y + g.radius}V${g.y + g.drop}`), g.id).toBe(true);
+      expect(d.match(/A/g), g.id).toHaveLength(2);
+      expect(d, g.id).toContain(`A${g.radius} ${g.radius} 0 0 1`);
+      const left = /H([\d.]+)M([\d.]+) /.exec(d);
+      if (left === null) throw new Error(`no gap in ${d}`);
+      const gap = Number(left[2]) - Number(left[1]);
+      expect(gap, g.id).toBeGreaterThanOrEqual(glyphWidth(g.title, g.size) + 6 - 1e-9);
+      // Centred between the stubs.
+      expect((Number(left[1]) + Number(left[2])) / 2, g.id).toBeCloseTo((g.x1 + g.x2) / 2, 5);
     }
   });
 });

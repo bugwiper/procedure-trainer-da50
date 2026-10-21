@@ -139,6 +139,46 @@ export interface PlateHeadingDef {
   readonly size: 6 | 8;
 }
 
+/**
+ * A curved bracket line over a group of controls with the heading in a gap of the line (plan 29,
+ * R2-5.2): the line runs at `y` from `x1` to `x2` with rounded corners of `radius`, a stub of
+ * length `drop` goes down at each end, and the centred `title` interrupts the line. Global units.
+ */
+export interface BracketGroupDef {
+  readonly id: string;
+  /** Id of the plate the group sits on. */
+  readonly plate: string;
+  readonly title: string;
+  /** Font size of the title on the panel scale. */
+  readonly size: 6 | 8;
+  readonly x1: number;
+  readonly x2: number;
+  /** Height of the horizontal line. */
+  readonly y: number;
+  /** Length of the two stubs going down from the line. */
+  readonly drop: number;
+  /** Radius of the two rounded corners. */
+  readonly radius: number;
+}
+
+/** Baseline of a bracket title below its line: the line runs through the middle of the glyphs. */
+export const BRACKET_TITLE_DROP = 3;
+
+/** The bracket groups of the engine strip (plan 29): FADEC over its switch and button. */
+export const BRACKET_GROUPS: readonly BracketGroupDef[] = [
+  {
+    id: 'fadec',
+    plate: 'engine',
+    title: 'FADEC',
+    size: 8,
+    x1: 100,
+    x2: 236,
+    y: 479,
+    drop: 6,
+    radius: 3,
+  },
+];
+
 /** Outline colour and width of a heading frame. */
 export const HEADING_FRAME = { stroke: '#e6e9ed', width: 1.2 } as const;
 

@@ -15,6 +15,9 @@ export const ENGINE_CONTROLS: readonly ControlSpec[] = [
     id: 'sw.fadec',
     kind: 'toggle',
     label: 'FADEC',
+    // The words AUTO and FORCE B and the FADEC heading are plate text (placards.ts, plates.ts),
+    // so the switch draws no name of its own (plan 29, R2-5.2).
+    nameless: true,
     region: 'engine_controls',
     x: 46,
     y: 36,
@@ -22,9 +25,11 @@ export const ENGINE_CONTROLS: readonly ControlSpec[] = [
     // zooms at the 0.242 px-per-unit full view of the smallest phone (PD-06). The visible
     // part stays inside the hit rect.
     hit: { w: 66, h: 60 },
+    // The second state is drawn as the upper position: AUTO is printed above the switch and
+    // FORCE B below it as in the aircraft, so the default auto is the upper one (plan 29).
     states: [
-      { id: 'auto', label: 'AUTO' },
       { id: 'force_b', label: 'FORCE B' },
+      { id: 'auto', label: 'AUTO' },
     ],
     default: 'auto',
   },

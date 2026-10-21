@@ -99,3 +99,66 @@ test('the panel text is identical before and after operating a representative se
   const after = await panelText(page);
   expect(after).toEqual(before);
 });
+
+/**
+ * The texts printed on the engine plate: every svg text whose box lies fully inside the plate box
+ * (1 unit of slack), as { text, inside } pairs for the text of the plate and the near misses.
+ */
+async function enginePlateTexts(page: Page): Promise<{ text: string; inside: boolean }[]> {
+  return page.locator('[data-testid="panel"]').evaluate((node) => {
+    const svg = node as unknown as SVGSVGElement;
+    const plate = svg.querySelector('[data-plate="engine"]');
+    if (plate === null) throw new Error('no engine plate');
+    const p = plate.getBoundingClientRect();
+    const out: { text: string; inside: boolean }[] = [];
+    for (const el of Array.from(svg.querySelectorAll('text'))) {
+      const r = el.getBoundingClientRect();
+      const cx = (r.left + r.right) / 2;
+      const cy = (r.top + r.bottom) / 2;
+      // Only the texts whose centre lies on the plate belong to it.
+      if (cx < p.left || cx > p.right || cy < p.top || cy > p.bottom) continue;
+      out.push({
+        text: (el.textContent ?? '').trim(),
+        inside:
+          r.left >= p.left - 1 &&
+          r.right <= p.right + 1 &&
+          r.top >= p.top - 1 &&
+          r.bottom <= p.bottom + 1,
+      });
+    }
+    return out;
+  });
+}
+
+test('the FADEC group reads FADEC, AUTO, FORCE B and TEST once each on the engine plate', async ({
+  page,
+}) => {
+  const texts = await enginePlateTexts(page);
+  for (const word of ['FADEC', 'AUTO', 'FORCE B', 'TEST']) {
+    const found = texts.filter((t) => t.text === word);
+    expect(found.length, word).toBe(1);
+    expect(found[0]?.inside, `${word} lies on the engine plate`).toBe(true);
+  }
+  await expect(page.locator('[data-shell="bracket-title"]')).toHaveText(['FADEC']);
+  await expect(page.locator('[data-placard="fadec.auto"]')).toHaveCount(1);
+  await expect(page.locator('[data-placard="fadec.force_b"]')).toHaveCount(1);
+  await expect(page.locator('[data-placard="fadec.test"]')).toHaveCount(1);
+  // The switch and the button carry no text of their own.
+  await expect(page.locator('[data-control-id="sw.fadec"] text')).toHaveCount(0);
+  await expect(page.locator('[data-control-id="btn.fadec_test"] text')).toHaveCount(0);
+});
+
+test('operating the FADEC switch and the FADEC TEST button changes no printed text', async ({
+  page,
+  hasTouch,
+}) => {
+  const before = await panelText(page);
+  await expect(page.locator('[data-control-id="sw.fadec"]')).toHaveAttribute('data-state', 'auto');
+  await activate(page.locator('[data-hit="sw.fadec"]'), hasTouch);
+  await expect(page.locator('[data-control-id="sw.fadec"]')).toHaveAttribute(
+    'data-state',
+    'force_b',
+  );
+  await activate(page.locator('[data-hit="btn.fadec_test"]'), hasTouch);
+  expect(await panelText(page)).toEqual(before);
+});

@@ -29,6 +29,7 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
     id: 'btn.fadec_test',
     kind: 'momentary-button',
     label: 'FADEC TEST',
+    nameless: true, // TEST is a plate placard above the button (plan 29, R2-5.2)
     region: 'engine_controls',
     x: 126,
     y: 36,

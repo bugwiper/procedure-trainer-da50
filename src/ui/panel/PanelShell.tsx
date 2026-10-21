@@ -1,6 +1,8 @@
 import type { Registry } from '../../engine/registry';
 import { PLACARDS, placardLineY } from '../../aircraft/da50rg/placards';
 import {
+  BRACKET_GROUPS,
+  BRACKET_TITLE_DROP,
   ENV_BOXES,
   ENV_TITLE,
   GEAR_BLOCK,
@@ -8,7 +10,7 @@ import {
   PLATES,
   PLATE_HEADINGS,
 } from '../../aircraft/da50rg/plates';
-import type { GroupBoxDef, PlateDef } from '../../aircraft/da50rg/plates';
+import type { BracketGroupDef, GroupBoxDef, PlateDef } from '../../aircraft/da50rg/plates';
 import { detentOffset } from '../../engine/detents';
 import { BusPanelArt } from './BusPanelArt';
 import { paint } from './Defs';
@@ -443,6 +445,59 @@ function PlateHeadings() {
   );
 }
 
+/** Width of a printed text in units by the glyph rule of the panel: 0.62 of the size per character. */
+export function glyphWidth(text: string, size: number): number {
+  return text.length * size * 0.62;
+}
+
+/**
+ * Outline of a bracket group (plan 29): from the bottom of the left stub up, round the left corner
+ * and along the line to the gap, then (a second sub-path) from the other side of the gap along the
+ * line, round the right corner and down to the bottom of the right stub. The gap is as wide as the
+ * title plus 6 units and centred between the stubs.
+ */
+export function bracketPath(group: BracketGroupDef): string {
+  const { x1, x2, y, drop, radius: r } = group;
+  const cx = (x1 + x2) / 2;
+  const half = (glyphWidth(group.title, group.size) + 6) / 2;
+  return [
+    `M${x1} ${y + drop}V${y + r}A${r} ${r} 0 0 1 ${x1 + r} ${y}H${cx - half}`,
+    `M${cx + half} ${y}H${x2 - r}A${r} ${r} 0 0 1 ${x2} ${y + r}V${y + drop}`,
+  ].join('');
+}
+
+/** The curved bracket lines with their headings, drawn from the plate data (owner finding R2-5.2). */
+function BracketGroups() {
+  return (
+    <g data-shell="bracket-groups">
+      {BRACKET_GROUPS.map((group) => (
+        <g key={group.id} data-shell="bracket-group" data-bracket={group.id}>
+          <path
+            data-shell="bracket-line"
+            d={bracketPath(group)}
+            fill="none"
+            stroke={LEGEND}
+            stroke-opacity={0.6}
+            stroke-width={1}
+          />
+          <text
+            data-shell="bracket-title"
+            x={(group.x1 + group.x2) / 2}
+            y={group.y + BRACKET_TITLE_DROP}
+            text-anchor="middle"
+            font-size={group.size}
+            fill={LEGEND}
+            textLength={glyphWidth(group.title, group.size)}
+            lengthAdjust="spacingAndGlyphs"
+          >
+            {group.title}
+          </text>
+        </g>
+      ))}
+    </g>
+  );
+}
+
 /** Layer 11: de-ice and engine plates of the left strip and the static vent. */
 function LeftStrip() {
   return (
@@ -450,6 +505,7 @@ function LeftStrip() {
       <Plate id="deice" />
       <Plate id="engine" />
       <PlateHeadings />
+      <BracketGroups />
       <g data-shell="vent">
         <circle cx={60} cy={700} r={28} fill="#0a0b0d" stroke={RIM} stroke-width={1} />
         {[21, 14, 7].map((r) => (

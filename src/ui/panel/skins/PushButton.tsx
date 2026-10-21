@@ -7,7 +7,7 @@ const FONT = 'B612, system-ui, sans-serif';
 export type PressedSide = 'left' | 'right' | null;
 
 export interface PushButtonBodyProps {
-  readonly def: Pick<MomentaryButtonDef, 'label' | 'hit' | 'states' | 'skin'>;
+  readonly def: Pick<MomentaryButtonDef, 'label' | 'hit' | 'states' | 'skin' | 'nameless'>;
   readonly state: StateId;
   /** Which half of a three-state toggle is held; always null for two-state buttons. */
   readonly pressedSide: PressedSide;
@@ -94,7 +94,11 @@ function RoundBody(props: PushButtonBodyProps & { skin: RoundSkin }) {
   const { def, skin } = props;
   const pressed = props.state !== def.states[0].id;
   const bezelR = BEZEL_RADIUS[skin];
-  const text = buttonTextLayout(def, bezelR);
+  // A nameless button (plan 29, R2-5.2) prints no text at all: a plate placard names it.
+  const text =
+    def.nameless === true
+      ? { labelLines: [], labelSize: 8 as const, labelYs: [] }
+      : buttonTextLayout(def, bezelR);
   return (
     <g pointer-events="none">
       {text.labelLines.map((line, i) => (
