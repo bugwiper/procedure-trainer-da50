@@ -145,7 +145,7 @@ Plans:
   3. The audio panel, autopilot panel and backup EFIS are visible in their real positions and look like the real units; their buttons do nothing for now.
   4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.
 
-**Plans:** 3/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
+**Plans:** 4/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
 
 Plans:
 **Wave 1**
@@ -158,7 +158,7 @@ Plans:
 - [x] 01.2-03-PLAN.md — Bus panel geometry and art: breaker regions, bus plate, stair-step outlines, titles, plugs, pump boxes
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01.2-04-PLAN.md — All 51 breakers at their positions, independent layout reference, label-clearance and element-budget gates
+- [x] 01.2-04-PLAN.md — All 51 breakers at their positions, independent layout reference, label-clearance and element-budget gates
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01.2-05-PLAN.md — PFD and MFD shape: bezel lip, 12 softkeys per display, glass header and legend rows
