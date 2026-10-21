@@ -7,8 +7,7 @@ import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { VIEWBOX } from '../../aircraft/da50rg/panel';
 import type { Rect, Region, Registry, Size } from '../../engine/registry';
-import { TAP_SLOP_PX, isBackgroundTap, tapIntent } from './tap-intent';
-import type { TapPoint } from './tap-intent';
+import { TAP_SLOP_PX, createDoubleTapTracker, isBackgroundTap } from './tap-intent';
 import { fitScale, panRect, pinchRect, screenToView, zoomRect } from './viewport';
 
 /** A pointer that starts on one of these elements belongs to that control for its whole life. */
@@ -72,9 +71,13 @@ interface Midpoint {
  *  (b) while any control pointer is active every new pointer is ignored, so no pinch or pan
  *      can start during a control drag and the viewBox never moves under a dragging pointer;
  *  (c) two background pointers pinch; (d) one background pointer pans while zoomed;
- *  (e) a single background tap while zoomed, at any zoom level, zooms fully out at once;
- *  (f) a background tap from the full view zooms to the tapped region; the second tap of a
- *      double tap, within SUPPRESS_MS and SUPPRESS_PX of a tap-driven change, is ignored.
+ *  (e) a single click or tap never changes the view, at the full view or while zoomed;
+ *  (f) a double click or double tap on the background (two short, still taps, lift to lift
+ *      within DOUBLE_TAP_MS and DOUBLE_TAP_PX) zooms fully out while zoomed, at any zoom level,
+ *      and from the full view zooms to the region under the taps; in no region it does nothing;
+ *  (g) anything between the two taps that is not a background tap (a control pointer going
+ *      down, a pan, a pinch, a cancel, a view change by the Full panel button) ends the pair,
+ *      and a pair is consumed, so a double tap on a control stays two control taps.
  */
 export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registry }): () => void {
   const { registry } = opts;
@@ -84,9 +87,9 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   const controlPointers = new Set<number>();
   const background = new Map<number, BackgroundPointer>();
   let pinchPrev: Midpoint | null = null;
-  let lastChange: TapPoint | null = null;
-  /** The view that tap-driven change produced; any later view change (button, pinch, pan) ends the suppression. */
-  let lastChangeView: Rect | null = null;
+  const doubleTaps = createDoubleTapTracker();
+  /** The view when the remembered tap happened; a later view change by anything else ends the pair. */
+  let lastTapView: Rect | null = null;
 
   const screenSize = (): Size => {
     const box = svg.getBoundingClientRect();
@@ -131,6 +134,7 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     const target = e.target;
     if (target instanceof Element && target.closest(TAP_TARGET_SELECTOR) !== null) {
       controlPointers.add(e.pointerId);
+      doubleTaps.reset();
       // A control drag begins: any view gesture in progress ends here.
       if (background.size > 0) {
         background.clear();
@@ -157,6 +161,7 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
       // The pointer may already be gone; the release is still handled on pointerup.
     }
     if (background.size === 2) {
+      doubleTaps.reset();
       for (const p of background.values()) {
         p.tapOk = false;
         p.maxPointers = 2;
@@ -192,6 +197,7 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
       if (Math.hypot(p.x - p.downX, p.y - p.downY) <= TAP_SLOP_PX) return;
       p.tapOk = false;
       p.panning = true;
+      doubleTaps.reset();
     }
     if (!isZoomed.peek()) return;
     const view = viewRect.peek();
@@ -202,14 +208,11 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   };
 
   const onTap = (e: PointerEvent) => {
-    const tap: TapPoint = { x: e.clientX, y: e.clientY, at: e.timeStamp };
-    const zoomed = isZoomed.peek();
-    if (lastChangeView !== viewRect.peek()) lastChange = null;
-    const intent = tapIntent({ zoomed, lastChange }, tap);
+    if (lastTapView !== viewRect.peek()) doubleTaps.reset();
+    const intent = doubleTaps.tap({ x: e.clientX, y: e.clientY, at: e.timeStamp }, isZoomed.peek());
+    lastTapView = viewRect.peek();
     if (intent === 'zoom-out') {
       zoomOut(viewBox);
-      lastChange = tap;
-      lastChangeView = viewRect.peek();
     } else if (intent === 'zoom-in') {
       const at = toViewPoint(e.clientX, e.clientY);
       const hit = registry.regions.find(
@@ -219,11 +222,12 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
           at.y >= r.bounds.y &&
           at.y <= r.bounds.y + r.bounds.h,
       );
-      if (hit !== undefined) {
-        zoomToRegion(hit, viewBox);
-        lastChange = tap;
-        lastChangeView = viewRect.peek();
-      }
+      if (hit !== undefined) zoomToRegion(hit, viewBox);
+    }
+    // A pair that changed the view is over; the new view is not a tap in progress.
+    if (viewRect.peek() !== lastTapView) {
+      doubleTaps.reset();
+      lastTapView = null;
     }
   };
 
@@ -242,10 +246,13 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
       });
     dropBackground(e.pointerId);
     if (wasTap) onTap(e);
+    else doubleTaps.reset();
   };
 
   const onCancel = (e: PointerEvent) => {
     controlPointers.delete(e.pointerId);
+    // lostpointercapture follows every pointerup: only a pointer still tracked was cancelled.
+    if (background.has(e.pointerId)) doubleTaps.reset();
     dropBackground(e.pointerId);
   };
 
@@ -262,5 +269,6 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     svg.removeEventListener('lostpointercapture', onCancel);
     controlPointers.clear();
     background.clear();
+    doubleTaps.reset();
   };
 }

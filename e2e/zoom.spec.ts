@@ -11,8 +11,9 @@ import {
 } from './support/zoom';
 import type { Point } from './support/zoom';
 
-// Region zoom (PNL-09, PNL-06, D-20, D-21): tap or click a region's background to zoom in,
-// operate its controls at full tap size, zoom back out; pinch, pan and gesture arbitration.
+// Region zoom (PNL-09, PNL-06, D-20, D-21, R2-Z1): double click or double tap a region's
+// background to zoom in, operate its controls at full tap size, zoom back out; a single click or
+// tap never zooms; pinch, pan and gesture arbitration.
 
 const MIN_TAP_PX = 43.5;
 const PORTRAIT_NOTE =
@@ -133,18 +134,22 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('panel')).toBeVisible();
 });
 
-test('a region tap or click zooms into it', async ({ page, hasTouch }, testInfo) => {
+test('a double click or double tap on a region background zooms into it', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
   test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
   expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
   await expect(page.getByTestId('zoom-out')).toHaveCount(0);
 
-  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
+  await doubleActivateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
   await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
   for (const s of await sizes(page, 'switch_bank')) {
     expect(s.w, s.id).toBeGreaterThanOrEqual(MIN_TAP_PX);
     expect(s.h, s.id).toBeGreaterThanOrEqual(MIN_TAP_PX);
   }
 
+  // One tap on a control records one change.
   await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
   await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'off');
 
@@ -154,10 +159,12 @@ test('a region tap or click zooms into it', async ({ page, hasTouch }, testInfo)
   await expect(page.getByTestId('zoom-out')).toHaveCount(0);
 });
 
-test('desktop mouse: click to zoom, click a control, Full panel', async ({ page }, testInfo) => {
+test('desktop mouse: double click to zoom, click a control, Full panel', async ({
+  page,
+}, testInfo) => {
   test.skip(!testInfo.project.name.startsWith('desktop-'), 'desktop mouse path (D-21)');
   const p = await backgroundPoint(page, 'switch_bank');
-  await page.mouse.click(p.x, p.y);
+  await page.mouse.dblclick(p.x, p.y);
   await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
   for (const s of await sizes(page, 'switch_bank')) {
     expect(s.w, s.id).toBeGreaterThanOrEqual(MIN_TAP_PX);
@@ -228,37 +235,100 @@ test('pinch zooms and pans the view', async ({ page }, testInfo) => {
   expect(out.w).toBeGreaterThan(panned.w);
 });
 
-/** Lets the tap suppression window (350 ms) of an earlier tap-driven zoom change pass. */
-async function afterSuppression(page: Page): Promise<void> {
+/** Lets the double-tap window (350 ms) of an earlier tap pass, so the next tap starts a new pair. */
+async function afterPairWindow(page: Page): Promise<void> {
   await page.waitForTimeout(450);
 }
 
-test('a single tap or click on the background while zoomed zooms fully out', async ({
+test('a single click or tap on the background never zooms', async ({
   page,
   hasTouch,
 }, testInfo) => {
   test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  // Full view: one tap, then a second one after the pair window.
   await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
-  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
-  await afterSuppression(page);
+  await page.waitForTimeout(120);
+  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
+  await afterPairWindow(page);
   await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
-  await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  await page.waitForTimeout(120);
+  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
   await expect(page.getByTestId('zoom-out')).toHaveCount(0);
+
+  // Zoomed: one tap does not zoom out, and neither does a second one after the pair window.
+  await zoomIntoRegion(page, hasTouch, 'switch_bank');
+  const zoomed = await viewBoxOf(page);
+  await afterPairWindow(page);
+  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
+  await page.waitForTimeout(120);
+  expect(await viewBoxOf(page)).toBe(zoomed);
+  await afterPairWindow(page);
+  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
+  await page.waitForTimeout(120);
+  expect(await viewBoxOf(page)).toBe(zoomed);
+  await expect(page.getByTestId('zoom-out')).toBeVisible();
 });
 
-test('a double tap while zoomed ends at the full view', async ({ page, hasTouch }, testInfo) => {
+test('a double click or double tap while zoomed zooms fully out', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
   test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
-  await activateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
-  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
-  await afterSuppression(page);
+  await zoomIntoRegion(page, hasTouch, 'switch_bank');
+  await afterPairWindow(page);
   await doubleActivateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
   await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
-  // The second tap of the double tap is suppressed: the view stays at the full panel.
+  await expect(page.getByTestId('zoom-out')).toHaveCount(0);
+  // The pair is consumed: the view stays at the full panel.
   await page.waitForTimeout(300);
   expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
 });
 
-test('from an intermediate pinch level a single tap zooms fully out', async ({
+test('a second tap later than the pair window does nothing', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  const p = await backgroundPoint(page, 'switch_bank');
+  await activateAt(page, p, hasTouch);
+  await afterPairWindow(page);
+  await activateAt(page, p, hasTouch);
+  await page.waitForTimeout(120);
+  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
+});
+
+test('a double tap in no region does nothing', async ({ page, hasTouch }, testInfo) => {
+  test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  // The top-left corner of the page lies outside every region frame of the panel.
+  const outside = await page.evaluate(() => {
+    const frames = Array.from(document.querySelectorAll('[data-region-frame]')).map((el) =>
+      el.getBoundingClientRect(),
+    );
+    const svg = document.querySelector('[data-testid="panel"]')?.getBoundingClientRect();
+    if (svg === undefined) return null;
+    for (let i = 0; i < 40; i++) {
+      for (let j = 0; j < 40; j++) {
+        const x = svg.left + ((i + 0.5) * svg.width) / 40;
+        const y = svg.top + ((j + 0.5) * svg.height) / 40;
+        const onTarget = document
+          .elementsFromPoint(x, y)
+          .some((el) => el.matches('[data-hit], [data-detent]'));
+        const inFrame = frames.some(
+          (f) => x >= f.left && x <= f.right && y >= f.top && y <= f.bottom,
+        );
+        if (!inFrame && !onTarget) return { x, y };
+      }
+    }
+    return null;
+  });
+  test.skip(outside === null, 'every sampled point of the panel lies inside a region');
+  if (outside === null) return;
+  await doubleActivateAt(page, outside, hasTouch);
+  await page.waitForTimeout(150);
+  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
+});
+
+test('from an intermediate pinch level a double tap zooms fully out', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
@@ -267,14 +337,18 @@ test('from an intermediate pinch level a single tap zooms fully out', async ({
   expect(mid.w).toBeLessThan(PANEL_VIEWBOX.w);
   expect(mid.w).toBeGreaterThan(300);
   await expect(page.getByTestId('zoom-out')).toBeVisible();
-  await page.touchscreen.tap(...pointArgs(await backgroundPoint(page, 'mfd')));
+  const p = await backgroundPoint(page, 'mfd');
+  await page.touchscreen.tap(...pointArgs(p));
+  await afterPairWindow(page);
+  expect(await viewNumbers(page)).toEqual(mid);
+  await doubleActivateAt(page, p, true);
   await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
 });
 
 test('a background drag while zoomed pans and does not zoom out', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop mouse path');
   await zoomIntoRegion(page, false, 'mfd');
-  await afterSuppression(page);
+  await afterPairWindow(page);
   const zoomed = await viewNumbers(page);
   const from = await backgroundPoint(page, 'mfd');
   await page.mouse.move(from.x, from.y);
@@ -380,8 +454,8 @@ test('@hooks zoom gestures emit no control events', async ({ page }, testInfo) =
   const states = await stateSnapshot(page);
   expect(await eventCount(page)).toBe(0);
 
-  // Region tap or click.
-  await activateAt(page, await backgroundPoint(page, 'mfd'), touch);
+  // Double click or double tap zooms in.
+  await doubleActivateAt(page, await backgroundPoint(page, 'mfd'), touch);
   await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
 
   // Pan.
@@ -400,17 +474,144 @@ test('@hooks zoom gestures emit no control events', async ({ page }, testInfo) =
     await page.mouse.up();
   }
 
-  // A single tap or click while zoomed zooms fully out.
-  await activateAt(page, await backgroundPoint(page, 'mfd'), touch);
+  // A double click or double tap while zoomed zooms fully out.
+  await afterPairWindow(page);
+  await doubleActivateAt(page, await backgroundPoint(page, 'mfd'), touch);
   await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
-  await afterSuppression(page);
+  await afterPairWindow(page);
 
   // Zoom in again and out with the button.
-  await activateAt(page, await backgroundPoint(page, 'mfd'), touch);
+  await doubleActivateAt(page, await backgroundPoint(page, 'mfd'), touch);
   await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
   await activate(page.getByTestId('zoom-out'), touch);
   await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
 
   expect(await eventCount(page)).toBe(0);
   expect(await stateSnapshot(page)).toBe(states);
+});
+
+/** The centre of a control's hit area on the page. */
+async function hitCentre(page: Page, id: string): Promise<Point> {
+  const box = await page.locator(`[data-hit="${id}"]`).boundingBox();
+  if (box === null) throw new Error(`no hit box for ${id}`);
+  return centreOf(box);
+}
+
+/**
+ * A page point 3 px beside the control's hit that lies inside the control's region frame and
+ * not on any tap target: a background point a finger could land on when it just misses.
+ */
+async function pointBesideHit(page: Page, id: string): Promise<Point> {
+  const found = await page.evaluate((controlId) => {
+    const hit = document.querySelector(`[data-hit="${controlId}"]`);
+    const frame = hit?.closest('[data-region-id]')?.querySelector('[data-region-frame]');
+    if (hit === null || hit === undefined || frame === null || frame === undefined) return null;
+    const b = hit.getBoundingClientRect();
+    const f = frame.getBoundingClientRect();
+    const candidates = [
+      { x: b.right + 3, y: b.top + b.height / 2 },
+      { x: b.left - 3, y: b.top + b.height / 2 },
+      { x: b.left + b.width / 2, y: b.bottom + 3 },
+      { x: b.left + b.width / 2, y: b.top - 3 },
+    ];
+    return (
+      candidates.find(
+        (c) =>
+          c.x > f.left &&
+          c.x < f.right &&
+          c.y > f.top &&
+          c.y < f.bottom &&
+          !document
+            .elementsFromPoint(c.x, c.y)
+            .some((el) => el.matches('[data-hit], [data-detent]')),
+      ) ?? null
+    );
+  }, id);
+  if (found === null) throw new Error(`no background point beside ${id}`);
+  return found;
+}
+
+test('@hooks a double tap on a control is two control taps and never zooms', async ({
+  page,
+}, testInfo) => {
+  const name = testInfo.project.name;
+  test.skip(name !== 'phone-chromium' && name !== 'desktop-chromium', 'Chromium gestures only');
+  const touch = name === 'phone-chromium';
+  expect(await eventCount(page)).toBe(0);
+
+  // Full view.
+  await doubleActivateAt(page, await hitCentre(page, 'sw.engine_master'), touch);
+  expect(await eventCount(page)).toBe(2);
+  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'on');
+  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
+
+  // Zoomed into the switch bank.
+  await zoomIntoRegion(page, touch, 'switch_bank');
+  const zoomed = await viewBoxOf(page);
+  await afterPairWindow(page);
+  await doubleActivateAt(page, await hitCentre(page, 'sw.engine_master'), touch);
+  expect(await eventCount(page)).toBe(4);
+  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'on');
+  expect(await viewBoxOf(page)).toBe(zoomed);
+});
+
+test('@hooks a control tap followed by a background tap beside it is not a double tap', async ({
+  page,
+}, testInfo) => {
+  const name = testInfo.project.name;
+  test.skip(name !== 'phone-chromium' && name !== 'desktop-chromium', 'Chromium gestures only');
+  const touch = name === 'phone-chromium';
+  const beside = await pointBesideHit(page, 'sw.engine_master');
+  await activateAt(page, await hitCentre(page, 'sw.engine_master'), touch);
+  await activateAt(page, beside, touch);
+  await page.waitForTimeout(150);
+  expect(await eventCount(page)).toBe(1);
+  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
+
+  // And the other way round: a background tap, then a control tap.
+  await afterPairWindow(page);
+  await activateAt(page, beside, touch);
+  await activateAt(page, await hitCentre(page, 'sw.engine_master'), touch);
+  await page.waitForTimeout(150);
+  expect(await eventCount(page)).toBe(2);
+  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
+
+  // A control tap between two background taps ends the pair.
+  await afterPairWindow(page);
+  await activateAt(page, beside, touch);
+  await activateAt(page, await hitCentre(page, 'sw.engine_master'), touch);
+  await activateAt(page, beside, touch);
+  await page.waitForTimeout(150);
+  expect(await eventCount(page)).toBe(3);
+  expect(await viewBoxOf(page)).toBe(FULL_VIEWBOX);
+});
+
+test('@hooks a pan between two taps ends the pair', async ({ page }, testInfo) => {
+  const name = testInfo.project.name;
+  test.skip(name !== 'phone-chromium' && name !== 'desktop-chromium', 'Chromium gestures only');
+  const touch = name === 'phone-chromium';
+  await zoomIntoRegion(page, touch, 'mfd');
+  const zoomed = await viewNumbers(page);
+  await afterPairWindow(page);
+  const from = await backgroundPoint(page, 'mfd');
+  await activateAt(page, from, touch);
+  if (touch) {
+    const send = await touchSender(page);
+    await send('touchStart', [from]);
+    for (let i = 1; i <= 4; i++) await send('touchMove', [{ x: from.x - i * 8, y: from.y }]);
+    await send('touchEnd', []);
+  } else {
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x - 32, from.y, { steps: 4 });
+    await page.mouse.up();
+  }
+  const panned = await viewNumbers(page);
+  expect(panned.x !== zoomed.x || panned.y !== zoomed.y).toBe(true);
+  // The tap after the pan is a lone tap: it does not zoom out.
+  await activateAt(page, await backgroundPoint(page, 'mfd'), touch);
+  await page.waitForTimeout(150);
+  expect((await viewNumbers(page)).w).toBeCloseTo(zoomed.w);
+  await expect(page.getByTestId('zoom-out')).toBeVisible();
+  expect(await eventCount(page)).toBe(0);
 });

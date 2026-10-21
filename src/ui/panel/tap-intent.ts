@@ -1,14 +1,15 @@
-// Pure tap rules for the zoom gesture layer (D-12, PNL-15). No DOM, no bridge: a tap on the
-// panel background only ever changes the view, never a control.
+// Pure tap rules for the zoom gesture layer (R2-Z1, PNL-15). No DOM, no bridge, no timer: a
+// double tap on the panel background only ever changes the view, never a control. A single tap
+// never zooms (this supersedes D-12).
 
 /** A pointer may travel at most this far (client px) and still count as a tap. */
 export const TAP_SLOP_PX = 10;
 /** A tap must lift within this many ms. */
 export const TAP_MAX_MS = 300;
-/** After a tap-driven zoom change, a further tap within this many ms is ignored ... */
-export const SUPPRESS_MS = 350;
-/** ... when it lands within this many client px of the tap that caused the change. */
-export const SUPPRESS_PX = 24;
+/** Largest time (ms) between the lift of the first tap and the lift of the second, inclusive. */
+export const DOUBLE_TAP_MS = 350;
+/** Largest distance (client px) between the two taps, inclusive. */
+export const DOUBLE_TAP_PX = 24;
 
 export interface GestureRecord {
   /** Straight-line distance between the down and the up point, in client px. */
@@ -19,19 +20,21 @@ export interface GestureRecord {
   readonly startedOnTarget: boolean;
 }
 
-export interface TapContext {
-  readonly zoomed: boolean;
-  /** The last tap-driven zoom change, in client px and ms; null if there was none yet. */
-  readonly lastChange: { readonly x: number; readonly y: number; readonly at: number } | null;
-}
-
 export interface TapPoint {
   readonly x: number;
   readonly y: number;
+  /** Lift time of the tap, in ms. */
   readonly at: number;
 }
 
-export type TapIntent = 'zoom-in' | 'zoom-out' | 'none';
+export type DoubleTapIntent = 'zoom-in' | 'zoom-out' | 'none';
+
+export interface DoubleTapTracker {
+  /** Feeds one background tap; returns what the pair, if this tap completes one, asks for. */
+  tap(point: TapPoint, zoomed: boolean): DoubleTapIntent;
+  /** Forgets the remembered tap: anything but a background tap happened between the two. */
+  reset(): void;
+}
 
 /** One finger or mouse, short and still, started on the background: a tap. */
 export function isBackgroundTap(g: GestureRecord): boolean {
@@ -44,18 +47,29 @@ export function isBackgroundTap(g: GestureRecord): boolean {
 }
 
 /**
- * What a background tap does. While zoomed (any level) it zooms fully out at once; from the
- * full view it zooms to the tapped region. The second tap of a double tap, close in time and
- * place to a tap-driven change, is ignored, so a double tap ends where its first tap led.
+ * Remembers the last background tap. A second tap within DOUBLE_TAP_MS and DOUBLE_TAP_PX of it
+ * (lift to lift, both inclusive) is a double tap: it zooms out while zoomed (any level) and in
+ * from the full view, and the pair is consumed, so a third quick tap starts a new pair. Any
+ * other tap only becomes the remembered one. A pure function of timestamps and coordinates.
  */
-export function tapIntent(ctx: TapContext, tap: TapPoint): TapIntent {
-  const last = ctx.lastChange;
-  if (
-    last !== null &&
-    tap.at - last.at <= SUPPRESS_MS &&
-    Math.hypot(tap.x - last.x, tap.y - last.y) <= SUPPRESS_PX
-  ) {
-    return 'none';
-  }
-  return ctx.zoomed ? 'zoom-out' : 'zoom-in';
+export function createDoubleTapTracker(): DoubleTapTracker {
+  let last: TapPoint | null = null;
+  return {
+    tap(point, zoomed) {
+      const prev = last;
+      if (
+        prev !== null &&
+        point.at - prev.at <= DOUBLE_TAP_MS &&
+        Math.hypot(point.x - prev.x, point.y - prev.y) <= DOUBLE_TAP_PX
+      ) {
+        last = null;
+        return zoomed ? 'zoom-out' : 'zoom-in';
+      }
+      last = point;
+      return 'none';
+    },
+    reset() {
+      last = null;
+    },
+  };
 }
