@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   GLASS,
@@ -10,7 +12,8 @@ import {
   legendTabCentreX,
   softkeyCentre,
 } from '../src/aircraft/da50rg/avionics';
-import { DA50RG } from '../src/aircraft/da50rg/panel';
+import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
+import { PLATES } from '../src/aircraft/da50rg/plates';
 import type { PanelBridge } from '../src/ui/bridge';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
@@ -519,5 +522,79 @@ describe('UnitHousing on the bezel columns', () => {
     expect(tree.props['data-unit']).toBe(id);
     expect(findElements(tree, (e) => e.props['data-unit-housing'] !== undefined)).toEqual([]);
     expect(findElements(tree, (e) => e.tag === 'rect')).toEqual([]);
+  });
+});
+
+// Plan 06: geometry of the inert units against their plates and neighbours, and the review text.
+describe('inert avionics unit geometry', () => {
+  const UNIT_IDS = [
+    'pfd_bezel_left',
+    'pfd_bezel_right',
+    'audio_panel',
+    'standby_efis',
+    'autopilot_panel',
+    'mfd_bezel_right',
+  ] as const;
+  const b = (id: string) => region(id).bounds;
+
+  it('every unit region lies inside its plate and inside the viewBox', () => {
+    for (const id of UNIT_IDS) {
+      const plate = PLATES.find((p) => p.regions.includes(id));
+      expect(plate, `${id} has a plate`).toBeDefined();
+      const r = b(id);
+      expect(r.x, id).toBeGreaterThanOrEqual(plate?.x ?? Infinity);
+      expect(r.y, id).toBeGreaterThanOrEqual(plate?.y ?? Infinity);
+      expect(r.x + r.w, id).toBeLessThanOrEqual((plate?.x ?? 0) + (plate?.w ?? 0));
+      expect(r.y + r.h, id).toBeLessThanOrEqual((plate?.y ?? 0) + (plate?.h ?? 0));
+      expect(r.x + r.w, id).toBeLessThanOrEqual(VIEWBOX.w);
+      expect(r.y + r.h, id).toBeLessThanOrEqual(VIEWBOX.h);
+    }
+  });
+
+  it('audio panel and backup EFIS do not overlap, and both clear the dimmer knob region', () => {
+    const audio = b('audio_panel');
+    const efis = b('standby_efis');
+    const knobs = b('light_knobs');
+    expect(audio.x + audio.w).toBeLessThanOrEqual(efis.x);
+    // The audio panel lies left of the dimmer knobs, the backup EFIS below them.
+    expect(audio.x + audio.w).toBeLessThanOrEqual(knobs.x);
+    expect(efis.y).toBeGreaterThanOrEqual(knobs.y + knobs.h);
+  });
+
+  it('the autopilot panel lies right of the dimmer knob region', () => {
+    const ap = b('autopilot_panel');
+    const knobs = b('light_knobs');
+    expect(ap.x).toBeGreaterThanOrEqual(knobs.x + knobs.w);
+  });
+
+  it('no unit region holds a control', () => {
+    for (const id of UNIT_IDS) expect(region(id).controlIds, id).toEqual([]);
+  });
+});
+
+describe('review document on the centre stack (plan 06)', () => {
+  const review = readFileSync(
+    fileURLToPath(new URL('../docs/PANEL-REVIEW.md', import.meta.url)),
+    'utf8',
+  );
+
+  it('describes the plates and regions, the compressed widths and the shared slot', () => {
+    for (const needle of [
+      '875, 185, 285, 390',
+      '`ap-unit`',
+      '`pfd-left-unit`',
+      '`mfd-right-unit`',
+      '`standby_efis`',
+      '70 percent',
+      'share the slot',
+    ]) {
+      expect(review, needle).toContain(needle);
+    }
+  });
+
+  it('no longer calls the outlines reserved placeholders', () => {
+    expect(review).not.toContain('Reserved, not controls');
+    expect(review).not.toContain('reserved audio, standby and autopilot outlines');
+    expect(review).not.toContain('880, 185, 360, 375');
   });
 });

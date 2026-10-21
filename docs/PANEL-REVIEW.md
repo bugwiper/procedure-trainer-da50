@@ -56,7 +56,7 @@ Four exterior-light rockers in the hump above the displays, 48 units apart (UI-S
 | `sw.light_position` | POSITION | same                       | OFF, ON; default ON (assumed lit in cruise) | 1143, 90 (8) | position, default                                                                                                    | same                  | `controls/lights.ts` |
 | `sw.light_strobe`   | STROBE   | same                       | OFF, ON; default ON (assumed lit in cruise) | 1191, 90 (8) | position, default                                                                                                    | same                  | `controls/lights.ts` |
 
-## Centre stack (region `light_knobs`, reserved audio, standby and autopilot outlines)
+## Centre stack (region `light_knobs` and the inert avionics units)
 
 Two dimmer knobs between the displays (UI-SPEC rows 5 and 6). Rotary, radius 20, hit 60 x 60, arc scale printed around the disc, pointer angles in degrees clockwise from 12 o'clock. Dimmer stops have no visual effect on the panel in this phase (state only).
 
@@ -65,7 +65,18 @@ Two dimmer knobs between the displays (UI-SPEC rows 5 and 6). Rotary, radius 20,
 | `sw.instr_light` | INSTRUMENT LIGHT | rotary r 20, arc scale | OFF, 25, 50, 75, MAX at -135, -67, 0, 67, 135; default OFF | 1047, 238 (8) | states (stop count and labels), default, position (same parallax doubt as the light rockers) | P650, P807, P761, SIM | `controls/knobs.ts` |
 | `sw.flood_light` | FLOOD LIGHT      | rotary r 20, arc scale | same stops; default OFF                                    | 1126, 238 (8) | same                                                                                         | same                  | `controls/knobs.ts` |
 
-Reserved, not controls: the centre-stack plate (x 880..1240, y 185..560) carries three plain outlines for the audio column (892, 300, 76 x 248), the standby instrument (982, 300, 156 x 140) and the autopilot column (1152, 300, 76 x 248). They are placeholders for the avionics work of phase 01.2; their sizes are guesses and they start at y 300 only so the dimmer knobs stay clear. File: `src/ui/panel/PanelShell.tsx`.
+Inert avionics units (phase 01.2 plan 06, D-05 and D-06): six view-only regions hold no control. A tap on one only zooms; no event is emitted and no state changes. Each draws a group that is announced as "NAME (NOT OPERABLE)" and carries `data-unit`; its children are hidden from assistive technology. The earlier placeholder outlines of the centre stack (three guessed rectangles at (892, 300), (982, 300) and (1152, 300)) are gone: the audio panel, the backup EFIS and the autopilot panel now draw their own housing inside their region, so the art-fit and text-overlap gates measure them. The knobs, keys and artwork of the units come in plans 07 and 08.
+
+| Region (id) | Rectangle x, y, w, h | Plate | Housing | What is uncertain |
+| ----------- | -------------------- | ----- | ------- | ----------------- |
+| PFD KNOBS LEFT (`pfd_bezel_left`) | 274, 196, 68, 408 | `pfd-left-unit` (bezel colour) | none, the plate is the housing | width and height are proposals |
+| PFD KNOBS RIGHT (`pfd_bezel_right`) | 875, 196, 68, 378 | `centre-stack` | none | shares the slot with the audio panel, see below |
+| AUDIO PANEL (`audio_panel`) | 946, 196, 60, 378 | `centre-stack` | rounded rectangle, fill `#0c0d0f`, rim `#2d3138` | width compressed |
+| BACKUP EFIS (`standby_efis`) | 1026, 296, 120, 278 | `centre-stack` | same | size and position |
+| AUTOPILOT PANEL (`autopilot_panel`) | 1164, 196, 86, 408 | `ap-unit` (`#101215`) | same | width compressed |
+| MFD KNOBS RIGHT (`mfd_bezel_right`) | 1782, 196, 84, 378 | `mfd-right-unit` (bezel colour) | none | 84 wide on the wider panel |
+
+Proposals for the morning review (UI-SPEC 01.2 U-12): the unit widths are compressed to about 70 percent of the proportions in the photos, except the MFD right strip, which is 84 wide because the panel is wider on that side. The PFD right knob column and the audio panel share the slot that phase 01.1 reserved for the audio panel alone. Files: `src/aircraft/da50rg/panel.ts` (regions), `plates.ts` (plates), `src/ui/panel/frames/UnitHousing.tsx` (housing and label).
 
 ## Left strip: de-ice panel (regions `deice`, `deice_switches`)
 
@@ -203,7 +214,10 @@ All static art lives in `src/ui/panel/PanelShell.tsx` and carries no handler; pl
 | Plate (id) | Rectangle x, y, w, h | Regions it carries |
 | ---------- | -------------------- | ------------------ |
 | Lights recess (`lights-recess`) | 940, 36, 360, 134 | `lights` |
-| Centre stack (`centre-stack`) | 880, 185, 360, 375 | `light_knobs` |
+| Centre stack (`centre-stack`) | 875, 185, 285, 390 | `light_knobs`, `pfd_bezel_right`, `audio_panel`, `standby_efis` |
+| Autopilot unit (`ap-unit`) | 1162, 185, 89, 421 | `autopilot_panel` |
+| PFD knob column left (`pfd-left-unit`) | 272, 185, 72, 421 | `pfd_bezel_left` |
+| MFD knob column right (`mfd-right-unit`) | 1782, 185, 84, 421 | `mfd_bezel_right` |
 | De-ice unit (`deice`) | 80, 205, 180, 265 | `deice`, `deice_switches` |
 | Engine (`engine`) | 70, 474, 200, 141 | `engine_controls` |
 | Switch row (`strip-switch-row`) | 40, 620, 796, 125 | `switch_bank` |
@@ -219,7 +233,7 @@ Other shell items:
 | Face plate edge highlight and shadow | 1-unit strokes on the plate edge |
 | Coaming stitch line | the hump path shifted 8 down |
 | Console side walls | 14 wide at x 937..951 and 1174..1188 from y 763, stitching inset 8 |
-| Centre-stack outlines | three plain outlines (see Centre stack) |
+| Centre-stack units | no shell outlines; the six avionics regions draw their own housings (see Centre stack) |
 | LANDING GEAR bracket | line y 630 from 846 to 986, header baseline 640, speed line baseline 654 (`GEAR_BLOCK`) |
 | DE ICE heading | white outlined frame x 118..182, y 209..225, text size 8 (`PLATE_HEADINGS`) |
 | Environmental group boxes | DIRECTION, TEMPERATURE, FAN, CIRCULATING AIR (`ENV_BOXES`), plate title at (1062, 766) |
