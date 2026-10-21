@@ -13,3 +13,7 @@ Function is right, but several switch shapes/colours differ from the aircraft:
 - alternators: already accurate (keep as the reference)
 
 Plan this together with the owner's general concern about overall panel appearance, which is to be discussed after the Phase 1 UAT. Keep: states never shown by colour alone, no non-existent controls, only the de-ice ALTERNATE is guarded.
+
+## Resolved
+
+Closed by the skin plans 01.1-08 and 01.1-13 and the pedestal and switch rebuilds of the gap closure (rocker sizes and colours, bats, static toggle family); owner live review passed (01.1-UAT test 5).
