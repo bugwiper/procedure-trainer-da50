@@ -8,7 +8,7 @@ import type { IndicatorSet } from '../engine/indicators';
 import { legalStates } from '../engine/registry';
 import type { ControlId, Registry, StateId } from '../engine/registry';
 import { PanelStore } from '../engine/store';
-import type { ControlEvent, DispatchResult } from '../engine/store';
+import type { ControlEvent, DispatchResult, RetractResult } from '../engine/store';
 
 /** Read-only view for e2e specs; exists only in the e2e build (VITE_TEST_HOOKS=1). */
 export interface PanelTestHook {
@@ -35,6 +35,8 @@ export interface PanelBridge {
   indicatorOf(id: string): ReadonlySignal<boolean>;
   /** Supplies t = performance.now(); the engine never reads a clock. */
   actuate(id: ControlId, value: StateId): DispatchResult;
+  /** Removes the last event from the log (R3-Z3); the signals and lamps follow. See PanelStore.retract. */
+  retract(seq: number): RetractResult;
 }
 
 export function createPanelBridge(registry: Registry, indicators?: IndicatorSet): PanelBridge {
@@ -45,6 +47,12 @@ export function createPanelBridge(registry: Registry, indicators?: IndicatorSet)
   store.subscribe((event) => {
     const s = signals.get(event.id);
     if (s !== undefined) s.value = event.value;
+  });
+
+  // A retract restores the control's value from the replayed log, so every derived lamp follows.
+  store.onRetract((event, restored) => {
+    const s = signals.get(event.id);
+    if (s !== undefined) s.value = restored;
   });
 
   // Flags (for example gear.in_transit) are an empty record in this phase; Phase 3 feeds them.
@@ -93,6 +101,9 @@ export function createPanelBridge(registry: Registry, indicators?: IndicatorSet)
     },
     actuate(id, value) {
       return store.dispatch(id, value, performance.now());
+    },
+    retract(seq) {
+      return store.retract(seq);
     },
   };
 }
