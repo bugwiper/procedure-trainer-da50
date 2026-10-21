@@ -402,9 +402,13 @@ describe('zoom wording (R2-Z1 plan 31, R3-Z3 plan 40)', () => {
       '.planning/phases/01.1-panel-shape-controls-and-indicator-lights/01.1-CONTEXT.md',
     );
     expect(context).toContain('R2-Z1');
+    expect(context).toContain('R3-Z3');
+    expect(context).toContain('R3-Z2');
     if (uiSpecExists) {
       const spec = read(UI_SPEC_PATH);
       expect(spec).toContain('R2-Z1');
+      expect(spec).toContain('R3-Z3');
+      expect(spec).toContain('R3-Z2');
     }
   });
 
@@ -418,6 +422,14 @@ describe('zoom wording (R2-Z1 plan 31, R3-Z3 plan 40)', () => {
     expect(readme).toMatch(/a quick tap is a press and a release/);
     expect(readme).toMatch(/single click or tap never zooms/);
     expect(readme).not.toContain('they act while held and return when you let go');
+  });
+
+  it('the label table no longer describes the pulled brake as a wedge', () => {
+    const labels = read('docs/PANEL-LABELS.md');
+    expect(labels).not.toMatch(/wedge/i);
+    const row = labels.split('\n').find((line) => line.includes('`lv.parking_brake`')) ?? '';
+    expect(row).toMatch(/tilted plate/);
+    expect(row).toMatch(/hinged at the bottom|hinged flap/);
   });
 });
 

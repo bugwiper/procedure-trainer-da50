@@ -148,7 +148,7 @@ Parking brake (a hinged flap, a tap toggles it), throttle and cowl flap. The thr
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
-| `lv.parking_brake` | PARKING BRAKE (placard only, no state text); drawn as a hinged flap in side-view perspective, flat when released and standing up as a wedge when pulled | none; a tap toggles the flap, there is no dragging | owner finding (R2-4.2, plan 27) | `controls/pedestal.ts`, `src/ui/panel/skins/Flap.tsx` |
+| `lv.parking_brake` | PARKING BRAKE (placard only, no state text); drawn as a hinged flap in side-view perspective, flat when released and standing up as a tilted plate hinged at the bottom when pulled | none; a tap toggles the flap, there is no dragging | owner finding (R2-4.2, plan 27) | `controls/pedestal.ts`, `src/ui/panel/skins/Flap.tsx` |
 | `lv.power` | THROTTLE (as on the plate in the owner photo; the id stays `lv.power`; replaces POWER); MAX at the forward end | the legends 0 %, 50 %, 100 % (Q-05) | existing, assumption | `controls/pedestal.ts` |
 | `lv.cowl_flap` | COWL FLAP | none (the lever legends CLOSED and OPEN move to the two lamps) | owner finding | `controls/pedestal.ts` |
 | `lt.cowl_open` (new in plan 19) | OPEN beside a white lamp | none | owner finding | `indicators.ts` |
