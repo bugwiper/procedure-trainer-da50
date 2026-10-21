@@ -151,3 +151,33 @@ describe('panel review completeness (D-03, D-10)', () => {
     expect(entry.toLowerCase()).toContain('white');
   });
 });
+
+// Phase 01.2 owner decision U-01: the panel space was widened to 2180 x 1300. The UI-SPEC section
+// is the contract the later plans build on; the review document records the decision.
+const UI_SPEC_012_PATH =
+  '.planning/phases/01.2-circuit-breakers-g1000-nxi-shapes-and-avionics-panels/01.2-UI-SPEC.md';
+const uiSpec012Exists = existsSync(join(root, UI_SPEC_012_PATH));
+
+describe('phase 01.2 owner decision U-01 (widened to 2180)', () => {
+  it.skipIf(!uiSpec012Exists)(
+    'the UI-SPEC holds the owner decision section and its numbers',
+    () => {
+      const spec = read(UI_SPEC_012_PATH);
+      expect(spec).toContain('Owner decision U-01: widened to 2180');
+      for (const needle of ['2180', '1874', 'cb_essential', 'cb_strip']) {
+        expect(spec, needle).toContain(needle);
+      }
+      expect(
+        (spec.match(/Superseded by Owner decision U-01/g) ?? []).length,
+      ).toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it('the review document names the new space, the heading and the two decisions', () => {
+    expect(review).toContain('Phase 01.2');
+    expect(review).toContain('P2-01');
+    expect(review).toContain('P2-02');
+    expect(review).toContain('2180');
+    expect(review).not.toContain('2000 x 1300');
+  });
+});

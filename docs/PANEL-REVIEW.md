@@ -6,7 +6,7 @@ This is a training aid, not the AFM. The panel of phase 01.1 was drawn from priv
 
 | What is wrong                                                  | Where to change it                                                                                                                                                                                                                              |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Position, hit size, region, states, default state, label       | the registry data files in `src/aircraft/da50rg/controls/` (file named in the last column of each row), and the matching reference row in `tests/layout-reference.ts` (centre x and y in the 2000 x 1300 panel space, tolerance, `review` flag) |
+| Position, hit size, region, states, default state, label       | the registry data files in `src/aircraft/da50rg/controls/` (file named in the last column of each row), and the matching reference row in `tests/layout-reference.ts` (centre x and y in the 2180 x 1300 panel space, positions left of x 1980 unchanged since phase 01.1, tolerance, `review` flag) |
 | Colour, size, skin (rocker, bat, knob, lever and button shape) | the same data file (`skin`, `size`, `colour`, `ball` fields); the drawing itself is in `src/ui/panel/skins/` and `src/ui/panel/widgets/`                                                                                                        |
 | Lamp position, colour, caption side                            | `src/aircraft/da50rg/indicators.ts` (region-local centre), plus the reference row in `tests/layout-reference.ts`                                                                                                                                |
 | Shell art, placards, plate outlines, brand marks               | `src/ui/panel/PanelShell.tsx` (static art only; shared gradients in `src/ui/panel/Defs.tsx`)                                                                                                                                                    |
@@ -43,7 +43,7 @@ Photos are named by short name only. They live in a private, git-ignored folder 
 | shape    | detail of the drawn skin (handle look, flutes, icons)                                         |
 | function | what the control does in the aircraft; every control here is state only, nothing is simulated |
 
-Coordinates below are global centres in the 2000 x 1300 space, written x, y, with the tolerance in brackets.
+Coordinates below are global centres in the 2180 x 1300 space (the 180 units were added on the right only, so every position below is unchanged from phase 01.1), written x, y, with the tolerance in brackets.
 
 ## Glareshield (region `lights`)
 
@@ -312,3 +312,12 @@ Nothing was published. This is the list of what to look at first. All of it is l
 6. **Deferred behaviour (engine phase).** The 120 s MAX run (the flag `deice.max_active`), the ANNUN-TEST self-test, the WIND SHIELD spray, the ICE LIGHT effect, and the ELT lamp behaviour in RESET / TEST. Reason: no engine clock or reaction layer exists before the scenario phases, and these controls only record state here. Todo: `.planning/todos/pending/2026-10-21-deice-max-timer-engine.md`.
 7. **Assumptions taken in plans 12 to 22.** The fourteen label defaults Q-01 to Q-14; the MFD softkey legend ENGINE (Q-10); the DIRECTION pictograms right of the slot; the fan symbol labels 1, 2, 3 stay as data but are not drawn; the temperature triangle 8 wide, 18 left of the slot; the mode toggle label `DE-ICE MODE` and lamp labels `DE-ICE MAX`, `DE-ICE HIGH`, `DE-ICE NORM` (aria only); the NORM placard baseline 349 and HIGH centred on the toggle; pump default PUMP 1, ANNUN-TEST maintained; registry label `DE-ICE PUMP`; the ALTERNATE guard cover as an inset block with three hatch bars; WIND SHIELD split into two lines at size 6; the cowl-flap lamps white and each lit in its own position; the ELT lamp lit in ON only; the throttle label THROTTLE with the id `lv.power`; placard line pitch 7 for size 6 and 10 for size 8; the flap region grown 5 units upward (the MFD softkey region ends at 608); the gear plate top at 580 drawn under the PFD bezels; the bus panel moved right to x 1836; the no-state-text rule applied to the glass only for control text.
 8. **Publishing.** The phase branch holds the commits; no push, tag or pull request was made. Publishing is the owner's step.
+
+## Phase 01.2: decisions and open items
+
+Decisions of phase 01.2 (circuit breakers, display shapes, avionics units). Later plans of the phase append rows here.
+
+| Decision | Reason and cost of undoing |
+| -------- | -------------------------- |
+| **P2-01** The panel space was widened from 2000 to 2180 by the owner (Q2-01 RESOLVED); the 180 units are only on the right, nothing left of x 1980 moved | Reason: the real breaker grid needs the real pitch of 36 units, about 260 units of width, and only about 144 units were free. Cost of undoing: redo the bus panel numbers and five spec literals (smoke viewBox, full-view string, pinch width, art-fit viewport, layout test), and the shell paths. Cost of keeping: about 8 percent smaller scale on tablet (0.433 against 0.472) and portrait phone (0.180 against 0.197); desktop and phone landscape are unchanged. |
+| **P2-02** `MIN_VIEW_WIDTH` stays 200 | Every planned breaker hit side is at least 24 units; times the portrait pinch scale 1.965 that is 47 px, above the 44 px target, so the draft proposal to lower it to 100 is withdrawn. Cost of undoing: none, one constant. |
