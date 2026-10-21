@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: "01.2"
 current_phase_name: Circuit breakers, G1000 shapes and avionics panels
-current_plan: 2 (complete)
+current_plan: 3 (complete)
 status: executing
-stopped_at: Completed 01.2-02-PLAN.md
-last_updated: "2026-10-21T06:46:27.254Z"
+stopped_at: Completed 01.2-03-PLAN.md
+last_updated: "2026-10-21T06:53:36.961Z"
 last_activity: 2026-10-21
-last_activity_desc: Plan 01.2-02 complete (circuit-breaker kind and cb.pitot)
-state_head: 6a62a91f801c26c7d7e2523fb57f5b75c12fa02d
+last_activity_desc: Plan 01.2-03 complete (bus panel frame)
+state_head: 9f8a58b266ac0bd31587cebd1ea08eaa094450eb
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 41
-  completed_plans: 34
+  completed_plans: 35
   percent: 14
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.2 (Circuit breakers, G1000 shapes and avionics panels) — EXECUTING
-Current Plan: 2 (complete)
+Current Plan: 3 (complete)
 Total Plans in Phase: 9
-Status: Plans 01 and 02 of phase 01.2 complete. Plan 01 widened the panel space to 2180 x 1300 (right side only). Plan 02 added the circuit-breaker kind (flat cb. ids, states in and out) with one real breaker, cb.pitot, in region cb_essential, derived the inventory gates from independent tables (CB_REFERENCE, ALL_REGION_IDS) and amended the state-text wording (raised cap and white ring, no state text, P2-03). Next: plan 03 (bus panel geometry and art). Nothing was pushed; publishing is the owner's step. Phase 01.1 (23 plans) is complete.
-Last activity: 2026-10-21 — Plan 01.2-02 complete (circuit-breaker kind end to end with cb.pitot)
+Status: Plans 01 to 03 of phase 01.2 complete. Plan 01 widened the panel space to 2180 x 1300 (right side only). Plan 02 added the circuit-breaker kind (flat cb. ids, states in and out) with one real breaker, cb.pitot, and derived the inventory gates from independent tables. Plan 03 built the bus panel frame: regions cb_main, cb_low, cb_strip (23 regions), the bus-panel plate, the three stair-step outlines with titles, three blank plugs, three pump boxes and the lower-row sub-panel, all as data (bus-boxes.ts) drawn by BusPanelArt. Next: plan 04 (the 51 breakers). Nothing was pushed; publishing is the owner's step. Phase 01.1 (23 plans) is complete.
+Last activity: 2026-10-21 — Plan 01.2-03 complete (bus panel frame: regions, plate, outlines, plugs, pump boxes)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -82,6 +82,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P23 | 25min | 3 tasks | 9 files |
 | Phase 01.2 P01 | 10 min | 2 tasks | 14 files |
 | Phase 01.2 P02 | 30min | 3 tasks | 23 files |
+| Phase 01.2 P03 | 15min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Plan 01.1-22: a guarded toggle without rocker size and colour draws the bat toggle (ALTERNATE: states on, off, guarded position up); the guard cover is the only red part
 - [Phase 01.2]: 01.2-01: panel space widened from 2000 to 2180 x 1300 on the right only (owner decision U-01, P2-01); MIN_VIEW_WIDTH stays 200 (P2-02)
 - [Phase 01.2]: 01.2-02: circuit-breaker kind with flat cb. ids; pulled state is a raised cap plus white ring with no state text (owner rule G-0.1, P2-03); inventory counts derived from independent tables
+- [Phase 01.2]: Bus membership is the data attribute group; outline polygons are data in bus-boxes.ts, ids carry no bus segment (P2-04)
 
 ### Pending Todos
 
@@ -152,6 +154,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T06:46:27.038Z
-Stopped at: Completed 01.2-02-PLAN.md
+Last session: 2026-10-21T06:53:36.732Z
+Stopped at: Completed 01.2-03-PLAN.md
 Resume file: None
