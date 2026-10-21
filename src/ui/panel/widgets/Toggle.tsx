@@ -1,19 +1,12 @@
 import { useSignal } from '@preact/signals';
 import type { StateDef, StateId, ToggleDef, TogglePosition } from '../../../engine/registry';
+import type { DispatchResult } from '../../../engine/store';
 import type { WidgetProps } from '../ControlWidget';
+import { registerPressTarget, seqOf } from '../press-targets';
+import type { PressTarget } from '../press-targets';
 import { BatBody } from '../skins/Bat';
 import { RockerBody } from '../skins/Rocker';
 import { SoftkeyCap } from '../frames/SoftkeysFrame';
-
-const TAP_SLOP_PX = 10;
-
-interface PointerStart {
-  readonly pointerId: number;
-  readonly x: number;
-  readonly y: number;
-  /** Where the pointer went down inside the hit rectangle: 0 is the top edge, 1 the bottom edge. */
-  readonly fraction: number;
-}
 
 /**
  * Drawn position of the state at `index`: a two-state toggle draws low and high, a three-state
@@ -57,16 +50,46 @@ export function tapTarget(
   return other?.id ?? current;
 }
 
+/** What a press target needs from its widget; everything is read at call time. */
+export interface TogglePressDeps {
+  readonly def: Pick<ToggleDef, 'id' | 'states'>;
+  readonly stateOf: () => StateId;
+  readonly actuate: (id: string, value: StateId) => DispatchResult;
+  readonly setPending: (on: boolean) => void;
+}
+
+/**
+ * The press target of a toggle (R3-Z2): a latch target that acts on the tap only. A two-state
+ * toggle flips, a three-state toggle goes to the third of the hit rectangle that the down point
+ * was in (measured on the hit element, so the thirds follow the scale and the zoom); the current
+ * third records nothing. Pure and hook-free: the pending visual is driven by the gesture layer
+ * through setPending, never by the factory itself.
+ */
+export function makeTogglePress(deps: TogglePressDeps): PressTarget {
+  const { def, stateOf, actuate, setPending } = deps;
+  return {
+    cls: 'latch',
+    setPending,
+    tap(info) {
+      const box = info.hit.getBoundingClientRect();
+      const fraction = box.height > 0 ? (info.down.y - box.top) / box.height : 0.5;
+      const current = stateOf();
+      const target = tapTarget(def.states, current, fraction);
+      return target === current ? null : seqOf(actuate(def.id, target));
+    },
+  };
+}
+
 /**
  * Toggle widget (switch and softkey skins). State reads from the graphic position (and the
  * data-state and aria-label for tests and assistive technology), never from colour alone and never
- * from printed text (G-0.1). Pointer contract: only primary
- * pointers, capture on pointerdown, actuate on a pointerup within the tap slop, never
- * listen to click (RESEARCH Pattern 5).
+ * from printed text (G-0.1). Pointer contract (R3-Z2): the widget owns no pointer. The hit
+ * rectangle registers a latch press target; the gesture layer shows the pressed ring while the
+ * press is pending, calls the target on a lift within the slop, and takes the pointer away when
+ * it moves beyond the slop or a second pointer lands. Never listens to click (RESEARCH Pattern 5).
  */
 export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
   const pressed = useSignal(false);
-  const start = useSignal<PointerStart | null>(null);
 
   const state = bridge.stateOf(def.id).value;
   const index = Math.max(
@@ -77,33 +100,16 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
   const position = togglePosition(index, def.states.length);
   const stateLabel = def.states[index]?.label ?? '';
 
-  const clear = () => {
-    start.value = null;
-    pressed.value = false;
-  };
-
-  const onPointerDown = (e: PointerEvent) => {
-    if (!e.isPrimary) return;
-    try {
-      (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    } catch {
-      // The pointer may already be gone; the tap is still evaluated on pointerup.
-    }
-    // The hit element's own rectangle, so the thirds follow the scale and the zoom.
-    const box = (e.currentTarget as Element).getBoundingClientRect();
-    const fraction = box.height > 0 ? (e.clientY - box.top) / box.height : 0.5;
-    start.value = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, fraction };
-    pressed.value = true;
-  };
-
-  const onPointerUp = (e: PointerEvent) => {
-    const s = start.value;
-    if (!e.isPrimary || s === null || s.pointerId !== e.pointerId) return;
-    clear();
-    if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > TAP_SLOP_PX) return;
-    const target = tapTarget(def.states, state, s.fraction);
-    if (target !== state) bridge.actuate(def.id, target);
-  };
+  // Built in the render body and registered by a ref callback on every render, so the target
+  // never closes over stale props; it reads the state at call time.
+  const press = makeTogglePress({
+    def,
+    stateOf: () => bridge.stateOf(def.id).peek(),
+    actuate: (id, value) => bridge.actuate(id, value),
+    setPending: (on) => {
+      pressed.value = on;
+    },
+  });
 
   const skin = def.skin ?? 'bat';
 
@@ -136,10 +142,7 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
         height={def.hit.h}
         fill="transparent"
         pointer-events="all"
-        onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
-        onPointerCancel={clear}
-        onLostPointerCapture={clear}
+        ref={(el: SVGRectElement | null) => registerPressTarget(el, press)}
       />
     </g>
   );

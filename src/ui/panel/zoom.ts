@@ -8,7 +8,9 @@ import type { ReadonlySignal } from '@preact/signals';
 import { VIEWBOX } from '../../aircraft/da50rg/panel';
 import type { Rect, Region, Registry, Size } from '../../engine/registry';
 import { createPressArbiter } from './press-arbiter';
-import type { Midpoint, PressEffect } from './press-arbiter';
+import type { Midpoint, PressEffect, TargetDescriptor } from './press-arbiter';
+import { pressKeyOf, pressTargetOf } from './press-targets';
+import type { PressTarget } from './press-targets';
 import { createDoubleTapTracker } from './tap-intent';
 import type { PointerKind } from './tap-intent';
 import {
@@ -22,7 +24,7 @@ import {
 } from './viewport';
 import type { ButtonCorner } from './viewport';
 
-/** A pointer that starts on one of these elements lands on a control (an own target, plan 36). */
+/** A pointer that starts on one of these elements lands on a control (a registered or own target). */
 const TAP_TARGET_SELECTOR = '[data-hit], [data-detent]';
 
 const fullView = signal<Rect>({ x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h });
@@ -93,8 +95,11 @@ function kindOf(e: PointerEvent): PointerKind {
  * what a control does with it.
  *
  * Rules (mouse, touch and pen alike; the machine implements them):
- *  (a) a pointerdown that lands inside a [data-hit] or [data-detent] element is an own target
- *      (until plan 37 registers the controls by class); anything else is the background;
+ *  (a) a pointerdown that lands inside a [data-hit] or [data-detent] element is classified by the
+ *      press target registered on it (press-targets.ts: latch, momentary or own); an element
+ *      nobody registered is an own target with dragStartPx 0; anything else is the background.
+ *      The gesture layer calls the target (pending, tap, discard) and captures the pointer on
+ *      the svg while the press is pending or the pointer is a view pointer;
  *  (b) one slop per pointer kind: 10 px for touch, pen and an unknown type, 5 px for the mouse;
  *      a press that stays within it and lifts in time is a tap, one that goes beyond it pans
  *      (only while zoomed; a single tap never changes the view);
@@ -106,7 +111,8 @@ function kindOf(e: PointerEvent): PointerKind {
  *      from the full view zooms to the region under the taps; in no region it does nothing;
  *  (e) anything between the two taps that is not a background tap (a control pointer going down,
  *      a pan, a pinch, a cancel, a view change by the Full panel button) ends the pair, and a
- *      pair is consumed, so a double tap on a control stays two control taps;
+ *      pair is consumed, so a double tap on a control stays two control taps (a control tap
+ *      resets the pair tracker);
  *  (f) stale record sweep: a primary pointer going down drops every tracked pointer of its kind,
  *      so a lost pointerup or pointercancel can never leave the panel blocked.
  */
@@ -125,6 +131,12 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   resizeObserver?.observe(svg);
 
   const arbiter = createPressArbiter();
+  /** What a tracked pointer landed on: its registered target (if any) and the hit element. */
+  interface PointerRecord {
+    readonly target: PressTarget | undefined;
+    readonly hit: Element;
+  }
+  const records = new Map<number, PointerRecord>();
   /** Pointers this layer captured on the svg; they are released when the machine drops them. */
   const captured = new Set<number>();
   const doubleTaps = createDoubleTapTracker();
@@ -189,7 +201,15 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     }
   };
 
-  const apply = (effects: readonly PressEffect[]) => {
+  /**
+   * Applies the effects of one arbiter call. `fresh` is the record of the pointer that just went
+   * down: the only effect of a pointer going down that concerns itself is "pending on", every
+   * other effect with its id belongs to a stale record of the same id and goes to that one.
+   */
+  const apply = (
+    effects: readonly PressEffect[],
+    fresh?: { readonly id: number; readonly record: PointerRecord },
+  ) => {
     for (const effect of effects) {
       switch (effect.type) {
         case 'pan':
@@ -198,11 +218,30 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
         case 'pinch':
           pinchTo(effect.prev, effect.next);
           break;
-        case 'tap':
-          // Only the background is a view tap here; control taps arrive with the registered
-          // targets of plans 37 to 39.
-          if (effect.key === null) onTap(effect.up.x, effect.up.y, effect.at);
+        case 'pending': {
+          const record =
+            effect.on && fresh?.id === effect.id ? fresh.record : records.get(effect.id);
+          record?.target?.setPending?.(effect.on);
           break;
+        }
+        case 'discard': {
+          const target = records.get(effect.id)?.target;
+          target?.setPending?.(false);
+          target?.discard?.();
+          break;
+        }
+        case 'tap': {
+          if (effect.key === null) {
+            onTap(effect.up.x, effect.up.y, effect.at);
+            break;
+          }
+          const record = records.get(effect.id);
+          record?.target?.tap?.({ down: effect.down, up: effect.up, hit: record.hit });
+          // Control taps never pair in this plan: the tracker forgets whatever it remembered.
+          doubleTaps.reset();
+          lastTapView = null;
+          break;
+        }
         case 'pair-break':
           doubleTaps.reset();
           break;
@@ -210,20 +249,29 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     }
   };
 
-  /** A view pointer is captured on the svg; a pointer the machine no longer tracks is forgotten. */
+  /** A pointer is captured on the svg while its press is pending or it is a view pointer. */
   const syncCapture = (pointerId: number) => {
     const state = arbiter.stateOf(pointerId);
     if (state === undefined) {
       captured.delete(pointerId);
+      records.delete(pointerId);
       return;
     }
-    if (state !== 'view' || captured.has(pointerId)) return;
+    const target = records.get(pointerId)?.target;
+    const wanted = state === 'view' || (state === 'pending' && target !== undefined);
+    if (!wanted || captured.has(pointerId)) return;
     captured.add(pointerId);
     try {
       svg.setPointerCapture(pointerId);
     } catch {
       // The pointer may already be gone; the release is still handled on pointerup.
     }
+  };
+
+  /** Every pointer the machine dropped (a stale sweep, a pinch that ended) loses its record. */
+  const syncAll = () => {
+    for (const id of Array.from(records.keys())) syncCapture(id);
+    for (const id of Array.from(captured)) syncCapture(id);
   };
 
   const sampleOf = (e: PointerEvent) => ({
@@ -239,32 +287,47 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const target = e.target;
     const hit = target instanceof Element ? target.closest(TAP_TARGET_SELECTOR) : null;
-    const key = hit?.getAttribute('data-hit') ?? hit?.getAttribute('data-detent') ?? null;
+    let descriptor: TargetDescriptor = { cls: 'background', key: null };
+    let record: PointerRecord | null = null;
+    if (hit !== null) {
+      const key = pressKeyOf(hit);
+      const registered = pressTargetOf(hit);
+      record = { target: registered, hit };
+      descriptor =
+        registered === undefined
+          ? { cls: 'own', key, dragStartPx: 0 }
+          : { cls: registered.cls, key, dragStartPx: registered.dragStartPx ?? 0 };
+    }
+    // Effects of a stale record with the same pointer id are applied before the new record is
+    // stored; the new pointer's own "pending on" is routed to it explicitly.
     apply(
-      arbiter.down(
-        sampleOf(e),
-        hit === null ? { cls: 'background', key: null } : { cls: 'own', key, dragStartPx: 0 },
-      ),
+      arbiter.down(sampleOf(e), descriptor),
+      record === null ? undefined : { id: e.pointerId, record },
     );
+    if (record !== null) records.set(e.pointerId, record);
+    else records.delete(e.pointerId);
     syncCapture(e.pointerId);
     // A pinch makes the first pointer a view pointer too, possibly one the machine took over.
-    for (const id of Array.from(captured)) syncCapture(id);
+    syncAll();
   };
 
   const onMove = (e: PointerEvent) => {
     apply(arbiter.move(sampleOf(e)));
     syncCapture(e.pointerId);
+    syncAll();
   };
 
   const onUp = (e: PointerEvent) => {
     apply(arbiter.up(sampleOf(e)));
     syncCapture(e.pointerId);
+    syncAll();
   };
 
   // lostpointercapture follows every pointerup: only a pointer still tracked was cancelled.
   const onCancel = (e: PointerEvent) => {
     apply(arbiter.cancel(e.pointerId));
     syncCapture(e.pointerId);
+    syncAll();
   };
 
   svg.addEventListener('pointerdown', onDown, true);
@@ -281,6 +344,7 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     svg.removeEventListener('lostpointercapture', onCancel, true);
     apply(arbiter.reset());
     captured.clear();
+    records.clear();
     doubleTaps.reset();
   };
 }

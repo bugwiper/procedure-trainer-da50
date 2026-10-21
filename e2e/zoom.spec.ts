@@ -11,6 +11,7 @@ import {
   zoomIntoRegion,
 } from './support/zoom';
 import type { Point } from './support/zoom';
+import { pinch, touchSender } from './support/touch';
 
 // Region zoom (PNL-09, PNL-06, D-20, D-21, R2-Z1): double click or double tap a region's
 // background to zoom in, operate its controls at full tap size, zoom back out; a single click or
@@ -54,20 +55,6 @@ async function sizes(
     );
 }
 
-type TouchType = 'touchStart' | 'touchMove' | 'touchEnd';
-type TouchSender = (type: TouchType, points: Point[]) => Promise<void>;
-
-/** Chromium touch emulation by CDP; point i has touch id i + 1. */
-async function touchSender(page: Page): Promise<TouchSender> {
-  const cdp = await page.context().newCDPSession(page);
-  return async (type, points) => {
-    await cdp.send('Input.dispatchTouchEvent', {
-      type,
-      touchPoints: points.map((p, i) => ({ x: p.x, y: p.y, id: i + 1 })),
-    });
-  };
-}
-
 async function viewNumbers(page: Page): Promise<{ x: number; y: number; w: number; h: number }> {
   const raw = (await viewBoxOf(page)) ?? '';
   const [x, y, w, h] = raw.split(' ').map(Number);
@@ -88,20 +75,6 @@ function pointArgs(p: Point): [number, number] {
 
 function centreOf(b: Box): Point {
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-}
-
-/** Two fingers on a horizontal line about `centre`, moving from `fromGap` to `toGap` apart. */
-async function pinch(page: Page, centre: Point, fromGap: number, toGap: number): Promise<void> {
-  const send = await touchSender(page);
-  const pair = (gap: number): Point[] => [
-    { x: centre.x - gap / 2, y: centre.y },
-    { x: centre.x + gap / 2, y: centre.y },
-  ];
-  await send('touchStart', pair(fromGap));
-  for (let i = 1; i <= 8; i++) {
-    await send('touchMove', pair(fromGap + ((toGap - fromGap) * i) / 8));
-  }
-  await send('touchEnd', []);
 }
 
 async function eventCount(page: Page): Promise<number> {

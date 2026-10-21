@@ -8,11 +8,14 @@ import { ROCKER_FACE, ROCKER_LIFT, RockerBody, rockerExtent } from '../src/ui/pa
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
 import {
   SoftkeyBody,
+  makeTogglePress,
   pressedHalfOf,
   stateAtFraction,
   tapTarget,
   togglePosition,
 } from '../src/ui/panel/widgets/Toggle';
+import type { DispatchResult } from '../src/engine/store';
+import type { PressInfo } from '../src/ui/panel/press-targets';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
 
@@ -685,5 +688,111 @@ describe('toggle-family sources', () => {
       expect(src, file).not.toMatch(/<(pattern|linearGradient|radialGradient)/);
     }
     expect(readFileSync(FILES[0] as string, 'utf8')).not.toContain('export function SwitchBody');
+  });
+});
+
+describe('makeTogglePress (plan 37, R3-Z2): what a tap on a toggle does', () => {
+  /** A hit element stand-in: only its box is read, thirds measured from the top. */
+  const hitBox = { top: 100, height: 90 };
+  const hit = { getBoundingClientRect: () => hitBox } as unknown as Element;
+  const infoAt = (y: number): PressInfo => ({
+    down: { x: 10, y },
+    up: { x: 11, y: y + 1 },
+    hit,
+  });
+
+  function rig(id: string, current: string, seq = 7) {
+    const actuated: [string, string][] = [];
+    let pendingCalls = 0;
+    const target = makeTogglePress({
+      def: toggle(id),
+      stateOf: () => current,
+      actuate: (cid, value): DispatchResult => {
+        actuated.push([cid, value]);
+        return { ok: true, event: { seq, t: 0, id: cid, value, source: 'user' } };
+      },
+      setPending: () => {
+        pendingCalls += 1;
+      },
+    });
+    return { target, actuated, pendingCalls: () => pendingCalls };
+  }
+
+  it('is a latch target', () => {
+    expect(rig('sw.engine_master', 'on').target.cls).toBe('latch');
+  });
+
+  it('a two-state toggle flips on a tap, wherever the tap lands', () => {
+    for (const y of [102, 145, 188]) {
+      const r = rig('sw.engine_master', 'on');
+      expect(r.target.tap?.(infoAt(y))).toBe(7);
+      expect(r.actuated).toEqual([['sw.engine_master', 'off']]);
+    }
+    const back = rig('sw.engine_master', 'off');
+    back.target.tap?.(infoAt(145));
+    expect(back.actuated).toEqual([['sw.engine_master', 'on']]);
+  });
+
+  it('a three-state toggle goes to the top, middle or bottom third of the down point', () => {
+    // The ELT is armed; its states run reset_test, armed, on from bottom to top.
+    const cases: [number, string | null][] = [
+      [110, 'on'],
+      [128, 'on'],
+      [145, null],
+      [170, 'reset_test'],
+      [188, 'reset_test'],
+    ];
+    for (const [y, expected] of cases) {
+      const r = rig('sw.elt', 'armed');
+      const seq = r.target.tap?.(infoAt(y));
+      if (expected === null) {
+        expect(seq, `y ${y}`).toBeNull();
+        expect(r.actuated, `y ${y}`).toEqual([]);
+      } else {
+        expect(seq, `y ${y}`).toBe(7);
+        expect(r.actuated, `y ${y}`).toEqual([['sw.elt', expected]]);
+      }
+    }
+  });
+
+  it('measures the thirds at the down point, not at the up point', () => {
+    const r = rig('sw.elt', 'armed');
+    r.target.tap?.({ down: { x: 10, y: 110 }, up: { x: 12, y: 186 }, hit });
+    expect(r.actuated).toEqual([['sw.elt', 'on']]);
+  });
+
+  it('returns the sequence number of the dispatch, and null for a rejected one', () => {
+    const r = rig('sw.engine_master', 'on', 41);
+    expect(r.target.tap?.(infoAt(145))).toBe(41);
+    const rejected = makeTogglePress({
+      def: toggle('sw.engine_master'),
+      stateOf: () => 'on',
+      actuate: (): DispatchResult => ({ ok: false, reason: 'unchanged' }),
+      setPending: () => undefined,
+    });
+    expect(rejected.tap?.(infoAt(145))).toBeNull();
+  });
+
+  it('never drives the pressed visual itself: the gesture layer calls setPending', () => {
+    const r = rig('sw.engine_master', 'on');
+    r.target.tap?.(infoAt(145));
+    expect(r.pendingCalls()).toBe(0);
+    r.target.setPending?.(true);
+    expect(r.pendingCalls()).toBe(1);
+  });
+
+  it('a zero height box measures the middle', () => {
+    const flat = { getBoundingClientRect: () => ({ top: 0, height: 0 }) } as unknown as Element;
+    const r = rig('sw.elt', 'on');
+    r.target.tap?.({ down: { x: 0, y: 0 }, up: { x: 0, y: 0 }, hit: flat });
+    expect(r.actuated).toEqual([['sw.elt', 'armed']]);
+  });
+
+  it('the widget source holds no pointer handler, no capture and no slop of its own', () => {
+    const src = readFileSync('src/ui/panel/widgets/Toggle.tsx', 'utf8');
+    expect(src).not.toContain('onPointerDown');
+    expect(src).not.toContain('setPointerCapture');
+    expect(src).not.toContain('TAP_SLOP_PX');
+    expect(src).toContain('registerPressTarget');
   });
 });
