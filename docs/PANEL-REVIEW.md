@@ -139,7 +139,7 @@ No state text is printed under the cluster any more (the earlier GEAR DOWN LOCKE
 
 ## Flap block (region `flaps`)
 
-The flap lever is confirmed (`lv.flaps`, flaps-block skin, UP, T/O, LDG, default UP). The three flap lamps are assumptions, and so is the position of the RUBIN mark. The flap plate was raised to y 608 (the top of the flap art, G-4); the seam to the gear plate at x 1150 is clear of LEVEL and of the RUBIN mark.
+The flap lever is confirmed (`lv.flaps`, flaps-block skin, UP, T/O, LDG, default UP). The three flap lamps are assumptions. No airframe maker mark is drawn (the former RUBIN placeholder was removed by the owner). The flap plate was raised to y 608 (the top of the flap art, G-4); the seam to the gear plate at x 1150 is clear of LEVEL and of the RUBIN mark.
 
 | Id            | Placard      | Assumed kind and skin         | Assumed states and default | Centre (tol)  | What is uncertain                                                    | Photos          | File to change  |
 | ------------- | ------------ | ----------------------------- | -------------------------- | ------------- | -------------------------------------------------------------------- | --------------- | --------------- |
@@ -147,7 +147,7 @@ The flap lever is confirmed (`lv.flaps`, flaps-block skin, UP, T/O, LDG, default
 | `lt.flap_to`  | T/O 133 KIAS | white lamp r 7, caption right | lit when flaps are T/O     | 1274, 660 (8) | position, lit colour (white assumed), the speed value in the caption | P650, PED       | `indicators.ts` |
 | `lt.flap_ldg` | LDG 121 KIAS | white lamp r 7, caption right | lit when flaps are LDG     | 1263, 689 (8) | position, lit colour (white assumed), the speed value in the caption | P650, PED       | `indicators.ts` |
 
-RUBIN mark: text only, centred at (1232, 625) at the left of the flap block, replacing the airframe maker's wordmark. Its position and the 0.3 em tracking are estimates (`src/ui/panel/PanelShell.tsx`). No FLAPS state readout is printed; the lamps and the lever show the position.
+No airframe maker mark: the former RUBIN text mark was removed on owner request (2026-10-21); nothing is drawn at (1232, 625).
 
 ## Right panel and bus panel (region `right_panel`)
 
@@ -249,7 +249,6 @@ Other shell items:
 | NO SMOKING placard | x 965..1029, y 725..739 |
 | Fuel placard | x 1560..1700, y 640..700, five decorative bars, no real text |
 | Nameplate | x 485..635, y 106..134, text DA50RG centred at (560, 125) |
-| RUBIN | centre (1232, 625) |
 | GO-AROUND | centred above each display bezel at region-local (w/2, -6) |
 
 Knob and key columns (phase 01.2 plan 07, D-04 and D-05): the three columns `pfd_bezel_left`, `pfd_bezel_right` and `mfd_bezel_right` draw inert knobs, a swap button, the RANGE joystick (right columns) and six keys (right columns), each with its static name and sub-legends. Nothing turns or presses; a single tap does nothing and a double tap only zooms. Assumptions for the morning review:
@@ -390,7 +389,7 @@ Decisions of the second round of gap closure (owner findings of the live-site re
 Nothing was published. This is the list of what to look at first. All of it is local on the phase branch; publishing is your step.
 
 1. **Label table and its questions.** Open [PANEL-LABELS.md](PANEL-LABELS.md). It lists every static label and placard of every control and lamp. Questions Q-01 to Q-14 each carry the default taken (all fourteen defaults were taken, nothing blocks); a different answer is a data edit in the file named in the table row.
-2. **The rebuilt areas.** After you publish, look at these on the live site: the de-ice unit (heading, MAX, mode toggle and three lamps, guarded ALTERNATE, the lower row), the landing gear block (heading, speed line, lamps, GEAR TEST lighting all four), the ELT (three positions, lamp, placards), the environmental control (four boxes, pictograms), the pedestal (parking brake pulled up, throttle, cowl flap with two lamps), the flap block (plate top, LEVEL and RUBIN clear of the seam), FADEC (plate top) and LEVEL (fully on the gear plate).
+2. **The rebuilt areas.** After you publish, look at these on the live site: the de-ice unit (heading, MAX, mode toggle and three lamps, guarded ALTERNATE, the lower row), the landing gear block (heading, speed line, lamps, GEAR TEST lighting all four), the ELT (three positions, lamp, placards), the environmental control (four boxes, pictograms), the pedestal (parking brake pulled up, throttle, cowl flap with two lamps), the flap block (plate top, LEVEL clear of the seam), FADEC (plate top) and LEVEL (fully on the gear plate).
 3. **Rockers readable at a glance (G-0.4).** The position shows by the side perspective only, with no ON or OFF text. Check this on a phone as well as on a desktop; if it is not clear enough the fix is in `skins/Rocker.tsx` and `skins/Bat.tsx`.
 4. **Open list of the art-fit gate.** None remains: the lists `KNOWN_OPEN`, `TEXT_OVERLAP_KNOWN` and `FOOTPRINT_KNOWN_OPEN` are empty. One visible trade-off: the EMERGENCY GEAR EXTENSION name straddles the lower face-plate edge (see the Shell section).
 5. **Areas without explicit approval.** You approved parts of the first render; areas 1, 2 and 4 to 12 of the first review list were reported with no other corrections (owner findings G-6), which is not an explicit approval. Area 12 (the phone behaviour) needs a real iPhone: the zoom gestures changed after the live-site review (R2-Z1: a single tap never zooms, a double tap on the background zooms in and out, plans 25 and 26; see Round 4), the Full panel button, and tap sizes of small controls.

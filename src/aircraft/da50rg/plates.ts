@@ -56,7 +56,7 @@ export const PLATES: readonly PlateDef[] = [
     regions: ['landing_gear', 'level'],
   },
   // Raised to the top of the flap art, 608 where the softkey region ends (G-4). The seam at
-  // 1150 is clear of LEVEL and of the RUBIN mark at x 1232.
+  // 1150 is clear of LEVEL.
   {
     id: 'strip-flaps',
     x: 1150,

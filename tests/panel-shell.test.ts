@@ -174,9 +174,9 @@ describe('Defs', () => {
 });
 
 describe('PanelShell brand marks (D-05)', () => {
-  it('reads GO-AROUND twice, RUBIN once and DA50RG once', () => {
+  it('reads GO-AROUND twice and DA50RG once, and no airframe maker mark', () => {
     expect(occurrences(shellText, 'GO-AROUND')).toBe(2);
-    expect(occurrences(shellText, 'RUBIN')).toBe(1);
+    expect(occurrences(shellText, 'RUBIN')).toBe(0);
     expect(occurrences(shellText, 'DA50RG')).toBe(1);
   });
 

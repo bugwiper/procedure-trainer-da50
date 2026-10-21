@@ -9,7 +9,7 @@ function countOf(text: string, needle: string): number {
   return text.split(needle).length - 1;
 }
 
-test('rendered panel text carries GO-AROUND twice, RUBIN once, DA50RG once and no real brand', async ({
+test('rendered panel text carries GO-AROUND twice, DA50RG once, no airframe maker mark and no real brand', async ({
   page,
 }) => {
   await page.goto('./');
@@ -18,7 +18,7 @@ test('rendered panel text carries GO-AROUND twice, RUBIN once, DA50RG once and n
 
   const text = (await panel.textContent()) ?? '';
   expect(countOf(text, 'GO-AROUND')).toBe(2);
-  expect(countOf(text, 'RUBIN')).toBe(1);
+  expect(countOf(text, 'RUBIN')).toBe(0);
   expect(countOf(text, 'DA50RG')).toBe(1);
   expect(text).not.toMatch(REAL_BRANDS);
 });

@@ -172,15 +172,12 @@ test('the art of every region lies inside its region and its plate', async ({ pa
   expect(failures).toEqual([]);
 });
 
-test('the RUBIN mark and the LEVEL button lie on one plate and no plate seam crosses them', async ({
-  page,
-}) => {
+test('the LEVEL button lies on one plate and no plate seam crosses it', async ({ page }) => {
   const geo = await readGeometry(page);
   const flaps = geo.plates.find((p) => p.id === 'strip-flaps');
   const gear = geo.plates.find((p) => p.id === 'strip-gear');
   if (flaps === undefined || gear === undefined) throw new Error('strip plates missing');
-  if (geo.wordmark === null) throw new Error('no wordmark');
-  expect(outside(geo.wordmark, flaps.box), 'RUBIN mark on strip-flaps').toBeNull();
+  expect(geo.wordmark, 'no airframe maker mark is drawn').toBeNull();
 
   const level = geo.painted.filter((p) => p.region === 'level');
   expect(level.length).toBeGreaterThan(0);

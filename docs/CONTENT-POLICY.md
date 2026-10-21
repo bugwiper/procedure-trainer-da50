@@ -69,7 +69,7 @@ A legal review happens before any monetisation. Hosting moves off GitHub Pages b
 
 All panel artwork is original vector work. The private reference photos are used only for layout, gauge set and order, colour bands and annunciation wording. They are never embedded and never traced.
 
-Brand replacement rule: the panel never shows a real maker's mark. The avionics maker's name on the display bezels reads GO-AROUND, the airframe maker's wordmark reads RUBIN (plain text), and the type name DA50RG stays. No real logo, swoosh, bird, wordmark shape or aircraft registration is drawn. A unit test and an end-to-end test check the rendered text.
+Brand replacement rule: the panel never shows a real maker's mark. The avionics maker's name on the display bezels reads GO-AROUND, no airframe maker's wordmark is drawn at all, and the type name DA50RG stays. No real logo, swoosh, bird, wordmark shape or aircraft registration is drawn. A unit test and an end-to-end test check the rendered text.
 
 ## 8. Corrections and error reports
 

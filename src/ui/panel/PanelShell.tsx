@@ -36,7 +36,6 @@ const PLATE = '#17191d';
 
 // Letter spacing is a style because the `.panel-svg text` CSS rule would override the attribute.
 const TRACK_BEZEL = 'letter-spacing:0.2em';
-const TRACK_WORDMARK = 'letter-spacing:0.3em';
 
 const PLATE_FILLS: Readonly<Record<string, string>> = {
   'lights-recess': BEZEL_FILL,
@@ -157,23 +156,6 @@ function Nameplate() {
         DA50RG
       </text>
     </g>
-  );
-}
-
-/** Replacement for the airframe maker's wordmark: text only, no logo or swoosh shape (D-05). */
-function Wordmark() {
-  return (
-    <text
-      data-shell="wordmark"
-      x={1232}
-      y={625}
-      text-anchor="middle"
-      font-size={14}
-      fill="#b9c0c8"
-      style={TRACK_WORDMARK}
-    >
-      RUBIN
-    </text>
   );
 }
 
@@ -583,7 +565,6 @@ export function PanelShell({ registry }: { registry: Registry }) {
       {/* After every plate, so no plate paints over a placard. */}
       <Placards registry={registry} />
       <Nameplate />
-      <Wordmark />
     </g>
   );
 }

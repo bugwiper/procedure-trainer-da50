@@ -75,7 +75,7 @@ describe('content policy section 7 (brand replacement rule)', () => {
   const text = read('docs/CONTENT-POLICY.md');
   const section7 = text.slice(text.indexOf('## 7. Panel artwork'), text.indexOf('## 8.'));
 
-  it.each(['GO-AROUND', 'RUBIN', 'DA50RG'])('names %s', (name) => {
+  it.each(['GO-AROUND', 'DA50RG'])('names %s', (name) => {
     expect(section7).toContain(name);
   });
 
