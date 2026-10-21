@@ -6,6 +6,7 @@ import { Defs } from './Defs';
 import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
 import { PfdFrame } from './frames/PfdFrame';
+import { SoftkeysFrame } from './frames/SoftkeysFrame';
 import { PanelShell } from './PanelShell';
 import { IndicatorLight } from './widgets/IndicatorLight';
 import { attachZoomGestures, viewBoxAttr } from './zoom';
@@ -14,6 +15,8 @@ import { attachZoomGestures, viewBoxAttr } from './zoom';
 const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   pfd: PfdFrame,
   mfd: MfdFrame,
+  // Inert key art (the keys that are not controls) of the softkey rows below the displays.
+  mfd_softkeys: SoftkeysFrame,
 };
 
 /**

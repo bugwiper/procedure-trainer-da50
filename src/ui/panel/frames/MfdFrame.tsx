@@ -1,3 +1,11 @@
+import {
+  GLASS,
+  MFD_ENGINE_LEGENDS,
+  MFD_ENGINE_SELECTED_SLOT,
+  MFD_MAP_LEGENDS,
+  legendTabCentreX,
+} from '../../../aircraft/da50rg/avionics';
+import type { DisplayId } from '../../../aircraft/da50rg/avionics';
 import type { Region } from '../../../engine/registry';
 import type { PanelBridge } from '../../bridge';
 import { ArcGauge } from './ArcGauge';
@@ -7,6 +15,60 @@ import { BarGauge } from './BarGauge';
 export interface FrameProps {
   readonly region: Region;
   readonly bridge: PanelBridge;
+}
+
+const TAB_FILL = '#1b2127';
+const TAB_TEXT = '#c9d0d8';
+const TAB_SELECTED_BORDER = '#3fd1e0';
+const TAB_SELECTED_BAR = '#3ddc84';
+
+/**
+ * The 12-slot legend row of a glass screen (Table D3): one tab per softkey, centred on the key
+ * below it (the centres come from the same data function the key frame uses, so keys and tabs
+ * cannot drift). A blank slot keeps an empty idle tab. The selected tab gets a cyan border and a
+ * green underline bar, never colour alone. Static glass content (U-14).
+ */
+export function LegendRow({
+  display,
+  legends,
+  selectedSlot,
+}: {
+  readonly display: DisplayId;
+  readonly legends: readonly string[];
+  readonly selectedSlot: number;
+}) {
+  const { y, h, baseline, width } = GLASS.tab;
+  const w = width[display];
+  return (
+    <g data-glass-zone="legend">
+      {legends.map((text, slot) => {
+        const cx = legendTabCentreX(display, slot);
+        const selected = slot === selectedSlot;
+        return (
+          <g key={slot} data-legend-tab={slot + 1} data-selected={selected ? 'true' : undefined}>
+            <rect
+              x={cx - w / 2}
+              y={y}
+              width={w}
+              height={h}
+              rx={1.5}
+              fill={TAB_FILL}
+              stroke={selected ? TAB_SELECTED_BORDER : undefined}
+              stroke-width={selected ? 1.2 : undefined}
+            />
+            {selected ? (
+              <rect x={cx - w / 2} y={y + h - 2} width={w} height={2} fill={TAB_SELECTED_BAR} />
+            ) : null}
+            {text === '' ? null : (
+              <text x={cx} y={baseline} text-anchor="middle" font-size={6} fill={TAB_TEXT}>
+                {text}
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </g>
+  );
 }
 
 const GREEN = '#2fd36f';
@@ -223,6 +285,11 @@ export function MfdFrame({ region, bridge }: FrameProps) {
     <g data-mfd-page={page} pointer-events="none">
       <rect x={4} y={4} width={w - 8} height={h - 8} rx={4} fill={SCREEN_FILL} />
       {page === 'engine' ? <EnginePage w={w} /> : <MapPage w={w} h={h} />}
+      <LegendRow
+        display="mfd"
+        legends={page === 'engine' ? MFD_ENGINE_LEGENDS : MFD_MAP_LEGENDS}
+        selectedSlot={page === 'engine' ? MFD_ENGINE_SELECTED_SLOT : -1}
+      />
     </g>
   );
 }

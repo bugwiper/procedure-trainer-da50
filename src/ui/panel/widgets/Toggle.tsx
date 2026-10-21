@@ -3,9 +3,9 @@ import type { StateDef, StateId, ToggleDef, TogglePosition } from '../../../engi
 import type { WidgetProps } from '../ControlWidget';
 import { BatBody } from '../skins/Bat';
 import { RockerBody } from '../skins/Rocker';
+import { SoftkeyCap } from '../frames/SoftkeysFrame';
 
 const TAP_SLOP_PX = 10;
-const FONT = 'B612, system-ui, sans-serif';
 
 interface PointerStart {
   readonly pointerId: number;
@@ -126,12 +126,7 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
       ) : skin === 'bat' ? (
         <BatBody def={def} position={position} pressed={pressed.value} />
       ) : (
-        <SoftkeyBody
-          def={def}
-          labelWidth={Math.min(def.label.length * 3.6, def.hit.w - 6)}
-          isSecond={isSecond}
-          pressed={pressed.value}
-        />
+        <SoftkeyBody isSecond={isSecond} pressed={pressed.value} />
       )}
       <rect
         data-hit={def.id}
@@ -151,43 +146,19 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
 }
 
 export interface BodyProps {
-  readonly def: Pick<ToggleDef, 'label' | 'hit'>;
   readonly isSecond: boolean;
   readonly pressed: boolean;
-  readonly labelWidth: number;
 }
 
 /**
- * Softkey skin: the selected state is a 2.5-unit white stroke (Color 5). The body draws its
- * legend only, centred; the state is never printed (G-0.1).
+ * Softkey skin: the same key cap as the inert keys (a dark rounded key with an up-triangle), the
+ * selected state a 2.5-unit white stroke (Color 5). The key prints no word at all: the legend
+ * stands on the glass above it and the state is never printed (G-0.1, G-0.2).
  */
-export function SoftkeyBody({ def, labelWidth, isSecond, pressed }: BodyProps) {
-  const w = def.hit.w - 2;
-  const h = def.hit.h - 2;
+export function SoftkeyBody({ isSecond, pressed }: BodyProps) {
   return (
     <g pointer-events="none">
-      <rect
-        x={-w / 2}
-        y={-h / 2}
-        width={w}
-        height={h}
-        rx={5}
-        fill={pressed ? '#3a424b' : '#262c33'}
-        stroke={isSecond ? '#e6e9ed' : '#4a525c'}
-        stroke-width={isSecond ? 2.5 : 1}
-      />
-      <text
-        x={0}
-        y={2}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={6}
-        fill="#aab3bd"
-        textLength={labelWidth}
-        lengthAdjust="spacingAndGlyphs"
-      >
-        {def.label}
-      </text>
+      <SoftkeyCap cx={0} cy={0} selected={isSecond} pressed={pressed} />
     </g>
   );
 }

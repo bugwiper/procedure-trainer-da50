@@ -72,17 +72,22 @@ describe('toggle family text is state-independent', () => {
     }
   });
 
-  it('softkeys: the same text strings selected and not selected', () => {
+  it('softkeys: no printed text at all, selected or not, pressed or not', () => {
     const keys = DA50RG.controls.filter(
       (c): c is ToggleDef => c.kind === 'toggle' && c.skin === 'softkey',
     );
     expect(keys.length).toBeGreaterThan(0);
     for (const def of keys) {
-      const texts = [false, true].map((isSecond) =>
-        textStrings(expand(SoftkeyBody({ def, labelWidth: 20, isSecond, pressed: false }))),
-      );
-      expect(texts[0], def.id).toEqual([def.label]);
-      expect(texts[1], def.id).toEqual(texts[0]);
+      for (const isSecond of [false, true]) {
+        for (const pressed of [false, true]) {
+          const tree = expand(SoftkeyBody({ isSecond, pressed }));
+          expect(textStrings(tree), `${def.id} ${String(isSecond)} ${String(pressed)}`).toEqual([]);
+          expect(
+            findElements(tree, (el) => 'data-state-text' in el.props),
+            def.id,
+          ).toHaveLength(0);
+        }
+      }
     }
   });
 

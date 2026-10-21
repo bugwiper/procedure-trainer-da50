@@ -1,8 +1,10 @@
 import type { ControlSpec } from '../../../engine/registry';
 
-// MFD page softkey (D-04a): the leftmost softkey under the MFD screen, where the real
-// ENGINE softkey is. No wider than the real softkey pitch, because its unmodelled
-// neighbours are real controls. The page is panel state so it is gradable later.
+// MFD page softkey (D-04a): the leftmost of the 12 softkeys under the MFD screen, where the real
+// ENGINE softkey is (global centre 1288, 589, slot 1 of avionics.ts). No wider than the real
+// softkey pitch, because its neighbours are real keys (inert art, SoftkeysFrame). The key prints
+// no word: the legend Engine stands on the glass above it. The page is panel state so it is
+// gradable later.
 export const MFD_CONTROLS: readonly ControlSpec[] = [
   {
     id: 'sw.mfd_page',

@@ -23,7 +23,10 @@ import { paint } from './Defs';
 /** Width added on the right of the 2000 wide phase 01.1 space (owner decision U-01). */
 const RIGHT_EXTENSION = 180;
 
+/** A display bezel is its screen region grown by 16 on the top, left and right ... */
 const BEZEL_GROW = 16;
+/** ... and by 41 on the bottom: the lip that carries the row of 12 softkeys (phase 01.2, U-11). */
+const BEZEL_GROW_BOTTOM = 41;
 const BEZEL_FILL = '#0c0d0f';
 const RIM = '#2d3138';
 const LEGEND = '#c9d0d8';
@@ -111,7 +114,7 @@ function Coaming() {
   );
 }
 
-/** Layer 7 plus the GO-AROUND mark: a display bezel is its region grown by 16, rx 10. */
+/** Layer 7 plus the GO-AROUND mark: a display bezel is its region grown by 16 (41 below), rx 10. */
 function DisplayBezel({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
   return (
     <g data-shell="bezel">
@@ -119,7 +122,7 @@ function DisplayBezel({ x, y, w, h }: { x: number; y: number; w: number; h: numb
         x={x - BEZEL_GROW}
         y={y - BEZEL_GROW}
         width={w + 2 * BEZEL_GROW}
-        height={h + 2 * BEZEL_GROW}
+        height={h + BEZEL_GROW + BEZEL_GROW_BOTTOM}
         rx={10}
         fill={BEZEL_FILL}
         stroke={RIM}
@@ -525,7 +528,7 @@ export function PanelShell({ registry }: { registry: Registry }) {
       <FacePlate />
       <Coaming />
       <LightsRecess />
-      {/* The gear plate runs a few units under the PFD bezel corner; drawn first so the bezel stays whole. */}
+      {/* The gear plate runs up to 28 units under the PFD bezel corner; drawn first so the bezel stays whole. */}
       <Plate id="strip-gear" />
       {pfd === undefined ? null : <DisplayBezel {...pfd.bounds} />}
       {mfd === undefined ? null : <DisplayBezel {...mfd.bounds} />}

@@ -616,7 +616,7 @@ describe('guarded ALTERNATE (plan 22, G-1, D-08 amended)', () => {
 });
 
 describe('softkey selected state', () => {
-  it('has the legend ENGINE and the state labels NOT SELECTED and SELECTED', () => {
+  it('keeps the legend ENGINE and the state labels on the definition only', () => {
     const def = toggle('sw.mfd_page');
     expect(def.label).toBe('ENGINE');
     expect(def.states.map((st) => [st.id, st.label])).toEqual([
@@ -624,34 +624,40 @@ describe('softkey selected state', () => {
       ['engine', 'SELECTED'],
     ]);
     expect(def.default).toBe('map');
-    const tree = expand(SoftkeyBody({ def, labelWidth: 20, isSecond: true, pressed: false }));
-    expect(stateTexts(tree)).toHaveLength(0);
-    expect(findElements(tree, (el) => el.tag === 'text').map((t) => textOf(t))).toEqual(['ENGINE']);
+    // The key prints no word in either state: the legend stands on the glass (D-04, G-0.2).
+    for (const isSecond of [false, true]) {
+      const tree = expand(SoftkeyBody({ isSecond, pressed: false }));
+      expect(stateTexts(tree)).toHaveLength(0);
+      expect(findElements(tree, (el) => el.tag === 'text')).toHaveLength(0);
+    }
   });
 
-  it('uses a 2.5-unit #e6e9ed stroke and never the blue ring', () => {
-    const def = toggle('sw.mfd_page');
-    const selected = expand(
-      SoftkeyBody({
-        def,
-        labelWidth: 20,
-        isSecond: true,
-        pressed: false,
-      }),
-    );
+  it('draws the 30 x 20 key (rx 3) with an up-triangle and the key body as its first rect', () => {
+    const tree = expand(SoftkeyBody({ isSecond: false, pressed: false }));
+    const rects = findElements(tree, (el) => el.tag === 'rect');
+    expect(rects[0]?.props['width']).toBe(30);
+    expect(rects[0]?.props['height']).toBe(20);
+    expect(rects[0]?.props['rx']).toBe(3);
+    expect(rects[0]?.props['x']).toBe(-15);
+    expect(rects[0]?.props['y']).toBe(-10);
+    const tri = findElements(tree, (el) => el.tag === 'path' && el.props['fill'] === '#e6e9ed');
+    expect(tri).toHaveLength(1);
+    expect(String(tri[0]?.props['d'])).toMatch(/^M/);
+  });
+
+  it('uses a 2.5-unit #e6e9ed stroke when selected and never the blue ring', () => {
+    const selected = expand(SoftkeyBody({ isSecond: true, pressed: false }));
     const rect = findElements(selected, (el) => el.tag === 'rect')[0];
     expect(rect?.props['stroke']).toBe('#e6e9ed');
     expect(rect?.props['stroke-width']).toBe(2.5);
     expect(allProps(selected)).not.toContain('#5ab0ff');
-    const idle = expand(
-      SoftkeyBody({
-        def,
-        labelWidth: 20,
-        isSecond: false,
-        pressed: false,
-      }),
-    );
+    const idle = expand(SoftkeyBody({ isSecond: false, pressed: false }));
     expect(findElements(idle, (el) => el.tag === 'rect')[0]?.props['stroke-width']).toBe(1);
+  });
+
+  it('keeps the hit rectangle of the control at 36 x 36', () => {
+    const def = toggle('sw.mfd_page');
+    expect(def.hit).toEqual({ w: 36, h: 36 });
   });
 });
 

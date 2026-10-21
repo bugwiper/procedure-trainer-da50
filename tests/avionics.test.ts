@@ -1,0 +1,203 @@
+import { describe, expect, it } from 'vitest';
+import {
+  GLASS,
+  MFD_ENGINE_LEGENDS,
+  MFD_MAP_LEGENDS,
+  SOFTKEY_CENTRE_Y,
+  SOFTKEY_KEY,
+  SOFTKEY_ROWS,
+  legendTabCentreX,
+  softkeyCentre,
+} from '../src/aircraft/da50rg/avionics';
+import { DA50RG } from '../src/aircraft/da50rg/panel';
+import type { PanelBridge } from '../src/ui/bridge';
+import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
+import { SoftkeysFrame } from '../src/ui/panel/frames/SoftkeysFrame';
+import { expand, findElements, textOf } from './vnode-walk';
+import type { El } from './vnode-walk';
+
+// Glass display shape (PNL-13, D-04): the softkey rows, the legend tables and the glass zones as
+// data, and the inert key art drawn from them. Centres are typed in as literals so the data
+// cannot agree with itself by construction.
+
+// Table D2: MFD key centres, global x.
+const MFD_CENTRES = [
+  1288, 1329.5, 1371, 1412.5, 1454, 1495.5, 1537, 1578.5, 1620, 1661.5, 1703, 1744.5,
+] as const;
+
+function region(id: string) {
+  const found = DA50RG.regions.find((r) => r.id === id);
+  if (found === undefined) throw new Error(`unknown region ${id}`);
+  return found;
+}
+
+/** A bridge with only what the frames read: the registry and the MFD page signal. */
+function fakeBridge(page: 'map' | 'engine'): PanelBridge {
+  return {
+    registry: DA50RG,
+    stateOf: () => ({ value: page }),
+  } as unknown as PanelBridge;
+}
+
+describe('MFD softkey row', () => {
+  const row = SOFTKEY_ROWS.mfd;
+
+  it('has 12 keys at 1288 + 41.5 i with centre y 589', () => {
+    expect(SOFTKEY_CENTRE_Y).toBe(589);
+    for (let i = 0; i < 12; i++) {
+      const c = softkeyCentre('mfd', i);
+      expect(c.x, `slot ${i + 1}`).toBeCloseTo(MFD_CENTRES[i] ?? Number.NaN, 6);
+      expect(c.y).toBe(589);
+    }
+    expect(row.regionId).toBe('mfd_softkeys');
+  });
+
+  it('the key is 30 x 20 with rx 3', () => {
+    expect([SOFTKEY_KEY.w, SOFTKEY_KEY.h, SOFTKEY_KEY.rx]).toEqual([30, 20, 3]);
+  });
+
+  it('every key lies inside mfd_softkeys and no two keys overlap', () => {
+    const b = region('mfd_softkeys').bounds;
+    expect(b).toEqual({ x: 1262, y: 570, w: 510, h: 38 });
+    for (let i = 0; i < 12; i++) {
+      const c = softkeyCentre('mfd', i);
+      expect(c.x - 15, `slot ${i + 1} left`).toBeGreaterThanOrEqual(b.x);
+      expect(c.x + 15, `slot ${i + 1} right`).toBeLessThanOrEqual(b.x + b.w);
+      expect(c.y - 10, `slot ${i + 1} top`).toBeGreaterThanOrEqual(b.y);
+      expect(c.y + 10, `slot ${i + 1} bottom`).toBeLessThanOrEqual(b.y + b.h);
+      if (i > 0) {
+        const prev = softkeyCentre('mfd', i - 1);
+        expect(c.x - prev.x, `gap before slot ${i + 1}`).toBeGreaterThan(30);
+      }
+    }
+  });
+
+  it('sw.mfd_page is key 1: global centre (1288, 589)', () => {
+    const def = DA50RG.get('sw.mfd_page');
+    expect(def).toBeDefined();
+    if (def === undefined) return;
+    const b = region(def.region).bounds;
+    expect([b.x + def.x, b.y + def.y]).toEqual([1288, 589]);
+    expect(softkeyCentre('mfd', 0)).toEqual({ x: 1288, y: 589 });
+  });
+});
+
+describe('MFD legend tables', () => {
+  const nonBlank = (list: readonly string[]) => list.filter((t) => t !== '');
+
+  it('both tables have 12 slots; the map page has 6 legends and the engine page 4', () => {
+    expect(MFD_MAP_LEGENDS).toHaveLength(12);
+    expect(MFD_ENGINE_LEGENDS).toHaveLength(12);
+    expect(nonBlank(MFD_MAP_LEGENDS)).toEqual([
+      'Engine',
+      'Map Opt',
+      'Detail',
+      'All',
+      'Charts',
+      'Checklist',
+    ]);
+    expect(nonBlank(MFD_ENGINE_LEGENDS)).toEqual(['Engine', 'DEC Fuel', 'INC Fuel', 'RST Fuel']);
+    expect(MFD_MAP_LEGENDS[0]).toBe('Engine');
+    expect(MFD_MAP_LEGENDS[2]).toBe('Map Opt');
+    expect(MFD_ENGINE_LEGENDS.slice(3, 6)).toEqual(['DEC Fuel', 'INC Fuel', 'RST Fuel']);
+  });
+
+  it('every legend tab centre is its key centre minus the screen region x (1269)', () => {
+    expect(region('mfd').bounds.x).toBe(1269);
+    for (let i = 0; i < 12; i++) {
+      expect(legendTabCentreX('mfd', i), `slot ${i + 1}`).toBeCloseTo(
+        (MFD_CENTRES[i] ?? Number.NaN) - 1269,
+        6,
+      );
+    }
+    expect(legendTabCentreX('mfd', 0)).toBeCloseTo(19, 6);
+  });
+
+  it('the glass zones are the Table D4 bands', () => {
+    expect(GLASS.header).toEqual({ y0: 4, y1: 28 });
+    expect(GLASS.content).toEqual({ y0: 30, y1: 343 });
+    expect(GLASS.legend).toEqual({ y0: 345, y1: 363 });
+    expect(GLASS.tab).toEqual({ y: 349, h: 13, baseline: 358.5, width: { pfd: 34, mfd: 37 } });
+  });
+});
+
+describe('SoftkeysFrame on mfd_softkeys', () => {
+  const tree = expand(SoftkeysFrame({ region: region('mfd_softkeys'), bridge: fakeBridge('map') }));
+  const keys = findElements(tree, (el) => 'data-softkey' in el.props);
+
+  it('draws the 11 inert keys, none for slot 1 (the control), marked mfd:2 to mfd:12', () => {
+    expect(keys.map((k) => k.props['data-softkey'])).toEqual(
+      Array.from({ length: 11 }, (_, i) => `mfd:${i + 2}`),
+    );
+  });
+
+  it('carries no handler and switches pointer events off', () => {
+    expect(tree.props['pointer-events']).toBe('none');
+    const all = findElements(tree, () => true);
+    for (const el of all) {
+      for (const name of Object.keys(el.props)) expect(name, el.tag).not.toMatch(/^on[A-Z]/);
+      expect(el.props['data-hit']).toBeUndefined();
+    }
+  });
+
+  it('each key is a 30 x 20 rect centred on its slot, region-local, with an up-triangle', () => {
+    const origin = region('mfd_softkeys').bounds;
+    keys.forEach((key, n) => {
+      const slot = n + 1;
+      const rect = findElements(key, (el) => el.tag === 'rect')[0];
+      const cx = Number(rect?.props['x']) + 15;
+      const cy = Number(rect?.props['y']) + 10;
+      expect(cx + origin.x, `slot ${slot + 1} x`).toBeCloseTo(MFD_CENTRES[slot] ?? Number.NaN, 6);
+      expect(cy + origin.y).toBe(589);
+      expect([rect?.props['width'], rect?.props['height'], rect?.props['rx']]).toEqual([30, 20, 3]);
+      const tri = findElements(key, (el) => el.tag === 'path' && el.props['fill'] === '#e6e9ed');
+      expect(tri).toHaveLength(1);
+      expect(findElements(key, (el) => el.tag === 'text')).toHaveLength(0);
+    });
+  });
+});
+
+describe('MfdFrame legend row', () => {
+  const tabsOf = (page: 'map' | 'engine'): El[] =>
+    findElements(
+      expand(MfdFrame({ region: region('mfd'), bridge: fakeBridge(page) })),
+      (el) => 'data-legend-tab' in el.props,
+    );
+
+  it('draws 12 tabs on the map page, 37 wide, none selected', () => {
+    const tabs = tabsOf('map');
+    expect(tabs).toHaveLength(12);
+    expect(tabs.filter((t) => t.props['data-selected'] === 'true')).toHaveLength(0);
+    expect(tabs.map((t) => textOf(t))).toEqual(MFD_MAP_LEGENDS.map((t) => t));
+    for (const [i, tab] of tabs.entries()) {
+      const rect = findElements(tab, (el) => el.tag === 'rect')[0];
+      expect(Number(rect?.props['width']), `slot ${i + 1}`).toBe(37);
+      expect(Number(rect?.props['x']) + 18.5, `slot ${i + 1}`).toBeCloseTo(
+        (MFD_CENTRES[i] ?? Number.NaN) - 1269,
+        6,
+      );
+      expect(Number(rect?.props['y'])).toBe(349);
+      expect(Number(rect?.props['height'])).toBe(13);
+    }
+  });
+
+  it('draws 12 tabs on the engine page with the Engine tab selected (border and underline)', () => {
+    const tabs = tabsOf('engine');
+    expect(tabs).toHaveLength(12);
+    const selected = tabs.filter((t) => t.props['data-selected'] === 'true');
+    expect(selected).toHaveLength(1);
+    const tab = selected[0];
+    expect(tab === undefined ? '' : textOf(tab)).toBe('Engine');
+    const border =
+      tab === undefined ? [] : findElements(tab, (el) => el.props['stroke'] === '#3fd1e0');
+    expect(border).toHaveLength(1);
+    expect(border[0]?.props['stroke-width']).toBe(1.2);
+    const bar =
+      tab === undefined
+        ? []
+        : findElements(tab, (el) => el.tag === 'rect' && el.props['fill'] === '#3ddc84');
+    expect(bar).toHaveLength(1);
+    expect(bar[0]?.props['height']).toBe(2);
+    expect(tabs.map((t) => textOf(t))).toEqual(MFD_ENGINE_LEGENDS.map((t) => t));
+  });
+});

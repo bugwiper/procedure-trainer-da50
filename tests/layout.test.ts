@@ -483,7 +483,9 @@ describe('inventory complete', () => {
 // Plates (owner finding G-0.5): the dark plates seen on screen are data. Parts that do not fit
 // are fixed by enlarging the plate or the region, never by shrinking a tap target.
 describe('plates', () => {
+  // Bezel growth (Table D1): 16 on the top, left and right, 41 on the bottom (the softkey lip).
   const BEZEL_GROW = 16;
+  const BEZEL_GROW_BOTTOM = 41;
   /** No region is open any more: plans 21 and 22 rebuilt the de-ice unit and it passes. */
   const FOOTPRINT_KNOWN_OPEN: readonly string[] = [];
 
@@ -512,20 +514,32 @@ describe('plates', () => {
     }
   });
 
-  it('no plate overlaps the PFD or MFD bezel (region grown by 16)', () => {
+  it('the bezels span y 184 to 608 and x 346..873 and 1253..1780', () => {
+    for (const [id, x] of [
+      ['pfd', 346],
+      ['mfd', 1253],
+    ] as const) {
+      const b = regionBounds(id);
+      expect([b.x - BEZEL_GROW, b.x + b.w + BEZEL_GROW], id).toEqual([x, x + 527]);
+      expect([b.y - BEZEL_GROW, b.y + b.h + BEZEL_GROW_BOTTOM], id).toEqual([184, 608]);
+    }
+  });
+
+  it('no plate overlaps the PFD or MFD bezel (region grown by 16, and by 41 below)', () => {
     for (const id of ['pfd', 'mfd']) {
       const b = regionBounds(id);
       const bezel: Rect = {
         x: b.x - BEZEL_GROW,
         y: b.y - BEZEL_GROW,
         w: b.w + 2 * BEZEL_GROW,
-        h: b.h + 2 * BEZEL_GROW,
+        h: b.h + BEZEL_GROW + BEZEL_GROW_BOTTOM,
       };
       for (const p of PLATES) {
         // The gear plate runs under the PFD bezel corner (the shell draws it below the bezel,
-        // G-2): allowed for that one pair, and only as a sliver of at most 4 units.
+        // G-2): allowed for that one pair, and only as a sliver of at most 28 units (the bezel
+        // lip grew to 41 below the screen).
         if (p.id === 'strip-gear' && id === 'pfd') {
-          expect(p.y + 4, 'strip-gear sliver under the PFD bezel').toBeGreaterThanOrEqual(
+          expect(p.y + 28, 'strip-gear sliver under the PFD bezel').toBeGreaterThanOrEqual(
             bezel.y + bezel.h,
           );
           continue;
