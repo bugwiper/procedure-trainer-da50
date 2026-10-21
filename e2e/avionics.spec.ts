@@ -96,6 +96,42 @@ test('the housed units draw a housing equal to their region frame', async ({ pag
   }
 });
 
+// Plan 07: the knob and key columns draw their static legends and round parts. Typed in by hand:
+// the strings each unit shows (sorted), and the counts of knobs, joysticks, swap buttons and keys.
+interface ColumnExpect {
+  readonly id: string;
+  readonly texts: readonly string[];
+  readonly knobs: number;
+  readonly joysticks: number;
+  readonly swaps: number;
+  readonly keys: number;
+}
+
+const COLUMNS: readonly ColumnExpect[] = [
+  {
+    id: 'pfd_bezel_left',
+    texts: ['VOL', 'PUSH ID', 'NAV', 'PUSH', '1-2', 'HDG', 'PUSH', 'HDG SYNC', 'ALT'],
+    knobs: 4,
+    joysticks: 0,
+    swaps: 1,
+    keys: 0,
+  },
+];
+
+for (const col of COLUMNS) {
+  test(`the ${col.id} column shows its legends and ${String(col.knobs)} knobs`, async ({
+    page,
+  }) => {
+    const unit = page.locator(`[data-unit="${col.id}"]`);
+    const shown = await unit.locator('text').allTextContents();
+    expect([...shown].sort()).toEqual([...col.texts].sort());
+    await expect(unit.locator('[data-knob]')).toHaveCount(col.knobs);
+    await expect(unit.locator('[data-joystick]')).toHaveCount(col.joysticks);
+    await expect(unit.locator('[data-swap]')).toHaveCount(col.swaps);
+    await expect(unit.locator('[data-key]')).toHaveCount(col.keys);
+  });
+}
+
 for (const [id] of UNITS) {
   test(`@hooks a tap on ${id} only zooms: no event, no state change, back to the full view`, async ({
     page,

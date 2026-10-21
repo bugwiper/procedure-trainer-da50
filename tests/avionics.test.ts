@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  BEZEL_COLUMNS,
   GLASS,
   MFD_ENGINE_LEGENDS,
   MFD_MAP_LEGENDS,
@@ -15,11 +16,12 @@ import {
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
 import { PLATES } from '../src/aircraft/da50rg/plates';
 import type { PanelBridge } from '../src/ui/bridge';
+import { BezelColumnFrame } from '../src/ui/panel/frames/BezelColumnFrame';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
 import { SoftkeysFrame } from '../src/ui/panel/frames/SoftkeysFrame';
 import { UnitHousing } from '../src/ui/panel/frames/UnitHousing';
-import { expand, findElements, textOf } from './vnode-walk';
+import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { El } from './vnode-walk';
 
 // Glass display shape (PNL-13, D-04): the softkey rows, the legend tables and the glass zones as
@@ -596,5 +598,235 @@ describe('review document on the centre stack (plan 06)', () => {
     expect(review).not.toContain('Reserved, not controls');
     expect(review).not.toContain('reserved audio, standby and autopilot outlines');
     expect(review).not.toContain('880, 185, 360, 375');
+  });
+});
+
+// Plan 07: the knob and key columns beside the glass displays (D-04, D-05), inert art as data.
+// Positions are typed in as global literals (Tables F1 to F3); the data holds region-local
+// coordinates, so the helper below adds the region origin back.
+
+type ColumnId = 'pfd_bezel_left' | 'pfd_bezel_right' | 'mfd_bezel_right';
+
+function columnElements(id: ColumnId) {
+  return BEZEL_COLUMNS[id];
+}
+
+/** Global position of a column element: region-local data plus the region origin. */
+function globalPos(id: ColumnId, e: { cx: number; cy: number }) {
+  const { x, y } = region(id).bounds;
+  return { x: e.cx + x, y: e.cy + y };
+}
+
+function knobsOf(id: ColumnId) {
+  return columnElements(id).filter((e) => e.kind === 'knob');
+}
+
+function renderColumn(id: ColumnId) {
+  return expand(BezelColumnFrame({ region: region(id), bridge: fakeBridge('map') }));
+}
+
+/** Round parts (knobs, joystick) and rectangles of a column as global boxes for overlap checks. */
+function solids(id: ColumnId) {
+  const out: { name: string; x0: number; y0: number; x1: number; y1: number; round: boolean }[] =
+    [];
+  for (const e of columnElements(id)) {
+    if (e.kind === 'text') continue;
+    const g = globalPos(id, e);
+    if (e.kind === 'knob' || e.kind === 'joystick') {
+      out.push({
+        name: e.id,
+        x0: g.x - e.r,
+        y0: g.y - e.r,
+        x1: g.x + e.r,
+        y1: g.y + e.r,
+        round: true,
+      });
+    } else {
+      out.push({
+        name: e.id,
+        x0: g.x - e.w / 2,
+        y0: g.y - e.h / 2,
+        x1: g.x + e.w / 2,
+        y1: g.y + e.h / 2,
+        round: false,
+      });
+    }
+  }
+  return out;
+}
+
+function expectNoOverlap(id: ColumnId): void {
+  const list = solids(id);
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i];
+      const b = list[j];
+      if (a === undefined || b === undefined) continue;
+      const apart = a.x1 <= b.x0 || b.x1 <= a.x0 || a.y1 <= b.y0 || b.y1 <= a.y0;
+      expect(apart, `${id}: ${a.name} and ${b.name} overlap`).toBe(true);
+    }
+  }
+}
+
+function expectInside(id: ColumnId): void {
+  const r = region(id).bounds;
+  const plate = PLATES.find((p) => p.regions.includes(id));
+  expect(plate, `${id} plate`).toBeDefined();
+  for (const e of columnElements(id)) {
+    if (e.kind === 'text') {
+      const g = { x: e.x + r.x, y: e.y + r.y };
+      expect(g.x, `${id} text "${e.text}" x`).toBeGreaterThanOrEqual(r.x);
+      expect(g.x, `${id} text "${e.text}" x`).toBeLessThanOrEqual(r.x + r.w);
+      expect(g.y, `${id} text "${e.text}" y`).toBeGreaterThan(r.y);
+      expect(g.y, `${id} text "${e.text}" y`).toBeLessThanOrEqual(r.y + r.h);
+      continue;
+    }
+  }
+  for (const s of solids(id)) {
+    expect(s.x0, `${id} ${s.name} left`).toBeGreaterThanOrEqual(r.x);
+    expect(s.y0, `${id} ${s.name} top`).toBeGreaterThanOrEqual(r.y);
+    expect(s.x1, `${id} ${s.name} right`).toBeLessThanOrEqual(r.x + r.w);
+    expect(s.y1, `${id} ${s.name} bottom`).toBeLessThanOrEqual(r.y + r.h);
+    expect(s.x0, `${id} ${s.name} plate left`).toBeGreaterThanOrEqual(plate?.x ?? Infinity);
+    expect(s.y0, `${id} ${s.name} plate top`).toBeGreaterThanOrEqual(plate?.y ?? Infinity);
+    expect(s.x1, `${id} ${s.name} plate right`).toBeLessThanOrEqual(
+      (plate?.x ?? 0) + (plate?.w ?? 0),
+    );
+    expect(s.y1, `${id} ${s.name} plate bottom`).toBeLessThanOrEqual(
+      (plate?.y ?? 0) + (plate?.h ?? 0),
+    );
+  }
+}
+
+describe('bezel column data: region origins', () => {
+  it('the table holds exactly the three column regions', () => {
+    expect(Object.keys(BEZEL_COLUMNS).sort()).toEqual([
+      'mfd_bezel_right',
+      'pfd_bezel_left',
+      'pfd_bezel_right',
+    ]);
+  });
+});
+
+describe('pfd_bezel_left column (Table F1)', () => {
+  const id = 'pfd_bezel_left';
+
+  it('has four knobs and one swap button', () => {
+    expect(knobsOf(id)).toHaveLength(4);
+    expect(columnElements(id).filter((e) => e.kind === 'swap')).toHaveLength(1);
+    expect(columnElements(id).filter((e) => e.kind === 'joystick')).toHaveLength(0);
+    expect(columnElements(id).filter((e) => e.kind === 'key')).toHaveLength(0);
+  });
+
+  it('pins the small knob, the swap button and the NAV, HDG and ALT knobs', () => {
+    const find = (name: string) => columnElements(id).find((e) => 'id' in e && e.id === name);
+    const nav = find('nav');
+    const hdg = find('hdg');
+    const alt = find('alt');
+    const small = find('vol');
+    const swap = find('swap');
+    expect(nav?.kind === 'knob' && [globalPos(id, nav), nav.r]).toEqual([{ x: 308, y: 278 }, 16]);
+    expect(hdg?.kind === 'knob' && [globalPos(id, hdg), hdg.r]).toEqual([{ x: 308, y: 350 }, 16]);
+    expect(alt?.kind === 'knob' && [globalPos(id, alt), alt.r]).toEqual([{ x: 308, y: 568 }, 15]);
+    expect(small?.kind === 'knob' && [globalPos(id, small), small.r]).toEqual([
+      { x: 299, y: 212 },
+      7,
+    ]);
+    expect(swap?.kind === 'swap' && [globalPos(id, swap), swap.w, swap.h]).toEqual([
+      { x: 316, y: 234 },
+      24,
+      12,
+    ]);
+  });
+
+  it('carries the static texts at the Table F1 baselines', () => {
+    const r = region(id).bounds;
+    const texts = columnElements(id)
+      .filter((e) => e.kind === 'text')
+      .map((e) => [e.text, e.x + r.x, e.y + r.y, e.size, e.anchor]);
+    expect(texts).toEqual([
+      ['VOL', 309, 210, 6, 'start'],
+      ['PUSH ID', 309, 217, 6, 'start'],
+      ['NAV', 308, 258, 8, 'middle'],
+      ['PUSH', 308, 302, 6, 'middle'],
+      ['1-2', 308, 309, 6, 'middle'],
+      ['HDG', 308, 330, 8, 'middle'],
+      ['PUSH', 308, 374, 6, 'middle'],
+      ['HDG SYNC', 308, 381, 6, 'middle'],
+      ['ALT', 308, 548, 8, 'middle'],
+    ]);
+  });
+
+  it('every part and text anchor lies inside the region and the plate; no parts overlap', () => {
+    expectInside(id);
+    expectNoOverlap(id);
+  });
+
+  it('renders as a not-operable image group from the data', () => {
+    const tree = renderColumn(id);
+    expect(tree.props['role']).toBe('img');
+    expect(tree.props['aria-label']).toBe('PFD KNOB COLUMN LEFT (NOT OPERABLE)');
+    expect(tree.props['data-unit']).toBe(id);
+    expect(findElements(tree, (e) => e.props['data-knob'] !== undefined)).toHaveLength(4);
+    expect(findElements(tree, (e) => e.props['data-swap'] !== undefined)).toHaveLength(1);
+    const strings = findElements(tree, (e) => e.tag === 'text').map((e) => textOf(e));
+    expect(strings).toEqual([
+      'VOL',
+      'PUSH ID',
+      'NAV',
+      'PUSH',
+      '1-2',
+      'HDG',
+      'PUSH',
+      'HDG SYNC',
+      'ALT',
+    ]);
+  });
+
+  it('carries no handler, hit rectangle, control id or tabindex and stays within 150 elements', () => {
+    const tree = renderColumn(id);
+    const offenders = findElements(tree, (el) =>
+      Object.keys(el.props).some(
+        (k) =>
+          /^on[A-Z]/.test(k) || k === 'data-hit' || k === 'data-control-id' || k === 'tabindex',
+      ),
+    );
+    expect(offenders).toEqual([]);
+    expect(countElements(tree)).toBeLessThanOrEqual(150);
+  });
+
+  it('uses only the font sizes 6 and 8', () => {
+    for (const el of findElements(renderColumn(id), (e) => e.tag === 'text')) {
+      expect([6, 8]).toContain(el.props['font-size']);
+    }
+  });
+
+  it('draws no gradient, filter or raster', () => {
+    const tree = renderColumn(id);
+    expect(
+      findElements(tree, (e) =>
+        ['image', 'filter', 'linearGradient', 'radialGradient'].includes(e.tag),
+      ),
+    ).toEqual([]);
+    const fills = findElements(tree, (e) => typeof e.props['fill'] === 'string').map((e) =>
+      String(e.props['fill']),
+    );
+    expect(fills.filter((f) => f.startsWith('url('))).toEqual([]);
+  });
+
+  it('draws each knob as disc, one knurl path, cap circle and one highlight path', () => {
+    const tree = renderColumn(id);
+    const knobs = findElements(tree, (e) => e.props['data-knob'] !== undefined);
+    for (const k of knobs) {
+      expect(
+        findElements(k, (e) => e.tag === 'circle'),
+        'two circles',
+      ).toHaveLength(2);
+      expect(
+        findElements(k, (e) => e.tag === 'path'),
+        'two paths',
+      ).toHaveLength(2);
+      expect(findElements(k, (e) => e.tag === 'text')).toEqual([]);
+    }
   });
 });

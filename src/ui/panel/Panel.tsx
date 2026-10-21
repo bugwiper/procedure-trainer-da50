@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import type { PanelBridge } from '../bridge';
 import { ControlWidget } from './ControlWidget';
 import { Defs } from './Defs';
+import { BezelColumnFrame } from './frames/BezelColumnFrame';
 import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
 import { PfdFrame } from './frames/PfdFrame';
@@ -24,7 +25,7 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   audio_panel: UnitHousing,
   standby_efis: UnitHousing,
   autopilot_panel: UnitHousing,
-  pfd_bezel_left: UnitHousing,
+  pfd_bezel_left: BezelColumnFrame,
   mfd_bezel_right: UnitHousing,
 };
 

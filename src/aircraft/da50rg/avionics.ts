@@ -130,3 +130,115 @@ export const GLASS = {
   /** Legend tab: top, height, text baseline, and the width per display. */
   tab: { y: 349, h: 13, baseline: 358.5, width: { pfd: 34, mfd: 37 } },
 } as const;
+
+// Knob and key columns beside the glass displays (phase 01.2 plan 07, D-04, D-05): inert art as
+// plain data. Every element is stored in the local space of its column region (global minus the
+// region origin), the tables below are written in global units as in the plan so each number can
+// be audited against the layout notes, and `toLocal` converts them once at load.
+
+/** The three regions that hold a knob column. */
+export type BezelColumnId = 'pfd_bezel_left' | 'pfd_bezel_right' | 'mfd_bezel_right';
+
+/** A rotary knob: disc of radius r (knurl ticks, cap and highlight are drawn from r). */
+export interface ColumnKnob {
+  readonly kind: 'knob';
+  readonly id: string;
+  readonly cx: number;
+  readonly cy: number;
+  readonly r: number;
+}
+
+/** The RANGE joystick: a disc with an inner circle and a highlight, no ticks. */
+export interface ColumnJoystick {
+  readonly kind: 'joystick';
+  readonly id: string;
+  readonly cx: number;
+  readonly cy: number;
+  readonly r: number;
+}
+
+/** The swap button: rounded rectangle with a double-arrow path. */
+export interface ColumnSwap {
+  readonly kind: 'swap';
+  readonly id: string;
+  readonly cx: number;
+  readonly cy: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** A key: rounded rectangle with a word, or the direct-to glyph (arrow path and the letter D). */
+export interface ColumnKey {
+  readonly kind: 'key';
+  readonly id: string;
+  readonly cx: number;
+  readonly cy: number;
+  readonly w: number;
+  readonly h: number;
+  /** Printed word; null for the direct-to key. */
+  readonly legend: string | null;
+}
+
+/** A static name or sub-legend; size 8 for knob names, 6 for sub-legends. */
+export interface ColumnText {
+  readonly kind: 'text';
+  readonly text: string;
+  readonly x: number;
+  readonly y: number;
+  readonly size: 6 | 8;
+  readonly anchor: 'start' | 'middle';
+}
+
+export type ColumnElement = ColumnKnob | ColumnJoystick | ColumnSwap | ColumnKey | ColumnText;
+
+const knob = (id: string, cx: number, cy: number, r: number): ColumnKnob => ({
+  kind: 'knob',
+  id,
+  cx,
+  cy,
+  r,
+});
+const swap = (id: string, cx: number, cy: number, w: number, h = 12): ColumnSwap => ({
+  kind: 'swap',
+  id,
+  cx,
+  cy,
+  w,
+  h,
+});
+const name = (text: string, x: number, y: number, anchor: 'start' | 'middle' = 'middle') =>
+  ({ kind: 'text', text, x, y, size: 8, anchor }) satisfies ColumnText;
+const sub = (text: string, x: number, y: number, anchor: 'start' | 'middle' = 'middle') =>
+  ({ kind: 'text', text, x, y, size: 6, anchor }) satisfies ColumnText;
+
+/** Table F1, global units: the PFD left column (centre x 308). */
+const PFD_LEFT_GLOBAL: readonly ColumnElement[] = [
+  knob('vol', 299, 212, 7),
+  sub('VOL', 309, 210, 'start'),
+  sub('PUSH ID', 309, 217, 'start'),
+  swap('swap', 316, 234, 24),
+  knob('nav', 308, 278, 16),
+  name('NAV', 308, 258),
+  sub('PUSH', 308, 302),
+  sub('1-2', 308, 309),
+  knob('hdg', 308, 350, 16),
+  name('HDG', 308, 330),
+  sub('PUSH', 308, 374),
+  sub('HDG SYNC', 308, 381),
+  knob('alt', 308, 568, 15),
+  name('ALT', 308, 548),
+];
+
+/** Local-space copy of a global table: region origin subtracted from every x and y. */
+function toLocal(ox: number, oy: number, list: readonly ColumnElement[]): readonly ColumnElement[] {
+  return list.map((e): ColumnElement => {
+    if (e.kind === 'text') return { ...e, x: e.x - ox, y: e.y - oy };
+    return { ...e, cx: e.cx - ox, cy: e.cy - oy };
+  });
+}
+
+export const BEZEL_COLUMNS: Readonly<Record<BezelColumnId, readonly ColumnElement[]>> = {
+  pfd_bezel_left: toLocal(274, 196, PFD_LEFT_GLOBAL),
+  pfd_bezel_right: [],
+  mfd_bezel_right: [],
+};
