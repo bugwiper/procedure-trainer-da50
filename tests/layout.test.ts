@@ -13,6 +13,7 @@ import { BEZEL_EXTRA } from '../src/engine/indicators';
 import type { ControlDef, Rect } from '../src/engine/registry';
 import { bracketPath, glyphWidth } from '../src/ui/panel/PanelShell';
 import { BEZEL_RADIUS, buttonTextLayout, textWidth } from '../src/ui/panel/skins/PushButton';
+import { ROCKER_FACE, rockerExtent } from '../src/ui/panel/skins/Rocker';
 import { togglePosition } from '../src/ui/panel/widgets/Toggle';
 import {
   ALL_REGION_IDS,
@@ -1326,5 +1327,129 @@ describe('engine strip labels (plan 29, R2-5.2)', () => {
         expect(Math.max(0, reach), `${id} into ${alt}`).toBeLessThanOrEqual(3);
       }
     }
+  });
+});
+
+describe('glareshield light placards (plan 30, R2-1.1)', () => {
+  const plate = PLATES.find((p) => p.id === 'lights-recess');
+  const LIGHT_IDS = ['sw.light_landing', 'sw.light_taxi', 'sw.light_position', 'sw.light_strobe'];
+  const globalFootprint = (id: string): Rect => {
+    const def = DA50RG.get(id);
+    if (def === undefined) throw new Error(`no control ${id}`);
+    const c = globalCentre(def);
+    return { x: c.x - def.hit.w / 2, y: c.y - def.hit.h / 2, w: def.hit.w, h: def.hit.h };
+  };
+  /** Glyph boxes of the four light placards: 0.62 of the size per character, cap height 0.7. */
+  const wordBoxes = (): { id: string; text: string; box: Rect }[] =>
+    PLACARDS.filter((p) => p.id.startsWith('lights.')).flatMap((p) => {
+      const def = DA50RG.get(p.near);
+      if (def === undefined) throw new Error(`no control ${p.near}`);
+      const c = globalCentre(def);
+      return p.lines.map((line, i) => {
+        const w = line.length * p.size * 0.62;
+        const x =
+          p.anchor === 'start'
+            ? c.x + p.dx
+            : p.anchor === 'end'
+              ? c.x + p.dx - w
+              : c.x + p.dx - w / 2;
+        const y = c.y + placardLineY(p, i);
+        return { id: p.id, text: line, box: { x, y: y - p.size * 0.7, w, h: p.size * 0.7 } };
+      });
+    });
+  /** Vertical span of the upper (ON) and the lower (OFF) half of the rocker face of a control. */
+  const halves = (id: string): { upper: [number, number]; lower: [number, number] } => {
+    const def = DA50RG.get(id);
+    if (def === undefined) throw new Error(`no control ${id}`);
+    const c = globalCentre(def);
+    const h = ROCKER_FACE.LIGHT.h;
+    return { upper: [c.y - h / 2, c.y], lower: [c.y, c.y + h / 2] };
+  };
+
+  it('the plate and the four words exist', () => {
+    expect(plate).toBeDefined();
+    expect(wordBoxes().map((w) => w.text)).toEqual(['ON', 'OFF', 'ON', 'OFF']);
+  });
+
+  it('each ON stands in the vertical span of the upper rocker half and each OFF in the lower one', () => {
+    for (const w of wordBoxes()) {
+      const id = w.id.startsWith('lights.left') ? 'sw.light_landing' : 'sw.light_strobe';
+      const { upper, lower } = halves(id);
+      const [top, bottom] = w.text === 'ON' ? upper : lower;
+      expect(w.box.y, `${w.id} top`).toBeGreaterThanOrEqual(top);
+      expect(w.box.y + w.box.h, `${w.id} bottom`).toBeLessThanOrEqual(bottom);
+    }
+  });
+
+  it('the upper half of the rocker is the ON state (second state), so ON above OFF names the real positions', () => {
+    for (const id of LIGHT_IDS) {
+      const def = DA50RG.get(id);
+      if (def?.kind !== 'toggle') throw new Error(`no toggle ${id}`);
+      expect(
+        def.states.map((st) => st.id),
+        id,
+      ).toEqual(['off', 'on']);
+    }
+  });
+
+  it('the four words lie inside the lights plate', () => {
+    if (plate === undefined) throw new Error('no plate');
+    for (const w of wordBoxes()) expect(inside(w.box, plate), w.id).toBe(true);
+  });
+
+  it('no word touches a rocker footprint or the visible art of a rocker, the left pair is left and the right pair right', () => {
+    const { halfW } = rockerExtent('LIGHT');
+    for (const w of wordBoxes()) {
+      for (const id of LIGHT_IDS) {
+        const fp = globalFootprint(id);
+        expect(overlaps(w.box, fp), `${w.id} vs ${id} footprint`).toBe(false);
+        const c = globalCentre(DA50RG.get(id) as ControlDef);
+        const art: Rect = {
+          x: c.x - halfW,
+          y: fp.y,
+          w: 2 * halfW,
+          h: fp.h,
+        };
+        expect(overlaps(w.box, art), `${w.id} vs ${id} art`).toBe(false);
+      }
+      const landing = globalFootprint('sw.light_landing');
+      const strobe = globalFootprint('sw.light_strobe');
+      if (w.id.startsWith('lights.left')) {
+        expect(w.box.x + w.box.w, w.id).toBeLessThanOrEqual(landing.x);
+      } else {
+        expect(w.box.x, w.id).toBeGreaterThanOrEqual(strobe.x + strobe.w);
+      }
+    }
+  });
+
+  it('the words overlap each other, the rocker names, the LIGHTS heading and its bracket line nowhere', () => {
+    const words = wordBoxes();
+    for (const [i, a] of words.entries()) {
+      for (const b of words.slice(i + 1))
+        expect(overlaps(a.box, b.box), `${a.id} ${b.id}`).toBe(false);
+    }
+    // Other text boxes of the lights area: the rocker names (8 high, centred below the bezel) ...
+    const { halfH } = rockerExtent('LIGHT');
+    const others: { id: string; box: Rect }[] = LIGHT_IDS.map((id) => {
+      const def = DA50RG.get(id) as ControlDef;
+      const c = globalCentre(def);
+      const w = textWidth(def.label, 8);
+      const baseline = c.y + halfH + 1.5 + 0.72 * 8;
+      return { id: `${id} name`, box: { x: c.x - w / 2, y: baseline - 5.6, w, h: 5.6 } };
+    });
+    // ... the LIGHTS heading (centred on x 1120, baseline 56, size 8) and the bracket line, whose
+    // two stubs and top bars lie at y 52 to 56 (path "M956 56 V52 H1088 M1152 52 H1284 V56").
+    const heading = glyphWidth('LIGHTS', 8);
+    others.push({
+      id: 'LIGHTS heading',
+      box: { x: 1120 - heading / 2, y: 56 - 8 * 0.7, w: heading, h: 8 * 0.7 },
+    });
+    others.push({ id: 'bracket left', box: { x: 956 - 0.5, y: 51.5, w: 132.5, h: 4.5 } });
+    others.push({ id: 'bracket right', box: { x: 1152, y: 51.5, w: 132.5, h: 4.5 } });
+    for (const w of words) {
+      for (const o of others) expect(overlaps(w.box, o.box), `${w.id} vs ${o.id}`).toBe(false);
+    }
+    // The existing placards of the lights region: none besides the four words.
+    expect(PLACARDS.filter((p) => DA50RG.get(p.near)?.region === 'lights')).toHaveLength(4);
   });
 });
