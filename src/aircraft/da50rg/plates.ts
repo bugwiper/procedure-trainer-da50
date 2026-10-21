@@ -29,6 +29,13 @@ export const PLATES: readonly PlateDef[] = [
     rx: 8,
     regions: ['light_knobs', 'pfd_bezel_right', 'audio_panel', 'standby_efis'],
   },
+  // Autopilot unit right of the centre stack: starts 2 units after it (x 1162) and ends y 606, two
+  // units above the flap strip plate (608).
+  { id: 'ap-unit', x: 1162, y: 185, w: 89, h: 421, rx: 8, regions: ['autopilot_panel'] },
+  // Knob column left of the PFD bezel (346), 2 units clear of it; the bezel colour is its fill.
+  { id: 'pfd-left-unit', x: 272, y: 185, w: 72, h: 421, rx: 8, regions: ['pfd_bezel_left'] },
+  // Knob column right of the MFD bezel (ends 1780), left of the bus plate (1874).
+  { id: 'mfd-right-unit', x: 1782, y: 185, w: 84, h: 421, rx: 8, regions: ['mfd_bezel_right'] },
   // De-ice unit (plan 21, owner finding G-1): taller than before, the upper block (MAX, mode toggle,
   // lamps, ALTERNATE) sits above the switch rows. The engine plate below starts at 474.
   { id: 'deice', x: 80, y: 205, w: 180, h: 265, rx: 8, regions: ['deice', 'deice_switches'] },

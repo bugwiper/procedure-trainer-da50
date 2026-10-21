@@ -39,6 +39,9 @@ const TRACK_WORDMARK = 'letter-spacing:0.3em';
 const PLATE_FILLS: Readonly<Record<string, string>> = {
   'lights-recess': BEZEL_FILL,
   'centre-stack': '#101215',
+  'ap-unit': '#101215',
+  'pfd-left-unit': BEZEL_FILL,
+  'mfd-right-unit': BEZEL_FILL,
   environmental: '#1f2226',
   pedestal: '#1f2226',
   'bus-panel': '#15171a',
@@ -324,14 +327,17 @@ function LightsRecess() {
 }
 
 /**
- * Layer 8: centre stack plate x 875..1160, y 185..575. The audio panel, the backup EFIS and the
- * PFD right knob column are regions that draw their own housing (phase 01.2 plan 06), so the
- * shell draws the plate only.
+ * Layer 8: centre stack plate x 875..1160, y 185..575, with the autopilot unit plate and the two
+ * knob column plates beside the displays. The units are regions that draw their own housing
+ * (phase 01.2 plan 06), so the shell draws plates only.
  */
 function CentreStack() {
   return (
     <g data-shell="centre-stack">
       <Plate id="centre-stack" />
+      <Plate id="ap-unit" />
+      <Plate id="pfd-left-unit" />
+      <Plate id="mfd-right-unit" />
     </g>
   );
 }

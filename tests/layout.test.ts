@@ -626,9 +626,15 @@ describe('avionics unit regions and plates (plan 06)', () => {
     ['pfd_bezel_right', 'PFD KNOBS RIGHT', 875, 196, 68, 378],
     ['audio_panel', 'AUDIO PANEL', 946, 196, 60, 378],
     ['standby_efis', 'BACKUP EFIS', 1026, 296, 120, 278],
+    ['pfd_bezel_left', 'PFD KNOBS LEFT', 274, 196, 68, 408],
+    ['autopilot_panel', 'AUTOPILOT PANEL', 1164, 196, 86, 408],
+    ['mfd_bezel_right', 'MFD KNOBS RIGHT', 1782, 196, 84, 378],
   ];
   const UNIT_PLATES: readonly (readonly [string, number, number, number, number, number])[] = [
     ['centre-stack', 875, 185, 285, 390, 8],
+    ['ap-unit', 1162, 185, 89, 421, 8],
+    ['pfd-left-unit', 272, 185, 72, 421, 8],
+    ['mfd-right-unit', 1782, 185, 84, 421, 8],
   ];
 
   it.each(UNIT_REGIONS)(
@@ -671,6 +677,35 @@ describe('avionics unit regions and plates (plan 06)', () => {
       'audio_panel',
       'standby_efis',
     ]);
+  });
+
+  it('the three unit plates carry exactly their region and there are 13 plates', () => {
+    const carried = (id: string) => [...(PLATES.find((p) => p.id === id)?.regions ?? [])];
+    expect(carried('ap-unit')).toEqual(['autopilot_panel']);
+    expect(carried('pfd-left-unit')).toEqual(['pfd_bezel_left']);
+    expect(carried('mfd-right-unit')).toEqual(['mfd_bezel_right']);
+    expect(PLATES).toHaveLength(13);
+  });
+
+  it('keeps its clearances to the neighbours (strip-flaps, gear plate, bezels, bus plate)', () => {
+    const r = (id: string): Rect => regionBounds(id);
+    // pfd_bezel_left ends left of pfd_softkeys; autopilot_panel ends above flaps and left of the MFD bezel.
+    expect(r('pfd_bezel_left').x + r('pfd_bezel_left').w).toBe(342);
+    expect(r('pfd_softkeys').x).toBe(356);
+    expect(r('autopilot_panel').y + r('autopilot_panel').h).toBe(604);
+    expect(r('flaps').y).toBe(608);
+    expect(r('mfd_bezel_right').x + r('mfd_bezel_right').w).toBe(1866);
+    const bus = PLATES.find((p) => p.id === 'bus-panel');
+    expect(bus?.x).toBe(1874);
+    const ap = PLATES.find((p) => p.id === 'ap-unit');
+    const flaps = PLATES.find((p) => p.id === 'strip-flaps');
+    expect((ap?.y ?? 0) + (ap?.h ?? 0)).toBe(606);
+    expect(flaps?.y).toBe(608);
+    const stack = PLATES.find((p) => p.id === 'centre-stack');
+    expect((stack?.x ?? 0) + (stack?.w ?? 0)).toBe(1160);
+    expect(ap?.x).toBe(1162);
+    expect((stack?.y ?? 0) + (stack?.h ?? 0)).toBe(575);
+    expect(PLATES.find((p) => p.id === 'strip-gear')?.y).toBe(580);
   });
 
   it('both dimmer knob footprints still lie inside the centre-stack plate', () => {

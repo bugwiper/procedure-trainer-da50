@@ -203,6 +203,25 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
     expect(plate?.props['fill']).toBe('#101215');
   });
 
+  it('draws the three unit plates from the plate data with the Table E2 fills', () => {
+    const centre = findElements(shell, (el) => el.props['data-shell'] === 'centre-stack')[0];
+    if (centre === undefined) throw new Error('no centre-stack layer');
+    for (const [id, fill, x, y, w, h] of [
+      ['ap-unit', '#101215', 1162, 185, 89, 421],
+      ['pfd-left-unit', '#0c0d0f', 272, 185, 72, 421],
+      ['mfd-right-unit', '#0c0d0f', 1782, 185, 84, 421],
+    ] as const) {
+      const plate = findElements(centre, (el) => el.props['data-plate'] === id)[0];
+      expect(plate, id).toBeDefined();
+      expect(
+        [plate?.props['x'], plate?.props['y'], plate?.props['width'], plate?.props['height']],
+        id,
+      ).toEqual([x, y, w, h]);
+      expect(plate?.props['fill'], id).toBe(fill);
+      expect(plate?.props['rx'], id).toBe(8);
+    }
+  });
+
   it.each([
     'LIGHTS',
     'ESSENTIAL BUS',

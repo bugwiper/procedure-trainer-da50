@@ -392,6 +392,9 @@ export const ALL_REGION_IDS: readonly string[] = [
   'pfd_bezel_right',
   'audio_panel',
   'standby_efis',
+  'pfd_bezel_left',
+  'autopilot_panel',
+  'mfd_bezel_right',
 ];
 
 export const FRONT_PANEL_REGIONS: readonly string[] = [
@@ -416,6 +419,9 @@ export const FRONT_PANEL_REGIONS: readonly string[] = [
   'pfd_bezel_right',
   'audio_panel',
   'standby_efis',
+  'pfd_bezel_left',
+  'autopilot_panel',
+  'mfd_bezel_right',
 ];
 
 export const UNDER_PANEL_REGIONS: readonly string[] = [

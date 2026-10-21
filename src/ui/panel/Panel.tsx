@@ -23,6 +23,9 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   pfd_bezel_right: UnitHousing,
   audio_panel: UnitHousing,
   standby_efis: UnitHousing,
+  autopilot_panel: UnitHousing,
+  pfd_bezel_left: UnitHousing,
+  mfd_bezel_right: UnitHousing,
 };
 
 /**

@@ -87,6 +87,15 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'audio_panel', name: 'AUDIO PANEL', bounds: { x: 946, y: 196, w: 60, h: 378 } },
   // Backup EFIS (static item, D-06) below the dimmer knobs (light_knobs ends y 290).
   { id: 'standby_efis', name: 'BACKUP EFIS', bounds: { x: 1026, y: 296, w: 120, h: 278 } },
+  // Left knob column of the PFD, in the free strip between the engine and de-ice plates (end x 270)
+  // and the PFD bezel (starts x 346); ends at x 342, clear of pfd_softkeys (x 356).
+  { id: 'pfd_bezel_left', name: 'PFD KNOBS LEFT', bounds: { x: 274, y: 196, w: 68, h: 408 } },
+  // Autopilot panel right of the dimmer knobs (light_knobs ends x 1160); ends y 604 above the
+  // flaps region (608) and x 1250, left of the MFD bezel (1253).
+  { id: 'autopilot_panel', name: 'AUTOPILOT PANEL', bounds: { x: 1164, y: 196, w: 86, h: 408 } },
+  // Right knob column of the MFD: right of mfd_softkeys (ends x 1772) and the bezel (1780), ends
+  // x 1866 left of the bus plate (1874); 84 wide and 378 tall like the PFD right column.
+  { id: 'mfd_bezel_right', name: 'MFD KNOBS RIGHT', bounds: { x: 1782, y: 196, w: 84, h: 378 } },
   // Under the left column and the PFD.
   { id: 'switch_bank', name: 'SWITCH ROW', bounds: { x: 70, y: 621, w: 764, h: 84 } },
   // Gear lever, gear lamps and the STALL/GEAR TEST part.

@@ -463,6 +463,13 @@ describe('glass header, content and legend zones', () => {
 const UNIT_NAMES: Readonly<Record<string, string>> = {
   audio_panel: 'AUDIO PANEL',
   standby_efis: 'BACKUP EFIS',
+  autopilot_panel: 'AUTOPILOT PANEL',
+};
+
+const COLUMN_NAMES: Readonly<Record<string, string>> = {
+  pfd_bezel_left: 'PFD KNOB COLUMN LEFT',
+  pfd_bezel_right: 'PFD KNOB COLUMN RIGHT',
+  mfd_bezel_right: 'MFD KNOB COLUMN RIGHT',
 };
 
 describe('UnitHousing', () => {
@@ -501,5 +508,16 @@ describe('UnitHousing', () => {
     const wrapper = findElements(tree, (e) => e.props['data-unit-art'] !== undefined)[0];
     expect(wrapper?.props['aria-hidden']).toBe('true');
     expect(wrapper?.props['pointer-events']).toBe('none');
+  });
+});
+
+describe('UnitHousing on the bezel columns', () => {
+  it.each(Object.keys(COLUMN_NAMES))('%s draws only the not-operable group, no housing', (id) => {
+    const tree = expand(UnitHousing({ region: region(id), bridge: fakeBridge('map') }));
+    expect(tree.props['role']).toBe('img');
+    expect(tree.props['aria-label']).toBe(`${COLUMN_NAMES[id]} (NOT OPERABLE)`);
+    expect(tree.props['data-unit']).toBe(id);
+    expect(findElements(tree, (e) => e.props['data-unit-housing'] !== undefined)).toEqual([]);
+    expect(findElements(tree, (e) => e.tag === 'rect')).toEqual([]);
   });
 });
