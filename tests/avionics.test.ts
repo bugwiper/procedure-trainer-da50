@@ -830,3 +830,134 @@ describe('pfd_bezel_left column (Table F1)', () => {
     }
   });
 });
+
+describe('pfd_bezel_right column (Table F2)', () => {
+  const id = 'pfd_bezel_right';
+
+  it('has four knobs, one joystick, one swap button and six keys', () => {
+    expect(knobsOf(id)).toHaveLength(4);
+    expect(columnElements(id).filter((e) => e.kind === 'joystick')).toHaveLength(1);
+    expect(columnElements(id).filter((e) => e.kind === 'swap')).toHaveLength(1);
+    expect(columnElements(id).filter((e) => e.kind === 'key')).toHaveLength(6);
+  });
+
+  it('pins the COM and FMS knobs, the joystick, the swap button and the keys', () => {
+    const find = (name: string) => columnElements(id).find((e) => 'id' in e && e.id === name);
+    const com = find('com');
+    const fms = find('fms');
+    const range = find('range');
+    const swap = find('swap');
+    expect(com?.kind === 'knob' && [globalPos(id, com), com.r]).toEqual([{ x: 909, y: 276 }, 16]);
+    expect(fms?.kind === 'knob' && [globalPos(id, fms), fms.r]).toEqual([{ x: 909, y: 548 }, 17]);
+    expect(range?.kind === 'joystick' && [globalPos(id, range), range.r]).toEqual([
+      { x: 909, y: 406 },
+      11,
+    ]);
+    expect(swap?.kind === 'swap' && [globalPos(id, swap), swap.w, swap.h]).toEqual([
+      { x: 919, y: 234 },
+      22,
+      12,
+    ]);
+    const keys = columnElements(id).filter((e) => e.kind === 'key');
+    const first = keys[0];
+    const last = keys[5];
+    expect(first && globalPos(id, first)).toEqual({ x: 895, y: 448 });
+    expect(last && globalPos(id, last)).toEqual({ x: 923, y: 492 });
+    for (const k of keys) expect([k.w, k.h]).toEqual([26, 18]);
+  });
+
+  it('the keys sit in two columns and three rows and the columns do not overlap', () => {
+    const keys = columnElements(id).filter((e) => e.kind === 'key');
+    expect(keys.map((k) => [globalPos(id, k).x, globalPos(id, k).y])).toEqual([
+      [895, 448],
+      [923, 448],
+      [895, 470],
+      [923, 470],
+      [895, 492],
+      [923, 492],
+    ]);
+    expect(895 + 13).toBeLessThan(923 - 13);
+    expect(keys.map((k) => k.legend)).toEqual([null, 'MENU', 'FPL', 'PROC', 'CLR', 'ENT']);
+  });
+
+  it('carries the static texts at the Table F2 baselines', () => {
+    const r = region(id).bounds;
+    const texts = columnElements(id)
+      .filter((e) => e.kind === 'text')
+      .map((e) => [e.text, e.x + r.x, e.y + r.y, e.size, e.anchor]);
+    expect(texts).toEqual([
+      ['VOL', 909, 210, 6, 'start'],
+      ['PUSH SQ', 909, 217, 6, 'start'],
+      ['EMERG', 879, 237, 6, 'start'],
+      ['COM', 909, 256, 8, 'middle'],
+      ['PUSH', 909, 300, 6, 'middle'],
+      ['1-2', 909, 307, 6, 'middle'],
+      ['CRS/BARO', 909, 324, 8, 'middle'],
+      ['PUSH', 909, 368, 6, 'middle'],
+      ['CRS CTR', 909, 375, 6, 'middle'],
+      ['RANGE', 909, 392, 8, 'middle'],
+      ['PUSH', 909, 426, 6, 'middle'],
+      ['PAN', 909, 433, 6, 'middle'],
+      ['DFLT MAP', 879, 508, 6, 'start'],
+      ['FMS', 909, 526, 8, 'middle'],
+      // Table F2 says 573; moved up 1 unit so the text stays inside the region (art-fit gate).
+      ['PUSH CRSR', 909, 572, 6, 'middle'],
+    ]);
+  });
+
+  it('every part and text anchor lies inside the region and the plate; no parts overlap', () => {
+    expectInside(id);
+    expectNoOverlap(id);
+  });
+
+  it('renders the round parts, swap button, keys and every legend within 150 elements', () => {
+    const tree = renderColumn(id);
+    expect(tree.props['aria-label']).toBe('PFD KNOB COLUMN RIGHT (NOT OPERABLE)');
+    expect(findElements(tree, (e) => e.props['data-knob'] !== undefined)).toHaveLength(4);
+    expect(findElements(tree, (e) => e.props['data-joystick'] !== undefined)).toHaveLength(1);
+    expect(findElements(tree, (e) => e.props['data-swap'] !== undefined)).toHaveLength(1);
+    expect(findElements(tree, (e) => e.props['data-key'] !== undefined)).toHaveLength(6);
+    const strings = findElements(tree, (e) => e.tag === 'text').map((e) => textOf(e));
+    for (const word of [
+      'MENU',
+      'FPL',
+      'PROC',
+      'CLR',
+      'ENT',
+      'D',
+      'DFLT MAP',
+      'PUSH CRSR',
+      'EMERG',
+    ]) {
+      expect(strings, word).toContain(word);
+    }
+    expect(countElements(tree)).toBeLessThanOrEqual(150);
+  });
+
+  it('draws the direct-to key as an arrow path with the letter D to its left', () => {
+    const tree = renderColumn(id);
+    const direct = findElements(tree, (e) => e.props['data-key'] === 'direct-to')[0];
+    expect(direct).toBeDefined();
+    if (direct === undefined) return;
+    const d = findElements(direct, (e) => e.tag === 'text')[0];
+    const arrow = findElements(direct, (e) => e.tag === 'path').at(-1);
+    expect(d && textOf(d)).toBe('D');
+    expect(arrow?.props['stroke']).toBe('#e6e9ed');
+    const keyData = columnElements(id).find((e) => e.kind === 'key' && e.id === 'direct-to');
+    expect(Number(d?.props['x'])).toBeLessThan(keyData?.kind === 'key' ? keyData.cx : 0);
+  });
+
+  it('carries no handler, hit rectangle, control id or tabindex; fonts are 6 and 8', () => {
+    const tree = renderColumn(id);
+    const offenders = findElements(tree, (el) =>
+      Object.keys(el.props).some(
+        (k) =>
+          /^on[A-Z]/.test(k) || k === 'data-hit' || k === 'data-control-id' || k === 'tabindex',
+      ),
+    );
+    expect(offenders).toEqual([]);
+    for (const el of findElements(tree, (e) => e.tag === 'text')) {
+      expect([6, 8]).toContain(el.props['font-size']);
+    }
+  });
+});

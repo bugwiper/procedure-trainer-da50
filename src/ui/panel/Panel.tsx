@@ -21,7 +21,7 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   mfd_softkeys: SoftkeysFrame,
   pfd_softkeys: SoftkeysFrame,
   // Inert avionics units: housing and a not-operable label, no control, no handler (D-05, D-06).
-  pfd_bezel_right: UnitHousing,
+  pfd_bezel_right: BezelColumnFrame,
   audio_panel: UnitHousing,
   standby_efis: UnitHousing,
   autopilot_panel: UnitHousing,

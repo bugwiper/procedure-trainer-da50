@@ -229,6 +229,58 @@ const PFD_LEFT_GLOBAL: readonly ColumnElement[] = [
   name('ALT', 308, 548),
 ];
 
+const joystick = (id: string, cx: number, cy: number, r: number): ColumnJoystick => ({
+  kind: 'joystick',
+  id,
+  cx,
+  cy,
+  r,
+});
+const key = (id: string, cx: number, cy: number, legend: string | null): ColumnKey => ({
+  kind: 'key',
+  id,
+  cx,
+  cy,
+  w: 26,
+  h: 18,
+  legend,
+});
+
+/**
+ * Table F2, global units: the PFD right column (centre x 909). The 6 keys are the direct-to key
+ * (arrow and the letter D, no word) and MENU, FPL and PROC, CLR and ENT.
+ */
+const PFD_RIGHT_GLOBAL: readonly ColumnElement[] = [
+  knob('vol', 899, 212, 7),
+  sub('VOL', 909, 210, 'start'),
+  sub('PUSH SQ', 909, 217, 'start'),
+  swap('swap', 919, 234, 22),
+  sub('EMERG', 879, 237, 'start'),
+  knob('com', 909, 276, 16),
+  name('COM', 909, 256),
+  sub('PUSH', 909, 300),
+  sub('1-2', 909, 307),
+  knob('crs', 909, 344, 16),
+  name('CRS/BARO', 909, 324),
+  sub('PUSH', 909, 368),
+  sub('CRS CTR', 909, 375),
+  joystick('range', 909, 406, 11),
+  name('RANGE', 909, 392),
+  sub('PUSH', 909, 426),
+  sub('PAN', 909, 433),
+  key('direct-to', 895, 448, null),
+  key('menu', 923, 448, 'MENU'),
+  key('fpl', 895, 470, 'FPL'),
+  key('proc', 923, 470, 'PROC'),
+  key('clr', 895, 492, 'CLR'),
+  key('ent', 923, 492, 'ENT'),
+  sub('DFLT MAP', 879, 508, 'start'),
+  knob('fms', 909, 548, 17),
+  name('FMS', 909, 526),
+  // Table F2 baseline 573 moved up 1 unit: the text box then ends at the region bottom (574).
+  sub('PUSH CRSR', 909, 572),
+];
+
 /** Local-space copy of a global table: region origin subtracted from every x and y. */
 function toLocal(ox: number, oy: number, list: readonly ColumnElement[]): readonly ColumnElement[] {
   return list.map((e): ColumnElement => {
@@ -239,6 +291,6 @@ function toLocal(ox: number, oy: number, list: readonly ColumnElement[]): readon
 
 export const BEZEL_COLUMNS: Readonly<Record<BezelColumnId, readonly ColumnElement[]>> = {
   pfd_bezel_left: toLocal(274, 196, PFD_LEFT_GLOBAL),
-  pfd_bezel_right: [],
+  pfd_bezel_right: toLocal(875, 196, PFD_RIGHT_GLOBAL),
   mfd_bezel_right: [],
 };
