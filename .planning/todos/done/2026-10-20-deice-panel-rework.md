@@ -56,3 +56,7 @@ Skins and widgets: `src/ui/panel/skins/Rocker.tsx`, `Bat.tsx`, `PushButton.tsx`,
 Tests and docs that name these ids and will need updating: `tests/layout-reference.ts` (the shared reference, 42 controls and 7 lamps; counts change), `tests/switch-skins.test.ts`, `tests/lever-skins.test.ts`, `tests/button-skins.test.ts`, `tests/detents.test.ts`, `tests/store.test.ts`, `tests/zoom.test.ts`, `tests/panel-review.test.ts`, `e2e/guard.spec.ts`, `e2e/inventory.spec.ts`, `e2e/layout.spec.ts`, `e2e/lever-skins.spec.ts`, `e2e/switch-skins.spec.ts`, and `docs/PANEL-REVIEW.md` (area 3 rows). The control count in README "Demo controls" and in the ROADMAP/plan text (42 controls, 7 lamps) will change.
 
 Recommended route: a small inserted decimal phase or a follow-up plan after Phase 01.1 (not inside Phase 01.1, whose plan 11 forbids source changes), with the layout reference rows updated first (test-first), then the registry, then the skins.
+
+## Resolved
+
+Closed 2026-10-21 by gap-closure plans 01.1-21 and 01.1-22 (mode toggle, MAX button, three lamps, lower row, guarded ALTERNATE toggle, framed DE ICE heading). The deferred engine behaviour moved to `.planning/todos/pending/2026-10-21-deice-max-timer-engine.md`.
