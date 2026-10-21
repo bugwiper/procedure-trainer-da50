@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { PANEL_VIEWBOX } from '../tests/layout-reference';
-import { MOMENTARY_HOLD_MS } from '../src/ui/panel/press-arbiter';
+import { DRAG_START_PX, MOMENTARY_HOLD_MS } from '../src/ui/panel/press-arbiter';
 import { MOUSE_SLOP_PX, TOUCH_SLOP_PX } from '../src/ui/panel/tap-intent';
 import { touchSender } from './support/touch';
 import { FULL_VIEWBOX, backgroundPoint, zoomIntoRegion } from './support/zoom';
@@ -788,4 +788,184 @@ test.describe('@hooks momentary controls and the event log', () => {
     ]);
     expect(await viewString(page)).toBe(FULL_VIEWBOX);
   });
+});
+
+// Drag controls keep their gesture (R3-Z2 item 3, plan 39): a lever handle or a knob body is an
+// own target. Before it has travelled DRAG_START_PX a second finger takes the press away and
+// pinches; from then on the control owns its pointer and other pointers are ignored.
+
+const KNOB = 'sw.instr_light';
+const LEVER = 'lv.power';
+
+/** The id of the region a control sits in, read from the page. */
+async function regionOfControl(page: Page, id: string): Promise<string> {
+  const region = await page.evaluate((controlId) => {
+    const group = document.querySelector(`[data-control-id="${controlId}"]`);
+    return group?.closest('[data-region-id]')?.getAttribute('data-region-id') ?? null;
+  }, id);
+  if (region === null) throw new Error(`no region for ${id}`);
+  return region;
+}
+
+/** A point `fraction` of the knob hit width to the right of the hit centre (3 o'clock direction). */
+async function knobTarget(page: Page, fraction: number): Promise<{ from: Point; to: Point }> {
+  const box = await page.locator(`[data-hit="${KNOB}"]`).boundingBox();
+  if (box === null) throw new Error('no knob box');
+  const from = { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
+  return { from, to: { x: Math.round(from.x + box.width * fraction), y: from.y } };
+}
+
+/** The transform of the lever handle group, to see that no stale drag position remains. */
+async function handleTransform(page: Page, id: string): Promise<string | null> {
+  return page.locator(`g[data-control-id="${id}"] > g[transform]`).getAttribute('transform');
+}
+
+test.describe('drag controls', () => {
+  test('mouse: a drag from a lever handle moves the lever and does not pan the zoomed view', async ({
+    page,
+  }, testInfo) => {
+    test.skip(!isMouseProject(testInfo.project.name), 'mouse path');
+    await zoomIntoRegion(page, false, 'pedestal');
+    const view = await viewString(page);
+    const handle = await page.locator(`[data-hit="${LEVER}"]`).boundingBox();
+    const low = await page.locator(`[data-detent="${LEVER}:p0"]`).boundingBox();
+    const high = await page.locator(`[data-detent="${LEVER}:p100"]`).boundingBox();
+    if (handle === null || low === null || high === null) throw new Error('no lever boxes');
+    const centreOf = (b: { x: number; y: number; width: number; height: number }): Point => ({
+      x: b.x + b.width / 2,
+      y: b.y + b.height / 2,
+    });
+    const from = centreOf(handle);
+    const a = centreOf(low);
+    const b = centreOf(high);
+    await expect(control(page, LEVER)).toHaveAttribute('data-state', 'p70');
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(a.x + (b.x - a.x) * 0.9, a.y + (b.y - a.y) * 0.9, { steps: 8 });
+    await page.mouse.up();
+    await expect(control(page, LEVER)).toHaveAttribute('data-state', 'p90');
+    expect(await viewString(page)).toBe(view);
+  });
+
+  test('mouse: a drag from a knob body turns the knob and does not pan the zoomed view, a tap still steps it on release', async ({
+    page,
+  }, testInfo) => {
+    test.skip(!isMouseProject(testInfo.project.name), 'mouse path');
+    await zoomIntoRegion(page, false, await regionOfControl(page, KNOB));
+    const view = await viewString(page);
+    const knob = control(page, KNOB);
+    await expect(knob).toHaveAttribute('data-state', 'off');
+    const { from, to } = await knobTarget(page, 0.43);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 6 });
+    await expect(knob).toHaveAttribute('data-state', 'off');
+    await page.mouse.up();
+    await expect(knob).toHaveAttribute('data-state', 's75');
+    expect(await viewString(page)).toBe(view);
+
+    // A tap on the right half steps one stop clockwise on the lift, not on the press.
+    const tapAt = await knobTarget(page, 0.25);
+    await page.mouse.move(tapAt.to.x, tapAt.to.y);
+    await page.mouse.down();
+    await expect(knob).toHaveAttribute('data-state', 's75');
+    await page.mouse.up();
+    await expect(knob).not.toHaveAttribute('data-state', 's75');
+  });
+
+  test('touch: a finger on the throttle handle that has not moved, then a second finger on the background, pinches and the throttle keeps its detent', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
+    const lever = control(page, LEVER);
+    await expect(lever).toHaveAttribute('data-state', 'p70');
+    const rest = await handleTransform(page, LEVER);
+    const p = await hitCentre(page, `[data-hit="${LEVER}"]`);
+    const spare = await backgroundPoint(page, 'pedestal');
+    const send = await touchSender(page);
+    await send('touchStart', [p]);
+    await send('touchStart', [p, spare]);
+    const away = (f: number): Point[] => [
+      { x: p.x - (spare.x - p.x) * f * 0.5, y: p.y - (spare.y - p.y) * f * 0.5 },
+      { x: spare.x + (spare.x - p.x) * f * 0.5, y: spare.y + (spare.y - p.y) * f * 0.5 },
+    ];
+    for (let i = 1; i <= 8; i++) await send('touchMove', away(i / 2));
+    await send('touchEnd', []);
+    expect((await viewNumbers(page)).w).toBeLessThan(PANEL_VIEWBOX.w);
+    await expect(lever).toHaveAttribute('data-state', 'p70');
+    expect(await handleTransform(page, LEVER)).toBe(rest);
+  });
+
+  test('touch: a knob body dragged past the drag threshold owns its finger, a second finger is ignored and the knob snaps on the lift', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
+    const knob = control(page, KNOB);
+    await expect(knob).toHaveAttribute('data-state', 'off');
+    const { from, to } = await knobTarget(page, 0.43);
+    expect(Math.hypot(to.x - from.x, to.y - from.y)).toBeGreaterThan(DRAG_START_PX);
+    const spare = await backgroundPoint(page, await regionOfControl(page, KNOB));
+    const send = await touchSender(page);
+    await send('touchStart', [from]);
+    for (let i = 1; i <= 6; i++) {
+      await send('touchMove', [
+        { x: from.x + ((to.x - from.x) * i) / 6, y: from.y + ((to.y - from.y) * i) / 6 },
+      ]);
+    }
+    await send('touchStart', [to, spare]);
+    for (let i = 1; i <= 8; i++) await send('touchMove', [to, { x: spare.x + i * 8, y: spare.y }]);
+    expect(await viewString(page)).toBe(FULL_VIEWBOX);
+    await send('touchEnd', []);
+    await expect(knob).toHaveAttribute('data-state', 's75');
+    expect(await viewString(page)).toBe(FULL_VIEWBOX);
+  });
+});
+
+test('the classification gate: every hit and detent element has the data-press class of its control kind', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'phone-portrait', 'portrait is not a panel layout');
+  const found = await page.evaluate(() => {
+    const rows: { key: string; kind: string; skin: string; isDetent: boolean; press: string }[] =
+      [];
+    for (const el of Array.from(document.querySelectorAll('[data-hit], [data-detent]'))) {
+      const group = el.closest('[data-control-id]');
+      rows.push({
+        key: el.getAttribute('data-detent') ?? el.getAttribute('data-hit') ?? '',
+        kind: group?.getAttribute('data-kind') ?? 'none',
+        skin: group?.getAttribute('data-skin') ?? '',
+        isDetent: el.hasAttribute('data-detent'),
+        press: el.getAttribute('data-press') ?? 'missing',
+      });
+    }
+    return rows;
+  });
+  expect(found.length).toBeGreaterThan(50);
+
+  // Table M2.
+  const expected = (r: (typeof found)[number]): string => {
+    switch (r.kind) {
+      case 'momentary-button':
+        return 'momentary';
+      case 'rotary':
+        return r.isDetent ? 'latch' : 'own';
+      case 'detent-lever':
+        return r.isDetent || r.skin === 'parking-flap' ? 'latch' : 'own';
+      case 'toggle':
+      case 'guarded-toggle':
+      case 'guard':
+      case 'circuit-breaker':
+        return 'latch';
+      default:
+        return `unknown kind ${r.kind}`;
+    }
+  };
+  const wrong = found.filter((r) => r.press !== expected(r)).map((r) => `${r.key}: ${r.press}`);
+  expect(wrong).toEqual([]);
+
+  const totals = new Map<string, number>();
+  for (const r of found) totals.set(r.press, (totals.get(r.press) ?? 0) + 1);
+  for (const cls of ['momentary', 'own', 'latch']) {
+    expect(totals.get(cls) ?? 0, cls).toBeGreaterThan(0);
+  }
 });

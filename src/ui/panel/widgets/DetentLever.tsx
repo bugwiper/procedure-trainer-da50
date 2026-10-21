@@ -5,12 +5,12 @@ import { detentOffset, projectToTrack, snapToDetent } from '../../../engine/dete
 import type { DetentDef, DetentLeverDef } from '../../../engine/registry';
 import type { DispatchResult } from '../../../engine/store';
 import type { WidgetProps } from '../ControlWidget';
+import { DRAG_START_PX } from '../press-arbiter';
 import { registerPressTarget, seqOf } from '../press-targets';
 import type { PressTarget } from '../press-targets';
 import { FlapBody } from '../skins/Flap';
 import { EnvIcon, ENV_ICONS, LEVER_ART, LeverHandle, LeverTrack } from '../skins/LeverHandles';
 
-const MIN_DRAG_PX = 4;
 const FONT = 'B612, system-ui, sans-serif';
 
 interface DragStart {
@@ -36,8 +36,9 @@ function placardLines(label: string): string[] {
 
 /**
  * Pointer handlers of the drag handle of one lever; absent in static renders (tests), present in
- * the widget. The handle is a drag control and keeps its own gesture until plan 39; the marker
- * taps and the tap-toggle flap are latching presses on the press arbiter (see LeverPress).
+ * the widget. The handle is a drag control that keeps its own gesture and is registered as an own
+ * target (R3-Z2, plan 39); the marker taps and the tap-toggle flap are latching presses on the
+ * press arbiter (see LeverPress).
  */
 export interface LeverHandlers {
   readonly onHandleDown: (e: PointerEvent) => void;
@@ -50,12 +51,13 @@ export interface LeverHandlers {
 export type PressRef = (el: SVGRectElement | null) => void;
 
 /**
- * The press registrations of one lever (R3-Z2): the ref callback of the tap-toggle hit and the
- * ref callback of every marker rectangle by detent id. Absent in static renders (tests), so the
- * pure body keeps working without a render context.
+ * The press registrations of one lever (R3-Z2): the ref callback of the tap-toggle hit, the one of
+ * the drag handle hit (an own target) and the ref callback of every marker rectangle by detent
+ * id. Absent in static renders (tests), so the pure body keeps working without a render context.
  */
 export interface LeverPress {
   readonly brake: PressRef;
+  readonly handle: PressRef;
   readonly marker: (detent: string) => PressRef;
 }
 
@@ -111,6 +113,11 @@ export function makeMarkerPress(deps: MarkerPressDeps): PressTarget {
       return seqOf(actuate(def.id, detent));
     },
   };
+}
+
+/** The press target of a drag control: it keeps its pointer and only needs the discard hook. */
+function ownTarget(discard: () => void): PressTarget {
+  return { cls: 'own', dragStartPx: DRAG_START_PX, discard };
 }
 
 export interface LeverBodyProps {
@@ -406,6 +413,7 @@ export function LeverBody({
         onPointerUp={handlers?.onHandleUp}
         onPointerCancel={handlers?.clearDrag}
         onLostPointerCapture={handlers?.clearDrag}
+        ref={press?.handle}
       />
     </g>
   );
@@ -445,6 +453,7 @@ function TapToggleLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
       regionWidth={def.hit.w}
       press={{
         brake: (el) => registerPressTarget(el, target),
+        handle: () => undefined,
         marker: () => () => undefined,
       }}
       pressed={pressed.value}
@@ -512,7 +521,7 @@ function DragLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
     const pos = posFor(s, e.clientX, e.clientY) ?? dragPos.value;
     const travel = Math.hypot(e.clientX - s.x, e.clientY - s.y);
     clearDrag();
-    if (travel < MIN_DRAG_PX || pos === null) return;
+    if (travel < DRAG_START_PX || pos === null) return;
     bridge.actuate(def.id, snapToDetent(pos, def.detents));
   };
 
@@ -529,6 +538,10 @@ function DragLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
       handlers={{ onHandleDown, onHandleMove, onHandleUp, clearDrag }}
       press={{
         brake: () => undefined,
+        // The handle is an own target: the widget keeps the drag and its capture, the gesture
+        // layer only lets a second finger take the press away before DRAG_START_PX of travel and
+        // then calls discard, which clears the local drag so no stale position remains.
+        handle: (el) => registerPressTarget(el, ownTarget(clearDrag)),
         marker: (detent) => {
           const target = makeMarkerPress({
             def,

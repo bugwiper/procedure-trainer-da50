@@ -463,10 +463,11 @@ describe('pedestal levers (plan 19, G-3)', () => {
     expect(src).toContain('registerPressTarget');
   });
 
-  it('a lever body asks the press prop for one ref per marker rect and none for a drag-only lever or the handle', () => {
+  it('a lever body asks the press prop for one ref per marker rect and none for a drag-only lever, the handle has its own ref', () => {
     const asked: string[] = [];
     const press = {
       brake: () => undefined,
+      handle: () => undefined,
       marker: (id: string) => {
         asked.push(id);
         return () => undefined;

@@ -11,10 +11,10 @@ import {
 import type { RotaryDef } from '../../../engine/registry';
 import type { DispatchResult } from '../../../engine/store';
 import type { WidgetProps } from '../ControlWidget';
+import { DRAG_START_PX } from '../press-arbiter';
 import { registerPressTarget, seqOf } from '../press-targets';
 import type { PressTarget } from '../press-targets';
 
-const MIN_DRAG_PX = 4;
 const FONT = 'B612, system-ui, sans-serif';
 const KNURLS = 24;
 
@@ -243,9 +243,10 @@ export function makeSpotPress(deps: SpotPressDeps): PressTarget {
 }
 
 /**
- * Knob widget (D-07, D-10). The knob body keeps its own pointer contract (plan 39 registers it as
- * a drag-owned target): primary pointer only, capture on pointerdown, no click listener; cancel
- * and lost capture clear without dispatching. A release under 4 px of travel is a tap: the right
+ * Knob widget (D-07, D-10). The knob body keeps its own pointer contract and is registered as an
+ * own target (R3-Z2, plan 39), so a second finger can still pinch before the drag has travelled
+ * DRAG_START_PX and discards the local gesture: primary pointer only, capture on pointerdown, no click listener; cancel
+ * and lost capture clear without dispatching. A release under DRAG_START_PX of travel is a tap: the right
  * half steps one stop clockwise, the left half one back (a two-stop knob always toggles); a knob
  * with click spots sets the stop nearest to the tapped angle on the body between the spots. A
  * longer gesture is a drag: the pointer follows the finger in a UI-local signal and the nearest
@@ -305,7 +306,7 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
   const onPointerMove = (e: PointerEvent) => {
     const g = gesture.current;
     if (!e.isPrimary || g === null || g.pointerId !== e.pointerId) return;
-    if (!g.dragging && Math.hypot(e.clientX - g.x, e.clientY - g.y) >= MIN_DRAG_PX) {
+    if (!g.dragging && Math.hypot(e.clientX - g.x, e.clientY - g.y) >= DRAG_START_PX) {
       g.dragging = true;
     }
     if (!g.dragging) return;
@@ -318,7 +319,7 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
   const onPointerUp = (e: PointerEvent) => {
     const g = gesture.current;
     if (!e.isPrimary || g === null || g.pointerId !== e.pointerId) return;
-    const dragging = g.dragging || Math.hypot(e.clientX - g.x, e.clientY - g.y) >= MIN_DRAG_PX;
+    const dragging = g.dragging || Math.hypot(e.clientX - g.x, e.clientY - g.y) >= DRAG_START_PX;
     const angle = dragging ? (angleAt(e.clientX, e.clientY) ?? g.lastAngle) : null;
     clear();
     if (dragging) {
@@ -370,6 +371,9 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
         onPointerUp={onPointerUp}
         onPointerCancel={clear}
         onLostPointerCapture={clear}
+        ref={(el: SVGRectElement | null) =>
+          registerPressTarget(el, { cls: 'own', dragStartPx: DRAG_START_PX, discard: clear })
+        }
       />
       {(def.spots ?? []).map((spot) => (
         <rect
