@@ -10,6 +10,7 @@ import {
 } from '../../aircraft/da50rg/plates';
 import type { GroupBoxDef, PlateDef } from '../../aircraft/da50rg/plates';
 import { detentOffset } from '../../engine/detents';
+import { BusPanelArt } from './BusPanelArt';
 import { paint } from './Defs';
 
 // Static shell art under all regions (UI-SPEC "Panel Surface", D-01, D-02, D-06). Original flat
@@ -37,6 +38,7 @@ const PLATE_FILLS: Readonly<Record<string, string>> = {
   'centre-stack': '#101215',
   environmental: '#1f2226',
   pedestal: '#1f2226',
+  'bus-panel': '#15171a',
 };
 
 /** One visible plate drawn from the plate data (owner finding G-0.5). */
@@ -421,43 +423,6 @@ function Placards({ registry }: { registry: Registry }) {
   );
 }
 
-/** One bracket outline of the right bus panel with its heading. */
-function BusBracket({ y, h, title }: { y: number; h: number; title: string }) {
-  return (
-    <g data-shell="bus-bracket">
-      <rect
-        x={1846}
-        y={y}
-        width={124}
-        height={h}
-        rx={4}
-        fill="none"
-        stroke={LEGEND}
-        stroke-opacity={0.4}
-        stroke-width={1}
-      />
-      <text x={1908} y={y + 14} text-anchor="middle" font-size={8} fill={LEGEND}>
-        {title}
-      </text>
-    </g>
-  );
-}
-
-/**
- * Layer 10: bus panel x 1836..1980. Bracket outlines and headings only (breakers: PNL-12). It
- * starts right of the strip plate (ends x 1830) so the ELT placards on that plate stay visible.
- */
-function BusPanel() {
-  return (
-    <g data-shell="bus-panel">
-      <rect x={1836} y={215} width={144} height={530} rx={8} fill="#15171a" stroke={RIM} />
-      <BusBracket y={225} h={140} title="ESSENTIAL BUS" />
-      <BusBracket y={375} h={190} title="MAIN BUS" />
-      <BusBracket y={575} h={160} title="AVIONICS BUS" />
-    </g>
-  );
-}
-
 /** Plate headings drawn from data: the text centred in its white outline frame (owner finding G-1). */
 function PlateHeadings() {
   return (
@@ -566,7 +531,7 @@ export function PanelShell({ registry }: { registry: Registry }) {
       {mfd === undefined ? null : <DisplayBezel {...mfd.bounds} />}
       <CentreStack />
       <SwitchStrips />
-      <BusPanel />
+      <BusPanelArt plate={<Plate id="bus-panel" />} />
       <LeftStrip />
       <StaticDecor />
       <EnvironmentalPlate registry={registry} />

@@ -46,7 +46,19 @@ export const PLATES: readonly PlateDef[] = [
     w: 680,
     h: 137,
     rx: 8,
-    regions: ['flaps', 'right_panel'],
+    regions: ['flaps', 'right_panel', 'cb_strip'],
+  },
+  // Bus panel at the far right of the widened space (phase 01.2, Table B2): the three bus regions
+  // sit on it; the lower row breakers and the flap strip breakers have their own regions. It keeps
+  // 6 units to the face plate edge (x 2160). cb_strip lies on the flap strip plate above.
+  {
+    id: 'bus-panel',
+    x: 1874,
+    y: 205,
+    w: 280,
+    h: 540,
+    rx: 8,
+    regions: ['cb_essential', 'cb_main', 'cb_low'],
   },
   // Environmental control plate as in the owner's side-view photo (G-3): DIRECTION and
   // TEMPERATURE side by side, FAN under DIRECTION, CIRCULATING AIR across the bottom. The plate

@@ -141,6 +141,19 @@ describe('viewBox and regions', () => {
     for (const r of DA50RG.regions) expect(inside(r.bounds, box), r.id).toBe(true);
   });
 
+  it('the four breaker regions have the Table B1 bounds, typed in independently of the data', () => {
+    const expected: Readonly<Record<string, Rect>> = {
+      cb_essential: { x: 1884, y: 215, w: 260, h: 152 },
+      cb_main: { x: 1884, y: 368, w: 260, h: 166 },
+      cb_low: { x: 1884, y: 648, w: 260, h: 56 },
+      cb_strip: { x: 1441, y: 648, w: 118, h: 56 },
+    };
+    for (const [id, bounds] of Object.entries(expected)) {
+      expect(regionBounds(id), id).toEqual(bounds);
+    }
+    expect(DA50RG.regions).toHaveLength(23);
+  });
+
   it('no two regions overlap with positive area', () => {
     const regions = DA50RG.regions;
     for (let i = 0; i < regions.length; i++) {
@@ -520,6 +533,44 @@ describe('plates', () => {
         expect(overlaps(rectOf(p), bezel), `${p.id} / ${id}`).toBe(false);
       }
     }
+  });
+
+  it('the bus-panel plate has the Table B2 rectangle and carries the three bus regions', () => {
+    const bus = PLATES.find((p) => p.id === 'bus-panel');
+    expect(bus).toBeDefined();
+    if (bus === undefined) return;
+    expect([bus.x, bus.y, bus.w, bus.h, bus.rx]).toEqual([1874, 205, 280, 540, 8]);
+    expect([...bus.regions]).toEqual(['cb_essential', 'cb_main', 'cb_low']);
+    // Inside the face plate (right edge x 2160, plan 01) with 6 units to spare.
+    expect(bus.x + bus.w).toBe(2154);
+    expect(bus.x + bus.w).toBeLessThanOrEqual(2160);
+    // The old narrow bus rectangle (x 1836, 144 wide) is gone: the plate starts right of right_panel.
+    const rp = regionBounds('right_panel');
+    expect(bus.x).toBeGreaterThanOrEqual(rp.x + rp.w);
+  });
+
+  it('the flap strip plate carries flaps, right_panel and the cb_strip breaker region', () => {
+    const strip = PLATES.find((p) => p.id === 'strip-flaps');
+    expect(strip).toBeDefined();
+    if (strip === undefined) return;
+    expect([strip.x, strip.y, strip.w, strip.h]).toEqual([1150, 608, 680, 137]);
+    expect([...strip.regions]).toEqual(['flaps', 'right_panel', 'cb_strip']);
+  });
+
+  it('the footprint of cb.pitot lies inside the bus-panel plate', () => {
+    const bus = PLATES.find((p) => p.id === 'bus-panel');
+    const def = DA50RG.get('cb.pitot');
+    expect(bus).toBeDefined();
+    expect(def).toBeDefined();
+    if (bus === undefined || def === undefined) return;
+    const c = globalCentre(def);
+    const global: Rect = {
+      x: c.x - def.hit.w / 2,
+      y: c.y - def.hit.h / 2,
+      w: def.hit.w,
+      h: def.hit.h,
+    };
+    expect(inside(global, rectOf(bus))).toBe(true);
   });
 
   it('every region a plate names exists and is carried by one plate only', () => {

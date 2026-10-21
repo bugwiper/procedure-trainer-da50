@@ -7,6 +7,8 @@ import { PLACARDS, placardLineY } from '../src/aircraft/da50rg/placards';
 import { LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
 import { ENV_BOXES, HEADING_FRAME, PLATES, PLATE_HEADINGS } from '../src/aircraft/da50rg/plates';
 import { DEF_IDS, Defs } from '../src/ui/panel/Defs';
+import { BUS_ORDER, BUS_OUTLINES } from '../src/aircraft/da50rg/bus-boxes';
+import { roundedPolygonPath } from '../src/ui/panel/BusPanelArt';
 import { PanelShell, groupBoxPath, temperatureTriangle } from '../src/ui/panel/PanelShell';
 import { PANEL_VIEWBOX } from './layout-reference';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
@@ -205,11 +207,58 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
     expect(shellText).toContain(text);
   });
 
-  it('draws bus brackets with headings only, no circuit-breaker shapes (PNL-12 is 01.2)', () => {
+  it('draws the bus panel from data: the plate, three outlines and three titles, no breaker shape', () => {
     expect(findElements(shell, (el) => String(el.props['data-shell']).includes('breaker'))).toEqual(
       [],
     );
-    expect(findElements(shell, (el) => el.props['data-shell'] === 'bus-bracket')).toHaveLength(3);
+    expect(findElements(shell, (el) => el.props['data-shell'] === 'bus-bracket')).toEqual([]);
+    const layer = findElements(shell, (el) => el.props['data-shell'] === 'bus-panel')[0];
+    if (layer === undefined) throw new Error('no bus layer');
+    const bus = PLATES.find((p) => p.id === 'bus-panel');
+    const plate = findElements(layer, (el) => el.props['data-plate'] === 'bus-panel')[0];
+    expect([plate?.props['x'], plate?.props['y']]).toEqual([bus?.x, bus?.y]);
+    expect([plate?.props['width'], plate?.props['height']]).toEqual([bus?.w, bus?.h]);
+    const outlines = findElements(layer, (el) => el.props['data-shell'] === 'bus-outline');
+    expect(outlines.map((el) => el.props['data-bus'])).toEqual(['essential', 'main', 'avionics']);
+    for (const o of outlines) {
+      expect(o.tag).toBe('path');
+      expect(o.props['fill']).toBe('none');
+      expect(o.props['stroke']).toBe('#6b727c');
+      expect(o.props['stroke-width']).toBe(1);
+    }
+    const titles = findElements(layer, (el) => el.props['data-shell'] === 'bus-title');
+    expect(titles.map((el) => textOf(el))).toEqual(['ESSENTIAL BUS', 'MAIN BUS', 'AVIONICS BUS']);
+    for (const t of titles) expect(t.props['font-size']).toBe(8);
+  });
+
+  it('the old narrow bus rectangle (x 1836, width 144) is gone', () => {
+    const old = findElements(
+      shell,
+      (el) => el.tag === 'rect' && el.props['x'] === 1836 && el.props['width'] === 144,
+    );
+    expect(old).toEqual([]);
+  });
+
+  it('the rounded-corner path helper returns one move and one corner curve per vertex', () => {
+    for (const bus of BUS_ORDER) {
+      const pts = BUS_OUTLINES[bus];
+      const d = roundedPolygonPath(pts, 4);
+      expect(d.match(/M/g), bus).toHaveLength(1);
+      expect(d.match(/Q/g), bus).toHaveLength(pts.length);
+      expect(d.endsWith('Z'), bus).toBe(true);
+    }
+    // A 10 x 10 square rounded by 2 starts 2 along the first edge.
+    const square = roundedPolygonPath(
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+        { x: 0, y: 10 },
+      ],
+      2,
+    );
+    expect(square.startsWith('M2 0')).toBe(true);
+    expect(square.match(/Q/g)).toHaveLength(4);
   });
 
   it('draws the static vent as concentric rings', () => {
@@ -534,6 +583,7 @@ describe('declared font-size scale 6, 8, 10, 14', () => {
       .map((name) => join(frames, name)),
     join(root, 'src/ui/panel/PanelShell.tsx'),
     join(root, 'src/ui/panel/Defs.tsx'),
+    join(root, 'src/ui/panel/BusPanelArt.tsx'),
     join(root, 'src/ui/panel/Panel.tsx'),
   ];
 
@@ -549,7 +599,7 @@ describe('declared font-size scale 6, 8, 10, 14', () => {
   }
 
   it('scans the four frame files and the shell files', () => {
-    expect(files.length).toBeGreaterThanOrEqual(7);
+    expect(files.length).toBeGreaterThanOrEqual(8);
   });
 
   it.each(files.map((file) => [file.slice(root.length), file] as const))(

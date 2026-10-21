@@ -252,6 +252,9 @@ export const ALL_REGION_IDS: readonly string[] = [
   'pedestal',
   'under_panel_right',
   'cb_essential',
+  'cb_main',
+  'cb_low',
+  'cb_strip',
 ];
 
 export const FRONT_PANEL_REGIONS: readonly string[] = [
@@ -268,6 +271,10 @@ export const FRONT_PANEL_REGIONS: readonly string[] = [
   'level',
   'flaps',
   'right_panel',
+  'cb_essential',
+  'cb_main',
+  'cb_low',
+  'cb_strip',
 ];
 
 export const UNDER_PANEL_REGIONS: readonly string[] = [

@@ -3,8 +3,8 @@ import type { BreakerGroup, ControlSpec, RegionDef, Size } from '../../../engine
 // Circuit breakers of the bus panel (PNL-12, D-01 to D-03). Pure data, no UI imports. Layout
 // numbers are the widened-panel grid of the 01.2 UI-SPEC (owner decision U-01, Table W2): pitch 36,
 // hits 28 x 28, one label tier. Layout facts only; nothing is traced from the private photos.
-// Plan 02 holds the one breaker that proves the kind; plan 03 adds the other breaker regions and
-// plan 04 fills the grid.
+// Plan 02 holds the one breaker that proves the kind; plan 03 added the other three breaker regions
+// (cb_main, cb_low, cb_strip, Table B1) and plan 04 fills the grid.
 
 /** Column centres c1..c7 (global x): 1906 + 36 (c - 1). */
 export const CB_COLUMN_X = [1906, 1942, 1978, 2014, 2050, 2086, 2122] as const;
@@ -28,6 +28,21 @@ export const CB_REGIONS: readonly RegionDef[] = [
     id: 'cb_essential',
     name: 'CIRCUIT BREAKERS ESSENTIAL',
     bounds: { x: 1884, y: 215, w: 260, h: 152 },
+  },
+  {
+    id: 'cb_main',
+    name: 'CIRCUIT BREAKERS MAIN',
+    bounds: { x: 1884, y: 368, w: 260, h: 166 },
+  },
+  {
+    id: 'cb_low',
+    name: 'CIRCUIT BREAKERS LOWER ROW',
+    bounds: { x: 1884, y: 648, w: 260, h: 56 },
+  },
+  {
+    id: 'cb_strip',
+    name: 'CIRCUIT BREAKERS FLAP STRIP',
+    bounds: { x: 1441, y: 648, w: 118, h: 56 },
   },
 ];
 
