@@ -179,6 +179,20 @@ The bus panel at the far right of the panel carries the circuit breakers. Each p
 |----|-----------------|-------------------|-------|--------------|
 | `cb.pitot` (new in plan 02) | PITOT above the breaker, rating 20 on the cap | none | assumption | `controls/breakers.ts` |
 
+## Bus panel static text
+
+The frame of the bus panel carries static shell text only; none of it belongs to a control and none of it changes with a control state. The rows are not ids, so the id table checks ignore them.
+
+| Static text | Where | Notes |
+|-------------|-------|-------|
+| ESSENTIAL BUS | cuts the top edge of the ESSENTIAL outline | size 8 |
+| MAIN BUS | cuts the shared edge between the ESSENTIAL and MAIN outlines, left part | size 8 |
+| AVIONICS BUS | cuts the shared edge between the MAIN and AVIONICS outlines, left part | size 8 |
+| ADF | above the blank plug in the AVIONICS outline | size 6, like a breaker label; the plug is a hole, not a control |
+| DATA / LINK | above the last blank plug, two lines | size 6, like a breaker label; the plug is a hole, not a control |
+
+The first blank plug (in the ESSENTIAL outline) has no label. Source file of all of this: `src/aircraft/da50rg/bus-boxes.ts`, drawn by `src/ui/panel/BusPanelArt.tsx`.
+
 ## Superseded by the owner findings
 
 These ids existed in the first render and were removed by the plan named; the labels they carried (MODE, WIND SHIELD, PUMP 1, PUMP 2, ANNUN TEST) move to the placards of the new ids above.

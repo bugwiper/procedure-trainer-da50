@@ -28,6 +28,7 @@ The panel has 42 controls and 13 indicator lamps in 23 regions, placed where the
 - **ENVIRONMENTAL CONTROL**, top of the centre console: FAN, DIRECTION, TEMPERATURE and CIRCULATING AIR, each in its own box with pictograms instead of words
 - **PEDESTAL**: PARKING BRAKE (pulled up to set), THROTTLE (0 to 100 % in 5 % steps), COWL FLAP (CLOSED / OPEN) with its two position lamps
 - **UNDER PANEL R**: ALTERNATE AIR
+- **BUS PANEL FRAME**, far right: the ESSENTIAL, MAIN and AVIONICS bus outlines with their titles, three blank plugs, three pump boxes and the lower-row panel (art only)
 - **CIRCUIT BREAKERS ESSENTIAL**, bus panel at the far right: PITOT (the first circuit breaker; a tap pulls it out, showing a raised cap and a white ring, a second tap pushes it back in)
 
 How it behaves:

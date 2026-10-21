@@ -143,7 +143,14 @@ RUBIN mark: text only, centred at (1232, 625) at the left of the flap block, rep
 
 The three ELT position placards ON, ARMED and RESET / TEST stand to the right of the rocker (`src/aircraft/da50rg/placards.ts`).
 
-The bus panel (x 1836..1980, right of the strip plate so the ELT placards stay visible) is drawn as three bracket outlines with the headings ESSENTIAL BUS, MAIN BUS and AVIONICS BUS only. The first circuit breaker (`cb.pitot`, phase 01.2) stands in the new region `cb_essential` on the widened panel, right of this old bus rectangle until the new bus plate is drawn; the section "Circuit breakers (region `cb_essential`)" below lists it.
+The bus panel is a plate in the widened space (plate `bus-panel`, x 1874..2154, y 205..745, 6 units inside the face plate edge at 2160, right of the strip plate so the ELT placards stay visible). It carries the breaker regions `cb_essential` (x 1884, y 215, 260 x 152), `cb_main` (x 1884, y 368, 260 x 166) and `cb_low` (x 1884, y 648, 260 x 56); the flap strip plate also carries `cb_strip` (x 1441, y 648, 118 x 56). The art is drawn from `src/aircraft/da50rg/bus-boxes.ts` by `src/ui/panel/BusPanelArt.tsx`:
+
+- three stair-step outlines (ESSENTIAL, MAIN, AVIONICS) in a 1 unit grey line with rounded corners, cell edges at x 1888 + 36 k, levels at y 223, 319, 375, 426, 477 and 531; the titles ESSENTIAL BUS, MAIN BUS and AVIONICS BUS cut the shared edges they sit on;
+- three blank plugs (holes in the real grid): one without a label, one labelled ADF, one labelled DATA / LINK;
+- three pump boxes (EMERG PUMP beside the ESSENTIAL outline, MAIN PUMP and XFR PUMP inside the MAIN outline) and the lower-row sub-panel (x 1878..2150, y 642..710) around the region `cb_low`;
+- the band between the avionics box (ends y 531) and the lower row (starts y 642) is plain plate.
+
+The outline corners are read from oblique photos at medium confidence (P2-04). Nothing here is a control; the breakers themselves are listed in the section below and fill the grid in the next plan. The first circuit breaker (`cb.pitot`, phase 01.2) stands in `cb_essential`.
 
 ## Circuit breakers (region `cb_essential`)
 
@@ -209,7 +216,7 @@ Other shell items:
 | DE ICE heading | white outlined frame x 118..182, y 209..225, text size 8 (`PLATE_HEADINGS`) |
 | Environmental group boxes | DIRECTION, TEMPERATURE, FAN, CIRCULATING AIR (`ENV_BOXES`), plate title at (1062, 766) |
 | ESS BUS NOT FOR NORMAL OPERATION placard | four Micro lines centred at x 521, baselines 650 to 671 |
-| Bus panel brackets | plate x 1836..1980, brackets at x 1846; ESSENTIAL y 225..365, MAIN y 375..565, AVIONICS y 575..735 |
+| Bus panel frame (phase 01.2) | plate x 1874..2154, y 205..745; three stair-step outlines, three titles, three blank plugs, three pump boxes and the lower-row sub-panel (`bus-boxes.ts`) |
 | Vent | centre (60, 700), r 28 with three inner rings |
 | NO SMOKING placard | x 965..1029, y 725..739 |
 | Fuel placard | x 1560..1700, y 640..700, five decorative bars, no real text |
@@ -330,3 +337,5 @@ Decisions of phase 01.2 (circuit breakers, display shapes, avionics units). Late
 | **P2-01** The panel space was widened from 2000 to 2180 by the owner (Q2-01 RESOLVED); the 180 units are only on the right, nothing left of x 1980 moved | Reason: the real breaker grid needs the real pitch of 36 units, about 260 units of width, and only about 144 units were free. Cost of undoing: redo the bus panel numbers and five spec literals (smoke viewBox, full-view string, pinch width, art-fit viewport, layout test), and the shell paths. Cost of keeping: about 8 percent smaller scale on tablet (0.433 against 0.472) and portrait phone (0.180 against 0.197); desktop and phone landscape are unchanged. |
 | **P2-02** `MIN_VIEW_WIDTH` stays 200 | Every planned breaker hit side is at least 24 units; times the portrait pinch scale 1.965 that is 47 px, above the 44 px target, so the draft proposal to lower it to 100 is withdrawn. Cost of undoing: none, one constant. |
 | **P2-03** The circuit-breaker pulled state shows a raised cap and a white ring and no IN or OUT text: the owner rule G-0.1 (static labels only) overrides the earlier wording of D-02, ROADMAP success criterion 1 and PNL-12 | Reason: nothing printed on the panel may change with a control state. IN and OUT exist only as the accessible state names. The ROADMAP criterion and PNL-12 were reworded to match. Cost of undoing: one skin function (`src/ui/panel/skins/Breaker.tsx`) and two wording lines (ROADMAP and REQUIREMENTS). |
+| **P2-04** The outline corners and the bus membership of PFD, MASTER CTRL., the pump breakers, the lower row and the flap strip are read from oblique photos (medium confidence) | Membership is the data attribute group of a breaker; ids carry no bus segment, so a different membership is a data edit of the outline tables in `src/aircraft/da50rg/bus-boxes.ts` and of the group of the breaker rows, with no id change. Cost of undoing: low, data only. |
+| **P2-05** Plug label placement (size 6, last line 16 above the plug centre, like a breaker label) and the pump box rectangles aligned to the cell edges are assumptions | The three pump boxes are 32 x 44 and start at x 2106, next to the cell edge at 2104. If the text-overlap gate or the owner finds a label too close to a neighbour, the plug data takes a small sideways shift (`labelDx`). Cost of undoing: low, data only. |
