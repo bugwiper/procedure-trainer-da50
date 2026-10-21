@@ -284,7 +284,8 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
   };
 
   const onPointerDown = (e: PointerEvent) => {
-    if (!e.isPrimary) return;
+    // Only the main button operates a control; the arbiter already drops the others for the view.
+    if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
     const local = toLocal(e.clientX, e.clientY);
     if (local === null) return;
     try {
