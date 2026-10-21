@@ -145,7 +145,7 @@ Plans:
   3. The audio panel, autopilot panel and backup EFIS are visible in their real positions and look like the real units; their buttons do nothing for now.
   4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.
 
-**Plans:** 5/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
+**Plans:** 6/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
 
 Plans:
 **Wave 1**
@@ -164,7 +164,7 @@ Plans:
 - [x] 01.2-05-PLAN.md — PFD and MFD shape: bezel lip, 12 softkeys per display, glass header and legend rows
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 01.2-06-PLAN.md — Avionics unit geometry: six regions, four plates, housings instead of placeholder outlines
+- [x] 01.2-06-PLAN.md — Avionics unit geometry: six regions, four plates, housings instead of placeholder outlines
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 01.2-07-PLAN.md — Knob and key columns beside both displays

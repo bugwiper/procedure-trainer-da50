@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: "01.2"
 current_phase_name: Circuit breakers, G1000 shapes and avionics panels
-current_plan: 5 (complete)
+current_plan: 6 (complete)
 status: executing
-stopped_at: Completed 01.2-05-PLAN.md
-last_updated: "2026-10-21T07:19:14.207Z"
+stopped_at: Completed 01.2-06-PLAN.md
+last_updated: "2026-10-21T07:33:00.382Z"
 last_activity: 2026-10-21
-last_activity_desc: Plan 01.2-05 complete (glass display shape)
-state_head: bf5c2fa9b1821942a53c96d6a42e800a90ff3dfa
+last_activity_desc: Plan 01.2-06 complete (avionics unit regions and plates)
+state_head: 4dfe460a7a4771373cdeaf1ad8114267e4fbc5e9
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 41
-  completed_plans: 37
+  completed_plans: 38
   percent: 14
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.2 (Circuit breakers, G1000 shapes and avionics panels) — EXECUTING
-Current Plan: 5 (complete)
+Current Plan: 6 (complete)
 Total Plans in Phase: 9
-Status: Plans 01 to 05 of phase 01.2 complete. Plan 01 widened the panel space to 2180 x 1300 (right side only). Plan 02 added the circuit-breaker kind (flat cb. ids, states in and out) with one real breaker, cb.pitot, and derived the inventory gates from independent tables. Plan 03 built the bus panel frame: regions cb_main, cb_low, cb_strip (23 regions), the bus-panel plate, the three stair-step outlines with titles, three blank plugs, three pump boxes and the lower-row sub-panel, all as data (bus-boxes.ts) drawn by BusPanelArt. Plan 04 filled the grid with all 51 breakers (92 controls), with an independent reference, relation and containment gates, a label-clearance gate and an all-breaker e2e (1347 svg elements, budget 2500). Plan 05 gave both displays the 41-unit bezel lip, 12 triangle softkeys each (only sw.mfd_page is a control, 23 keys are inert art, new region pfd_softkeys, 24 regions), a glass header strip, a content band and a 12-slot legend row, with an e2e glass zone gate and a widened brand gate (1577 svg elements, budget 2500). Next: plan 06 (avionics unit geometry). Nothing was pushed; publishing is the owner's step. Phase 01.1 (23 plans) is complete.
-Last activity: 2026-10-21 — Plan 01.2-05 complete (glass display shape: bezel lip, 24 softkeys, header and legend rows)
+Status: Plans 01 to 06 of phase 01.2 complete. Plan 01 widened the panel space to 2180 x 1300 (right side only). Plan 02 added the circuit-breaker kind (flat cb. ids, states in and out) with one real breaker, cb.pitot, and derived the inventory gates from independent tables. Plan 03 built the bus panel frame: regions cb_main, cb_low, cb_strip (23 regions), the bus-panel plate, the three stair-step outlines with titles, three blank plugs, three pump boxes and the lower-row sub-panel, all as data (bus-boxes.ts) drawn by BusPanelArt. Plan 04 filled the grid with all 51 breakers (92 controls), with an independent reference, relation and containment gates, a label-clearance gate and an all-breaker e2e (1347 svg elements, budget 2500). Plan 05 gave both displays the 41-unit bezel lip, 12 triangle softkeys each (only sw.mfd_page is a control, 23 keys are inert art, new region pfd_softkeys, 24 regions), a glass header strip, a content band and a 12-slot legend row, with an e2e glass zone gate and a widened brand gate (1577 svg elements, budget 2500). Plan 06 added the six view-only avionics regions (pfd_bezel_left, pfd_bezel_right, audio_panel, standby_efis, autopilot_panel, mfd_bezel_right; 30 regions), reworked the centre-stack plate and added three unit plates (13 plates), replaced the placeholder outlines by region-owned housings announced as not operable, and added an e2e gate proving a tap only zooms (1604 svg elements, budget 2500). Next: plan 07 (bezel knob and key columns). Nothing was pushed; publishing is the owner's step. Phase 01.1 (23 plans) is complete.
+Last activity: 2026-10-21 — Plan 01.2-06 complete (avionics unit regions, plates and housings)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -85,6 +85,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.2 P03 | 15min | 3 tasks | 13 files |
 | Phase 01.2 P04 | 25min | 3 tasks | 11 files |
 | Phase 01.2 P05 | 11min | 3 tasks | 19 files |
+| Phase 01.2 P06 | 15min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T07:19:01.385Z
-Stopped at: Completed 01.2-05-PLAN.md
+Last session: 2026-10-21T07:33:00.185Z
+Stopped at: Completed 01.2-06-PLAN.md
 Resume file: None
