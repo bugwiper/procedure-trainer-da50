@@ -4,16 +4,16 @@ current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
 current_plan: 23 (complete)
 status: executing
-stopped_at: Completed 01.1-23-PLAN.md
-last_updated: "2026-10-21T00:42:35.675Z"
+stopped_at: Completed 01.2-01-PLAN.md
+last_updated: "2026-10-21T06:38:04.716Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: da7d8bff997c0de63afbffebe5eee73c38a7d4ec
+state_head: d2373b587b58155d386725f9b6548ec1bafe8f74
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 32
-  completed_plans: 32
+  total_plans: 41
+  completed_plans: 33
   percent: 14
 ---
 
@@ -80,6 +80,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P20 | 35min | 3 tasks | 20 files |
 | Phase 01.1 P21 | n/a | 3 tasks | 30 files |
 | Phase 01.1 P23 | 25min | 3 tasks | 9 files |
+| Phase 01.2 P01 | 10 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Plan 21: the 120 s MAX run is deferred to the engine phase; lt.deice_max reads the unset flag deice.max_active (no engine clock in phase 01.1)
 - [Phase 01.1]: Plan 01.1-22: the ICE LIGHT and PUMP toggles are 69 tall (thirds of 23 units) so the pinch-in tap-size gate keeps 44 px; one fixed bat throw (BAT_THROW 14) for every bat
 - [Phase 01.1]: Plan 01.1-22: a guarded toggle without rocker size and colour draws the bat toggle (ALTERNATE: states on, off, guarded position up); the guard cover is the only red part
+- [Phase 01.2]: 01.2-01: panel space widened from 2000 to 2180 x 1300 on the right only (owner decision U-01, P2-01); MIN_VIEW_WIDTH stays 200 (P2-02)
 
 ### Pending Todos
 
@@ -148,6 +150,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T00:42:35.583Z
-Stopped at: Completed 01.1-23-PLAN.md
+Last session: 2026-10-21T06:38:04.540Z
+Stopped at: Completed 01.2-01-PLAN.md
 Resume file: None

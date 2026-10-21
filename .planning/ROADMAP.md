@@ -145,11 +145,11 @@ Plans:
   3. The audio panel, autopilot panel and backup EFIS are visible in their real positions and look like the real units; their buttons do nothing for now.
   4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.
 
-**Plans:** 0/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
+**Plans:** 1/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
 
 Plans:
 **Wave 1**
-- [ ] 01.2-01-PLAN.md — Widen the panel space to 2180 x 1300 (right side only), shell silhouette, width literals removed, owner decision recorded in the UI-SPEC
+- [x] 01.2-01-PLAN.md — Widen the panel space to 2180 x 1300 (right side only), shell silhouette, width literals removed, owner decision recorded in the UI-SPEC
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01.2-02-PLAN.md — Circuit-breaker kind end to end with one breaker (cb.pitot), derived inventory gates, state-text wording amended
