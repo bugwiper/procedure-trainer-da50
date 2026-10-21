@@ -115,6 +115,9 @@ export function targetSide(def: ControlDef): number {
       return def.stops.length === 2
         ? Math.min(def.hit.w, def.hit.h)
         : Math.min(def.hit.w / 2, def.hit.h);
+    case 'circuit-breaker':
+      // One tap toggles, so the whole hit is the target.
+      return Math.min(def.hit.w, def.hit.h);
     case 'guarded-toggle':
       return Math.min(def.hit.w, def.hit.h, def.guardOpenHit.w, def.guardOpenHit.h);
     case 'guard':

@@ -178,8 +178,40 @@ export interface RotaryDef extends ControlBase {
   readonly scale?: 'arc' | 'fan' | 'none';
 }
 
+/** Bus groups of the circuit breakers (UI-SPEC 01.2, Table A1). Re-checked at run time. */
+export const BREAKER_GROUPS = ['essential', 'main', 'avionics', 'lower', 'strip'] as const;
+export type BreakerGroup = (typeof BREAKER_GROUPS)[number];
+
+/**
+ * Circuit breaker (PNL-12, D-02, D-03). Two states, `in` (pushed in, the default) and `out`
+ * (pulled). A single tap toggles. The state labels IN and OUT are accessible names only: the
+ * breaker prints its static label lines and its rating, identical in both states (G-0.1).
+ */
+export interface CircuitBreakerDef extends ControlBase {
+  readonly kind: 'circuit-breaker';
+  /** Exactly [in, out]. */
+  readonly states: readonly [StateDef, StateDef];
+  /** Must be 'in'. */
+  readonly default: StateId;
+  /** Printed amp rating on the cap, for example "5" or "7½". */
+  readonly rating: string;
+  /** Printed label lines above the breaker; data, never computed. */
+  readonly labelLines: readonly string[];
+  readonly group: BreakerGroup;
+  /** True only for the 24 wide hits of the lower row. */
+  readonly compact?: boolean;
+  /** Shifts the label centre in units (a label that would touch an outline edge). */
+  readonly labelDx?: number;
+}
+
 export type ControlDef =
-  ToggleDef | GuardedToggleDef | GuardDef | DetentLeverDef | MomentaryButtonDef | RotaryDef;
+  | ToggleDef
+  | GuardedToggleDef
+  | GuardDef
+  | DetentLeverDef
+  | MomentaryButtonDef
+  | RotaryDef
+  | CircuitBreakerDef;
 export type ControlKind = ControlDef['kind'];
 /** What aircraft data authors write. */
 export type ControlSpec = Exclude<ControlDef, GuardDef>;
@@ -233,6 +265,7 @@ const KIND_PREFIX: Readonly<Record<ControlKind, string>> = {
   'detent-lever': 'lv.',
   'momentary-button': 'btn.',
   rotary: 'sw.',
+  'circuit-breaker': 'cb.',
 };
 
 function checkKindPrefix(def: ControlDef): void {
@@ -331,6 +364,39 @@ function checkRotary(def: RotaryDef): void {
   if (!(def.r > 0) || 2 * def.r > Math.min(def.hit.w, def.hit.h)) {
     throw new RegistryError(
       `knob "${def.id}" radius ${def.r} does not fit inside its ${def.hit.w} x ${def.hit.h} hit footprint`,
+    );
+  }
+}
+
+const stripSpaces = (text: string): string => text.replace(/\s+/g, '');
+
+function checkCircuitBreaker(def: CircuitBreakerDef): void {
+  const states = def.states as readonly StateDef[];
+  if (states.length !== 2 || states[0]?.id !== 'in' || states[1]?.id !== 'out') {
+    throw new RegistryError(
+      `breaker "${def.id}" must have exactly the states "in" then "out" (got ${states.map((s) => s.id).join(', ')})`,
+    );
+  }
+  if (def.default !== 'in') {
+    throw new RegistryError(`breaker "${def.id}" must start pushed in (default "${def.default}")`);
+  }
+  if (def.rating.trim() === '') {
+    throw new RegistryError(`breaker "${def.id}" needs a printed rating`);
+  }
+  if (def.labelLines.length === 0 || def.labelLines.some((line) => line.trim() === '')) {
+    throw new RegistryError(`breaker "${def.id}" needs non-empty label lines`);
+  }
+  if (stripSpaces(def.labelLines.join('')) !== stripSpaces(def.label)) {
+    throw new RegistryError(
+      `breaker "${def.id}" label lines "${def.labelLines.join(' ')}" do not match its label "${def.label}"`,
+    );
+  }
+  if (!(BREAKER_GROUPS as readonly string[]).includes(def.group)) {
+    throw new RegistryError(`breaker "${def.id}" has unknown group "${def.group}"`);
+  }
+  if (!(def.hit.w > 0) || !(def.hit.h > 0)) {
+    throw new RegistryError(
+      `breaker "${def.id}" hit ${def.hit.w} x ${def.hit.h} needs positive sides`,
     );
   }
 }
@@ -468,6 +534,7 @@ export function defineRegistry(input: {
     if (spec.kind === 'toggle' || spec.kind === 'guarded-toggle') checkSkinFields(spec);
     if (spec.kind === 'detent-lever') checkLeverSkin(spec);
     if (spec.kind === 'rotary') checkRotary(spec);
+    if (spec.kind === 'circuit-breaker') checkCircuitBreaker(spec);
     checkDefaultLegal(def);
     checkRegionExists(def, regionIds);
     controls.push(def);

@@ -143,7 +143,15 @@ RUBIN mark: text only, centred at (1232, 625) at the left of the flap block, rep
 
 The three ELT position placards ON, ARMED and RESET / TEST stand to the right of the rocker (`src/aircraft/da50rg/placards.ts`).
 
-The bus panel (x 1836..1980, right of the strip plate so the ELT placards stay visible) is drawn as three bracket outlines with the headings ESSENTIAL BUS, MAIN BUS and AVIONICS BUS only. No circuit-breaker shapes exist yet (phase 01.2).
+The bus panel (x 1836..1980, right of the strip plate so the ELT placards stay visible) is drawn as three bracket outlines with the headings ESSENTIAL BUS, MAIN BUS and AVIONICS BUS only. The first circuit breaker (`cb.pitot`, phase 01.2) stands in the new region `cb_essential` on the widened panel, right of this old bus rectangle until the new bus plate is drawn; the section "Circuit breakers (region `cb_essential`)" below lists it.
+
+## Circuit breakers (region `cb_essential`)
+
+The first circuit breaker proves the new control kind (PNL-12). Pushed in is the default: a flush cap with its amp rating and no ring. One tap pulls it out: the cap rises up and to the left with a shadow and a white ring stands around the socket. A second tap pushes it back in. No IN or OUT word is printed (G-0.1); the words exist only as the accessible name. Later plans of phase 01.2 add the other breakers to this section.
+
+| Id | Placard | Assumed kind and skin | Assumed states and default | Centre (tol) | What is uncertain | Photos | File to change |
+| -- | ------- | --------------------- | -------------------------- | ------------ | ----------------- | ------ | -------------- |
+| `cb.pitot` | PITOT, rating 20 on the cap | circuit-breaker, hit 28 x 28, group essential | in, out; default in | 1978, 305 (8) | the label wording and the rating; the position inside the grid (third column, second row of the essential bus); the pulled look is not photographed | P738, P761 | `controls/breakers.ts` |
 
 ## Under panel (regions `under_panel_left`, `under_panel_centre`, `under_panel_right`)
 

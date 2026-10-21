@@ -2,7 +2,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { INDICATOR_POSITIONS, REFERENCE_POSITIONS } from './layout-reference';
+import {
+  ALL_REGION_IDS,
+  CB_REFERENCE,
+  INDICATOR_POSITIONS,
+  REFERENCE_POSITIONS,
+} from './layout-reference';
 
 // D-03, D-06, T-01.1-21: the owner review list exists, is linked from the README and carries
 // no private photo content.
@@ -45,8 +50,11 @@ describe('panel review document basics', () => {
   it('links the label table from the README and states the final counts', () => {
     const readme = read('README.md');
     expect(readme).toContain('](docs/PANEL-LABELS.md)');
-    expect(readme).toContain('41 controls and 13 indicator lamps in 19 regions');
-    expect(readme).not.toContain('42 controls');
+    // The sentence is built from the independent reference tables, not from literals.
+    const controls = REFERENCE_POSITIONS.length + CB_REFERENCE.length;
+    expect(readme).toContain(
+      `${controls} controls and ${INDICATOR_POSITIONS.length} indicator lamps in ${ALL_REGION_IDS.length} regions`,
+    );
   });
 });
 
@@ -67,7 +75,7 @@ describe('panel review hygiene (D-06)', () => {
 });
 
 describe('panel review completeness (D-03, D-10)', () => {
-  const flagged = [...REFERENCE_POSITIONS, ...INDICATOR_POSITIONS]
+  const flagged = [...REFERENCE_POSITIONS, ...CB_REFERENCE, ...INDICATOR_POSITIONS]
     .filter((row) => row.review)
     .map((row) => row.id);
 

@@ -14,6 +14,7 @@
 
 import { defineRegistry } from '../../engine/registry';
 import type { RegionDef, Size } from '../../engine/registry';
+import { BREAKER_CONTROLS, CB_REGIONS } from './controls/breakers';
 import { BUTTON_CONTROLS } from './controls/buttons';
 import { DEICE_CONTROLS } from './controls/deice';
 import { ENGINE_CONTROLS } from './controls/engine';
@@ -86,6 +87,8 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'flaps', name: 'FLAPS', bounds: { x: 1190, y: 608, w: 250, h: 132 } },
   // ELT, lower right.
   { id: 'right_panel', name: 'RIGHT PANEL', bounds: { x: 1720, y: 613, w: 120, h: 107 } },
+  // Circuit-breaker regions of the bus panel (phase 01.2, controls/breakers.ts).
+  ...CB_REGIONS,
   // Under the panel: left of the pilot's left knee.
   { id: 'under_panel_left', name: 'UNDER PANEL L', bounds: { x: 15, y: 745, w: 80, h: 120 } },
   // Left of the pedestal.
@@ -117,5 +120,6 @@ export const DA50RG = defineRegistry({
     ...PEDESTAL_CONTROLS,
     ...GEAR_FLAPS_CONTROLS,
     ...UNDER_PANEL_CONTROLS,
+    ...BREAKER_CONTROLS,
   ],
 });

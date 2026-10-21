@@ -171,6 +171,14 @@ The de-ice unit at the top far left, as the owner described it. It was rebuilt b
 | `sw.deice_ice_light` (three positions since plan 22) | none of its own | ICE LIGHT (above), OFF (right of the middle), ANNUN- / TEST (two lines, below); Q-02 | owner finding | `controls/deice.ts` |
 | `sw.deice_pump` (new in plan 22; replaces `sw.deice_pump1` and `sw.deice_pump2`) | none of its own | PUMP 2 (above), PUMP 1 (below); Q-03 | owner finding | `controls/deice.ts` |
 
+## Circuit breakers
+
+The bus panel at the far right of the panel carries the circuit breakers. Each prints its label above the breaker and its amp rating on the cap; both are the same whether the breaker is pushed in or pulled out. A pulled breaker shows a raised cap and a white ring and prints no IN or OUT word (G-0.1). This section holds the breakers that exist so far; later plans of phase 01.2 add the other rows.
+
+| Id | Static label(s) | Position placards | Basis | File to edit |
+|----|-----------------|-------------------|-------|--------------|
+| `cb.pitot` (new in plan 02) | PITOT above the breaker, rating 20 on the cap | none | assumption | `controls/breakers.ts` |
+
 ## Superseded by the owner findings
 
 These ids existed in the first render and were removed by the plan named; the labels they carried (MODE, WIND SHIELD, PUMP 1, PUMP 2, ANNUN TEST) move to the placards of the new ids above.

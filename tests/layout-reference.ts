@@ -77,6 +77,15 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lv.cowl_flap', x: 1058, y: 1218, tol: 8, review: true },
 ];
 
+/**
+ * Circuit breakers (phase 01.2): global centres of the bus panel grid, typed in independently of
+ * the generator in controls/breakers.ts (columns 1906 + 36 (c - 1), rows A1 261, A2 305, A3 349,
+ * M4 412, M5 456, V6 514, lower row and flap strip at y 690). Later plans append their rows.
+ */
+export const CB_REFERENCE: readonly ReferencePosition[] = [
+  { id: 'cb.pitot', x: 1978, y: 305, tol: 8, review: true },
+];
+
 /** The thirteen derived lamps (seven gear and flap lamps, the ELT lamp, two cowl-flap lamps, three de-ice lamps). */
 export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.gear_nose', x: 916, y: 682, tol: 8, review: true },
@@ -215,6 +224,34 @@ export const ORDERING: readonly OrderRow[] = [
   ['btn.level', 'left-of', 'lt.flap_up'],
   ['lt.elt', 'left-of', 'sw.elt'],
   ['lt.elt', 'same-row', 'sw.elt'],
+];
+
+/**
+ * Every region id of the panel, written out independently of REGIONS: the 19 regions of phase
+ * 01.1 plus the circuit-breaker regions of phase 01.2 (a later plan appends its own). The unit
+ * inventory and the built-panel layout spec both count against this table.
+ */
+export const ALL_REGION_IDS: readonly string[] = [
+  'lights',
+  'deice',
+  'deice_switches',
+  'engine_controls',
+  'pfd',
+  'light_knobs',
+  'mfd',
+  'mfd_softkeys',
+  'switch_bank',
+  'landing_gear',
+  'level',
+  'flaps',
+  'right_panel',
+  'under_panel_left',
+  'under_panel_centre',
+  'env_control',
+  'env_circ',
+  'pedestal',
+  'under_panel_right',
+  'cb_essential',
 ];
 
 export const FRONT_PANEL_REGIONS: readonly string[] = [

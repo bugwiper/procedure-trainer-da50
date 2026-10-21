@@ -17,6 +17,7 @@ import type {
   ToggleDef,
 } from '../src/engine/registry';
 import { targetSide } from '../src/ui/panel/viewport';
+import { CB_REFERENCE, REFERENCE_POSITIONS } from './layout-reference';
 
 // Registry invariant suite (PNL-02). Inline fixtures build the malformed definitions.
 
@@ -542,7 +543,9 @@ describe('DA50RG still passes every invariant', () => {
     expect(DA50RG.get('sw.fuel_trans')?.kind).toBe('rotary');
   });
 
-  it('has 41 non-guard controls after the de-ice rebuild of plan 22', () => {
-    expect(DA50RG.controls.filter((c) => c.kind !== 'guard')).toHaveLength(41);
+  it('has as many non-guard controls as the independent reference tables list', () => {
+    expect(DA50RG.controls.filter((c) => c.kind !== 'guard')).toHaveLength(
+      REFERENCE_POSITIONS.length + CB_REFERENCE.length,
+    );
   });
 });

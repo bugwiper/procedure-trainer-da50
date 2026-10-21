@@ -10,7 +10,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ## Demo controls
 
-The panel has 41 controls and 13 indicator lamps in 19 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
+The panel has 42 controls and 13 indicator lamps in 20 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
 
 - **LIGHTS**, glareshield: LANDING, TAXI, POSITION, STROBE
 - **INSTRUMENT AND FLOOD LIGHT**, between the displays: INSTRUMENT LIGHT and FLOOD LIGHT knobs
@@ -28,6 +28,7 @@ The panel has 41 controls and 13 indicator lamps in 19 regions, placed where the
 - **ENVIRONMENTAL CONTROL**, top of the centre console: FAN, DIRECTION, TEMPERATURE and CIRCULATING AIR, each in its own box with pictograms instead of words
 - **PEDESTAL**: PARKING BRAKE (pulled up to set), THROTTLE (0 to 100 % in 5 % steps), COWL FLAP (CLOSED / OPEN) with its two position lamps
 - **UNDER PANEL R**: ALTERNATE AIR
+- **CIRCUIT BREAKERS ESSENTIAL**, bus panel at the far right: PITOT (the first circuit breaker; a tap pulls it out, showing a raised cap and a white ring, a second tap pushes it back in)
 
 How it behaves:
 

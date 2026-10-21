@@ -1,27 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator } from '@playwright/test';
+import { ALL_REGION_IDS } from '../tests/layout-reference';
 
-const REGION_IDS = [
-  'lights',
-  'deice',
-  'deice_switches',
-  'engine_controls',
-  'pfd',
-  'light_knobs',
-  'mfd',
-  'mfd_softkeys',
-  'switch_bank',
-  'landing_gear',
-  'level',
-  'flaps',
-  'right_panel',
-  'under_panel_left',
-  'under_panel_centre',
-  'env_control',
-  'env_circ',
-  'pedestal',
-  'under_panel_right',
-];
 const TOLERANCE_PX = 0.5;
 
 // Mouse projects click, touch projects tap; both reach the same pointer handlers.
@@ -51,8 +31,8 @@ test('no horizontal scroll and the whole panel is visible', async ({ page }) => 
   expect(svg.y + svg.height).toBeLessThanOrEqual(metrics.innerHeight + TOLERANCE_PX);
 
   const regions = page.locator('[data-region-id]');
-  await expect(regions).toHaveCount(REGION_IDS.length);
-  for (const id of REGION_IDS) {
+  await expect(regions).toHaveCount(ALL_REGION_IDS.length);
+  for (const id of ALL_REGION_IDS) {
     const box = await page.locator(`[data-region-id="${id}"]`).boundingBox();
     if (box === null) throw new Error(`region ${id} has no bounding box`);
     expect(box.x, id).toBeGreaterThanOrEqual(svg.x - TOLERANCE_PX);

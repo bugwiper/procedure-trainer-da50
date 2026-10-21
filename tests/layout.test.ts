@@ -7,6 +7,8 @@ import { BEZEL_EXTRA } from '../src/engine/indicators';
 import type { ControlDef, Rect } from '../src/engine/registry';
 import { BEZEL_RADIUS, buttonTextLayout, textWidth } from '../src/ui/panel/skins/PushButton';
 import {
+  ALL_REGION_IDS,
+  CB_REFERENCE,
   FRONT_PANEL_REGIONS,
   INDICATOR_POSITIONS,
   ORDERING,
@@ -114,7 +116,10 @@ describe('viewBox and regions', () => {
     for (const row of [...REFERENCE_POSITIONS, ...INDICATOR_POSITIONS]) {
       expect(row.x, row.id).toBeLessThan(1980);
     }
-    const rights = DA50RG.regions.filter((r) => r.bounds.x + r.bounds.w > 1980).map((r) => r.id);
+    // The circuit-breaker regions (cb_*) are the new content of the widened strip.
+    const rights = DA50RG.regions
+      .filter((r) => !r.id.startsWith('cb_') && r.bounds.x + r.bounds.w > 1980)
+      .map((r) => r.id);
     expect(rights).toEqual([]);
   });
 
@@ -222,7 +227,11 @@ describe('control footprints', () => {
 });
 
 describe('true-proportion reference positions (D-21)', () => {
-  for (const { id, x, y, tol, review } of [...REFERENCE_POSITIONS, ...INDICATOR_POSITIONS]) {
+  for (const { id, x, y, tol, review } of [
+    ...REFERENCE_POSITIONS,
+    ...CB_REFERENCE,
+    ...INDICATOR_POSITIONS,
+  ]) {
     const def = DA50RG_INDICATORS.get(id) ?? DA50RG.get(id);
     (def === undefined ? it.skip : it)(
       `${id} sits at ${x}, ${y} within ${tol}${review ? ' (review)' : ''}`,
@@ -236,9 +245,9 @@ describe('true-proportion reference positions (D-21)', () => {
   }
 
   it('the reference tables cover every non-guard control and every lamp exactly once', () => {
-    const controlRows = REFERENCE_POSITIONS.map((r) => r.id);
+    const controlRows = [...REFERENCE_POSITIONS, ...CB_REFERENCE].map((r) => r.id);
     const lampRows = INDICATOR_POSITIONS.map((r) => r.id);
-    expect(new Set(controlRows).size, 'duplicate id in REFERENCE_POSITIONS').toBe(
+    expect(new Set(controlRows).size, 'duplicate id in the control reference tables').toBe(
       controlRows.length,
     );
     expect(new Set(lampRows).size, 'duplicate id in INDICATOR_POSITIONS').toBe(lampRows.length);
@@ -252,7 +261,7 @@ describe('true-proportion reference positions (D-21)', () => {
   });
 
   it('every non-guard control appears in the reference table', () => {
-    const known = new Set(REFERENCE_POSITIONS.map((r) => r.id));
+    const known = new Set([...REFERENCE_POSITIONS, ...CB_REFERENCE].map((r) => r.id));
     for (const def of DA50RG.controls) {
       if (def.kind === 'guard') continue;
       expect(known.has(def.id), `${def.id} has no reference position`).toBe(true);
@@ -426,17 +435,18 @@ describe('reference ordering (PNL-08, D-19)', () => {
 // exist yet (so later phases can add rows early); this block is what fails if a control or
 // lamp of the inventory goes missing, so no reference or ordering row is ever skipped silently.
 describe('inventory complete', () => {
-  // Final inventory after the gap-closure plans 12 to 22 (plan 23, Table F1): the de-ice unit lost
-  // the lever, the WIND SHIELD toggle, the two PUMP toggles and the ANNUN TEST button and gained the
-  // mode toggle, MAX, the WIND SHIELD button and one PUMP toggle (net minus one from 42).
-  it('has exactly 41 non-guard controls, 13 lamps and 19 regions', () => {
-    expect(DA50RG.controls.filter((c) => c.kind !== 'guard')).toHaveLength(41);
-    expect(DA50RG_INDICATORS.indicators).toHaveLength(13);
-    expect(DA50RG.regions).toHaveLength(19);
+  // The counts come from the independent reference tables, never from the registry under test
+  // and never from a literal: a new control, lamp or region must be added to its table first.
+  it('the control, lamp and region counts equal the independent reference tables', () => {
+    expect(DA50RG.controls.filter((c) => c.kind !== 'guard')).toHaveLength(
+      REFERENCE_POSITIONS.length + CB_REFERENCE.length,
+    );
+    expect(DA50RG_INDICATORS.indicators).toHaveLength(INDICATOR_POSITIONS.length);
+    expect(DA50RG.regions.map((r) => r.id).sort()).toEqual([...ALL_REGION_IDS].sort());
   });
 
   it('every reference position resolves to a DA50RG control', () => {
-    for (const row of REFERENCE_POSITIONS) {
+    for (const row of [...REFERENCE_POSITIONS, ...CB_REFERENCE]) {
       expect(DA50RG.get(row.id), row.id).toBeDefined();
     }
   });
