@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { createPressArbiter } from '../src/ui/panel/press-arbiter';
+import {
+  DRAG_START_PX,
+  MOMENTARY_HOLD_MS,
+  createPressArbiter,
+} from '../src/ui/panel/press-arbiter';
 import type { PressEffect, PointerSample, TargetDescriptor } from '../src/ui/panel/press-arbiter';
 import { MOUSE_SLOP_PX, TAP_MAX_MS, TOUCH_SLOP_PX, slopPx } from '../src/ui/panel/tap-intent';
 import type { PointerKind } from '../src/ui/panel/tap-intent';
@@ -10,6 +14,9 @@ import type { PointerKind } from '../src/ui/panel/tap-intent';
 
 const BACKGROUND: TargetDescriptor = { cls: 'background', key: null };
 const OWN: TargetDescriptor = { cls: 'own', key: 'lever.gear', dragStartPx: 0 };
+const LATCH: TargetDescriptor = { cls: 'latch', key: 'sw.fuel_trans' };
+const MOMENTARY: TargetDescriptor = { cls: 'momentary', key: 'btn.start' };
+const DRAG: TargetDescriptor = { cls: 'own', key: 'lever.throttle', dragStartPx: DRAG_START_PX };
 
 function sample(
   id: number,
@@ -282,6 +289,359 @@ describe('stale records, cancel, reset, untracked pointers', () => {
     expect(m.nextDeadline()).toBeNull();
     m.down(sample(3, 10, 10, 2), BACKGROUND);
     expect(types(m.up(sample(3, 10, 10, 3)))).toEqual(['tap']);
+  });
+});
+
+describe('latch pointer', () => {
+  it('down emits pending on and nothing else; the state is pending', () => {
+    const m = createPressArbiter();
+    expect(m.down(sample(1, 50, 60, 0), LATCH)).toEqual([
+      { type: 'pending', id: 1, key: 'sw.fuel_trans', on: true },
+    ]);
+    expect(m.stateOf(1)).toBe('pending');
+    expect(m.nextDeadline()).toBeNull();
+  });
+
+  for (const kind of ['touch', 'mouse'] as const) {
+    it(`a ${kind} lift within the slop is a tap with the key, both points and the duration`, () => {
+      const slop = slopPx(kind);
+      const m = createPressArbiter();
+      m.down(sample(1, 50, 60, 1000, kind), LATCH);
+      expect(m.move(sample(1, 50 + slop, 60, 1010, kind))).toEqual([]);
+      const up = m.up(sample(1, 50, 60 + slop, 1100, kind));
+      expect(up).toEqual([
+        { type: 'pending', id: 1, key: 'sw.fuel_trans', on: false },
+        {
+          type: 'tap',
+          id: 1,
+          key: 'sw.fuel_trans',
+          down: { x: 50, y: 60 },
+          up: { x: 50, y: 60 + slop },
+          durationMs: 100,
+          at: 1100,
+          quick: true,
+        },
+      ]);
+      expect(m.stateOf(1)).toBeUndefined();
+    });
+  }
+
+  it('a press longer than TAP_MAX_MS within the slop is still a tap with quick false', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 0), LATCH);
+    const tap = only(m.up(sample(1, 50, 60, TAP_MAX_MS + 1)), 'tap')[0];
+    expect(tap?.quick).toBe(false);
+    expect(tap?.durationMs).toBe(TAP_MAX_MS + 1);
+  });
+
+  for (const kind of ['touch', 'mouse'] as const) {
+    it(`a ${kind} move beyond the slop discards the press once and the pointer pans from its down point`, () => {
+      const slop = slopPx(kind);
+      const m = createPressArbiter();
+      m.down(sample(1, 50, 60, 0, kind), LATCH);
+      const moved = m.move(sample(1, 50 + slop + 1, 60, 10, kind));
+      expect(moved).toEqual([
+        { type: 'pending', id: 1, key: 'sw.fuel_trans', on: false },
+        { type: 'discard', id: 1, key: 'sw.fuel_trans' },
+        { type: 'pair-break' },
+        { type: 'pan', id: 1, dx: slop + 1, dy: 0 },
+      ]);
+      expect(m.stateOf(1)).toBe('view');
+      const again = m.move(sample(1, 50 + slop + 4, 60, 20, kind));
+      expect(again).toEqual([{ type: 'pan', id: 1, dx: 3, dy: 0 }]);
+      // Its lift is no tap and nothing else of the control.
+      expect(types(m.up(sample(1, 50 + slop + 4, 60, 30, kind)))).toEqual(['pair-break']);
+    });
+  }
+
+  it('a lift beyond the slop without a move discards the press', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 0), LATCH);
+    expect(types(m.up(sample(1, 50 + TOUCH_SLOP_PX + 1, 60, 10)))).toEqual([
+      'pending',
+      'discard',
+      'pair-break',
+    ]);
+  });
+
+  it('a second pointer discards the pending press and both pinch; neither taps on lift', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 0), LATCH);
+    const second = m.down(sample(2, 250, 60, 5, 'touch', false), LATCH);
+    expect(second).toEqual([
+      { type: 'pending', id: 1, key: 'sw.fuel_trans', on: false },
+      { type: 'discard', id: 1, key: 'sw.fuel_trans' },
+      { type: 'pair-break' },
+    ]);
+    expect(m.stateOf(1)).toBe('view');
+    expect(m.stateOf(2)).toBe('view');
+    expect(types(m.move(sample(2, 270, 60, 10, 'touch', false)))).toEqual(['pinch']);
+    expect(only(m.up(sample(2, 270, 60, 15, 'touch', false)), 'tap')).toEqual([]);
+    expect(only(m.up(sample(1, 50, 60, 20)), 'tap')).toEqual([]);
+  });
+
+  it('cancel discards the press and emits no tap; a latch never emits press or release', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 0), LATCH);
+    const cancelled = m.cancel(1);
+    expect(types(cancelled)).toEqual(['pending', 'discard', 'pair-break']);
+    expect(m.up(sample(1, 50, 60, 10))).toEqual([]);
+
+    const m2 = createPressArbiter();
+    const all = [
+      ...m2.down(sample(1, 50, 60, 0), LATCH),
+      ...m2.move(sample(1, 60, 60, 5)),
+      ...m2.tick(10_000),
+      ...m2.up(sample(1, 60, 60, 10)),
+    ];
+    expect(types(all)).not.toContain('press');
+    expect(types(all)).not.toContain('release');
+  });
+
+  it('a latch pointer is blocked by a held momentary and by an owned pointer', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 10, 10, 0), OWN);
+    expect(m.down(sample(2, 50, 60, 1, 'touch', false), LATCH)).toEqual([]);
+    expect(m.stateOf(2)).toBe('ignored');
+  });
+});
+
+describe('momentary pointer', () => {
+  it('down emits pair-break only and the deadline is the down time plus MOMENTARY_HOLD_MS', () => {
+    const m = createPressArbiter();
+    expect(types(m.down(sample(1, 50, 60, 1000), MOMENTARY))).toEqual(['pair-break']);
+    expect(m.stateOf(1)).toBe('pending');
+    expect(m.nextDeadline()).toBe(1000 + MOMENTARY_HOLD_MS);
+  });
+
+  it('tick before the deadline emits nothing; at the deadline it commits the press once', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 1000), MOMENTARY);
+    expect(m.tick(1000 + MOMENTARY_HOLD_MS - 1)).toEqual([]);
+    expect(m.stateOf(1)).toBe('pending');
+    const press = m.tick(1000 + MOMENTARY_HOLD_MS);
+    expect(press).toEqual([{ type: 'press', id: 1, key: 'btn.start', at: { x: 50, y: 60 } }]);
+    expect(m.stateOf(1)).toBe('held');
+    expect(m.tick(1000 + MOMENTARY_HOLD_MS + 500)).toEqual([]);
+    expect(m.nextDeadline()).toBeNull();
+  });
+
+  it('a lift before the deadline without movement is a quick tap: press then release', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 1000), MOMENTARY);
+    const up = m.up(sample(1, 50, 60, 1000 + MOMENTARY_HOLD_MS - 1));
+    expect(up).toEqual([
+      { type: 'press', id: 1, key: 'btn.start', at: { x: 50, y: 60 } },
+      { type: 'release', id: 1, key: 'btn.start' },
+    ]);
+    expect(m.nextDeadline()).toBeNull();
+    expect(m.tick(5000)).toEqual([]);
+  });
+
+  for (const kind of ['touch', 'mouse'] as const) {
+    it(`a ${kind} move beyond the slop before the commit discards and pans, never presses`, () => {
+      const slop = slopPx(kind);
+      const m = createPressArbiter();
+      m.down(sample(1, 50, 60, 1000, kind), MOMENTARY);
+      expect(m.move(sample(1, 50 + slop, 60, 1010, kind))).toEqual([]);
+      const moved = m.move(sample(1, 50 + slop + 1, 60, 1020, kind));
+      expect(moved).toEqual([
+        { type: 'discard', id: 1, key: 'btn.start' },
+        { type: 'pair-break' },
+        { type: 'pan', id: 1, dx: slop + 1, dy: 0 },
+      ]);
+      expect(m.stateOf(1)).toBe('view');
+      expect(m.nextDeadline()).toBeNull();
+      expect(m.tick(1000 + MOMENTARY_HOLD_MS)).toEqual([]);
+      expect(types(m.up(sample(1, 50 + slop + 1, 60, 1200, kind)))).toEqual(['pair-break']);
+    });
+  }
+
+  it('a second pointer before the commit discards and starts a pinch, no press', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 1000), MOMENTARY);
+    const second = m.down(sample(2, 250, 60, 1050, 'touch', false), LATCH);
+    expect(second).toEqual([{ type: 'discard', id: 1, key: 'btn.start' }, { type: 'pair-break' }]);
+    expect(m.nextDeadline()).toBeNull();
+    expect(m.tick(2000)).toEqual([]);
+    expect(types(m.move(sample(2, 270, 60, 1060, 'touch', false)))).toEqual(['pinch']);
+  });
+
+  it('once held every move emits nothing, a second pointer is ignored, the lift releases once', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 1000), MOMENTARY);
+    m.tick(1000 + MOMENTARY_HOLD_MS);
+    expect(m.move(sample(1, 50 + TOUCH_SLOP_PX * 20, 60, 1500))).toEqual([]);
+    expect(m.down(sample(2, 250, 60, 1600, 'touch', false), BACKGROUND)).toEqual([]);
+    expect(m.stateOf(2)).toBe('ignored');
+    expect(m.move(sample(2, 300, 60, 1650, 'touch', false))).toEqual([]);
+    expect(m.up(sample(2, 300, 60, 1700, 'touch', false))).toEqual([]);
+    expect(m.up(sample(1, 50, 60, 1800))).toEqual([{ type: 'release', id: 1, key: 'btn.start' }]);
+    expect(m.tick(5000)).toEqual([]);
+    expect(m.up(sample(1, 50, 60, 1900))).toEqual([]);
+  });
+
+  it('a cancel of a held press releases exactly once, so the control is never stuck', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 1000), MOMENTARY);
+    m.tick(1000 + MOMENTARY_HOLD_MS);
+    const cancelled = m.cancel(1);
+    expect(only(cancelled, 'release')).toEqual([{ type: 'release', id: 1, key: 'btn.start' }]);
+    expect(types(cancelled)).toEqual(['release', 'pair-break']);
+    expect(m.cancel(1)).toEqual([]);
+    expect(m.up(sample(1, 50, 60, 1500))).toEqual([]);
+  });
+
+  it('a cancel before the commit discards and never presses', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 1000), MOMENTARY);
+    expect(types(m.cancel(1))).toEqual(['discard', 'pair-break']);
+    expect(m.nextDeadline()).toBeNull();
+    expect(m.tick(5000)).toEqual([]);
+  });
+
+  it('nextDeadline is null when nothing is pending and again once the press was taken away', () => {
+    const m = createPressArbiter();
+    expect(m.nextDeadline()).toBeNull();
+    m.down(sample(1, 50, 60, 1000, 'mouse'), MOMENTARY);
+    expect(m.nextDeadline()).toBe(1000 + MOMENTARY_HOLD_MS);
+    // A second pointer (any kind) takes the pending press away: it becomes a pinch.
+    m.down(sample(2, 90, 60, 1040, 'touch'), MOMENTARY);
+    expect(m.nextDeadline()).toBeNull();
+  });
+});
+
+describe('own pointer with a drag threshold', () => {
+  it('is pending and silent until its travel reaches dragStartPx (inclusive), then owned', () => {
+    const m = createPressArbiter();
+    expect(types(m.down(sample(1, 10, 10, 0), DRAG))).toEqual(['pair-break']);
+    expect(m.stateOf(1)).toBe('pending');
+    expect(m.move(sample(1, 10 + DRAG_START_PX - 1, 10, 5))).toEqual([]);
+    expect(m.stateOf(1)).toBe('pending');
+    expect(m.move(sample(1, 10 + DRAG_START_PX, 10, 10))).toEqual([]);
+    expect(m.stateOf(1)).toBe('owned');
+    expect(m.down(sample(2, 300, 300, 15, 'touch', false), BACKGROUND)).toEqual([]);
+    expect(m.stateOf(2)).toBe('ignored');
+  });
+
+  it('a second pointer before the threshold takes it away: discard, pair-break, pinch', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 10, 10, 0), DRAG);
+    const second = m.down(sample(2, 300, 300, 5, 'touch', false), BACKGROUND);
+    expect(second).toEqual([
+      { type: 'discard', id: 1, key: 'lever.throttle' },
+      { type: 'pair-break' },
+    ]);
+    expect(m.stateOf(1)).toBe('view');
+    expect(types(m.move(sample(2, 320, 300, 10, 'touch', false)))).toEqual(['pinch']);
+  });
+
+  it('never emits tap, press, release, pan or pinch for its own pointer', () => {
+    const m = createPressArbiter();
+    const all = [
+      ...m.down(sample(1, 10, 10, 0), DRAG),
+      ...m.move(sample(1, 10 + DRAG_START_PX * 10, 10, 5)),
+      ...m.move(sample(1, 10 + DRAG_START_PX * 20, 10, 10)),
+      ...m.up(sample(1, 10 + DRAG_START_PX * 20, 10, 15)),
+    ];
+    expect(types(all)).toEqual(['pair-break']);
+  });
+
+  it('up and cancel of a pending-own pointer drop it without effects', () => {
+    const up = createPressArbiter();
+    up.down(sample(1, 10, 10, 0), DRAG);
+    expect(up.up(sample(1, 10, 10, 5))).toEqual([]);
+    expect(up.stateOf(1)).toBeUndefined();
+    const cancel = createPressArbiter();
+    cancel.down(sample(1, 10, 10, 0), DRAG);
+    expect(cancel.cancel(1)).toEqual([]);
+    expect(cancel.stateOf(1)).toBeUndefined();
+  });
+
+  it('a stale pending-own record is swept with a discard by the next primary pointer', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 10, 10, 0), DRAG);
+    expect(m.down(sample(2, 300, 300, 100), BACKGROUND)).toEqual([
+      { type: 'discard', id: 1, key: 'lever.throttle' },
+      { type: 'pair-break' },
+    ]);
+    expect(m.stateOf(2)).toBe('view');
+  });
+});
+
+describe('stale sweep and reset with every class', () => {
+  it('a stale held momentary is released by the sweep, a stale pending latch is discarded', () => {
+    const held = createPressArbiter();
+    held.down(sample(1, 50, 60, 0), MOMENTARY);
+    held.tick(MOMENTARY_HOLD_MS);
+    expect(held.down(sample(2, 300, 300, 1000), BACKGROUND)).toEqual([
+      { type: 'release', id: 1, key: 'btn.start' },
+      { type: 'pair-break' },
+    ]);
+    expect(held.stateOf(2)).toBe('view');
+
+    const latch = createPressArbiter();
+    latch.down(sample(1, 50, 60, 0), LATCH);
+    expect(latch.down(sample(2, 300, 300, 1000), BACKGROUND)).toEqual([
+      { type: 'pending', id: 1, key: 'sw.fuel_trans', on: false },
+      { type: 'discard', id: 1, key: 'sw.fuel_trans' },
+      { type: 'pair-break' },
+    ]);
+  });
+
+  it('reset discards every pending press, releases every held one and clears the machine', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 50, 60, 0, 'mouse'), MOMENTARY);
+    m.tick(MOMENTARY_HOLD_MS);
+    // A held press blocks every other pointer: this one is only tracked as ignored.
+    m.down(sample(2, 90, 60, 10, 'touch'), LATCH);
+    const effects = m.reset();
+    expect(effects).toEqual([{ type: 'release', id: 1, key: 'btn.start' }]);
+    expect(m.stateOf(1)).toBeUndefined();
+    expect(m.stateOf(2)).toBeUndefined();
+    expect(m.nextDeadline()).toBeNull();
+
+    const pending = createPressArbiter();
+    pending.down(sample(1, 50, 60, 0), LATCH);
+    expect(pending.reset()).toEqual([
+      { type: 'pending', id: 1, key: 'sw.fuel_trans', on: false },
+      { type: 'discard', id: 1, key: 'sw.fuel_trans' },
+    ]);
+    const momentary = createPressArbiter();
+    momentary.down(sample(1, 50, 60, 0), MOMENTARY);
+    expect(momentary.reset()).toEqual([{ type: 'discard', id: 1, key: 'btn.start' }]);
+    expect(momentary.nextDeadline()).toBeNull();
+  });
+
+  it('mixing kinds keeps their slops separate: a mouse press and a touch press', () => {
+    const between = MOUSE_SLOP_PX + 1;
+    const mouse = createPressArbiter();
+    mouse.down(sample(1, 0, 0, 0, 'mouse'), LATCH);
+    expect(types(mouse.move(sample(1, between, 0, 5, 'mouse')))).toContain('discard');
+    const touch = createPressArbiter();
+    touch.down(sample(1, 0, 0, 0, 'touch'), LATCH);
+    expect(touch.move(sample(1, between, 0, 5, 'touch'))).toEqual([]);
+    expect(types(touch.up(sample(1, between, 0, 10, 'touch')))).toContain('tap');
+  });
+
+  it('stateOf reports pending, held, view, owned, ignored and undefined through the sequences', () => {
+    const m = createPressArbiter();
+    expect(m.stateOf(1)).toBeUndefined();
+    m.down(sample(1, 50, 60, 0, 'mouse'), MOMENTARY);
+    expect(m.stateOf(1)).toBe('pending');
+    m.tick(MOMENTARY_HOLD_MS);
+    expect(m.stateOf(1)).toBe('held');
+    m.down(sample(2, 90, 60, 10, 'touch'), BACKGROUND);
+    expect(m.stateOf(2)).toBe('ignored');
+    m.up(sample(1, 50, 60, 40, 'mouse'));
+    expect(m.stateOf(1)).toBeUndefined();
+    expect(m.stateOf(2)).toBe('ignored');
+    const view = createPressArbiter();
+    view.down(sample(1, 90, 60, 10), BACKGROUND);
+    expect(view.stateOf(1)).toBe('view');
+    const own = createPressArbiter();
+    own.down(sample(1, 10, 10, 0), OWN);
+    expect(own.stateOf(1)).toBe('owned');
   });
 });
 
