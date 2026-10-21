@@ -145,7 +145,7 @@ Plans:
   3. The audio panel, autopilot panel and backup EFIS are visible in their real positions and look like the real units; their buttons do nothing for now.
   4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.
 
-**Plans:** 8/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
+**Plans:** 9/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
 
 Plans:
 **Wave 1**
@@ -173,7 +173,7 @@ Plans:
 - [x] 01.2-08-PLAN.md — Audio panel, backup EFIS and autopilot panel
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 01.2-09-PLAN.md — Label and review documents, README, deferred-behaviour todo, final gates and morning-review list
+- [x] 01.2-09-PLAN.md — Label and review documents, README, deferred-behaviour todo, final gates and morning-review list
 
 ### Phase 2: First Gradable Scenario
 
