@@ -27,9 +27,11 @@ import { UNDER_PANEL_CONTROLS } from './controls/under-panel';
 
 /**
  * True panel proportions: the glareshield strip above the displays, the front panel, and the
- * centre console area below (UI-SPEC "Coordinate Space and Regions", D-02).
+ * centre console area below (UI-SPEC "Coordinate Space and Regions", D-02). Phase 01.2 widened the
+ * space from 2000 to 2180 by adding 180 units on the right only (owner decision U-01): every
+ * region, plate and control left of x 1980 keeps its coordinates.
  */
-export const VIEWBOX: Size = { w: 2000, h: 1300 };
+export const VIEWBOX: Size = { w: 2180, h: 1300 };
 
 /**
  * Every Phase 1 front-panel y moved down by this much when the glareshield strip was added

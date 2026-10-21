@@ -102,8 +102,8 @@ describe('pinchRect', () => {
   });
 
   it('stays inside the viewBox', () => {
-    const corner: Rect = { x: 1700, y: 800, w: 300, h: 210 };
-    const r = pinchRect(corner, { x: 2000, y: 1010 }, 0.8, VIEWBOX);
+    const corner: Rect = { x: VIEWBOX.w - 300, y: 800, w: 300, h: 210 };
+    const r = pinchRect(corner, { x: VIEWBOX.w, y: 1010 }, 0.8, VIEWBOX);
     expect(inside(r, FULL)).toBe(true);
     const r2 = pinchRect(view, { x: 0, y: 0 }, 3, VIEWBOX);
     expect(inside(r2, FULL)).toBe(true);

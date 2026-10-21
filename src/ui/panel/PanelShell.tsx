@@ -13,9 +13,14 @@ import { detentOffset } from '../../engine/detents';
 import { paint } from './Defs';
 
 // Static shell art under all regions (UI-SPEC "Panel Surface", D-01, D-02, D-06). Original flat
-// vector work in the final 2000 x 1300 space: solid fills, shared gradients and strokes only.
+// vector work in the final 2180 x 1300 space: solid fills, shared gradients and strokes only.
+// The space was widened by 180 units on the right only (phase 01.2 owner decision U-01); the shell
+// silhouette stretches with it and nothing left of x 1956 changed.
 // Every element is decorative: the root has pointer-events none and nothing here carries a
 // pointer handler or a tap-target attribute, so taps on art emit no control event (P1 D-09).
+
+/** Width added on the right of the 2000 wide phase 01.1 space (owner decision U-01). */
+const RIGHT_EXTENSION = 180;
 
 const BEZEL_GROW = 16;
 const BEZEL_FILL = '#0c0d0f';
@@ -54,13 +59,13 @@ function Plate({ id }: { id: string }) {
 }
 
 /** Layer 2: dark knee cavity under the face plate, the console body stands on it. */
-function KneeCavity() {
-  return <rect data-shell="knee-cavity" x={0} y={745} width={2000} height={555} fill="#0e1013" />;
+function KneeCavity({ width }: { width: number }) {
+  return <rect data-shell="knee-cavity" x={0} y={745} width={width} height={555} fill="#0e1013" />;
 }
 
-/** Layer 3: face plate x 20..1980, y 190..745, upper corners rx 24, lower corners rx 40. */
-const FACE_PLATE_PATH =
-  'M44 190 H1956 A24 24 0 0 1 1980 214 V705 A40 40 0 0 1 1940 745 H60 A40 40 0 0 1 20 705 V214 A24 24 0 0 1 44 190 Z';
+/** Layer 3: face plate x 20..2160, y 190..745, upper corners rx 24, lower corners rx 40. */
+const FACE_RIGHT = 1980 + RIGHT_EXTENSION;
+const FACE_PLATE_PATH = `M44 190 H${FACE_RIGHT - 24} A24 24 0 0 1 ${FACE_RIGHT} 214 V705 A40 40 0 0 1 ${FACE_RIGHT - 40} 745 H60 A40 40 0 0 1 20 705 V214 A24 24 0 0 1 44 190 Z`;
 
 function FacePlate() {
   return (
@@ -68,13 +73,13 @@ function FacePlate() {
       <path d={FACE_PLATE_PATH} fill={paint('g-plate')} />
       {/* Light from the top left: 1-unit light edge on top and left, dark edge bottom and right. */}
       <path
-        d="M20.5 705 V214 A23.5 23.5 0 0 1 44 190.5 H1956"
+        d={`M20.5 705 V214 A23.5 23.5 0 0 1 44 190.5 H${FACE_RIGHT - 24}`}
         fill="none"
         stroke="rgba(255,255,255,0.14)"
         stroke-width={1}
       />
       <path
-        d="M1979.5 214 V705 A39.5 39.5 0 0 1 1940 744.5 H60 A39.5 39.5 0 0 1 20.5 705"
+        d={`M${FACE_RIGHT - 0.5} 214 V705 A39.5 39.5 0 0 1 ${FACE_RIGHT - 40} 744.5 H60 A39.5 39.5 0 0 1 20.5 705`}
         fill="none"
         stroke="rgba(0,0,0,0.6)"
         stroke-width={1}
@@ -84,11 +89,10 @@ function FacePlate() {
 }
 
 /** Layer 5: leather coaming with the glareshield hump spanning x 880..1380 (centre 1130). */
-const COAMING_PATH =
-  'M0 190 L0 130 Q0 100 40 96 L760 84 Q820 82 850 56 L880 24 Q890 12 910 12 L1350 12 Q1370 12 1380 24 L1410 56 Q1440 82 1500 84 L1960 96 Q2000 100 2000 130 L2000 190 Z';
+const COAMING_RIGHT = 2000 + RIGHT_EXTENSION;
+const COAMING_PATH = `M0 190 L0 130 Q0 100 40 96 L760 84 Q820 82 850 56 L880 24 Q890 12 910 12 L1350 12 Q1370 12 1380 24 L1410 56 Q1440 82 1500 84 L${COAMING_RIGHT - 40} 96 Q${COAMING_RIGHT} 100 ${COAMING_RIGHT} 130 L${COAMING_RIGHT} 190 Z`;
 /** The stitch line follows the top edge, inset 8. */
-const COAMING_STITCH_PATH =
-  'M8 190 L8 134 Q8 108 44 104 L760 92 Q828 90 858 64 L888 32 Q896 20 910 20 L1350 20 Q1364 20 1372 32 L1402 64 Q1432 90 1500 92 L1956 104 Q1992 108 1992 134 L1992 190';
+const COAMING_STITCH_PATH = `M8 190 L8 134 Q8 108 44 104 L760 92 Q828 90 858 64 L888 32 Q896 20 910 20 L1350 20 Q1364 20 1372 32 L1402 64 Q1432 90 1500 92 L${COAMING_RIGHT - 44} 104 Q${COAMING_RIGHT - 8} 108 ${COAMING_RIGHT - 8} 134 L${COAMING_RIGHT - 8} 190`;
 
 function Coaming() {
   return (
@@ -551,7 +555,7 @@ export function PanelShell({ registry }: { registry: Registry }) {
   const mfd = registry.regions.find((r) => r.id === 'mfd');
   return (
     <g data-layer="shell" pointer-events="none">
-      <KneeCavity />
+      <KneeCavity width={registry.viewBox.w} />
       <ConsoleBody />
       <FacePlate />
       <Coaming />

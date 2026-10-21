@@ -1,11 +1,18 @@
 // Shared layout reference for the DA50 RG panel (PNL-08, D-03). Not a test file: imported by
-// tests/layout.test.ts. Positions are global centres in the 2000 x 1300 space, layout facts
-// read from the private reference photos named in the UI-SPEC (git-ignored), never copied or
+// tests/layout.test.ts. Positions are global centres in the 2180 x 1300 space (the 180 units on
+// the right were added in phase 01.2; positions left of x 1980 are the ones of phase 01.1), layout
+// facts read from the private reference photos named in the UI-SPEC (git-ignored), never copied or
 // traced (D-06). `review` marks every row the owner must check after the first render (D-03).
 // `tol` is the allowed distance on each axis: 3 for a confirmed position, 8 for an unconfirmed
 // one, 12 for the de-ice panel. The UI-SPEC id sw.stall_gear_test is recorded under its registry
 // id btn.stall_gear_test (PD-04); sw.deice_mode is the three-position toggle of plan 21.
 // A row whose control does not exist yet is skipped by the test, never counted as a pass.
+
+/**
+ * The panel space as an independent literal (phase 01.2 owner decision U-01): tests and e2e specs
+ * read the width from here, never from src, so a changed registry viewBox is caught.
+ */
+export const PANEL_VIEWBOX = { w: 2180, h: 1300 } as const;
 
 export interface ReferencePosition {
   readonly id: string;

@@ -48,7 +48,7 @@ interface PanelGeometry {
 
 test.beforeEach(async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'geometry gate runs on desktop-chromium');
-  await page.setViewportSize({ width: 2000, height: 1400 });
+  await page.setViewportSize({ width: 2200, height: 1400 });
   await page.goto('./');
   await expect(page.getByTestId('panel')).toBeVisible();
 });

@@ -8,6 +8,7 @@ import { LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
 import { ENV_BOXES, HEADING_FRAME, PLATES, PLATE_HEADINGS } from '../src/aircraft/da50rg/plates';
 import { DEF_IDS, Defs } from '../src/ui/panel/Defs';
 import { PanelShell, groupBoxPath, temperatureTriangle } from '../src/ui/panel/PanelShell';
+import { PANEL_VIEWBOX } from './layout-reference';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 
 // PNL-10, D-01, D-02, D-06, T-01.1-05: the static shell is pure, handler-free flat vector art.
@@ -37,6 +38,44 @@ describe('PanelShell purity (P1 D-09)', () => {
 
   it('draws a real number of elements (not an empty shell)', () => {
     expect(countElements(shell)).toBeGreaterThan(60);
+  });
+});
+
+describe('shell silhouette follows the 2180 wide panel space (U-01)', () => {
+  /** Largest absolute x number in a path whose commands are absolute. */
+  function maxX(d: string): number {
+    const xs: number[] = [];
+    for (const m of d.matchAll(/[MLHQAV]\s*([^MLHQAVZ]*)/g)) {
+      const cmd = m[0][0];
+      const nums = (m[1] ?? '')
+        .trim()
+        .split(/[\s,]+/)
+        .filter(Boolean)
+        .map(Number);
+      if (cmd === 'H') xs.push(...nums);
+      else if (cmd === 'M' || cmd === 'L') xs.push(nums[0] ?? 0);
+      else if (cmd === 'Q') xs.push(nums[0] ?? 0, nums[2] ?? 0);
+      else if (cmd === 'A') xs.push(nums[5] ?? 0);
+    }
+    return Math.max(...xs);
+  }
+
+  it('the knee cavity is as wide as the viewBox', () => {
+    const cavity = findElements(shell, (el) => el.props['data-shell'] === 'knee-cavity')[0];
+    expect(cavity?.props['width']).toBe(PANEL_VIEWBOX.w);
+  });
+
+  it('the face plate ends at x 2160 and the coaming at x 2180', () => {
+    const plate = findElements(shell, (el) => el.props['data-shell'] === 'face-plate')[0];
+    const plateD = findElements(plate ?? shell, (el) => el.tag === 'path').map((el) =>
+      String(el.props['d']),
+    );
+    expect(Math.max(...plateD.map(maxX))).toBe(2160);
+    const coaming = findElements(shell, (el) => el.props['data-shell'] === 'coaming')[0];
+    const coamingD = findElements(coaming ?? shell, (el) => el.tag === 'path').map((el) =>
+      String(el.props['d']),
+    );
+    expect(Math.max(...coamingD.map(maxX))).toBe(PANEL_VIEWBOX.w);
   });
 });
 

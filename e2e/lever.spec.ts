@@ -85,7 +85,7 @@ test('dragging the POWER handle snaps to the nearest 5 % step', async ({ page, h
   const power = control(page, 'lv.power');
   const handle = page.locator('[data-hit="lv.power"]');
 
-  // 0.605 of the track: near 60 % but off the step. The full view is smaller in the 2000 x 1300
+  // 0.605 of the track: near 60 % but off the step. The full view is smaller in the 2180 x 1300
   // space, so a WebKit mouse position rounded to a whole pixel moves the result by about 1 %.
   await mouseDrag(
     page,

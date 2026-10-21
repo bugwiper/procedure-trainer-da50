@@ -1,7 +1,8 @@
 // Visible plates of the DA50 RG panel as data (owner finding G-0.5). A plate is the dark
 // rounded rectangle a group of controls sits on; the shell draws every plate from this list
 // and tests compare a region's art and hit footprints with the plate that carries it.
-// Rectangles are in the 2000 x 1300 panel space. Pure data: no imports from the UI.
+// Rectangles are in the 2180 x 1300 panel space (phase 01.1 rectangles lie left of x 1980).
+// Pure data: no imports from the UI.
 
 export interface PlateDef {
   readonly id: string;
@@ -88,7 +89,7 @@ export const ENV_TITLE = { text: 'ENVIRONMENTAL CONTROL', x: 1062, y: 766 } as c
 /**
  * Vertical order of the landing gear block (owner finding G-2): the heading LANDING GEAR, the
  * speed line VLE / VLO = 162 KIAS directly under it, then the lamps and the STALL TEST / GEAR
- * TEST toggle. Baselines in the 2000 x 1300 space; one source for the shell and the tests.
+ * TEST toggle. Baselines in the 2180 x 1300 space; one source for the shell and the tests.
  */
 export const GEAR_BLOCK = { headingY: 640, speedLineY: 654 } as const;
 

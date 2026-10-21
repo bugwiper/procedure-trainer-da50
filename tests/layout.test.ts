@@ -10,6 +10,7 @@ import {
   FRONT_PANEL_REGIONS,
   INDICATOR_POSITIONS,
   ORDERING,
+  PANEL_VIEWBOX,
   REFERENCE_POSITIONS,
   UNDER_PANEL_REGIONS,
 } from './layout-reference';
@@ -105,8 +106,16 @@ function holds(a: Subject, relation: Relation, b: Subject | number): boolean {
 }
 
 describe('viewBox and regions', () => {
-  it('uses the true panel proportions (D-21)', () => {
-    expect(VIEWBOX).toEqual({ w: 2000, h: 1300 });
+  it('uses the true panel proportions with the 180 unit right extension (D-21, U-01)', () => {
+    expect(VIEWBOX).toEqual(PANEL_VIEWBOX);
+  });
+
+  it('the widening is right-only: every pre-phase control and lamp lies left of x 1980', () => {
+    for (const row of [...REFERENCE_POSITIONS, ...INDICATOR_POSITIONS]) {
+      expect(row.x, row.id).toBeLessThan(1980);
+    }
+    const rights = DA50RG.regions.filter((r) => r.bounds.x + r.bounds.w > 1980).map((r) => r.id);
+    expect(rights).toEqual([]);
   });
 
   it('PFD and MFD are the same display: 495x367, aspect 1.35, starting at y 200', () => {
