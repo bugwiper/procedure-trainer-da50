@@ -4,16 +4,16 @@ current_phase: "01.2"
 current_phase_name: Circuit breakers, G1000 shapes and avionics panels
 current_plan: 9
 status: executing
-stopped_at: Completed 01.1-33-PLAN.md (round 3 gap closure, plans 33..41 on the 01.2 branch)
-last_updated: "2026-10-21T16:45:17.530Z"
+stopped_at: Completed 01.1-34-PLAN.md (round 3 gap closure, plans 33..41 on the 01.2 branch)
+last_updated: "2026-10-21T16:50:38.323Z"
 last_activity: 2026-10-21
-last_activity_desc: Plan 01.1-33 complete (round 3 gap closure, R3-1.1 bus titles as unstroked text over a plate-coloured cut); plans 01.1-34..41 follow on the 01.2 branch
-state_head: 22412ba115c56b35e2e350114c5c80d354bcfa1c
+last_activity_desc: Plan 01.1-34 complete (round 3 gap closure, R3-4.1 pulled parking brake as the sketched hinged plate); plans 01.1-35..41 follow on the 01.2 branch
+state_head: 3a9df69b6ea3c40c5eb3d56c7eeeb310659d7687
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 58
-  completed_plans: 50
+  completed_plans: 51
   percent: 14
 ---
 
@@ -33,8 +33,8 @@ Current Plan: 9
 Total Plans in Phase: 9
 Status: All 9 plans of phase 01.2 complete; next is the verification step. Plan 09 (documents only, no src change) extended the label table with the avionics static labels, wrote the review list with Q2-01..Q2-10, U2-01..U2-37, P2-06..P2-15 and the section Round 3 (owner entry point), updated the README (92 controls, 13 lamps, 30 regions) and ran all gates: typecheck, lint, format, 1499 unit tests, build, 255 chromium e2e passed, live-conditions rehearsal 205 passed, WebKit 419 of 420 passed (one tablet layout finding: the Full panel button covers cb.main_pump while the MAIN region is zoomed; recorded in Round 3 and the todo). Earlier plans:  Plan 01 widened the panel space to 2180 x 1300 (right side only). Plan 02 added the circuit-breaker kind (flat cb. ids, states in and out) with one real breaker, cb.pitot, and derived the inventory gates from independent tables. Plan 03 built the bus panel frame: regions cb_main, cb_low, cb_strip (23 regions), the bus-panel plate, the three stair-step outlines with titles, three blank plugs, three pump boxes and the lower-row sub-panel, all as data (bus-boxes.ts) drawn by BusPanelArt. Plan 04 filled the grid with all 51 breakers (92 controls), with an independent reference, relation and containment gates, a label-clearance gate and an all-breaker e2e (1347 svg elements, budget 2500). Plan 05 gave both displays the 41-unit bezel lip, 12 triangle softkeys each (only sw.mfd_page is a control, 23 keys are inert art, new region pfd_softkeys, 24 regions), a glass header strip, a content band and a 12-slot legend row, with an e2e glass zone gate and a widened brand gate (1577 svg elements, budget 2500). Plan 06 added the six view-only avionics regions (pfd_bezel_left, pfd_bezel_right, audio_panel, standby_efis, autopilot_panel, mfd_bezel_right; 30 regions), reworked the centre-stack plate and added three unit plates (13 plates), replaced the placeholder outlines by region-owned housings announced as not operable, and added an e2e gate proving a tap only zooms (1604 svg elements, budget 2500). Plan 07 drew the three bezel knob and key columns as inert data-driven art (BEZEL_COLUMNS, BezelColumnFrame: 12 knobs, 2 joysticks, 3 swap buttons, 12 keys, each column group within 150 elements; 1773 svg elements, budget 2500). Plan 08 drew the audio panel (21 keys, 21 lamp slivers with 3 lit, volume knob, red DISPLAY BACKUP button), the backup EFIS (attitude display, tape display, knob) and the autopilot panel (4 knobs, swap button, 12 keys) as inert data-driven art (AUDIO_PANEL, STANDBY_EFIS, AUTOPILOT_PANEL; each group within 150 elements; 2023 svg elements, budget 2500; PNL-13 complete). Nothing was pushed; publishing is the owner's step. Phase 01.1 (23 plans) is complete.
 Round 2 gap closure: STATE.md now also tracks the round-2 gap plans 24..31 of phase 01.1, which execute sequentially on this phase 01.2 branch (plan and SUMMARY files stay in the 01.1 directory). Done: plan 01.1-24 (shared e2e zoom helper, behaviour-neutral), plan 01.1-25 (R2-Z1: a single click or tap never zooms, a double click or double tap on the background zooms in and out, a double tap on a control stays two control taps), plan 01.1-26 (R2-T1: the Full panel button takes the corner that covers no control, tablet-chromium project in the chromium gate), plan 01.1-27 (R2-4.2: the parking brake is a hinged flap, flat released and a 60 degree wedge pulled, one tap toggles, tapToggle plus parking-flap as registry data), plan 01.1-28 (R2-4.1: the FAN has four direct click spots), plan 01.1-29 (R2-5.2: the engine strip as in the aircraft, FADEC and ALTERNATOR bracket groups with AUTO, FORCE B, TEST, ON, OFF and the framed numerals 1 and 2 as plate text, the four controls nameless, sw.fadec states ordered force_b then auto, gate that every shell label lies on a plate), plan 01.1-30 (R2-1.1: ON above OFF printed once per side of the four light rockers, left of LANDING and right of STROBE, as plate text at the heights of the upper and lower rocker halves, no drawing code changed). Plan 01.1-31 (documents, wording, final gates): README, PNL-15, PNL-09 and ROADMAP criterion 4 state the double-tap contract; docs/PANEL-REVIEW.md ends with "Round 4: morning review" (the owner entry point) and PANEL-LABELS follows the round 2 build; R2-5.1 is verified by a named e2e test; gates green on the three chromium projects (416 passed, live rehearsal 329 passed, vitest 1609); WebKit tried once with two findings recorded and left unfixed (the Full panel button catches the second tap on phone-webkit, the FAN f3 glyph centre sits on a spot edge). Round 2 gap closure (plans 24 to 31) is finished; phase 01.1 has 31 of 31 plans. Plan 01.1-32 (two WebKit findings of plan 31: the Full panel button ignores the stray click, FAN test points inside the spots) is done; the full WebKit run is 0 failed.
-Round 3 gap closure (owner review of the live site at 8e4aa70, findings R3-* at the end of 01.1-OWNER-FINDINGS-R2.md): plans 01.1-33..41 execute sequentially on this phase 01.2 branch (plan and SUMMARY files stay in the 01.1 directory). Done: plan 01.1-33 (R3-1.1: the bus titles are plain unstroked text over a plate-coloured cut rectangle, busTitleCut as data, no shell text may carry a stroke, gate runs on every landscape project and passed on desktop-webkit and phone-webkit). Next: plans 01.1-34 (parking brake art) to 01.1-41 (documents and final gates). Nothing was pushed.
-Last activity: 2026-10-21 — Plan 01.1-33 complete (round 3 gap closure started)
+Round 3 gap closure (owner review of the live site at 8e4aa70, findings R3-* at the end of 01.1-OWNER-FINDINGS-R2.md): plans 01.1-33..41 execute sequentially on this phase 01.2 branch (plan and SUMMARY files stay in the 01.1 directory). Done: plan 01.1-33 (R3-1.1: the bus titles are plain unstroked text over a plate-coloured cut rectangle, busTitleCut as data, no shell text may carry a stroke, gate runs on every landscape project and passed on desktop-webkit and phone-webkit). Plan 01.1-34 (R3-4.1: the pulled parking brake is one four-point plate hinged on the level bottom line, shorter parallel top edge shifted right, in the flap's grey; the wedge is gone; a geometry gate pins the sketch relations; top edge 0.7 of the base is a middle value between the owner's words and the sketch, recorded for the owner's review). Next: plans 01.1-35 (log-level retract) to 01.1-41 (documents and final gates). Nothing was pushed.
+Last activity: 2026-10-21 — Plan 01.1-34 complete (round 3 gap closure, parking brake plate)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -100,6 +100,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P30 | 15min | 2 tasks | 4 files |
 | Phase 01.1 P31 | unattended | 3 tasks | 10 files |
 | Phase 01.1 P33 | approx 20min | 2 tasks | 5 files |
+| Phase 01.1 P34 | approx 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -180,6 +181,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T16:45:17.202Z
-Stopped at: Completed 01.1-33-PLAN.md (round 3 gap closure, plans 33..41 on the 01.2 branch)
+Last session: 2026-10-21T16:50:38.010Z
+Stopped at: Completed 01.1-34-PLAN.md (round 3 gap closure, plans 33..41 on the 01.2 branch)
 Resume file: None
