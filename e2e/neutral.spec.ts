@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { FULL_VIEWBOX, activate, activateAt, doubleActivateAt } from './support/zoom';
 
 // PNL-06, T-01-19: a tap or click on a neutral panel area appends no control event and
 // changes no control state. The specs read the e2e-only window hook, so all are @hooks.
@@ -118,10 +119,12 @@ function eventCount(page: Page): Promise<number> {
   return page.evaluate(() => (globalThis as HookHost).__panel?.events().length ?? -1);
 }
 
-test('@hooks taps on neutral areas append no event and change no state', async ({
+test('@hooks single taps on neutral areas never zoom, append no event and change no state', async ({
   page,
   hasTouch,
 }) => {
+  // Neighbouring points wait out the pair window, so this walk takes about 20 s.
+  test.setTimeout(90_000);
   const points = await neutralPoints(page);
   expect(points.length).toBeGreaterThanOrEqual(MIN_POINTS);
 
@@ -129,17 +132,45 @@ test('@hooks taps on neutral areas append no event and change no state', async (
   expect(Object.keys(statesBefore).length).toBeGreaterThan(20);
   expect(await eventCount(page)).toBe(0);
 
+  let previous: Point | null = null;
+  for (const p of points) {
+    // Two neighbouring points in quick succession would form a double tap: let the pair window
+    // (350 ms) pass between them. Distant points cannot pair, so the loop stays fast.
+    if (previous !== null && Math.hypot(p.x - previous.x, p.y - previous.y) <= 60) {
+      await page.waitForTimeout(400);
+    }
+    await activateAt(page, p, hasTouch);
+    previous = p;
+    // A single tap never zooms (R2-Z1): the view stays full and the Full panel button never appears.
+    expect(await page.getByTestId('panel').getAttribute('viewBox')).toBe(FULL_VIEWBOX);
+    await expect(page.getByTestId('zoom-out')).toHaveCount(0);
+  }
+
+  expect(await eventCount(page)).toBe(0);
+  expect(await controlStates(page)).toEqual(statesBefore);
+});
+
+test('@hooks double taps on neutral areas append no event and change no state', async ({
+  page,
+  hasTouch,
+}) => {
+  const points = (await neutralPoints(page)).slice(0, MIN_POINTS + 2);
+  expect(points.length).toBeGreaterThanOrEqual(MIN_POINTS);
+
+  const statesBefore = await controlStates(page);
+  expect(await eventCount(page)).toBe(0);
+
   const zoomOut = page.getByTestId('zoom-out');
   for (const p of points) {
-    if (hasTouch) await page.touchscreen.tap(p.x, p.y);
-    else await page.mouse.click(p.x, p.y);
-    // A background tap inside a region zooms the view (plan 09, D-21): back to the full
-    // view so the next point is still where it was measured.
+    await doubleActivateAt(page, p, hasTouch);
+    await page.waitForTimeout(150);
+    // A double tap on the background inside a region zooms the view: back to the full view
+    // by the Full panel button, so the next point is still where it was measured.
     if (await zoomOut.isVisible()) {
-      if (hasTouch) await zoomOut.tap();
-      else await zoomOut.click();
+      await activate(zoomOut, hasTouch);
       await expect(zoomOut).toBeHidden();
     }
+    await page.waitForTimeout(400);
   }
 
   expect(await eventCount(page)).toBe(0);

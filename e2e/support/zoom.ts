@@ -100,10 +100,9 @@ export async function leaveZoom(page: Page, hasTouch: boolean): Promise<void> {
 
 /**
  * Zooms into a region from whatever the current view is: leaves any zoom, taps once at a
- * background point of the region, lets the view attribute settle for 120 ms and, only when the
- * view is still the full one, taps the same point once more (double click or double tap).
- * When the first tap already zoomed, no second tap is sent: the same pixel would then hit a
- * different part of the panel, possibly a control.
+ * background point of the region, lets the view attribute settle for 120 ms, asserts that the
+ * view is still the full one (a single click or tap never zooms, R2-Z1) and taps the same point
+ * once more (double click or double tap), which must leave the full view.
  */
 export async function zoomIntoRegion(
   page: Page,
@@ -114,9 +113,10 @@ export async function zoomIntoRegion(
   const p = await backgroundPoint(page, regionId);
   await activateAt(page, p, hasTouch);
   await page.waitForTimeout(120);
-  // COMPAT-UNTIL-PLAN-25
-  if ((await page.getByTestId('panel').getAttribute('viewBox')) === FULL_VIEWBOX) {
-    await activateAt(page, p, hasTouch);
-  }
+  expect(
+    await page.getByTestId('panel').getAttribute('viewBox'),
+    `${regionId}: a single tap must not change the view`,
+  ).toBe(FULL_VIEWBOX);
+  await activateAt(page, p, hasTouch);
   await expect(page.getByTestId('panel'), regionId).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
 }

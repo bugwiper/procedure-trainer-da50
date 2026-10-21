@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { PANEL_VIEWBOX } from '../tests/layout-reference';
+import { FULL_VIEWBOX, activate, activateAt, doubleActivateAt } from './support/zoom';
 
 // Built-panel gate for the inert avionics units (phase 01.2 plan 06, D-05, D-06, T-01.2-11):
-// the six units exist as not-operable groups, hold no control and no hit rectangle, and a tap on
-// their background only zooms. The event case reads the e2e-only window hook (@hooks).
+// the six units exist as not-operable groups, hold no control and no hit rectangle, a single tap
+// on a unit changes nothing and a double tap changes the view (R2-Z1).
+// The event cases read the e2e-only window hook (@hooks).
 
 // Mirror of the read-only window hook of the e2e build (src/ui/bridge.ts). Declared here because
 // the e2e project has no DOM lib.
@@ -13,8 +14,6 @@ interface PanelHook {
   state(): Record<string, string>;
 }
 type HookHost = { __panel?: PanelHook };
-
-const FULL_VIEWBOX = `0 0 ${PANEL_VIEWBOX.w} ${PANEL_VIEWBOX.h}`;
 
 // Typed in by hand: region id and the label the group announces.
 const UNITS: readonly (readonly [string, string])[] = [
@@ -26,10 +25,7 @@ const UNITS: readonly (readonly [string, string])[] = [
   ['mfd_bezel_right', 'MFD KNOB COLUMN RIGHT (NOT OPERABLE)'],
 ];
 
-interface Point {
-  x: number;
-  y: number;
-}
+type Point = { x: number; y: number };
 
 test.beforeEach(async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'phone-portrait', 'covered by the rotate hint');
@@ -44,11 +40,6 @@ async function unitPoint(page: Page, id: string): Promise<Point> {
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   });
   return box;
-}
-
-async function activateAt(page: Page, p: Point, hasTouch: boolean): Promise<void> {
-  if (hasTouch) await page.touchscreen.tap(p.x, p.y);
-  else await page.mouse.click(p.x, p.y);
 }
 
 test('the six units are not-operable groups inside their own regions', async ({ page }) => {
@@ -286,14 +277,9 @@ test('@hooks a tap on an audio key and on the DISPLAY BACKUP button emits no eve
     });
     await activateAt(page, p, hasTouch);
     await page.waitForTimeout(450);
+    // A single tap on an inert part changes nothing: no event, no state, no zoom.
     expect(await read(), selector).toEqual(before);
-    // Leave the zoomed view so the next target is at its full-view place again.
-    if ((await page.getByTestId('panel').getAttribute('viewBox')) !== FULL_VIEWBOX) {
-      const button = page.getByTestId('zoom-out');
-      if (hasTouch) await button.tap();
-      else await button.click();
-      await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
-    }
+    expect(await page.getByTestId('panel').getAttribute('viewBox'), selector).toBe(FULL_VIEWBOX);
   }
 });
 
@@ -383,7 +369,7 @@ test('the six units together hold 18 knobs, 2 joysticks, 4 swap buttons, 45 keys
 });
 
 for (const [id] of UNITS) {
-  test(`@hooks a tap on ${id} only zooms: no event, no state change, back to the full view`, async ({
+  test(`@hooks a single tap on ${id} changes nothing, a double tap changes the view only: no event, no state change`, async ({
     page,
     hasTouch,
   }) => {
@@ -396,24 +382,29 @@ for (const [id] of UNITS) {
     const before = await read();
     expect(await page.getByTestId('panel').getAttribute('viewBox')).toBe(FULL_VIEWBOX);
 
-    // Tap: the view zooms to the region.
+    // A single tap: the view stays full, nothing happens.
     await activateAt(page, await unitPoint(page, id), hasTouch);
+    await page.waitForTimeout(450);
+    expect(await page.getByTestId('panel').getAttribute('viewBox')).toBe(FULL_VIEWBOX);
+    await expect(page.getByTestId('zoom-out')).toHaveCount(0);
+    expect(await read()).toEqual(before);
+
+    // A double tap: the view zooms to the region.
+    await doubleActivateAt(page, await unitPoint(page, id), hasTouch);
     await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
     expect(await read()).toEqual(before);
 
-    // A second tap after the double-tap window zooms back out.
+    // A second double tap after the pair window zooms back out.
     await page.waitForTimeout(450);
-    await activateAt(page, await unitPoint(page, id), hasTouch);
+    await doubleActivateAt(page, await unitPoint(page, id), hasTouch);
     await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
     expect(await read()).toEqual(before);
 
     // Zoom in again and leave by the Full panel button.
     await page.waitForTimeout(450);
-    await activateAt(page, await unitPoint(page, id), hasTouch);
+    await doubleActivateAt(page, await unitPoint(page, id), hasTouch);
     await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
-    const button = page.getByTestId('zoom-out');
-    if (hasTouch) await button.tap();
-    else await button.click();
+    await activate(page.getByTestId('zoom-out'), hasTouch);
     await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
     expect(await read()).toEqual(before);
   });

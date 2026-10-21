@@ -256,6 +256,8 @@ test('a single click or tap on the background never zooms', async ({
   await expect(page.getByTestId('zoom-out')).toHaveCount(0);
 
   // Zoomed: one tap does not zoom out, and neither does a second one after the pair window.
+  // (The helper's first tap must not pair with the tap above, so let the window pass first.)
+  await afterPairWindow(page);
   await zoomIntoRegion(page, hasTouch, 'switch_bank');
   const zoomed = await viewBoxOf(page);
   await afterPairWindow(page);
