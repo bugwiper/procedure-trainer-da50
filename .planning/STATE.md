@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: "01.1"
-current_phase_name: Panel shape, controls and indicator lights
-current_plan: 23 (complete)
+current_phase: "01.2"
+current_phase_name: Circuit breakers, G1000 shapes and avionics panels
+current_plan: 2 (complete)
 status: executing
-stopped_at: Completed 01.2-01-PLAN.md
-last_updated: "2026-10-21T06:38:04.716Z"
+stopped_at: Completed 01.2-02-PLAN.md
+last_updated: "2026-10-21T06:46:27.254Z"
 last_activity: 2026-10-21
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: d2373b587b58155d386725f9b6548ec1bafe8f74
+last_activity_desc: Plan 01.2-02 complete (circuit-breaker kind and cb.pitot)
+state_head: 6a62a91f801c26c7d7e2523fb57f5b75c12fa02d
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 41
-  completed_plans: 33
+  completed_plans: 34
   percent: 14
 ---
 
@@ -24,15 +24,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-19)
 
 **Core value:** The user can run an emergency scenario by actually operating the panel controls, and gets accurate, objective feedback on whether they performed the AFM procedure correctly.
-**Current focus:** Phase 01 — Deployed Playable Panel
+**Current focus:** Phase 01.2 — Circuit breakers, G1000 shapes and avionics panels
 
 ## Current Position
 
-Phase: 01.1 (Panel shape, controls and indicator lights) — GAP CLOSURE IN PROGRESS (plans 12 to 23 from the owner first-render review)
-Current Plan: 23 (complete)
-Total Plans in Phase: 23
-Status: All 23 plans of phase 01.1 complete (gap closure plans 12 to 23 done). Plan 23 tagged the last hook-reading spec, gated the final inventory (41 controls, 13 lamps, 19 regions), brought docs/PANEL-REVIEW.md (Round 2 morning-review section), docs/PANEL-LABELS.md and the README up to date, and ran all gates (chromium, live-mode rehearsal and WebKit green). Nothing was pushed; publishing is the owner's step. Deferred engine behaviour: .planning/todos/pending/2026-10-21-deice-max-timer-engine.md
-Last activity: 2026-10-21 — Plan 01.1-23 complete (final gates, documents, morning-review hand-over)
+Phase: 01.2 (Circuit breakers, G1000 shapes and avionics panels) — EXECUTING
+Current Plan: 2 (complete)
+Total Plans in Phase: 9
+Status: Plans 01 and 02 of phase 01.2 complete. Plan 01 widened the panel space to 2180 x 1300 (right side only). Plan 02 added the circuit-breaker kind (flat cb. ids, states in and out) with one real breaker, cb.pitot, in region cb_essential, derived the inventory gates from independent tables (CB_REFERENCE, ALL_REGION_IDS) and amended the state-text wording (raised cap and white ring, no state text, P2-03). Next: plan 03 (bus panel geometry and art). Nothing was pushed; publishing is the owner's step. Phase 01.1 (23 plans) is complete.
+Last activity: 2026-10-21 — Plan 01.2-02 complete (circuit-breaker kind end to end with cb.pitot)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -81,6 +81,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P21 | n/a | 3 tasks | 30 files |
 | Phase 01.1 P23 | 25min | 3 tasks | 9 files |
 | Phase 01.2 P01 | 10 min | 2 tasks | 14 files |
+| Phase 01.2 P02 | 30min | 3 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Plan 01.1-22: the ICE LIGHT and PUMP toggles are 69 tall (thirds of 23 units) so the pinch-in tap-size gate keeps 44 px; one fixed bat throw (BAT_THROW 14) for every bat
 - [Phase 01.1]: Plan 01.1-22: a guarded toggle without rocker size and colour draws the bat toggle (ALTERNATE: states on, off, guarded position up); the guard cover is the only red part
 - [Phase 01.2]: 01.2-01: panel space widened from 2000 to 2180 x 1300 on the right only (owner decision U-01, P2-01); MIN_VIEW_WIDTH stays 200 (P2-02)
+- [Phase 01.2]: 01.2-02: circuit-breaker kind with flat cb. ids; pulled state is a raised cap plus white ring with no state text (owner rule G-0.1, P2-03); inventory counts derived from independent tables
 
 ### Pending Todos
 
@@ -150,6 +152,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T06:38:04.540Z
-Stopped at: Completed 01.2-01-PLAN.md
+Last session: 2026-10-21T06:46:27.038Z
+Stopped at: Completed 01.2-02-PLAN.md
 Resume file: None
