@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { afterPairWindow } from './support/zoom';
 
 // Gear and flap lamps (PNL-14, D-11): derived from the levers, never operable, never graded.
 
@@ -174,8 +175,10 @@ test('de-ice lamps: NORM lights only the white lamp, HIGH only the middle amber 
   await expectLit('false', 'false', 'false');
   await tapAt(1 / 2);
   await expectLit('false', 'false', 'true');
+  await afterPairWindow(page);
   await tapAt(1 / 6);
   await expectLit('false', 'true', 'false');
+  await afterPairWindow(page);
   await tapAt(5 / 6);
   await expectLit('false', 'false', 'false');
 });

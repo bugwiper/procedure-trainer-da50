@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { afterPairWindow } from './support/zoom';
 
 // Mirror of the read-only window hook of the e2e build (src/ui/bridge.ts). Declared here
 // because the e2e project has no DOM lib.
@@ -59,18 +60,22 @@ test('guard must be lifted before ALTERNATE moves and stays up until tapped', as
   await expect(guard).toHaveAttribute('data-state', 'open');
   await expect(sw).toHaveAttribute('data-state', 'off');
 
-  // Second tap flips the switch; the guard stays up.
+  // Second tap flips the switch; the guard stays up. (The cover and the switch share one pair key,
+  // so two quick taps on that spot are a zoom, R3-Z3: wait out the pair window.)
+  await afterPairWindow(page);
   await activate(page.locator(`[data-hit="${SWITCH}"]`), hasTouch);
   await expect(sw).toHaveAttribute('data-state', 'on');
   await expect(guard).toHaveAttribute('data-state', 'open');
 
   // The user closes the guard; the switch keeps its position.
+  await afterPairWindow(page);
   await activate(page.locator(`[data-hit="${GUARD}"]`), hasTouch);
   await expect(guard).toHaveAttribute('data-state', 'closed');
   await expect(sw).toHaveAttribute('data-state', 'on');
   await expect(page.locator(`[data-hit="${SWITCH}"]`)).toHaveCount(0);
 
   // A tap on the covered switch can only lift the guard again.
+  await afterPairWindow(page);
   const box = await sw.boundingBox();
   if (box === null) throw new Error('switch has no bounding box');
   const x = box.x + box.width / 2;
@@ -89,10 +94,13 @@ test('@hooks the guard sequence appends exactly guard-open, switch-on, switch-of
   expect(await events()).toHaveLength(0);
 
   await activate(page.locator(`[data-hit="${GUARD}"]`), hasTouch);
+  await afterPairWindow(page);
   await activate(page.locator(`[data-hit="${SWITCH}"]`), hasTouch);
   await expect(control(page, SWITCH)).toHaveAttribute('data-state', 'on');
+  await afterPairWindow(page);
   await activate(page.locator(`[data-hit="${SWITCH}"]`), hasTouch);
   await expect(control(page, SWITCH)).toHaveAttribute('data-state', 'off');
+  await afterPairWindow(page);
   await activate(page.locator(`[data-hit="${GUARD}"]`), hasTouch);
   await expect(control(page, GUARD)).toHaveAttribute('data-state', 'closed');
 
@@ -128,15 +136,18 @@ test('ELECT. MASTER and ELT are unguarded and flip with one tap', async ({ page,
   await activateAt(eltHit, hasTouch, 1 / 6);
   await expect(elt).toHaveAttribute('data-state', 'on');
   await expect(elt).toHaveAttribute('data-pressed-half', 'upper');
+  await afterPairWindow(page);
   await activateAt(eltHit, hasTouch, 1 / 2);
   await expect(elt).toHaveAttribute('data-state', 'armed');
   await expect(elt).toHaveAttribute('data-pressed-half', 'level');
+  await afterPairWindow(page);
   await activateAt(eltHit, hasTouch, 5 / 6);
   await expect(elt).toHaveAttribute('data-state', 'reset_test');
   await expect(elt).toHaveAttribute('data-pressed-half', 'lower');
   // A tap on the position it already holds records no event.
   const count = () => page.evaluate(() => (globalThis as HookHost).__panel?.events().length ?? -1);
   const before = await count();
+  await afterPairWindow(page);
   await activateAt(eltHit, hasTouch, 5 / 6);
   await expect(elt).toHaveAttribute('data-state', 'reset_test');
   expect(await count()).toBe(before);

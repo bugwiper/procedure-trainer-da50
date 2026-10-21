@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { DOUBLE_TAP_MS } from '../../src/ui/panel/tap-intent';
 import { PANEL_VIEWBOX } from '../../tests/layout-reference';
 
 // Shared e2e zoom helpers (R2-Z1, PNL-15). This is test support, not a spec: its name does not
@@ -66,6 +67,15 @@ export async function backgroundPoint(page: Page, regionId: string): Promise<Poi
   }, regionId);
   if (point === null) throw new Error(`no background point in region ${regionId}`);
   return point;
+}
+
+/**
+ * Lets the double-tap window of an earlier tap pass, so the next tap starts a new pair. Every spec
+ * that taps one latching control twice (R3-Z3: two quick taps on one control are a zoom) or that
+ * taps the background twice waits with this one helper, never a literal.
+ */
+export async function afterPairWindow(page: Page): Promise<void> {
+  await page.waitForTimeout(DOUBLE_TAP_MS + 100);
 }
 
 /** One click (mouse projects) or one tap (touch projects) at a page point. */

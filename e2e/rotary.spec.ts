@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { afterPairWindow } from './support/zoom';
 
 // Mirror of the read-only window hook of the e2e build (src/ui/bridge.ts). Declared here
 // because the e2e project has no DOM lib.
@@ -186,6 +187,7 @@ test('FAN sets each position by a tap on its spot and a tap on the current one c
   const knob = control(page, 'sw.env_fan');
   await expect(knob).toHaveAttribute('data-state', 'off');
   for (const state of ['f2', 'f3', 'f1', 'off'] as const) {
+    await afterPairWindow(page);
     await activate(page.locator(`[data-detent="sw.env_fan:${state}"]`), hasTouch);
     await expect(knob).toHaveAttribute('data-state', state);
   }
@@ -199,7 +201,9 @@ test('@hooks a FAN spot records exactly one event with the stop id, the current 
   expect(await eventCount(page)).toBe(0);
   await activate(spot('f2'), hasTouch);
   await expect.poll(() => eventCount(page)).toBe(1);
+  await afterPairWindow(page);
   await activate(spot('f2'), hasTouch);
+  await afterPairWindow(page);
   await activate(spot('off'), hasTouch);
   await expect.poll(() => eventCount(page)).toBe(2);
   const events = await page.evaluate(() => (globalThis as HookHost).__panel?.events() ?? []);

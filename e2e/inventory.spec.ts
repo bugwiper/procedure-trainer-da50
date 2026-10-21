@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { afterPairWindow } from './support/zoom';
 
 // Every control added by plan 01.1-05 (de-ice panel, LEVEL, environmental sliders, PARKING
 // BRAKE) must operate on every device project.
@@ -55,6 +56,7 @@ test('de-ice MODE toggle reaches HIGH, NORM and OFF by a tap in the top, middle 
     [1 / 2, 'norm'],
     [5 / 6, 'off'],
   ] as const) {
+    await afterPairWindow(page);
     const box = await hit.boundingBox();
     if (box === null) throw new Error('no hit box for the de-ice mode toggle');
     const position = { x: box.width / 2, y: box.height * fraction };
@@ -84,6 +86,7 @@ test('de-ice ICE LIGHT toggle reaches ICE LIGHT, OFF and ANNUN-TEST by a tap in 
     [5 / 6, 'annun_test'],
     [1 / 2, 'off'],
   ] as const) {
+    await afterPairWindow(page);
     const box = await hit.boundingBox();
     if (box === null) throw new Error('no hit box for the ICE LIGHT toggle');
     const position = { x: box.width / 2, y: box.height * fraction };

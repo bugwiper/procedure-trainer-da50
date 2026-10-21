@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { afterPairWindow } from './support/zoom';
 
 // Switch skins (PNL-11, D-08): the rocker half pressed follows the state on every device.
 
@@ -154,8 +155,10 @@ test('the guarded ALTERNATE toggle is a bat that follows its state once the guar
   await expect(sw).toHaveAttribute('data-state', 'off');
   await expect(sw.locator('text')).toHaveCount(0);
   await activate(page.locator('[data-hit="sw.deice_alternate.guard"]'), hasTouch);
+  await afterPairWindow(page);
   await activate(page.locator('[data-hit="sw.deice_alternate"]'), hasTouch);
   await expect(sw).toHaveAttribute('data-state', 'on');
+  await afterPairWindow(page);
   await activate(page.locator('[data-hit="sw.deice_alternate"]'), hasTouch);
   await expect(sw).toHaveAttribute('data-state', 'off');
 });

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { afterPairWindow } from './support/zoom';
 
 // Mirror of the read-only window hook of the e2e build (src/ui/bridge.ts). Declared here
 // because the e2e project has no DOM lib.
@@ -59,6 +60,7 @@ test('@hooks each accepted flip appends exactly one event', async ({ page, hasTo
 
   await activate(hit, hasTouch);
   await expect.poll(count).toBe(before + 1);
+  await afterPairWindow(page);
   await activate(hit, hasTouch);
   await expect.poll(count).toBe(before + 2);
 
@@ -98,6 +100,7 @@ test('every plain toggle flips by mouse or tap', async ({ page, hasTouch }) => {
     const before = (await group.getAttribute('data-state')) ?? '';
     await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
     await expect(group, id).not.toHaveAttribute('data-state', before);
+    await afterPairWindow(page);
     await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
     await expect(group, id).toHaveAttribute('data-state', before);
   }

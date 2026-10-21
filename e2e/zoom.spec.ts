@@ -5,6 +5,7 @@ import {
   FULL_VIEWBOX,
   activate,
   activateAt,
+  afterPairWindow,
   backgroundPoint,
   buttonCoverage,
   doubleActivateAt,
@@ -260,11 +261,6 @@ test('pinch zooms and pans the view', async ({ page }, testInfo) => {
   const out = await viewNumbers(page);
   expect(out.w).toBeGreaterThan(panned.w);
 });
-
-/** Lets the double-tap window (350 ms) of an earlier tap pass, so the next tap starts a new pair. */
-async function afterPairWindow(page: Page): Promise<void> {
-  await page.waitForTimeout(450);
-}
 
 test('a single click or tap on the background never zooms', async ({
   page,

@@ -1,7 +1,13 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { ALL_REGION_IDS, CB_REFERENCE } from '../tests/layout-reference';
-import { FULL_VIEWBOX, activate, buttonCoverage, zoomIntoRegion } from './support/zoom';
+import {
+  FULL_VIEWBOX,
+  activate,
+  afterPairWindow,
+  buttonCoverage,
+  zoomIntoRegion,
+} from './support/zoom';
 
 // Circuit-breaker contract on the built panel (PNL-12, D-02, D-03, owner rule G-0.1): the first
 // breaker, cb.pitot, starts pushed in without a ring, one tap pulls it (raised cap, one white ring),
@@ -113,6 +119,7 @@ test('the printed panel text is identical before and after a pull, and no state 
   expect(await breaker(page).locator('text').allTextContents()).toEqual(['20', 'PITOT']);
   await expect(page.locator('[data-state-text]')).toHaveCount(0);
 
+  await afterPairWindow(page);
   await activate(hit(page), hasTouch);
   await expect(breaker(page)).toHaveAttribute('data-state', 'in');
   expect(await panelText(page)).toEqual(before);
@@ -130,6 +137,7 @@ test('@hooks the first tap appends exactly one event, cb.pitot out', async ({ pa
   expect(logged[0]?.id).toBe(ID);
   expect(logged[0]?.value).toBe('out');
 
+  await afterPairWindow(page);
   await activate(hit(page), hasTouch);
   await expect(breaker(page)).toHaveAttribute('data-state', 'in');
   expect((await events()).map((e) => [e.id, e.value])).toEqual([

@@ -2,9 +2,21 @@ import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { PANEL_VIEWBOX } from '../tests/layout-reference';
 import { DRAG_START_PX, MOMENTARY_HOLD_MS } from '../src/ui/panel/press-arbiter';
-import { MOUSE_SLOP_PX, TOUCH_SLOP_PX } from '../src/ui/panel/tap-intent';
+import {
+  DOUBLE_TAP_PX,
+  MOUSE_SLOP_PX,
+  TAP_MAX_MS,
+  TOUCH_SLOP_PX,
+} from '../src/ui/panel/tap-intent';
 import { touchSender } from './support/touch';
-import { FULL_VIEWBOX, backgroundPoint, zoomIntoRegion } from './support/zoom';
+import {
+  FULL_VIEWBOX,
+  activateAt,
+  afterPairWindow,
+  backgroundPoint,
+  doubleActivateAt,
+  zoomIntoRegion,
+} from './support/zoom';
 import type { Point } from './support/zoom';
 
 // Latching controls act on release (R3-Z2, PNL-11, PNL-15, PNL-06): a press is pending and shows
@@ -376,6 +388,7 @@ test('the guard: a drag from the cover or the switch pans, a tap lifts and flips
 
   await tapOn('sw.deice_alternate.guard', guard, 'closed', 'open');
   await expect(sw).toHaveAttribute('data-state', 'off');
+  await afterPairWindow(page);
   await tapOn('sw.deice_alternate', sw, 'off', 'on');
 
   // A drag from the switch pans and does not flip it.
@@ -968,4 +981,257 @@ test('the classification gate: every hit and detent element has the data-press c
   for (const cls of ['momentary', 'own', 'latch']) {
     expect(totals.get(cls) ?? 0, cls).toBeGreaterThan(0);
   }
+});
+
+// Double click or double tap on a latching control (R3-Z3, PNL-15, Table D1): the first tap
+// actuates at once, the recognised pair retracts it and zooms, so the control keeps its state.
+// Two taps on two different hit elements, a momentary or drag control, a slow second tap and two
+// taps that are too far apart are not a pair. Mouse projects use dblclick, touch projects two
+// taps in a row; state and view are read from the page, the log only in the @hooks cases. The
+// limits come from src/ui/panel/tap-intent.ts, never typed here.
+
+const LATCHING_CASES = CASES.filter((c) => c.name !== 'guard cover');
+
+async function startState(page: Page, id: string): Promise<string> {
+  return (await control(page, id).getAttribute('data-state')) ?? '';
+}
+
+test.describe('a double click or double tap on a latching control zooms and leaves it unchanged', () => {
+  for (const c of LATCHING_CASES) {
+    test(`${c.name}: zooms in, then out, and the state never changes`, async ({
+      page,
+      hasTouch,
+    }, testInfo) => {
+      test.skip(testInfo.project.name === 'phone-portrait', 'portrait is not a panel layout');
+      const group = control(page, c.id);
+      await expect(group).toHaveAttribute('data-state', c.before);
+
+      await doubleActivateAt(page, await hitCentre(page, c.selector), hasTouch);
+      await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+      await expect(group).toHaveAttribute('data-state', c.before);
+
+      // Zoomed: the same pair zooms fully out and the control is still unchanged.
+      await afterPairWindow(page);
+      await doubleActivateAt(page, await hitCentre(page, c.selector), hasTouch);
+      await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+      await expect(group).toHaveAttribute('data-state', c.before);
+    });
+  }
+
+  test('the closed guard cover of the de-ice ALTERNATE switch: zooms, the guard stays closed and the switch off', async ({
+    page,
+    hasTouch,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === 'phone-portrait', 'portrait is not a panel layout');
+    const guard = control(page, 'sw.deice_alternate.guard');
+    const sw = control(page, 'sw.deice_alternate');
+    await doubleActivateAt(
+      page,
+      await hitCentre(page, '[data-hit="sw.deice_alternate.guard"]'),
+      hasTouch,
+    );
+    await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+    await expect(guard).toHaveAttribute('data-state', 'closed');
+    await expect(sw).toHaveAttribute('data-state', 'off');
+  });
+
+  test('three quick taps on a toggle: the pair zooms and leaves it unchanged, the third tap actuates', async ({
+    page,
+    hasTouch,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === 'phone-portrait', 'portrait is not a panel layout');
+    const group = control(page, 'sw.engine_master');
+    const before = await startState(page, 'sw.engine_master');
+    const selector = '[data-hit="sw.engine_master"]';
+    await doubleActivateAt(page, await hitCentre(page, selector), hasTouch);
+    await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+    await expect(group).toHaveAttribute('data-state', before);
+    // The view changed: the third tap goes to the control where it is now.
+    await activateAt(page, await hitCentre(page, selector), hasTouch);
+    await expect(group).not.toHaveAttribute('data-state', before);
+  });
+
+  test('the background double click still zooms in and out', async ({
+    page,
+    hasTouch,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === 'phone-portrait', 'portrait is not a panel layout');
+    const p = await backgroundPoint(page, 'switch_bank');
+    await doubleActivateAt(page, p, hasTouch);
+    await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+    await afterPairWindow(page);
+    await doubleActivateAt(page, await backgroundPoint(page, 'switch_bank'), hasTouch);
+    await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  });
+});
+
+/** Distance (client px) between the centres of two hit elements. */
+async function centreDistance(page: Page, a: string, b: string): Promise<number> {
+  const pa = await hitCentre(page, a);
+  const pb = await hitCentre(page, b);
+  return Math.hypot(pa.x - pb.x, pa.y - pb.y);
+}
+
+test.describe('@hooks double tap pairs that are not pairs', () => {
+  const eventsOf = (page: Page) =>
+    page.evaluate(() => (globalThis as unknown as HookHost).__panel?.events() ?? []);
+
+  test('a double click or double tap on every latching control leaves the log unchanged, at the full view and zoomed', async ({
+    page,
+    hasTouch,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === 'phone-portrait', 'portrait is not a panel layout');
+    expect(await eventCount(page)).toBe(0);
+    for (const c of CASES) {
+      await afterPairWindow(page);
+      await doubleActivateAt(page, await hitCentre(page, c.selector), hasTouch);
+      await expect(page.getByTestId('panel'), c.name).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+      expect(await eventCount(page), `${c.name} at the full view`).toBe(0);
+      await afterPairWindow(page);
+      await doubleActivateAt(page, await hitCentre(page, c.selector), hasTouch);
+      await expect(page.getByTestId('panel'), c.name).toHaveAttribute('viewBox', FULL_VIEWBOX);
+      expect(await eventCount(page), `${c.name} zoomed`).toBe(0);
+    }
+  });
+
+  const CROSSING: readonly { name: string; a: string; b: string; id: string; last: string }[] = [
+    {
+      name: 'FAN spots f1 then f2',
+      a: '[data-detent="sw.env_fan:f1"]',
+      b: '[data-detent="sw.env_fan:f2"]',
+      id: 'sw.env_fan',
+      last: 'f2',
+    },
+    {
+      name: 'flaps markers T/O then LDG',
+      a: '[data-detent="lv.flaps:to"]',
+      b: '[data-detent="lv.flaps:ldg"]',
+      id: 'lv.flaps',
+      last: 'ldg',
+    },
+  ];
+  for (const x of CROSSING) {
+    test(`two quick taps on two different hit elements (${x.name}) are two actuations and no zoom`, async ({
+      page,
+      hasTouch,
+    }, testInfo) => {
+      test.skip(testInfo.project.name === 'phone-portrait', 'portrait is not a panel layout');
+      const d = await centreDistance(page, x.a, x.b);
+      test.skip(
+        d > DOUBLE_TAP_PX,
+        `the two hit centres are ${d.toFixed(1)} px apart on this project`,
+      );
+      await activateAt(page, await hitCentre(page, x.a), hasTouch);
+      await activateAt(page, await hitCentre(page, x.b), hasTouch);
+      await expect(control(page, x.id)).toHaveAttribute('data-state', x.last);
+      expect(await eventCount(page)).toBe(2);
+      expect(await viewString(page)).toBe(FULL_VIEWBOX);
+    });
+  }
+
+  test('ENGINE MASTER then ESS BUS within the distance limit are two actuations and no zoom', async ({
+    page,
+    hasTouch,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== 'phone-chromium',
+      'the switches are close on the phone only',
+    );
+    const a = '[data-hit="sw.engine_master"]';
+    const b = '[data-hit="sw.ess_bus"]';
+    const d = await centreDistance(page, a, b);
+    test.skip(
+      d > DOUBLE_TAP_PX,
+      `the two hit centres are ${d.toFixed(1)} px apart on this project`,
+    );
+    await activateAt(page, await hitCentre(page, a), hasTouch);
+    await activateAt(page, await hitCentre(page, b), hasTouch);
+    expect(await eventCount(page)).toBe(2);
+    expect(await viewString(page)).toBe(FULL_VIEWBOX);
+  });
+
+  test('a second tap that lasts longer than the tap limit does not pair', async ({
+    page,
+  }, testInfo) => {
+    const name = testInfo.project.name;
+    test.skip(!isMouseProject(name) && name !== 'phone-chromium', 'Chromium gestures only');
+    const p = await hitCentre(page, '[data-hit="sw.engine_master"]');
+    if (name === 'phone-chromium') {
+      const send = await touchSender(page);
+      await send('touchStart', [p]);
+      await send('touchEnd', []);
+      await send('touchStart', [p]);
+      await page.waitForTimeout(TAP_MAX_MS + 10);
+      await send('touchEnd', []);
+    } else {
+      await page.mouse.click(p.x, p.y);
+      await page.mouse.move(p.x, p.y);
+      await page.mouse.down();
+      await page.waitForTimeout(TAP_MAX_MS + 10);
+      await page.mouse.up();
+    }
+    await expect.poll(() => eventCount(page)).toBe(2);
+    expect(await viewString(page)).toBe(FULL_VIEWBOX);
+  });
+
+  test('two quick taps on the far ends of the parking brake footprint are further apart than the limit and do not pair', async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      !isMouseProject(testInfo.project.name),
+      'the footprint is long enough on desktop only',
+    );
+    const box = await page.locator('[data-hit="lv.parking_brake"]').boundingBox();
+    if (box === null) throw new Error('no brake box');
+    const long = box.width >= box.height;
+    const reach = (long ? box.width : box.height) - 4;
+    test.skip(
+      reach <= DOUBLE_TAP_PX,
+      `the footprint is ${reach.toFixed(1)} px long on this project`,
+    );
+    const at = (end: number): Point =>
+      long
+        ? { x: Math.round(box.x + 2 + end * reach), y: Math.round(box.y + box.height / 2) }
+        : { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + 2 + end * reach) };
+    await page.mouse.click(at(0).x, at(0).y);
+    await page.mouse.click(at(1).x, at(1).y);
+    await expect.poll(() => eventCount(page)).toBe(2);
+    expect(await viewString(page)).toBe(FULL_VIEWBOX);
+  });
+
+  test('two quick presses of ENGINE START are two presses, two quick taps on a knob body step it twice, two taps on a lever handle record nothing, and none of them zoom', async ({
+    page,
+    hasTouch,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === 'phone-portrait', 'portrait is not a panel layout');
+    // Momentary: pressed, released, pressed, released.
+    await doubleActivateAt(
+      page,
+      await pointAt(page, '[data-hit="btn.engine_start"]', 0.5),
+      hasTouch,
+    );
+    await expect.poll(() => eventCount(page)).toBe(4);
+    expect((await eventsOf(page)).map((e) => e.value)).toEqual([
+      'pressed',
+      'released',
+      'pressed',
+      'released',
+    ]);
+    expect(await viewString(page)).toBe(FULL_VIEWBOX);
+
+    // Knob body: a tap on the right half steps it, twice.
+    await afterPairWindow(page);
+    const before = await eventCount(page);
+    await doubleActivateAt(page, await pointAt(page, `[data-hit="${KNOB}"]`, 0.75), hasTouch);
+    await expect.poll(() => eventCount(page)).toBe(before + 2);
+    expect(await viewString(page)).toBe(FULL_VIEWBOX);
+
+    // Lever handle: a tap records nothing.
+    await afterPairWindow(page);
+    const beforeLever = await eventCount(page);
+    await doubleActivateAt(page, await hitCentre(page, `[data-hit="${LEVER}"]`), hasTouch);
+    await page.waitForTimeout(150);
+    expect(await eventCount(page)).toBe(beforeLever);
+    expect(await viewString(page)).toBe(FULL_VIEWBOX);
+  });
 });
