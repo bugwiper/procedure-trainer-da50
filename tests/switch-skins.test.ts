@@ -5,7 +5,12 @@ import { ROCKER_COLOURS, ROCKER_SIZES } from '../src/engine/registry';
 import type { ControlDef, GuardedToggleDef, ToggleDef } from '../src/engine/registry';
 import { BAT_THROW, BatBody } from '../src/ui/panel/skins/Bat';
 import { ROCKER_FACE, ROCKER_LIFT, RockerBody, rockerExtent } from '../src/ui/panel/skins/Rocker';
-import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
+import { createPanelBridge } from '../src/ui/bridge';
+import {
+  GuardCover,
+  makeGuardCoverPress,
+  makeGuardedSwitchPress,
+} from '../src/ui/panel/widgets/GuardedToggle';
 import {
   SoftkeyBody,
   makeTogglePress,
@@ -794,5 +799,65 @@ describe('makeTogglePress (plan 37, R3-Z2): what a tap on a toggle does', () => 
     expect(src).not.toContain('setPointerCapture');
     expect(src).not.toContain('TAP_SLOP_PX');
     expect(src).toContain('registerPressTarget');
+  });
+});
+
+describe('guard targets (plan 37, R3-Z2): cover and guarded switch', () => {
+  const found = DA50RG.controls.find((c) => c.id === 'sw.deice_alternate');
+  if (found?.kind !== 'guarded-toggle') throw new Error('no ALTERNATE');
+  const alt: GuardedToggleDef = found;
+  const hit = { getBoundingClientRect: () => ({ top: 0, height: 10 }) } as unknown as Element;
+  const info: PressInfo = { down: { x: 1, y: 2 }, up: { x: 2, y: 3 }, hit };
+
+  function bridgeRig() {
+    const bridge = createPanelBridge(DA50RG);
+    const cover = makeGuardCoverPress({
+      guardId: 'sw.deice_alternate.guard',
+      guardedId: alt.id,
+      isOpen: () => bridge.stateOf('sw.deice_alternate.guard').peek() === 'open',
+      actuate: (id, value) => bridge.actuate(id, value),
+    });
+    const sw = makeGuardedSwitchPress({
+      def: alt,
+      stateOf: () => bridge.stateOf(alt.id).peek(),
+      actuate: (id, value) => bridge.actuate(id, value),
+      setPending: () => undefined,
+    });
+    return { bridge, cover, sw };
+  }
+
+  it('both are latch targets carrying the id of the guarded toggle as pairKey', () => {
+    const { cover, sw } = bridgeRig();
+    expect([cover.cls, sw.cls]).toEqual(['latch', 'latch']);
+    expect([cover.pairKey, sw.pairKey]).toEqual([alt.id, alt.id]);
+  });
+
+  it('the cover tap opens then closes the guard, the switch tap flips first state then second', () => {
+    const { bridge, cover, sw } = bridgeRig();
+    const events: [string, string][] = [];
+    const log = () => bridge.store.events().map((e) => [e.id, e.value] as [string, string]);
+    expect(cover.tap?.(info)).toBe(0);
+    events.push(['sw.deice_alternate.guard', 'open']);
+    expect(sw.tap?.(info)).toBe(1);
+    events.push([alt.id, 'on']);
+    expect(sw.tap?.(info)).toBe(2);
+    events.push([alt.id, 'off']);
+    expect(cover.tap?.(info)).toBe(3);
+    events.push(['sw.deice_alternate.guard', 'closed']);
+    expect(log()).toEqual(events);
+  });
+
+  it('a switch tap while the guard is closed is blocked: null, no event', () => {
+    const { bridge, sw } = bridgeRig();
+    expect(sw.tap?.(info)).toBeNull();
+    expect(bridge.store.events()).toEqual([]);
+  });
+
+  it('the widget source holds no pointer handler, no capture, no slop and two registrations', () => {
+    const src = readFileSync('src/ui/panel/widgets/GuardedToggle.tsx', 'utf8');
+    expect(src).not.toContain('onPointerDown');
+    expect(src).not.toContain('setPointerCapture');
+    expect(src).not.toContain('TAP_SLOP_PX');
+    expect(src.match(/registerPressTarget/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 });

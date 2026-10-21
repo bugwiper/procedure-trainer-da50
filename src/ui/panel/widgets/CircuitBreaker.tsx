@@ -1,56 +1,60 @@
 import { useSignal } from '@preact/signals';
-import type { CircuitBreakerDef } from '../../../engine/registry';
+import type { CircuitBreakerDef, StateId } from '../../../engine/registry';
+import type { DispatchResult } from '../../../engine/store';
 import type { WidgetProps } from '../ControlWidget';
+import { registerPressTarget, seqOf } from '../press-targets';
+import type { PressTarget } from '../press-targets';
 import { BreakerBody } from '../skins/Breaker';
 import { tapTarget } from './Toggle';
 
-const TAP_SLOP_PX = 10;
+/** What a press target needs from its widget; everything is read at call time. */
+export interface BreakerPressDeps {
+  readonly def: Pick<CircuitBreakerDef, 'id' | 'states'>;
+  readonly stateOf: () => StateId;
+  readonly actuate: (id: string, value: StateId) => DispatchResult;
+  readonly setPending: (on: boolean) => void;
+}
 
-interface PointerStart {
-  readonly pointerId: number;
-  readonly x: number;
-  readonly y: number;
+/**
+ * The press target of a breaker (R3-Z2): a latch target whose tap toggles in and out through the
+ * toggle rule and returns the sequence number of the event, or null when nothing was recorded.
+ * Pure and hook-free; the pending visual is driven by the gesture layer through setPending.
+ */
+export function makeBreakerPress(deps: BreakerPressDeps): PressTarget {
+  const { def, stateOf, actuate, setPending } = deps;
+  return {
+    cls: 'latch',
+    setPending,
+    tap() {
+      const current = stateOf();
+      const target = tapTarget(def.states, current, 0.5);
+      return target === current ? null : seqOf(actuate(def.id, target));
+    },
+  };
 }
 
 /**
  * Circuit-breaker widget (PNL-12, D-02, D-03). A single tap toggles between in and out; there is
  * no confirmation and no animation. The state reads from the cap position and the white ring (and
  * the data-state and aria-label for tests and assistive technology), never from printed text
- * (G-0.1). Pointer contract copied from the toggle: only primary pointers, capture on pointerdown,
- * actuate on a pointerup within the tap slop, never listen to click (RESEARCH Pattern 5). Only the
- * hit rectangle is a control; the body is pointer-events none.
+ * (G-0.1). Pointer contract (R3-Z2, as the toggle): the widget owns no pointer; the hit rectangle
+ * registers a latch press target and the gesture layer acts on the lift, never on click (RESEARCH
+ * Pattern 5). Only the hit rectangle is a control; the body is pointer-events none.
  */
 export function CircuitBreaker({ def, bridge }: WidgetProps<CircuitBreakerDef>) {
   const pressed = useSignal(false);
-  const start = useSignal<PointerStart | null>(null);
 
   const state = bridge.stateOf(def.id).value;
   const stateLabel = def.states.find((st) => st.id === state)?.label ?? '';
 
-  const clear = () => {
-    start.value = null;
-    pressed.value = false;
-  };
-
-  const onPointerDown = (e: PointerEvent) => {
-    if (!e.isPrimary) return;
-    try {
-      (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    } catch {
-      // The pointer may already be gone; the tap is still evaluated on pointerup.
-    }
-    start.value = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
-    pressed.value = true;
-  };
-
-  const onPointerUp = (e: PointerEvent) => {
-    const s = start.value;
-    if (!e.isPrimary || s === null || s.pointerId !== e.pointerId) return;
-    clear();
-    if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > TAP_SLOP_PX) return;
-    const target = tapTarget(def.states, state, 0.5);
-    if (target !== state) bridge.actuate(def.id, target);
-  };
+  const press = makeBreakerPress({
+    def,
+    stateOf: () => bridge.stateOf(def.id).peek(),
+    actuate: (id, value) => bridge.actuate(id, value),
+    setPending: (on) => {
+      pressed.value = on;
+    },
+  });
 
   return (
     <g
@@ -73,10 +77,7 @@ export function CircuitBreaker({ def, bridge }: WidgetProps<CircuitBreakerDef>) 
         height={def.hit.h}
         fill="transparent"
         pointer-events="all"
-        onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
-        onPointerCancel={clear}
-        onLostPointerCapture={clear}
+        ref={(el: SVGRectElement | null) => registerPressTarget(el, press)}
       />
     </g>
   );

@@ -3,6 +3,10 @@ import { BUS_OUTLINES, BUS_PUMP_BOXES } from '../src/aircraft/da50rg/bus-boxes';
 import type { BusId, BusPoint } from '../src/aircraft/da50rg/bus-boxes';
 import { BREAKER_ROWS } from '../src/aircraft/da50rg/controls/breakers';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
+import type { DispatchResult } from '../src/engine/store';
+import { createPanelBridge } from '../src/ui/bridge';
+import { makeBreakerPress } from '../src/ui/panel/widgets/CircuitBreaker';
+import { readFileSync } from 'node:fs';
 import { PLATES } from '../src/aircraft/da50rg/plates';
 import type { CircuitBreakerDef, Rect } from '../src/engine/registry';
 import { CB_COLUMNS, CB_LOWER_ROW, CB_REFERENCE, CB_ROWS, CB_STRIP_ROW } from './layout-reference';
@@ -341,5 +345,66 @@ describe('breaker bus containment', () => {
       if (box === undefined) continue;
       expect(inside(footprint(def(id)), { x: box.x, y: box.y, w: box.w, h: box.h }), id).toBe(true);
     }
+  });
+});
+
+describe('makeBreakerPress (plan 37, R3-Z2): what a tap on a breaker does', () => {
+  const hit = { getBoundingClientRect: () => ({ top: 0, height: 20 }) } as unknown as Element;
+  const info = { down: { x: 1, y: 3 }, up: { x: 2, y: 4 }, hit };
+
+  function rig(current: string, seq = 5) {
+    const calls: [string, string][] = [];
+    const target = makeBreakerPress({
+      def: def('cb.pitot'),
+      stateOf: () => current,
+      actuate: (id, value): DispatchResult => {
+        calls.push([id, value]);
+        return { ok: true, event: { seq, t: 0, id, value, source: 'user' } };
+      },
+      setPending: () => undefined,
+    });
+    return { target, calls };
+  }
+
+  it('is a latch target that pulls a breaker in to out and pushes it out to in', () => {
+    const pull = rig('in');
+    expect(pull.target.cls).toBe('latch');
+    expect(pull.target.tap?.(info)).toBe(5);
+    expect(pull.calls).toEqual([['cb.pitot', 'out']]);
+    const push = rig('out');
+    expect(push.target.tap?.(info)).toBe(5);
+    expect(push.calls).toEqual([['cb.pitot', 'in']]);
+  });
+
+  it('returns null and never throws for a rejected request', () => {
+    const target = makeBreakerPress({
+      def: def('cb.pitot'),
+      stateOf: () => 'in',
+      actuate: (): DispatchResult => ({ ok: false, reason: 'unchanged' }),
+      setPending: () => undefined,
+    });
+    expect(target.tap?.(info)).toBeNull();
+  });
+
+  it('drives a real bridge: the sequence number is that of the recorded event', () => {
+    const bridge = createPanelBridge(DA50RG);
+    const target = makeBreakerPress({
+      def: def('cb.pitot'),
+      stateOf: () => bridge.stateOf('cb.pitot').peek(),
+      actuate: (id, value) => bridge.actuate(id, value),
+      setPending: () => undefined,
+    });
+    expect(target.tap?.(info)).toBe(0);
+    expect(bridge.stateOf('cb.pitot').value).toBe('out');
+    expect(target.tap?.(info)).toBe(1);
+    expect(bridge.stateOf('cb.pitot').value).toBe('in');
+  });
+
+  it('the widget source holds no pointer handler, no capture and no slop of its own', () => {
+    const src = readFileSync('src/ui/panel/widgets/CircuitBreaker.tsx', 'utf8');
+    expect(src).not.toContain('onPointerDown');
+    expect(src).not.toContain('setPointerCapture');
+    expect(src).not.toContain('TAP_SLOP_PX');
+    expect(src).toContain('registerPressTarget');
   });
 });

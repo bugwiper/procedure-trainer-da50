@@ -38,6 +38,22 @@ const CASES: readonly PressCase[] = [
     after: 'off',
     ring: true,
   },
+  {
+    name: 'circuit breaker',
+    hit: 'cb.pitot',
+    region: 'cb_essential',
+    before: 'in',
+    after: 'out',
+    ring: true,
+  },
+  {
+    name: 'guard cover',
+    hit: 'sw.deice_alternate.guard',
+    region: 'deice',
+    before: 'closed',
+    after: 'open',
+    ring: false,
+  },
 ];
 
 function control(page: Page, id: string): Locator {
@@ -280,6 +296,59 @@ test('touch: a pinch whose two fingers both start on switches zooms and leaves b
   expect((await viewNumbers(page)).w).toBeLessThan(PANEL_VIEWBOX.w);
   expect(await control(page, idA).getAttribute('data-state')).toBe(stateA);
   expect(await control(page, idB).getAttribute('data-state')).toBe(stateB);
+});
+
+test('the guard: a drag from the cover or the switch pans, a tap lifts and flips on release', async ({
+  page,
+}, testInfo) => {
+  const name = testInfo.project.name;
+  test.skip(!isMouseProject(name) && name !== 'phone-chromium', 'Chromium gestures only');
+  const touch = name === 'phone-chromium';
+  const guard = control(page, 'sw.deice_alternate.guard');
+  const sw = control(page, 'sw.deice_alternate');
+  await zoomIntoRegion(page, touch, 'deice');
+  const slop = touch ? TOUCH_SLOP_PX : MOUSE_SLOP_PX;
+  const drag = touch ? touchDrag : mouseDrag;
+
+  // A tap whose lift is separate from its press: nothing changes before the lift.
+  const tapOn = async (hit: string, control: Locator, before: string, after: string) => {
+    const p = await hitCentre(page, hit);
+    if (touch) {
+      const send = await touchSender(page);
+      await send('touchStart', [p]);
+      await expect(control).toHaveAttribute('data-state', before);
+      await send('touchEnd', []);
+    } else {
+      await page.mouse.move(p.x, p.y);
+      await page.mouse.down();
+      await expect(control).toHaveAttribute('data-state', before);
+      await page.mouse.up();
+    }
+    await expect(control).toHaveAttribute('data-state', after);
+  };
+
+  // A drag from the closed cover pans and does not lift it.
+  const v0 = await viewNumbers(page);
+  await drag(
+    page,
+    await hitCentre(page, 'sw.deice_alternate.guard'),
+    await panVector(page, slop + 25),
+  );
+  const v1 = await viewNumbers(page);
+  expect(Math.abs(v1.x - v0.x) + Math.abs(v1.y - v0.y)).toBeGreaterThan(0.5);
+  await expect(guard).toHaveAttribute('data-state', 'closed');
+
+  await tapOn('sw.deice_alternate.guard', guard, 'closed', 'open');
+  await expect(sw).toHaveAttribute('data-state', 'off');
+  await tapOn('sw.deice_alternate', sw, 'off', 'on');
+
+  // A drag from the switch pans and does not flip it.
+  const v2 = await viewNumbers(page);
+  await drag(page, await hitCentre(page, 'sw.deice_alternate'), await panVector(page, slop + 25));
+  const v3 = await viewNumbers(page);
+  expect(Math.abs(v3.x - v2.x) + Math.abs(v3.y - v2.y)).toBeGreaterThan(0.5);
+  await expect(sw).toHaveAttribute('data-state', 'on');
+  await expect(guard).toHaveAttribute('data-state', 'open');
 });
 
 test.describe('@hooks the event log', () => {
