@@ -196,6 +196,24 @@ const COWL_LAMPS: readonly IndicatorSpec[] = [
   },
 ];
 
+// De-ice mode lamps (owner finding G-1, G-0.3): three lamps right of the MODE toggle, top to bottom
+// amber, amber, white, no captions. NORM lights the white lamp; HIGH lights the middle amber lamp
+// (plan 21 Task 2 adds the amber ones).
+const DEICE_LAMPS: readonly IndicatorSpec[] = [
+  {
+    id: 'lt.deice_norm',
+    label: 'DE-ICE NORM',
+    region: 'deice',
+    x: 79,
+    y: 135,
+    r: 15,
+    colour: 'white',
+    caption: 'none',
+    reads: ['sw.deice_mode'],
+    lit: (inputs) => inputs.controls['sw.deice_mode'] === 'norm',
+  },
+];
+
 export const DA50RG_INDICATORS = defineIndicators(DA50RG, {
-  indicators: [...GEAR_LAMPS, ...FLAP_LAMPS, ELT_LAMP, ...COWL_LAMPS],
+  indicators: [...GEAR_LAMPS, ...FLAP_LAMPS, ELT_LAMP, ...COWL_LAMPS, ...DEICE_LAMPS],
 });

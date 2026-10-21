@@ -44,12 +44,31 @@ test('de-ice ICE LIGHT, PUMP 2 and PUMP 1 flip by mouse or tap', async ({ page, 
   }
 });
 
-test('de-ice MODE reaches NORM, HIGH, MAX and OFF by marker tap', async ({ page, hasTouch }) => {
-  const mode = control(page, 'lv.deice_mode');
+test('de-ice MODE toggle reaches HIGH, NORM and OFF by a tap in the top, middle and bottom third', async ({
+  page,
+  hasTouch,
+}) => {
+  const mode = control(page, 'sw.deice_mode');
+  const hit = page.locator('[data-hit="sw.deice_mode"]');
+  await expect(mode).toHaveCount(1);
   await expect(mode).toHaveAttribute('data-state', 'off');
-  for (const detent of ['norm', 'high', 'max', 'off']) {
-    await activate(page.locator(`[data-detent="lv.deice_mode:${detent}"]`), hasTouch);
-    await expect(mode, detent).toHaveAttribute('data-state', detent);
+  await expect(page.locator('[data-control-id="lv.deice_mode"]')).toHaveCount(0);
+  for (const [fraction, state] of [
+    [1 / 6, 'high'],
+    [1 / 2, 'norm'],
+    [5 / 6, 'off'],
+  ] as const) {
+    const box = await hit.boundingBox();
+    if (box === null) throw new Error('no hit box for the de-ice mode toggle');
+    const position = { x: box.width / 2, y: box.height * fraction };
+    if (hasTouch) await hit.tap({ position });
+    else await hit.click({ position });
+    await expect(mode, state).toHaveAttribute('data-state', state);
+  }
+  // Nameless: the toggle prints nothing itself, the static placards name the positions.
+  await expect(mode.locator('text')).toHaveCount(0);
+  for (const id of ['deice_mode.high', 'deice_mode.norm', 'deice_mode.off']) {
+    await expect(page.locator(`[data-placard="${id}"]`), id).toHaveCount(1);
   }
 });
 
@@ -92,7 +111,6 @@ test('console levers open in their in-flight defaults', async ({ page }) => {
     'lv.parking_brake': 'off',
     'lv.cowl_flap': 'closed',
     'lv.power': 'p70',
-    'lv.deice_mode': 'off',
   };
   for (const [id, state] of Object.entries(defaults)) {
     await expect(control(page, id), id).toHaveAttribute('data-state', state);

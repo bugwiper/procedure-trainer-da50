@@ -65,6 +65,36 @@ export const PLACARDS: readonly PlacardDef[] = [
     anchor: 'middle',
     size: 6,
   },
+  // De-ice mode toggle (sw.deice_mode, global centre 120, 342; plan 21, owner finding G-1): HIGH
+  // centred above the highest handle position, NORM end-anchored left of the middle one, OFF
+  // centred below the lowest. The handle pivot sits 4.5 below the centre of the hit.
+  {
+    id: 'deice_mode.high',
+    near: 'sw.deice_mode',
+    dx: 0,
+    dy: -24,
+    lines: ['HIGH'],
+    anchor: 'middle',
+    size: 6,
+  },
+  {
+    id: 'deice_mode.norm',
+    near: 'sw.deice_mode',
+    dx: -16,
+    dy: 7,
+    lines: ['NORM'],
+    anchor: 'end',
+    size: 6,
+  },
+  {
+    id: 'deice_mode.off',
+    near: 'sw.deice_mode',
+    dx: 0,
+    dy: 30,
+    lines: ['OFF'],
+    anchor: 'middle',
+    size: 6,
+  },
   {
     id: 'cowl_flap.name',
     near: 'lv.cowl_flap',

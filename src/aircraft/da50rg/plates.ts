@@ -17,7 +17,9 @@ export interface PlateDef {
 export const PLATES: readonly PlateDef[] = [
   { id: 'lights-recess', x: 940, y: 36, w: 360, h: 134, rx: 12, regions: ['lights'] },
   { id: 'centre-stack', x: 880, y: 185, w: 360, h: 375, rx: 8, regions: ['light_knobs'] },
-  { id: 'deice', x: 70, y: 265, w: 200, h: 205, rx: 8, regions: ['deice', 'deice_switches'] },
+  // De-ice unit (plan 21, owner finding G-1): taller than before, the upper block (MAX, mode toggle,
+  // lamps, ALTERNATE) sits above the switch rows. The engine plate below starts at 474.
+  { id: 'deice', x: 80, y: 205, w: 180, h: 265, rx: 8, regions: ['deice', 'deice_switches'] },
   // Enlarged upward from y 485 (G-5): FADEC and its label sit higher than the old plate top.
   { id: 'engine', x: 70, y: 474, w: 200, h: 141, rx: 8, regions: ['engine_controls'] },
   { id: 'strip-switch-row', x: 40, y: 620, w: 796, h: 125, rx: 8, regions: ['switch_bank'] },

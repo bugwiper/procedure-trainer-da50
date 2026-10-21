@@ -3,8 +3,8 @@
 // read from the private reference photos named in the UI-SPEC (git-ignored), never copied or
 // traced (D-06). `review` marks every row the owner must check after the first render (D-03).
 // `tol` is the allowed distance on each axis: 3 for a confirmed position, 8 for an unconfirmed
-// one, 12 for the de-ice panel. The UI-SPEC ids sw.deice_mode and sw.stall_gear_test are
-// recorded under their registry ids lv.deice_mode and btn.stall_gear_test (PD-03, PD-04).
+// one, 12 for the de-ice panel. The UI-SPEC id sw.stall_gear_test is recorded under its registry
+// id btn.stall_gear_test (PD-04); sw.deice_mode is the three-position toggle of plan 21.
 // A row whose control does not exist yet is skipped by the test, never counted as a pass.
 
 export interface ReferencePosition {
@@ -33,8 +33,8 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'sw.light_strobe', x: 1191, y: 90, tol: 8, review: true },
   { id: 'sw.instr_light', x: 1047, y: 238, tol: 8, review: true },
   { id: 'sw.flood_light', x: 1126, y: 238, tol: 8, review: true },
-  { id: 'lv.deice_mode', x: 129, y: 345, tol: 12, review: true },
-  { id: 'sw.deice_alternate', x: 203, y: 342, tol: 12, review: false },
+  { id: 'sw.deice_mode', x: 120, y: 342, tol: 12, review: true },
+  { id: 'sw.deice_alternate', x: 232, y: 296, tol: 12, review: true },
   { id: 'sw.deice_windshield', x: 129, y: 410, tol: 12, review: true },
   { id: 'sw.deice_ice_light', x: 176, y: 410, tol: 12, review: true },
   { id: 'sw.deice_pump2', x: 222, y: 410, tol: 12, review: true },
@@ -71,7 +71,7 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lv.cowl_flap', x: 1058, y: 1218, tol: 8, review: true },
 ];
 
-/** The ten derived lamps (seven gear and flap lamps, the ELT lamp of plan 18, two cowl-flap lamps). */
+/** The eleven derived lamps (seven gear and flap lamps, the ELT lamp, two cowl-flap lamps, de-ice NORM). */
 export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.gear_nose', x: 916, y: 682, tol: 8, review: true },
   { id: 'lt.gear_left', x: 894, y: 714, tol: 8, review: true },
@@ -83,6 +83,7 @@ export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.elt', x: 1752, y: 656, tol: 8, review: true },
   { id: 'lt.cowl_open', x: 1022, y: 1188, tol: 8, review: true },
   { id: 'lt.cowl_closed', x: 1022, y: 1248, tol: 8, review: true },
+  { id: 'lt.deice_norm', x: 164, y: 340, tol: 12, review: true },
 ];
 
 /**
@@ -153,8 +154,10 @@ export const ORDERING: readonly OrderRow[] = [
   ['sw.instr_light', 'right-of', 'region:pfd'],
   ['sw.flood_light', 'left-of', 'region:mfd'],
   // De-ice panel.
-  ['lv.deice_mode', 'left-of', 'sw.deice_alternate'],
-  ['lv.deice_mode', 'above', 'sw.deice_windshield'],
+  ['sw.deice_mode', 'left-of', 'sw.deice_alternate'],
+  ['sw.deice_mode', 'above', 'sw.deice_windshield'],
+  ['lt.deice_norm', 'right-of', 'sw.deice_mode'],
+  ['lt.deice_norm', 'left-of', 'sw.deice_alternate'],
   ...chain(['sw.deice_windshield', 'sw.deice_ice_light', 'sw.deice_pump2'], 'left-of'),
   ...chain(['sw.deice_windshield', 'sw.deice_ice_light', 'sw.deice_pump2'], 'same-row'),
   ['btn.deice_annun_test', 'left-of', 'sw.deice_pump1'],

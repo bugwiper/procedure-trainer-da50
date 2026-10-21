@@ -62,7 +62,8 @@ describe('toggle family text is state-independent', () => {
       const texts = (['low', 'mid', 'high'] as const).map((position) =>
         textStrings(expand(BatBody({ def, position, pressed: false }))),
       );
-      expect(texts[0], def.id).toEqual([def.label]);
+      // A nameless bat (the de-ice mode toggle) prints no text at all: placards name it.
+      expect(texts[0], def.id).toEqual(def.nameless === true ? [] : [def.label]);
       expect(texts[1], def.id).toEqual(texts[0]);
       expect(texts[2], def.id).toEqual(texts[0]);
     }
@@ -99,7 +100,7 @@ describe('lever family text is state-independent', () => {
   const levers = DA50RG.controls.filter((c): c is DetentLeverDef => c.kind === 'detent-lever');
 
   it('every lever at every detent: no state text, the same text strings, at most 40 elements', () => {
-    expect(levers.length).toBeGreaterThanOrEqual(12);
+    expect(levers.length).toBeGreaterThanOrEqual(11);
     for (const def of levers) {
       const region = DA50RG.regions.find((r) => r.id === def.region);
       const regionWidth = region?.bounds.w ?? def.hit.w;

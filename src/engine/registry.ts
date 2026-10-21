@@ -36,7 +36,8 @@ interface ControlBase {
   readonly hit: Size;
   /**
    * The widget draws no name placard of its own because a plate placard (placards.ts) names the
-   * control. The detent lever and the rotary knob honour it; absent keeps the drawn name.
+   * control. The detent lever, the rotary knob and the bat toggle honour it; absent keeps the
+   * drawn name.
    */
   readonly nameless?: boolean;
 }
@@ -54,7 +55,6 @@ export const LEVER_SKINS = [
   'pull-tab',
   'pull-boot',
   'env-slider',
-  'bat-small',
   'parking-lever',
   'cowl-slider',
 ] as const;

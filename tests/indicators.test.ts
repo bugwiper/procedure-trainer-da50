@@ -89,8 +89,8 @@ describe('flapLamps', () => {
 });
 
 describe('DA50RG indicators', () => {
-  it('has ten lamps and no group readouts, all indicator ids outside the control registry', () => {
-    expect(DA50RG_INDICATORS.indicators).toHaveLength(10);
+  it('has eleven lamps and no group readouts, all indicator ids outside the control registry', () => {
+    expect(DA50RG_INDICATORS.indicators).toHaveLength(11);
     expect(Object.keys(DA50RG_INDICATORS).sort()).toEqual(['get', 'inRegion', 'indicators']);
     for (const def of DA50RG_INDICATORS.indicators) {
       expect(def.id.startsWith('lt.')).toBe(true);
@@ -188,6 +188,28 @@ describe('DA50RG indicators', () => {
       expect(def?.reads, id).toEqual(['lv.cowl_flap']);
       expect(DA50RG.get(id), id).toBeUndefined();
     }
+  });
+
+  it('the white NORM lamp is lit exactly when the de-ice mode is norm, outside the registry (G-1)', () => {
+    const def = DA50RG_INDICATORS.get('lt.deice_norm');
+    expect(def).toBeDefined();
+    expect([def?.colour, def?.region, def?.r, def?.caption]).toEqual([
+      'white',
+      'deice',
+      15,
+      'none',
+    ]);
+    expect(def?.reads).toEqual(['sw.deice_mode']);
+    expect(DA50RG.get('lt.deice_norm')).toBeUndefined();
+    for (const [mode, expected] of [
+      ['off', false],
+      ['norm', true],
+      ['high', false],
+    ] as const) {
+      expect(litMap({ 'sw.deice_mode': mode })['lt.deice_norm'], mode).toBe(expected);
+    }
+    // The store default (mode off) leaves it dark.
+    expect(litMap(new PanelStore(DA50RG).snapshot())['lt.deice_norm']).toBe(false);
   });
 
   it('exactly one flap lamp is lit for each FLAPS state', () => {

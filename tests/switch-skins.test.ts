@@ -259,8 +259,11 @@ describe('three-position toggle contract (plan 18, Table T2)', () => {
     expect([elt.x, elt.y]).toEqual([56, 43]);
   });
 
-  it('only the ELT has three states among the toggles', () => {
-    expect(TOGGLES.filter((t) => t.states.length === 3).map((t) => t.id)).toEqual(['sw.elt']);
+  it('only the ELT and the de-ice mode toggle have three states among the toggles', () => {
+    expect(TOGGLES.filter((t) => t.states.length === 3).map((t) => t.id)).toEqual([
+      'sw.deice_mode',
+      'sw.elt',
+    ]);
   });
 
   it('the position input follows the state index: low and high, or low, mid and high', () => {
@@ -319,11 +322,12 @@ describe('three-position toggle contract (plan 18, Table T2)', () => {
 const BATS = TOGGLES.filter((t) => (t.skin ?? 'bat') === 'bat');
 
 describe('BatBody', () => {
-  it('covers the seven bats named by the plan plus ENGINE MASTER', () => {
+  it('covers the seven bats named by the plan, ENGINE MASTER and the de-ice mode toggle', () => {
     expect(BATS.map((b) => b.id).sort()).toEqual([
       'sw.alternator_1',
       'sw.alternator_2',
       'sw.deice_ice_light',
+      'sw.deice_mode',
       'sw.deice_pump1',
       'sw.deice_pump2',
       'sw.deice_windshield',
@@ -344,7 +348,7 @@ describe('BatBody', () => {
           expect(
             texts.map((t) => textOf(t)),
             id,
-          ).toEqual([def.label]);
+          ).toEqual(def.nameless === true ? [] : [def.label]);
           expect(allProps(tree), id).not.toContain('#39d98a');
         }
       }
@@ -401,6 +405,42 @@ describe('BatBody', () => {
       const label = findElements(tree, (el) => el.tag === 'text' && textOf(el) === def.label)[0];
       expect(label?.props['font-size'], def.id).toBe(6);
       expect(Number(label?.props['y']), def.id).toBeLessThan(-def.hit.h / 2);
+    }
+  });
+});
+
+describe('de-ice mode toggle (plan 21, G-1)', () => {
+  const mode = toggle('sw.deice_mode');
+
+  it('is a nameless three-position bat: bottom OFF, middle NORM, top HIGH, default OFF', () => {
+    expect(mode.states.map((st) => st.id)).toEqual(['off', 'norm', 'high']);
+    expect(mode.default).toBe('off');
+    expect(mode.skin ?? 'bat').toBe('bat');
+    expect(mode.nameless).toBe(true);
+    expect(mode.hit).toEqual({ w: 40, h: 90 });
+    expect(mode.region).toBe('deice');
+  });
+
+  it('the old four-stop lever is gone', () => {
+    expect(DA50RG.get('lv.deice_mode')).toBeUndefined();
+  });
+
+  it('a tap in the top, middle and bottom third selects HIGH, NORM and OFF', () => {
+    expect(tapTarget(mode.states, 'off', 0.1)).toBe('high');
+    expect(tapTarget(mode.states, 'high', 0.5)).toBe('norm');
+    expect(tapTarget(mode.states, 'norm', 0.9)).toBe('off');
+  });
+
+  it('draws no text at all, and a named copy draws its name', () => {
+    for (const position of ['low', 'mid', 'high'] as const) {
+      const bare = expand(BatBody({ def: mode, position, pressed: false }));
+      expect(findElements(bare, (el) => el.tag === 'text')).toEqual([]);
+      const named = expand(
+        BatBody({ def: { ...mode, nameless: false }, position, pressed: false }),
+      );
+      expect(findElements(named, (el) => el.tag === 'text').map((el) => textOf(el))).toEqual([
+        mode.label,
+      ]);
     }
   });
 });

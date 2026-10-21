@@ -254,6 +254,28 @@ describe('plate placards', () => {
     for (const p of elt) expect(p.dx, p.id).toBeGreaterThan(hit.w / 2);
   });
 
+  it('the de-ice mode toggle has HIGH above, NORM left of the middle and OFF below, in its thirds', () => {
+    const mode = PLACARDS.filter((p) => p.near === 'sw.deice_mode');
+    expect(mode.map((p) => p.lines.join(' '))).toEqual(['HIGH', 'NORM', 'OFF']);
+    expect(mode.map((p) => p.anchor)).toEqual(['middle', 'end', 'middle']);
+    expect(mode.every((p) => p.size === 6)).toBe(true);
+    const hit = DA50RG.get('sw.deice_mode')?.hit;
+    expect(hit).toEqual({ w: 40, h: 90 });
+    if (hit === undefined) return;
+    // HIGH, NORM and OFF lie at the heights of the top, middle and bottom position of the handle.
+    const third = hit.h / 3;
+    const tops = [-hit.h / 2, -hit.h / 2 + third, -hit.h / 2 + 2 * third];
+    mode.forEach((p, i) => {
+      const y = placardLineY(p, 0);
+      expect(y, p.id).toBeGreaterThanOrEqual(tops[i] ?? 0);
+      expect(y, p.id).toBeLessThanOrEqual((tops[i] ?? 0) + third);
+    });
+    // NORM stands left of the toggle body, HIGH and OFF centred on it.
+    expect(mode[1]?.dx).toBeLessThan(0);
+    expect(mode[0]?.dx).toBe(0);
+    expect(mode[2]?.dx).toBe(0);
+  });
+
   it('PARKING / BRAKE (two lines) and THROTTLE are centred above their levers, COWL FLAP above its group', () => {
     const by = (id: string) => PLACARDS.find((p) => p.id === id);
     const brake = by('parking_brake.name');

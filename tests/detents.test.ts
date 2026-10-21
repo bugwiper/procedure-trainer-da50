@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { GEAR_FLAPS_CONTROLS } from '../src/aircraft/da50rg/controls/gear-flaps';
 import { PEDESTAL_CONTROLS } from '../src/aircraft/da50rg/controls/pedestal';
 import { UNDER_PANEL_CONTROLS } from '../src/aircraft/da50rg/controls/under-panel';
@@ -102,17 +103,10 @@ describe('pedestal and front-panel lever inventory', () => {
     });
   });
 
-  it('GEAR_FLAPS_CONTROLS is exactly GEAR, FLAPS and the de-ice MODE selector', () => {
-    expect(GEAR_FLAPS_CONTROLS.map((c) => c.id)).toEqual(['lv.gear', 'lv.flaps', 'lv.deice_mode']);
+  it('GEAR_FLAPS_CONTROLS is exactly GEAR and FLAPS; the de-ice mode is no lever any more', () => {
+    expect(GEAR_FLAPS_CONTROLS.map((c) => c.id)).toEqual(['lv.gear', 'lv.flaps']);
     for (const c of GEAR_FLAPS_CONTROLS) expect(c.kind).toBe('detent-lever');
-  });
-
-  it('the de-ice MODE selector has four detents and defaults to off', () => {
-    const mode = GEAR_FLAPS_CONTROLS.find((c) => c.id === 'lv.deice_mode');
-    expect(mode?.kind).toBe('detent-lever');
-    if (mode?.kind !== 'detent-lever') return;
-    expect(mode.detents.map((d) => d.id)).toEqual(['off', 'norm', 'high', 'max']);
-    expect(mode.default).toBe('off');
+    expect(DA50RG.get('lv.deice_mode')).toBeUndefined();
   });
 });
 

@@ -55,7 +55,7 @@ function sourceOf(path: string): string {
 
 describe('LeverBody', () => {
   it('stays within 40 nodes with no state text, in every state (G-0.1)', () => {
-    expect(LEVERS.length).toBeGreaterThanOrEqual(12);
+    expect(LEVERS.length).toBeGreaterThanOrEqual(11);
     for (const def of LEVERS) {
       for (const detent of def.detents) {
         for (const dragging of [false, true]) {
@@ -166,10 +166,9 @@ describe('gear knob', () => {
   });
 });
 
-describe('FLAPS, de-ice MODE and the pull handles', () => {
+describe('FLAPS and the pull handles', () => {
   const EXPECTED: Record<string, string> = {
     'lv.flaps': 'flaps-block',
-    'lv.deice_mode': 'bat-small',
     'lv.alt_static': 'pull-t',
     'lv.emerg_gear': 'pull-tab',
     'lv.alt_air': 'pull-boot',

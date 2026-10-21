@@ -500,7 +500,8 @@ describe('momentary button skins and the three-state spring bat', () => {
 describe('lever skins', () => {
   it('accepts every skin of the vocabulary and none', () => {
     expect(LEVER_SKINS).toContain('power-grip');
-    expect(LEVER_SKINS).toHaveLength(10);
+    expect(LEVER_SKINS).toHaveLength(9);
+    expect(LEVER_SKINS).not.toContain('bat-small');
     for (const skin of LEVER_SKINS) expect(() => build([lever('lv.s', { skin })])).not.toThrow();
     expect(() => build([lever('lv.none')])).not.toThrow();
   });

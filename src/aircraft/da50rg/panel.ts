@@ -54,10 +54,10 @@ export const VIEW_PROFILES: {
 export const REGIONS: readonly RegionDef[] = [
   // Glareshield hump above the displays: the four exterior light switches (D-08).
   { id: 'lights', name: 'LIGHTS', bounds: { x: 930, y: 20, w: 280, h: 150 } },
-  // De-ice mode selector and the ALTERNATE switch, top far left.
-  { id: 'deice', name: 'DE-ICE', bounds: { x: 85, y: 275, w: 175, h: 115 } },
-  // De-ice switch rows below the mode selector. Split from DE-ICE (PD-02): in one 190-tall
-  // region the four-position mode selector cannot reach 44 px per detent on the phone.
+  // De-ice upper block, top far left: MAX button, mode toggle, three lamps, ALTERNATE (plan 21).
+  { id: 'deice', name: 'DE-ICE', bounds: { x: 85, y: 205, w: 175, h: 185 } },
+  // De-ice switch rows below the mode toggle. Split from DE-ICE (PD-02): in one tall region the
+  // three thirds of the mode toggle cannot reach 44 px each on the phone.
   { id: 'deice_switches', name: 'DE-ICE SWITCHES', bounds: { x: 85, y: 390, w: 175, h: 75 } },
   // Left edge, below DE-ICE (D-07d).
   { id: 'engine_controls', name: 'ENGINE', bounds: { x: 80, y: 470, w: 170, h: 135 } },

@@ -84,29 +84,26 @@ test('every detent lever stays within 40 elements', async ({ page }) => {
       nodes: el.querySelectorAll('*').length + 1,
     })),
   );
-  expect(counts.length).toBeGreaterThanOrEqual(12);
+  expect(counts.length).toBeGreaterThanOrEqual(11);
   for (const c of counts) expect(c.nodes, c.id).toBeLessThanOrEqual(40);
 });
 
 const SKINS: Record<string, string> = {
   'lv.flaps': 'flaps-block',
-  'lv.deice_mode': 'bat-small',
   'lv.alt_static': 'pull-t',
   'lv.emerg_gear': 'pull-tab',
   'lv.alt_air': 'pull-boot',
 };
 
-test('FLAPS, de-ice MODE and the pull handles carry their skins', async ({ page }) => {
+test('FLAPS and the pull handles carry their skins', async ({ page }) => {
   for (const [id, skin] of Object.entries(SKINS)) {
     await expect(control(page, id), id).toHaveAttribute('data-skin', skin);
   }
 });
 
-test('FLAPS and de-ice MODE move by marker tap', async ({ page, hasTouch }) => {
+test('FLAPS moves by marker tap', async ({ page, hasTouch }) => {
   await activate(page.locator('[data-detent="lv.flaps:ldg"]'), hasTouch);
   await expect(control(page, 'lv.flaps')).toHaveAttribute('data-state', 'ldg');
-  await activate(page.locator('[data-detent="lv.deice_mode:high"]'), hasTouch);
-  await expect(control(page, 'lv.deice_mode')).toHaveAttribute('data-state', 'high');
 });
 
 test('ALTERNATE STATIC and ALTERNATE AIR pull by marker tap, EMERGENCY GEAR EXTENSION gets no marker', async ({

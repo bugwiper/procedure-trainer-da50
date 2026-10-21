@@ -10,7 +10,7 @@ const PRESSED_RING = '#8fb8e6';
 export const COMPACT_BAT_HEIGHT = 39;
 
 export interface BatBodyProps {
-  readonly def: Pick<ToggleDef, 'label' | 'hit' | 'ball'>;
+  readonly def: Pick<ToggleDef, 'label' | 'hit' | 'ball' | 'nameless'>;
   /** high points the handle up, low down, mid shows a short stub toward the viewer (Table T1). */
   readonly position: TogglePosition;
   /** True only while a pointer is down on the control. */
@@ -35,7 +35,8 @@ interface Handle {
  * a 1-unit dark outline and, for ENGINE MASTER, a ball tip r 3.2. The handle points up for
  * `high`, down for `low`, and for `mid` shows a short stub toward the viewer: the tip sits at the
  * pivot and only the ball tip is drawn. The body prints the name only: no state text and no
- * status dot (G-0.1, G-0.3). Footprints under 39 tall (the de-ice bats) use the compact variant
+ * status dot (G-0.1, G-0.3); a nameless bat (plan 21) prints no text at all, a plate placard names
+ * it. Footprints under 39 tall (the de-ice bats) use the compact variant
  * (PD-08): throw 8 and the name in Micro 6 just above the footprint in free panel space. No hooks,
  * no state.
  */
@@ -71,18 +72,20 @@ export function BatBody({ def, position, pressed }: BatBodyProps) {
 
   return (
     <g pointer-events="none">
-      <text
-        x={0}
-        y={labelY}
-        text-anchor="middle"
-        font-family={FONT}
-        font-size={compact ? 6 : 8}
-        fill="#aab3bd"
-        textLength={labelWidth}
-        lengthAdjust="spacingAndGlyphs"
-      >
-        {def.label}
-      </text>
+      {def.nameless === true ? null : (
+        <text
+          x={0}
+          y={labelY}
+          text-anchor="middle"
+          font-family={FONT}
+          font-size={compact ? 6 : 8}
+          fill="#aab3bd"
+          textLength={labelWidth}
+          lengthAdjust="spacingAndGlyphs"
+        >
+          {def.label}
+        </text>
+      )}
       <circle
         cx={0}
         cy={handle.pivotY}

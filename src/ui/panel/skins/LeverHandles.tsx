@@ -41,7 +41,6 @@ export interface SkinArt {
 export const LEVER_ART: Readonly<Record<LeverSkin, SkinArt>> = {
   'gear-knob': { along: 22, across: 22, under: 17, tick: 9, tickColour: '#6b7580' },
   'flaps-block': { along: 18, across: 27, nameInset: 6.5, tick: 27, tickColour: '#4a525c' },
-  'bat-small': { along: 8, across: 7, tick: 7, tickColour: '#6b7580' },
   'pull-t': { along: 11, across: 11, tick: 8, tickColour: '#6b7580' },
   'pull-tab': { along: 20, across: 7, nameInset: 6.5, tick: 8, tickColour: '#6b7580' },
   'pull-boot': { along: 22, across: 12, nameInset: 6.5, tick: 8, tickColour: '#6b7580' },
@@ -96,19 +95,6 @@ export function LeverHandle({ skin, axis, dragging }: LeverHandleProps) {
             {...outline(dragging, BLACK_EDGE)}
           />
           <rect x={-19} y={-12} width={38} height={1} fill={BLACK_EDGE} />
-        </g>
-      );
-    case 'bat-small':
-      return (
-        <g>
-          <circle r={6} fill="#14171b" {...outline(dragging, METAL_EDGE)} />
-          <path
-            d="M-1.6 6.5L1.6 6.5L2.4 -6.5L-2.4 -6.5Z"
-            fill={paint('g-chrome')}
-            stroke="#3a4048"
-            stroke-width={0.8}
-            stroke-linejoin="round"
-          />
         </g>
       );
     case 'pull-t':
@@ -325,8 +311,6 @@ export function LeverTrack({ skin, length, axis, handleAt }: LeverTrackProps) {
     }
     case 'flaps-block':
       return <Slot axis={axis} w={54} length={length} pad={36} />;
-    case 'bat-small':
-      return <Slot axis={axis} w={4} length={length} pad={16} />;
     case 'pull-t':
     case 'pull-tab':
     case 'pull-boot':
