@@ -13,6 +13,7 @@ import {
   legendTabCentreX,
   softkeyCentre,
 } from '../src/aircraft/da50rg/avionics';
+import type { ColumnText } from '../src/aircraft/da50rg/avionics';
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
 import { PLATES } from '../src/aircraft/da50rg/plates';
 import type { PanelBridge } from '../src/ui/bridge';
@@ -958,6 +959,170 @@ describe('pfd_bezel_right column (Table F2)', () => {
     expect(offenders).toEqual([]);
     for (const el of findElements(tree, (e) => e.tag === 'text')) {
       expect([6, 8]).toContain(el.props['font-size']);
+    }
+  });
+});
+
+describe('mfd_bezel_right column (Table F3)', () => {
+  const id = 'mfd_bezel_right';
+
+  it('has four knobs, one joystick, one swap button and six 26 x 18 keys', () => {
+    expect(knobsOf(id)).toHaveLength(4);
+    expect(columnElements(id).filter((e) => e.kind === 'joystick')).toHaveLength(1);
+    expect(columnElements(id).filter((e) => e.kind === 'swap')).toHaveLength(1);
+    const keys = columnElements(id).filter((e) => e.kind === 'key');
+    expect(keys).toHaveLength(6);
+    for (const k of keys) expect([k.w, k.h]).toEqual([26, 18]);
+  });
+
+  it('pins the COM and FMS knobs and the first and last key', () => {
+    const find = (name: string) => columnElements(id).find((e) => 'id' in e && e.id === name);
+    const com = find('com');
+    const fms = find('fms');
+    expect(com?.kind === 'knob' && [globalPos(id, com), com.r]).toEqual([{ x: 1824, y: 276 }, 16]);
+    expect(fms?.kind === 'knob' && [globalPos(id, fms), fms.r]).toEqual([{ x: 1824, y: 548 }, 17]);
+    const keys = columnElements(id).filter((e) => e.kind === 'key');
+    const first = keys[0];
+    const last = keys[5];
+    expect(first && globalPos(id, first)).toEqual({ x: 1810, y: 448 });
+    expect(last && globalPos(id, last)).toEqual({ x: 1838, y: 492 });
+  });
+
+  it('pins the swap button and the texts that depend on the column centre', () => {
+    const swap = columnElements(id).find((e) => e.kind === 'swap');
+    expect(swap?.kind === 'swap' && [globalPos(id, swap), swap.w, swap.h]).toEqual([
+      { x: 1834, y: 234 },
+      22,
+      12,
+    ]);
+    const r = region(id).bounds;
+    const at = (text: string) =>
+      columnElements(id)
+        .filter((e): e is ColumnText => e.kind === 'text' && e.text === text)
+        .map((e) => [e.x + r.x, e.y + r.y, e.anchor]);
+    expect(at('EMERG')).toEqual([[1794, 237, 'start']]);
+    expect(at('DFLT MAP')).toEqual([[1794, 508, 'start']]);
+    expect(at('VOL')).toEqual([[1824, 210, 'start']]);
+    expect(at('PUSH CRSR')).toEqual([[1824, 572, 'middle']]);
+  });
+
+  it('equals the PFD right column shifted by +915 in x, element by element', () => {
+    const pfd = columnElements('pfd_bezel_right');
+    const mfd = columnElements(id);
+    expect(mfd).toHaveLength(pfd.length);
+    const pr = region('pfd_bezel_right').bounds;
+    const mr = region(id).bounds;
+    pfd.forEach((a, i) => {
+      const b = mfd[i];
+      expect(b?.kind, `element ${i}`).toBe(a.kind);
+      if (a.kind === 'text' && b?.kind === 'text') {
+        expect([b.text, b.x + mr.x, b.y + mr.y, b.size, b.anchor], `text ${a.text}`).toEqual([
+          a.text,
+          a.x + pr.x + 915,
+          a.y + pr.y,
+          a.size,
+          a.anchor,
+        ]);
+      } else if (a.kind !== 'text' && b !== undefined && b.kind !== 'text') {
+        const ga = globalPos('pfd_bezel_right', a);
+        const gb = globalPos(id, b);
+        expect([gb.x, gb.y], `${a.kind} ${a.id}`).toEqual([ga.x + 915, ga.y]);
+        // Every size, radius and legend is unchanged.
+        expect({ ...b, cx: 0, cy: 0 }).toEqual({ ...a, cx: 0, cy: 0 });
+      }
+    });
+  });
+
+  it('every part and text anchor lies inside the region and the plate; no parts overlap', () => {
+    expectInside(id);
+    expectNoOverlap(id);
+    // The two key columns do not overlap.
+    expect(1810 + 13).toBeLessThan(1838 - 13);
+  });
+
+  it('renders as a not-operable image group with the same parts as the PFD right column', () => {
+    const tree = renderColumn(id);
+    expect(tree.props['aria-label']).toBe('MFD KNOB COLUMN RIGHT (NOT OPERABLE)');
+    expect(findElements(tree, (e) => e.props['data-knob'] !== undefined)).toHaveLength(4);
+    expect(findElements(tree, (e) => e.props['data-joystick'] !== undefined)).toHaveLength(1);
+    expect(findElements(tree, (e) => e.props['data-swap'] !== undefined)).toHaveLength(1);
+    expect(findElements(tree, (e) => e.props['data-key'] !== undefined)).toHaveLength(6);
+    const strings = (c: ColumnId) =>
+      findElements(renderColumn(c), (e) => e.tag === 'text').map((e) => textOf(e));
+    expect(strings(id)).toEqual(strings('pfd_bezel_right'));
+  });
+});
+
+describe('bezel columns: element budget and inertness', () => {
+  const ids = ['pfd_bezel_left', 'pfd_bezel_right', 'mfd_bezel_right'] as const;
+
+  it.each(ids)('%s stays within 150 svg elements', (id) => {
+    expect(countElements(renderColumn(id))).toBeLessThanOrEqual(150);
+  });
+
+  it('the three columns hold 12 knobs, 2 joysticks, 3 swap buttons and 12 keys', () => {
+    const all = ids.flatMap((id) => columnElements(id));
+    expect(all.filter((e) => e.kind === 'knob')).toHaveLength(12);
+    expect(all.filter((e) => e.kind === 'joystick')).toHaveLength(2);
+    expect(all.filter((e) => e.kind === 'swap')).toHaveLength(3);
+    expect(all.filter((e) => e.kind === 'key')).toHaveLength(12);
+  });
+
+  it.each(ids)(
+    '%s has no handler, hit rectangle, control id, tabindex or font other than 6 and 8',
+    (id) => {
+      const tree = renderColumn(id);
+      const offenders = findElements(tree, (el) =>
+        Object.keys(el.props).some(
+          (k) =>
+            /^on[A-Z]/.test(k) || k === 'data-hit' || k === 'data-control-id' || k === 'tabindex',
+        ),
+      );
+      expect(offenders).toEqual([]);
+      for (const el of findElements(tree, (e) => e.tag === 'text')) {
+        expect([6, 8]).toContain(el.props['font-size']);
+      }
+    },
+  );
+
+  it('no column region is in the control registry', () => {
+    for (const id of ids) expect(region(id).controlIds, id).toEqual([]);
+    expect(
+      DA50RG.regions
+        .filter((r) => r.id.endsWith('bezel_right') || r.id.endsWith('bezel_left'))
+        .every((r) => r.controlIds.length === 0),
+    ).toBe(true);
+  });
+
+  it('the source names no avionics maker, product family or logo (brand rule)', () => {
+    const files = [
+      '../src/aircraft/da50rg/avionics.ts',
+      '../src/ui/panel/frames/BezelColumnFrame.tsx',
+    ];
+    for (const f of files) {
+      const text = readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
+      expect(text, f).not.toMatch(/garmin|g1000|nxi|logo|wordmark|swoosh/i);
+    }
+  });
+});
+
+describe('review document on the knob columns (plan 07)', () => {
+  const review = readFileSync(
+    fileURLToPath(new URL('../docs/PANEL-REVIEW.md', import.meta.url)),
+    'utf8',
+  );
+
+  it('lists the three columns as assumptions with the file to change', () => {
+    for (const needle of [
+      '`BEZEL_COLUMNS`',
+      'src/aircraft/da50rg/avionics.ts',
+      'knob sets',
+      'about 70 percent',
+      'direct-to',
+      'PUSH CRSR',
+      'no logo',
+    ]) {
+      expect(review, needle).toContain(needle);
     }
   });
 });

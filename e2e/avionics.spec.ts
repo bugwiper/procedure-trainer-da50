@@ -146,7 +146,46 @@ const COLUMNS: readonly ColumnExpect[] = [
     swaps: 1,
     keys: 6,
   },
+  {
+    id: 'mfd_bezel_right',
+    texts: [
+      'VOL',
+      'PUSH SQ',
+      'EMERG',
+      'COM',
+      'PUSH',
+      '1-2',
+      'CRS/BARO',
+      'PUSH',
+      'CRS CTR',
+      'RANGE',
+      'PUSH',
+      'PAN',
+      'D',
+      'MENU',
+      'FPL',
+      'PROC',
+      'CLR',
+      'ENT',
+      'DFLT MAP',
+      'FMS',
+      'PUSH CRSR',
+    ],
+    knobs: 4,
+    joysticks: 1,
+    swaps: 1,
+    keys: 6,
+  },
 ];
+
+test('the three columns show 14 round parts, 3 swap buttons and 12 keys in total', async ({
+  page,
+}) => {
+  await expect(page.locator('[data-unit] [data-knob]')).toHaveCount(12);
+  await expect(page.locator('[data-unit] [data-joystick]')).toHaveCount(2);
+  await expect(page.locator('[data-unit] [data-swap]')).toHaveCount(3);
+  await expect(page.locator('[data-unit] [data-key]')).toHaveCount(12);
+});
 
 for (const col of COLUMNS) {
   test(`the ${col.id} column shows its legends and ${String(col.knobs)} knobs`, async ({

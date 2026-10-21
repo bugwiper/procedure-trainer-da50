@@ -65,7 +65,7 @@ Two dimmer knobs between the displays (UI-SPEC rows 5 and 6). Rotary, radius 20,
 | `sw.instr_light` | INSTRUMENT LIGHT | rotary r 20, arc scale | OFF, 25, 50, 75, MAX at -135, -67, 0, 67, 135; default OFF | 1047, 238 (8) | states (stop count and labels), default, position (same parallax doubt as the light rockers) | P650, P807, P761, SIM | `controls/knobs.ts` |
 | `sw.flood_light` | FLOOD LIGHT      | rotary r 20, arc scale | same stops; default OFF                                    | 1126, 238 (8) | same                                                                                         | same                  | `controls/knobs.ts` |
 
-Inert avionics units (phase 01.2 plan 06, D-05 and D-06): six view-only regions hold no control. A tap on one only zooms; no event is emitted and no state changes. Each draws a group that is announced as "NAME (NOT OPERABLE)" and carries `data-unit`; its children are hidden from assistive technology. The earlier placeholder outlines of the centre stack (three guessed rectangles at (892, 300), (982, 300) and (1152, 300)) are gone: the audio panel, the backup EFIS and the autopilot panel now draw their own housing inside their region, so the art-fit and text-overlap gates measure them. The knobs, keys and artwork of the units come in plans 07 and 08.
+Inert avionics units (phase 01.2 plan 06, D-05 and D-06): six view-only regions hold no control. A tap on one only zooms; no event is emitted and no state changes. Each draws a group that is announced as "NAME (NOT OPERABLE)" and carries `data-unit`; its children are hidden from assistive technology. The earlier placeholder outlines of the centre stack (three guessed rectangles at (892, 300), (982, 300) and (1152, 300)) are gone: the audio panel, the backup EFIS and the autopilot panel now draw their own housing inside their region, so the art-fit and text-overlap gates measure them. The knob and key columns are drawn (plan 07, below); the audio panel, backup EFIS and autopilot artwork come in plan 08.
 
 | Region (id) | Rectangle x, y, w, h | Plate | Housing | What is uncertain |
 | ----------- | -------------------- | ----- | ------- | ----------------- |
@@ -245,6 +245,16 @@ Other shell items:
 | Nameplate | x 485..635, y 106..134, text DA50RG centred at (560, 125) |
 | RUBIN | centre (1232, 625) |
 | GO-AROUND | centred above each display bezel at region-local (w/2, -6) |
+
+Knob and key columns (phase 01.2 plan 07, D-04 and D-05): the three columns `pfd_bezel_left`, `pfd_bezel_right` and `mfd_bezel_right` draw inert knobs, a swap button, the RANGE joystick (right columns) and six keys (right columns), each with its static name and sub-legends. Nothing turns or presses; a tap only zooms. Assumptions for the morning review:
+
+| Item | What was done | What is uncertain | File to change |
+| ---- | ------------- | ----------------- | -------------- |
+| Knob sets | left column: small knob (VOL, PUSH ID), swap button, NAV, HDG and ALT knobs; right columns: small knob (VOL, PUSH SQ), swap button with EMERG, COM, CRS/BARO and FMS knobs, the RANGE joystick, six keys (direct-to, MENU, FPL, PROC, CLR, ENT) and DFLT MAP | the knob sets are read from the photos; the sub-legends (PUSH, 1-2, HDG SYNC, CRS CTR, PAN, PUSH CRSR) may differ from the real strips | `src/aircraft/da50rg/avionics.ts` (`BEZEL_COLUMNS`) |
+| Compressed widths | the two PFD columns are about 70 percent of the photo proportions (68 wide); the MFD right strip is 84 wide and carries the full PFD right column shifted by 915 in x | the real strips are wider; spacing and radii are proposals | `src/aircraft/da50rg/avionics.ts`, `panel.ts` (regions) |
+| Moved legend | PUSH CRSR sits at baseline 572 (the layout table said 573) so the text stays inside the region | none, it moved 1 unit | `src/aircraft/da50rg/avionics.ts` |
+| Direct-to key | drawn as an arrow path with the letter D to its left, no word | glyph shape is my proposal | `src/ui/panel/frames/BezelColumnFrame.tsx` |
+| Knob detail | 16 knurl ticks, a cap circle and a top-left highlight, each knob four shapes; no logo, no pointer text on any knob | knurl count and highlight are proposals (U-29) | `src/ui/panel/frames/BezelColumnFrame.tsx` |
 
 Seen in the build and resolved: the earlier remark that the NO SMOKING plate sat where the GEAR state text was drawn is obsolete (no state text exists any more); the ESS BUS placard no longer overlaps a rocker according to the text-overlap gate. One visible trade-off remains: the two-line EMERGENCY GEAR EXTENSION name starts at global y 741, so its first line straddles the lower face-plate edge at 745 (there is no room to place it fully below without covering the tab handle); the gate measures it inside its region. Contrast: the end placards on the raised half of the red rockers are white on `#e5323c`, about 4.4:1, just below 4.5:1.
 

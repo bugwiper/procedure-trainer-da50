@@ -289,8 +289,22 @@ function toLocal(ox: number, oy: number, list: readonly ColumnElement[]): readon
   });
 }
 
+/** Copy of a global table moved right by dx; sizes, radii, legends and baselines are unchanged. */
+function shiftedX(dx: number, list: readonly ColumnElement[]): readonly ColumnElement[] {
+  return list.map((e): ColumnElement => {
+    if (e.kind === 'text') return { ...e, x: e.x + dx };
+    return { ...e, cx: e.cx + dx };
+  });
+}
+
+/**
+ * Table F3: the MFD right strip (centre x 1824) is the PFD right column shifted by +915 in x
+ * (the real strips are identical on both displays; the strip has room on the wider panel).
+ */
+const MFD_RIGHT_GLOBAL: readonly ColumnElement[] = shiftedX(915, PFD_RIGHT_GLOBAL);
+
 export const BEZEL_COLUMNS: Readonly<Record<BezelColumnId, readonly ColumnElement[]>> = {
   pfd_bezel_left: toLocal(274, 196, PFD_LEFT_GLOBAL),
   pfd_bezel_right: toLocal(875, 196, PFD_RIGHT_GLOBAL),
-  mfd_bezel_right: [],
+  mfd_bezel_right: toLocal(1782, 196, MFD_RIGHT_GLOBAL),
 };

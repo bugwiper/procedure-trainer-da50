@@ -20,13 +20,14 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   // Inert key art (the keys that are not controls) of the softkey rows below the displays.
   mfd_softkeys: SoftkeysFrame,
   pfd_softkeys: SoftkeysFrame,
-  // Inert avionics units: housing and a not-operable label, no control, no handler (D-05, D-06).
+  // Inert knob and key columns beside the displays (plan 07, D-04, D-05): no control, no handler.
+  pfd_bezel_left: BezelColumnFrame,
   pfd_bezel_right: BezelColumnFrame,
+  mfd_bezel_right: BezelColumnFrame,
+  // Inert avionics units: housing and a not-operable label, no control, no handler (D-05, D-06).
   audio_panel: UnitHousing,
   standby_efis: UnitHousing,
   autopilot_panel: UnitHousing,
-  pfd_bezel_left: BezelColumnFrame,
-  mfd_bezel_right: UnitHousing,
 };
 
 /**
