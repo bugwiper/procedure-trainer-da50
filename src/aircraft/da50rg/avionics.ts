@@ -385,3 +385,39 @@ const AUDIO_GLOBAL: readonly UnitElement[] = [
 
 /** Table G1: the audio panel in the local space of `audio_panel` (946, 196). */
 export const AUDIO_PANEL: readonly UnitElement[] = toLocal(946, 196, AUDIO_GLOBAL);
+
+/** A rectangle in the local space of a unit region. */
+export interface UnitRect {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** Table G2: the backup EFIS in the local space of `standby_efis` (1026, 296). */
+export interface StandbyEfisData {
+  readonly housing: UnitRect;
+  /** Attitude display: blue over brown, horizon, pitch ticks, roll arc, fixed aircraft symbol. */
+  readonly upper: UnitRect;
+  /** Tape display: speed tape, altitude tape, KTS and FEET labels, BARO box. */
+  readonly lower: UnitRect;
+  readonly knob: ColumnKnob;
+}
+
+const efisRect = (x: number, y: number, w: number, h: number): UnitRect => ({
+  x: x - 1026,
+  y: y - 296,
+  w,
+  h,
+});
+
+export const STANDBY_EFIS: StandbyEfisData = {
+  housing: efisRect(1029, 298, 114, 264),
+  upper: efisRect(1040, 308, 92, 116),
+  lower: efisRect(1040, 434, 92, 116),
+  knob: { kind: 'knob', id: 'efis', cx: 1134 - 1026, cy: 429 - 296, r: 8 },
+};
+
+/** Idle tape numerals (proposals, U-18): speed from 180 down to 100, altitude around 1400. */
+export const EFIS_SPEED_TAPE: readonly number[] = [180, 160, 140, 120, 100];
+export const EFIS_ALTITUDE_TAPE: readonly number[] = [1600, 1500, 1400, 1300, 1200];

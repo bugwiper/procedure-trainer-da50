@@ -75,21 +75,35 @@ test('the units hold no control, no hit rectangle and no control id', async ({ p
   }
 });
 
-test('the housed units draw a housing equal to their region frame', async ({ page }) => {
-  for (const id of ['audio_panel', 'standby_efis', 'autopilot_panel']) {
+test('the housed units draw a housing equal to their region frame (the backup EFIS: its own bezel)', async ({
+  page,
+}) => {
+  const rectOf = (locator: ReturnType<Page['locator']>) =>
+    locator.evaluate((el) => el.getBoundingClientRect().toJSON() as Record<string, number>);
+  for (const id of ['audio_panel', 'autopilot_panel']) {
     const region = page.locator(`[data-region-id="${id}"]`);
     const housing = region.locator('[data-unit-housing]');
     await expect(housing, id).toHaveCount(1);
     const [h, f] = await Promise.all([
-      housing.evaluate((el) => el.getBoundingClientRect().toJSON() as Record<string, number>),
-      region
-        .locator('[data-region-frame]')
-        .evaluate((el) => el.getBoundingClientRect().toJSON() as Record<string, number>),
+      rectOf(housing),
+      rectOf(region.locator('[data-region-frame]')),
     ]);
     for (const key of ['left', 'top', 'width', 'height']) {
       expect(h[key] ?? Number.NaN, `${id} ${key}`).toBeCloseTo(f[key] ?? Number.NaN, 0);
     }
   }
+  // The backup EFIS housing is {1029, 298, 114, 264} inside the region {1026, 296, 120, 278}.
+  const efis = page.locator('[data-region-id="standby_efis"]');
+  await expect(efis.locator('[data-unit-housing]')).toHaveCount(1);
+  const [h, f] = await Promise.all([
+    rectOf(efis.locator('[data-unit-housing]')),
+    rectOf(efis.locator('[data-region-frame]')),
+  ]);
+  const scale = (f['width'] ?? Number.NaN) / 120;
+  expect(h['left'] ?? Number.NaN).toBeCloseTo((f['left'] ?? 0) + 3 * scale, 0);
+  expect(h['top'] ?? Number.NaN).toBeCloseTo((f['top'] ?? 0) + 2 * scale, 0);
+  expect(h['width'] ?? Number.NaN).toBeCloseTo(114 * scale, 0);
+  expect(h['height'] ?? Number.NaN).toBeCloseTo(264 * scale, 0);
   // The bezel columns sit on their unit plate and draw no housing.
   for (const id of ['pfd_bezel_left', 'pfd_bezel_right', 'mfd_bezel_right']) {
     await expect(page.locator(`[data-region-id="${id}"] [data-unit-housing]`), id).toHaveCount(0);
@@ -281,6 +295,39 @@ test('@hooks a tap on an audio key and on the DISPLAY BACKUP button emits no eve
       await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
     }
   }
+});
+
+// Plan 08: the backup EFIS: two displays, one knob and the strings below.
+test('the backup EFIS shows two displays, one knob and its tape strings', async ({ page }) => {
+  const unit = page.locator('[data-unit="standby_efis"]');
+  await expect(unit.locator('[data-efis-display]')).toHaveCount(2);
+  await expect(unit.locator('[data-knob]')).toHaveCount(1);
+  await expect(unit.locator('[data-key], [data-lamp], [data-display-backup]')).toHaveCount(0);
+  await expect(unit.locator('[data-hit], [data-control-id], [tabindex]')).toHaveCount(0);
+  const shown = await unit.locator('text').allTextContents();
+  for (const word of ['KTS', 'FEET', 'BARO', '1013', '0', '1400']) {
+    expect(shown, word).toContain(word);
+  }
+  expect([...shown].sort()).toEqual(
+    [
+      'KTS',
+      'FEET',
+      '0',
+      '1400',
+      '180',
+      '160',
+      '140',
+      '120',
+      '100',
+      '1600',
+      '1500',
+      '1400',
+      '1300',
+      '1200',
+      'BARO',
+      '1013',
+    ].sort(),
+  );
 });
 
 for (const [id] of UNITS) {

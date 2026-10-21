@@ -7,10 +7,13 @@ import {
   GLASS,
   MFD_ENGINE_LEGENDS,
   MFD_MAP_LEGENDS,
+  EFIS_ALTITUDE_TAPE,
+  EFIS_SPEED_TAPE,
   PFD_LEGENDS,
   SOFTKEY_CENTRE_Y,
   SOFTKEY_KEY,
   SOFTKEY_ROWS,
+  STANDBY_EFIS,
   legendTabCentreX,
   softkeyCentre,
 } from '../src/aircraft/da50rg/avionics';
@@ -23,6 +26,7 @@ import { BezelColumnFrame } from '../src/ui/panel/frames/BezelColumnFrame';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
 import { SoftkeysFrame } from '../src/ui/panel/frames/SoftkeysFrame';
+import { StandbyEfisFrame } from '../src/ui/panel/frames/StandbyEfisFrame';
 import { UnitHousing } from '../src/ui/panel/frames/UnitHousing';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { El } from './vnode-walk';
@@ -1347,5 +1351,159 @@ describe('AudioPanelFrame', () => {
 
   it('adds nothing to the control registry', () => {
     expect(region('audio_panel').controlIds).toEqual([]);
+  });
+});
+
+// Plan 08 task 2: the backup EFIS (D-06): bezelled unit with an attitude display, a tape display
+// and one round knob. Rectangles are typed in as global literals (Table G2); the data is local.
+
+describe('backup EFIS data (Table G2)', () => {
+  const origin = region('standby_efis').bounds;
+  const global = (r: { x: number; y: number; w: number; h: number }) => ({
+    x: r.x + origin.x,
+    y: r.y + origin.y,
+    w: r.w,
+    h: r.h,
+  });
+  const inside = (
+    inner: { x: number; y: number; w: number; h: number },
+    outer: { x: number; y: number; w: number; h: number },
+  ) =>
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.w <= outer.x + outer.w &&
+    inner.y + inner.h <= outer.y + outer.h;
+
+  it('pins the housing, the two displays and the knob', () => {
+    expect(origin).toEqual({ x: 1026, y: 296, w: 120, h: 278 });
+    expect(global(STANDBY_EFIS.housing)).toEqual({ x: 1029, y: 298, w: 114, h: 264 });
+    expect(global(STANDBY_EFIS.upper)).toEqual({ x: 1040, y: 308, w: 92, h: 116 });
+    expect(global(STANDBY_EFIS.lower)).toEqual({ x: 1040, y: 434, w: 92, h: 116 });
+    const k = STANDBY_EFIS.knob;
+    expect([k.cx + origin.x, k.cy + origin.y, k.r]).toEqual([1134, 429, 8]);
+  });
+
+  it('both displays lie inside the housing, the housing inside the region and the plate', () => {
+    expect(inside(STANDBY_EFIS.upper, STANDBY_EFIS.housing)).toBe(true);
+    expect(inside(STANDBY_EFIS.lower, STANDBY_EFIS.housing)).toBe(true);
+    expect(inside(STANDBY_EFIS.housing, { x: 0, y: 0, w: origin.w, h: origin.h })).toBe(true);
+    const plate = PLATES.find((p) => p.regions.includes('standby_efis'));
+    expect(plate?.id).toBe('centre-stack');
+    expect(inside(global(STANDBY_EFIS.housing), plate ?? { x: 0, y: 0, w: 0, h: 0 })).toBe(true);
+  });
+
+  it('the displays do not overlap each other', () => {
+    const a = STANDBY_EFIS.upper;
+    const b = STANDBY_EFIS.lower;
+    expect(a.y + a.h).toBeLessThanOrEqual(b.y);
+  });
+
+  it('the knob lies inside the housing and overlaps the right edge of the lower display', () => {
+    const k = STANDBY_EFIS.knob;
+    const h = STANDBY_EFIS.housing;
+    const d = STANDBY_EFIS.lower;
+    expect(k.cx - k.r).toBeGreaterThanOrEqual(h.x);
+    expect(k.cx + k.r).toBeLessThanOrEqual(h.x + h.w);
+    expect(k.cy - k.r).toBeGreaterThanOrEqual(h.y);
+    expect(k.cy + k.r).toBeLessThanOrEqual(h.y + h.h);
+    // The disc reaches across the display's right edge and into its vertical range.
+    expect(k.cx - k.r).toBeLessThan(d.x + d.w);
+    expect(k.cx + k.r).toBeGreaterThan(d.x + d.w);
+    expect(k.cy + k.r).toBeGreaterThan(d.y);
+  });
+
+  it('has the speed numerals 180 down to 100 and five altitude numerals around 1400', () => {
+    expect([...EFIS_SPEED_TAPE]).toEqual([180, 160, 140, 120, 100]);
+    expect([...EFIS_ALTITUDE_TAPE]).toEqual([1600, 1500, 1400, 1300, 1200]);
+  });
+});
+
+describe('StandbyEfisFrame', () => {
+  const render = () =>
+    expand(StandbyEfisFrame({ region: region('standby_efis'), bridge: fakeBridge('map') }));
+
+  it('keeps the not-operable group and draws its own housing', () => {
+    const tree = render();
+    expect(tree.props['role']).toBe('img');
+    expect(tree.props['aria-label']).toBe('BACKUP EFIS (NOT OPERABLE)');
+    expect(tree.props['data-unit']).toBe('standby_efis');
+    const housing = findElements(tree, (e) => e.props['data-unit-housing'] !== undefined);
+    expect(housing).toHaveLength(1);
+    const h = STANDBY_EFIS.housing;
+    expect(
+      ['x', 'y', 'width', 'height', 'rx', 'fill', 'stroke'].map((k) => housing[0]?.props[k]),
+    ).toEqual([h.x, h.y, h.w, h.h, 4, '#0c0d0f', '#2d3138']);
+  });
+
+  it('draws two displays, one knob and no key, lamp or button', () => {
+    const tree = render();
+    const displays = findElements(tree, (e) => e.props['data-efis-display'] !== undefined);
+    expect(displays.map((d) => d.props['data-efis-display'])).toEqual(['attitude', 'tape']);
+    expect(findElements(tree, (e) => e.props['data-knob'] !== undefined)).toHaveLength(1);
+    expect(findElements(tree, (e) => e.props['data-key'] !== undefined)).toHaveLength(0);
+    expect(findElements(tree, (e) => e.props['data-display-backup'] !== undefined)).toHaveLength(0);
+  });
+
+  it('the attitude display has blue over brown halves, a horizon, ticks, a roll arc and the fixed symbol', () => {
+    const att = findElements(render(), (e) => e.props['data-efis-display'] === 'attitude')[0];
+    if (att === undefined) throw new Error('no attitude display');
+    const fills = findElements(att, (e) => e.tag === 'rect').map((e) => e.props['fill']);
+    expect(fills).toContain('#1f6fc4');
+    expect(fills).toContain('#7a5230');
+    expect(findElements(att, (e) => e.props['data-efis-horizon'] !== undefined)).toHaveLength(1);
+    expect(findElements(att, (e) => e.props['data-efis-pitch'] !== undefined)).toHaveLength(1);
+    expect(findElements(att, (e) => e.props['data-efis-roll-arc'] !== undefined)).toHaveLength(1);
+    expect(findElements(att, (e) => e.props['data-efis-roll-ticks'] !== undefined)).toHaveLength(1);
+    const symbol = findElements(att, (e) => e.props['data-efis-symbol'] !== undefined);
+    expect(symbol).toHaveLength(1);
+    expect(symbol[0]?.props['stroke']).toBe('#f2c230');
+    expect(findElements(att, (e) => e.tag === 'text')).toEqual([]);
+  });
+
+  it('the tape display shows KTS, FEET, BARO 1013, the idle readouts and five numerals per tape', () => {
+    const tape = findElements(render(), (e) => e.props['data-efis-display'] === 'tape')[0];
+    if (tape === undefined) throw new Error('no tape display');
+    expect(findElements(tape, (e) => e.tag === 'rect')[0]?.props['fill']).toBe('#05080b');
+    const texts = findElements(tape, (e) => e.tag === 'text').map((e) => textOf(e));
+    for (const word of ['KTS', 'FEET', 'BARO', '1013', '0', '1400']) {
+      expect(texts, word).toContain(word);
+    }
+    for (const n of [...EFIS_SPEED_TAPE, ...EFIS_ALTITUDE_TAPE]) {
+      expect(texts, String(n)).toContain(String(n));
+    }
+    const bar = findElements(tape, (e) => e.props['data-efis-speed-bar'] !== undefined);
+    expect(bar).toHaveLength(1);
+    expect([bar[0]?.props['width'], bar[0]?.props['fill']]).toEqual([3, '#2fd36f']);
+  });
+
+  it('digits use the glass font class; no logo or maker text', () => {
+    const tree = render();
+    const texts = findElements(tree, (e) => e.tag === 'text');
+    for (const t of texts) {
+      if (/^\d+$/.test(textOf(t))) expect(t.props['class'], textOf(t)).toBe('glass-digits');
+    }
+    const all = texts.map((t) => textOf(t)).join(' ');
+    expect(all).not.toMatch(/garmin|g1000|nxi|logo|wordmark|swoosh/i);
+  });
+
+  it('carries no handler, hit rectangle, control id or tabindex; sizes 6 and 8; at most 150 elements', () => {
+    const tree = render();
+    const offenders = findElements(tree, (el) =>
+      Object.keys(el.props).some(
+        (k) =>
+          /^on[A-Z]/.test(k) || k === 'data-hit' || k === 'data-control-id' || k === 'tabindex',
+      ),
+    );
+    expect(offenders).toEqual([]);
+    for (const el of findElements(tree, (e) => e.tag === 'text')) {
+      expect([6, 8]).toContain(el.props['font-size']);
+    }
+    expect(countElements(tree)).toBeLessThanOrEqual(150);
+    expect(
+      findElements(tree, (e) =>
+        ['image', 'filter', 'linearGradient', 'radialGradient'].includes(e.tag),
+      ),
+    ).toEqual([]);
+    expect(region('standby_efis').controlIds).toEqual([]);
   });
 });

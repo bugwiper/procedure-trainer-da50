@@ -39,13 +39,23 @@ export function UnitGroup({ id, children }: { id: string; children?: ComponentCh
   );
 }
 
-/** The housing rectangle: equal to the region frame, drawn first so the unit's art lies on it. */
-export function HousingRect({ w, h }: { w: number; h: number }) {
+/** The housing rectangle (default: equal to the region frame), drawn first so the art lies on it. */
+export function HousingRect({
+  w,
+  h,
+  x = 0,
+  y = 0,
+}: {
+  w: number;
+  h: number;
+  x?: number;
+  y?: number;
+}) {
   return (
     <rect
       data-unit-housing
-      x={0}
-      y={0}
+      x={x}
+      y={y}
       width={w}
       height={h}
       rx={4}

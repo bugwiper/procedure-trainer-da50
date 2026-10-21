@@ -9,6 +9,7 @@ import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
 import { PfdFrame } from './frames/PfdFrame';
 import { SoftkeysFrame } from './frames/SoftkeysFrame';
+import { StandbyEfisFrame } from './frames/StandbyEfisFrame';
 import { UnitHousing } from './frames/UnitHousing';
 import { PanelShell } from './PanelShell';
 import { IndicatorLight } from './widgets/IndicatorLight';
@@ -27,7 +28,7 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   mfd_bezel_right: BezelColumnFrame,
   // Inert avionics units: housing and a not-operable label, no control, no handler (D-05, D-06).
   audio_panel: AudioPanelFrame,
-  standby_efis: UnitHousing,
+  standby_efis: StandbyEfisFrame,
   autopilot_panel: UnitHousing,
 };
 
