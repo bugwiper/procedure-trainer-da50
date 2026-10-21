@@ -226,11 +226,14 @@ test('@hooks FAN: a tap on each mark and on the body sets one stop and records o
   hasTouch,
 }) => {
   const knob = control(page, 'sw.env_fan');
-  // The marks take no pointer events: the centre of the OFF word and of each glyph, by coordinates.
+  // The marks take no pointer events: the centre of the OFF word and a point inside each glyph, by
+  // coordinates. The f1 and f3 points sit 5.5 units inside their spot (spots span x -55.5..-18.5,
+  // -18.5..18.5 and 18.5..55.5, y -40.5..-3.5), not on the glyph centre 0.6 units from the f2 edge,
+  // where WebKit and Chromium round the boundary differently.
   const steps: [string, number, number][] = [
-    ['f1', -19.1, -11],
+    ['f1', -24, -11],
     ['f2', 0, -22],
-    ['f3', 19.1, -11],
+    ['f3', 24, -11],
     ['off', 0, 21.5],
     // The body between the spots: the right half at half height gives f3, the left half f1.
     ['f3', 28, 0],
