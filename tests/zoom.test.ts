@@ -6,11 +6,13 @@ import {
   DOUBLE_TAP_MS,
   DOUBLE_TAP_PX,
   FULL_PANEL_GUARD_MS,
+  MOUSE_SLOP_PX,
   TAP_MAX_MS,
-  TAP_SLOP_PX,
+  TOUCH_SLOP_PX,
   createDoubleTapTracker,
   isBackgroundTap,
   isStrayFullPanelClick,
+  slopPx,
 } from '../src/ui/panel/tap-intent';
 import {
   BUTTON_BOX,
@@ -374,20 +376,43 @@ describe('zoomed tap-size guarantee (D-21)', () => {
   });
 });
 
+describe('slopPx (R3-Z2 items 1 and 4)', () => {
+  it('is 10 px for touch and pen and 5 px for the mouse, from the exported constants', () => {
+    expect(slopPx('touch')).toBe(TOUCH_SLOP_PX);
+    expect(slopPx('pen')).toBe(TOUCH_SLOP_PX);
+    expect(slopPx('mouse')).toBe(MOUSE_SLOP_PX);
+    expect(MOUSE_SLOP_PX).toBeLessThan(TOUCH_SLOP_PX);
+  });
+});
+
 describe('isBackgroundTap (D-12)', () => {
-  const tap = { travelPx: 0, durationMs: 100, maxPointers: 1, startedOnTarget: false };
+  const tap = {
+    kind: 'touch' as const,
+    travelPx: 0,
+    durationMs: 100,
+    maxPointers: 1,
+    startedOnTarget: false,
+  };
 
   it('accepts a short, still, single-pointer gesture on the background', () => {
     expect(isBackgroundTap(tap)).toBe(true);
-    expect(isBackgroundTap({ ...tap, travelPx: TAP_SLOP_PX, durationMs: TAP_MAX_MS })).toBe(true);
+    expect(isBackgroundTap({ ...tap, travelPx: TOUCH_SLOP_PX, durationMs: TAP_MAX_MS })).toBe(true);
     expect(isBackgroundTap({ ...tap, durationMs: 0 })).toBe(true);
   });
 
   it('rejects a drag, a slow press, a second pointer and a start on a target', () => {
-    expect(isBackgroundTap({ ...tap, travelPx: TAP_SLOP_PX + 1 })).toBe(false);
+    expect(isBackgroundTap({ ...tap, travelPx: TOUCH_SLOP_PX + 1 })).toBe(false);
     expect(isBackgroundTap({ ...tap, durationMs: TAP_MAX_MS + 1 })).toBe(false);
     expect(isBackgroundTap({ ...tap, maxPointers: 2 })).toBe(false);
     expect(isBackgroundTap({ ...tap, startedOnTarget: true })).toBe(false);
+  });
+
+  it('uses the slop of the pointer kind: a mouse tolerates 5 px, touch and pen 10 px', () => {
+    expect(isBackgroundTap({ ...tap, kind: 'mouse', travelPx: MOUSE_SLOP_PX })).toBe(true);
+    expect(isBackgroundTap({ ...tap, kind: 'mouse', travelPx: MOUSE_SLOP_PX + 1 })).toBe(false);
+    expect(isBackgroundTap({ ...tap, kind: 'pen', travelPx: TOUCH_SLOP_PX })).toBe(true);
+    expect(isBackgroundTap({ ...tap, kind: 'pen', travelPx: TOUCH_SLOP_PX + 1 })).toBe(false);
+    expect(isBackgroundTap({ ...tap, kind: 'touch', travelPx: MOUSE_SLOP_PX + 1 })).toBe(true);
   });
 });
 

@@ -2,8 +2,18 @@
 // double tap on the panel background only ever changes the view, never a control. A single tap
 // never zooms (this supersedes D-12).
 
-/** A pointer may travel at most this far (client px) and still count as a tap. */
-export const TAP_SLOP_PX = 10;
+/** How the pointer reaches the panel; a pointer of unknown type is treated as touch by the glue. */
+export type PointerKind = 'mouse' | 'touch' | 'pen';
+
+/** A touch, a pen or a pointer of unknown type may travel at most this far (client px) and still tap. */
+export const TOUCH_SLOP_PX = 10;
+/** A mouse may travel at most this far (client px) and still count as a click (R3-Z2 item 4). */
+export const MOUSE_SLOP_PX = 5;
+
+/** The slop of one press, by pointer kind: one source for every press rule of the panel. */
+export function slopPx(kind: PointerKind): number {
+  return kind === 'mouse' ? MOUSE_SLOP_PX : TOUCH_SLOP_PX;
+}
 /** A tap must lift within this many ms. */
 export const TAP_MAX_MS = 300;
 /** Largest time (ms) between the lift of the first tap and the lift of the second, inclusive. */
@@ -19,6 +29,7 @@ export const DOUBLE_TAP_PX = 24;
 export const FULL_PANEL_GUARD_MS = 400;
 
 export interface GestureRecord {
+  readonly kind: PointerKind;
   /** Straight-line distance between the down and the up point, in client px. */
   readonly travelPx: number;
   readonly durationMs: number;
@@ -43,12 +54,12 @@ export interface DoubleTapTracker {
   reset(): void;
 }
 
-/** One finger or mouse, short and still, started on the background: a tap. */
+/** One finger or mouse, short and still (slop by pointer kind), started on the background: a tap. */
 export function isBackgroundTap(g: GestureRecord): boolean {
   return (
     !g.startedOnTarget &&
     g.maxPointers <= 1 &&
-    g.travelPx <= TAP_SLOP_PX &&
+    g.travelPx <= slopPx(g.kind) &&
     g.durationMs <= TAP_MAX_MS
   );
 }

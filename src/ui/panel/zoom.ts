@@ -7,7 +7,10 @@ import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { VIEWBOX } from '../../aircraft/da50rg/panel';
 import type { Rect, Region, Registry, Size } from '../../engine/registry';
-import { TAP_SLOP_PX, createDoubleTapTracker, isBackgroundTap } from './tap-intent';
+import { createPressArbiter } from './press-arbiter';
+import type { Midpoint, PressEffect } from './press-arbiter';
+import { createDoubleTapTracker } from './tap-intent';
+import type { PointerKind } from './tap-intent';
 import {
   chooseButtonCorner,
   controlFootprints,
@@ -19,7 +22,7 @@ import {
 } from './viewport';
 import type { ButtonCorner } from './viewport';
 
-/** A pointer that starts on one of these elements belongs to that control for its whole life. */
+/** A pointer that starts on one of these elements lands on a control (an own target, plan 36). */
 const TAP_TARGET_SELECTOR = '[data-hit], [data-detent]';
 
 const fullView = signal<Rect>({ x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h });
@@ -77,46 +80,35 @@ export function zoomOut(viewBox: Size): void {
   viewRect.value = { x: 0, y: 0, w: viewBox.w, h: viewBox.h };
 }
 
-interface BackgroundPointer {
-  x: number;
-  y: number;
-  /** Where a pan delta is measured from; only advanced while panning. */
-  anchorX: number;
-  anchorY: number;
-  readonly downX: number;
-  readonly downY: number;
-  readonly downAt: number;
-  /** Still a candidate for a tap: no travel, no second finger. */
-  tapOk: boolean;
-  panning: boolean;
-  /** Largest number of background pointers down at once while this pointer was down. */
-  maxPointers: number;
-}
-
-interface Midpoint {
-  readonly x: number;
-  readonly y: number;
-  readonly dist: number;
+/** The pointer kind of an event; pen counts as touch for the slop, an unknown type as touch. */
+function kindOf(e: PointerEvent): PointerKind {
+  return e.pointerType === 'mouse' ? 'mouse' : e.pointerType === 'pen' ? 'pen' : 'touch';
 }
 
 /**
- * Attaches the zoom gesture layer to the root svg and returns the detach function.
- * Listeners are added with addEventListener, never as JSX props, so widget handlers
- * keep sole ownership of their own pointers.
+ * Attaches the zoom gesture layer to the root svg and returns the detach function. This is glue:
+ * it feeds pointer samples to the pure press arbiter (press-arbiter.ts) and applies the effects
+ * to the view. Listeners are added with addEventListener in the capture phase, never as JSX
+ * props, so a pointer is seen here before any widget and widget handlers keep sole ownership of
+ * what a control does with it.
  *
- * Arbitration (mouse, touch and pen alike):
- *  (a) a pointer whose pointerdown target is inside a tap target belongs to that control for
- *      its whole life and is ignored here;
- *  (b) while any control pointer is active every new pointer is ignored, so no pinch or pan
- *      can start during a control drag and the viewBox never moves under a dragging pointer;
- *  (c) two background pointers pinch; (d) one background pointer pans while zoomed;
- *  (e) a single click or tap never changes the view, at the full view or while zoomed;
- *  (f) a double click or double tap on the background (two short, still taps, lift to lift
- *      within DOUBLE_TAP_MS and DOUBLE_TAP_PX) zooms fully out while zoomed, at any zoom level,
- *      and from the full view zooms to the region under the taps; in no region it does nothing;
- *  (g) anything between the two taps that is not a background tap (a control pointer going
- *      down, a pan, a pinch, a cancel, a view change by the Full panel button) ends the pair,
- *      and a pair is consumed, so a double tap on a control stays two control taps.
+ * Rules (mouse, touch and pen alike; the machine implements them):
+ *  (a) a pointerdown that lands inside a [data-hit] or [data-detent] element is an own target
+ *      (until plan 37 registers the controls by class); anything else is the background;
+ *  (b) one slop per pointer kind: 10 px for touch, pen and an unknown type, 5 px for the mouse;
+ *      a press that stays within it and lifts in time is a tap, one that goes beyond it pans
+ *      (only while zoomed; a single tap never changes the view);
+ *  (c) a second pointer that lands while a view pointer is down starts a pinch with both, over
+ *      controls as well as over the background; a third pointer, and every pointer that lands
+ *      while a control owns a pointer, is ignored;
+ *  (d) a double click or double tap on the background (two taps, lift to lift within
+ *      DOUBLE_TAP_MS and DOUBLE_TAP_PX) zooms fully out while zoomed, at any zoom level, and
+ *      from the full view zooms to the region under the taps; in no region it does nothing;
+ *  (e) anything between the two taps that is not a background tap (a control pointer going down,
+ *      a pan, a pinch, a cancel, a view change by the Full panel button) ends the pair, and a
+ *      pair is consumed, so a double tap on a control stays two control taps;
+ *  (f) stale record sweep: a primary pointer going down drops every tracked pointer of its kind,
+ *      so a lost pointerup or pointercancel can never leave the panel blocked.
  */
 export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registry }): () => void {
   const { registry } = opts;
@@ -132,9 +124,9 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
   resizeObserver?.observe(svg);
 
-  const controlPointers = new Set<number>();
-  const background = new Map<number, BackgroundPointer>();
-  let pinchPrev: Midpoint | null = null;
+  const arbiter = createPressArbiter();
+  /** Pointers this layer captured on the svg; they are released when the machine drops them. */
+  const captured = new Set<number>();
   const doubleTaps = createDoubleTapTracker();
   /** The view when the remembered tap happened; a later view change by anything else ends the pair. */
   let lastTapView: Rect | null = null;
@@ -154,74 +146,8 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     );
   };
 
-  const midpointOfTwo = (): Midpoint | null => {
-    if (background.size !== 2) return null;
-    const [a, b] = Array.from(background.values());
-    if (a === undefined || b === undefined) return null;
-    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, dist: Math.hypot(a.x - b.x, a.y - b.y) };
-  };
-
-  /** A pinch ended or was cancelled: the remaining finger neither taps nor jumps. */
-  const settleRemaining = () => {
-    pinchPrev = null;
-    for (const p of background.values()) {
-      p.tapOk = false;
-      p.panning = false;
-      p.anchorX = p.x;
-      p.anchorY = p.y;
-    }
-  };
-
-  const dropBackground = (pointerId: number) => {
-    if (!background.delete(pointerId)) return;
-    settleRemaining();
-  };
-
-  const onDown = (e: PointerEvent) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    const target = e.target;
-    if (target instanceof Element && target.closest(TAP_TARGET_SELECTOR) !== null) {
-      controlPointers.add(e.pointerId);
-      doubleTaps.reset();
-      // A control drag begins: any view gesture in progress ends here.
-      if (background.size > 0) {
-        background.clear();
-        pinchPrev = null;
-      }
-      return;
-    }
-    if (controlPointers.size > 0 || background.size >= 2) return;
-    background.set(e.pointerId, {
-      x: e.clientX,
-      y: e.clientY,
-      anchorX: e.clientX,
-      anchorY: e.clientY,
-      downX: e.clientX,
-      downY: e.clientY,
-      downAt: e.timeStamp,
-      tapOk: true,
-      panning: false,
-      maxPointers: 1,
-    });
-    try {
-      svg.setPointerCapture(e.pointerId);
-    } catch {
-      // The pointer may already be gone; the release is still handled on pointerup.
-    }
-    if (background.size === 2) {
-      doubleTaps.reset();
-      for (const p of background.values()) {
-        p.tapOk = false;
-        p.maxPointers = 2;
-      }
-      pinchPrev = midpointOfTwo();
-    }
-  };
-
-  const pinchTo = (next: Midpoint) => {
-    const prev = pinchPrev;
-    pinchPrev = next;
-    if (prev === null || prev.dist <= 0 || next.dist <= 0) return;
+  const pinchTo = (prev: Midpoint, next: Midpoint) => {
+    if (prev.dist <= 0 || next.dist <= 0) return;
     const box = svg.getBoundingClientRect();
     const screen = { w: box.width, h: box.height };
     const view = viewRect.peek();
@@ -231,94 +157,130 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     viewRect.value = panRect(scaled, -(next.x - prev.x) / s, -(next.y - prev.y) / s, viewBox);
   };
 
-  const onMove = (e: PointerEvent) => {
-    const p = background.get(e.pointerId);
-    if (p === undefined) return;
-    p.x = e.clientX;
-    p.y = e.clientY;
-    if (background.size === 2) {
-      const mid = midpointOfTwo();
-      if (mid !== null) pinchTo(mid);
-      return;
-    }
-    if (!p.panning) {
-      if (Math.hypot(p.x - p.downX, p.y - p.downY) <= TAP_SLOP_PX) return;
-      p.tapOk = false;
-      p.panning = true;
-      doubleTaps.reset();
-    }
+  const panBy = (dx: number, dy: number) => {
     if (!isZoomed.peek()) return;
     const view = viewRect.peek();
     const s = fitScale(view, screenSize());
-    viewRect.value = panRect(view, -(p.x - p.anchorX) / s, -(p.y - p.anchorY) / s, viewBox);
-    p.anchorX = p.x;
-    p.anchorY = p.y;
+    viewRect.value = panRect(view, -dx / s, -dy / s, viewBox);
   };
 
-  const onTap = (e: PointerEvent) => {
+  const onTap = (clientX: number, clientY: number, at: number) => {
     if (lastTapView !== viewRect.peek()) doubleTaps.reset();
-    const intent = doubleTaps.tap({ x: e.clientX, y: e.clientY, at: e.timeStamp }, isZoomed.peek());
+    const intent = doubleTaps.tap({ x: clientX, y: clientY, at }, isZoomed.peek());
     lastTapView = viewRect.peek();
     if (intent === 'zoom-out') {
       zoomOut(viewBox);
     } else if (intent === 'zoom-in') {
-      const at = toViewPoint(e.clientX, e.clientY);
+      const point = toViewPoint(clientX, clientY);
       const hit = registry.regions.find(
         (r) =>
-          at.x >= r.bounds.x &&
-          at.x <= r.bounds.x + r.bounds.w &&
-          at.y >= r.bounds.y &&
-          at.y <= r.bounds.y + r.bounds.h,
+          point.x >= r.bounds.x &&
+          point.x <= r.bounds.x + r.bounds.w &&
+          point.y >= r.bounds.y &&
+          point.y <= r.bounds.y + r.bounds.h,
       );
       if (hit !== undefined) zoomToRegion(hit, viewBox);
     }
     // A pair that changed the view is over; the new view is not a tap in progress.
     if (viewRect.peek() !== lastTapView) {
-      tapViewChangeAt = e.timeStamp;
+      tapViewChangeAt = at;
       doubleTaps.reset();
       lastTapView = null;
     }
   };
 
+  const apply = (effects: readonly PressEffect[]) => {
+    for (const effect of effects) {
+      switch (effect.type) {
+        case 'pan':
+          panBy(effect.dx, effect.dy);
+          break;
+        case 'pinch':
+          pinchTo(effect.prev, effect.next);
+          break;
+        case 'tap':
+          // Only the background is a view tap here; control taps arrive with the registered
+          // targets of plans 37 to 39.
+          if (effect.key === null) onTap(effect.up.x, effect.up.y, effect.at);
+          break;
+        case 'pair-break':
+          doubleTaps.reset();
+          break;
+      }
+    }
+  };
+
+  /** A view pointer is captured on the svg; a pointer the machine no longer tracks is forgotten. */
+  const syncCapture = (pointerId: number) => {
+    const state = arbiter.stateOf(pointerId);
+    if (state === undefined) {
+      captured.delete(pointerId);
+      return;
+    }
+    if (state !== 'view' || captured.has(pointerId)) return;
+    captured.add(pointerId);
+    try {
+      svg.setPointerCapture(pointerId);
+    } catch {
+      // The pointer may already be gone; the release is still handled on pointerup.
+    }
+  };
+
+  const sampleOf = (e: PointerEvent) => ({
+    id: e.pointerId,
+    kind: kindOf(e),
+    primary: e.isPrimary,
+    x: e.clientX,
+    y: e.clientY,
+    t: e.timeStamp,
+  });
+
+  const onDown = (e: PointerEvent) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const target = e.target;
+    const hit = target instanceof Element ? target.closest(TAP_TARGET_SELECTOR) : null;
+    const key = hit?.getAttribute('data-hit') ?? hit?.getAttribute('data-detent') ?? null;
+    apply(
+      arbiter.down(
+        sampleOf(e),
+        hit === null ? { cls: 'background', key: null } : { cls: 'own', key, dragStartPx: 0 },
+      ),
+    );
+    syncCapture(e.pointerId);
+    // A pinch makes the first pointer a view pointer too, possibly one the machine took over.
+    for (const id of Array.from(captured)) syncCapture(id);
+  };
+
+  const onMove = (e: PointerEvent) => {
+    apply(arbiter.move(sampleOf(e)));
+    syncCapture(e.pointerId);
+  };
+
   const onUp = (e: PointerEvent) => {
-    if (controlPointers.delete(e.pointerId)) return;
-    const p = background.get(e.pointerId);
-    if (p === undefined) return;
-    // Control pointers never enter the background map, so a gesture here never starts on a target.
-    const wasTap =
-      p.tapOk &&
-      isBackgroundTap({
-        travelPx: Math.hypot(e.clientX - p.downX, e.clientY - p.downY),
-        durationMs: e.timeStamp - p.downAt,
-        maxPointers: Math.max(p.maxPointers, background.size),
-        startedOnTarget: false,
-      });
-    dropBackground(e.pointerId);
-    if (wasTap) onTap(e);
-    else doubleTaps.reset();
+    apply(arbiter.up(sampleOf(e)));
+    syncCapture(e.pointerId);
   };
 
+  // lostpointercapture follows every pointerup: only a pointer still tracked was cancelled.
   const onCancel = (e: PointerEvent) => {
-    controlPointers.delete(e.pointerId);
-    // lostpointercapture follows every pointerup: only a pointer still tracked was cancelled.
-    if (background.has(e.pointerId)) doubleTaps.reset();
-    dropBackground(e.pointerId);
+    apply(arbiter.cancel(e.pointerId));
+    syncCapture(e.pointerId);
   };
 
-  svg.addEventListener('pointerdown', onDown);
-  svg.addEventListener('pointermove', onMove);
-  svg.addEventListener('pointerup', onUp);
-  svg.addEventListener('pointercancel', onCancel);
-  svg.addEventListener('lostpointercapture', onCancel);
+  svg.addEventListener('pointerdown', onDown, true);
+  svg.addEventListener('pointermove', onMove, true);
+  svg.addEventListener('pointerup', onUp, true);
+  svg.addEventListener('pointercancel', onCancel, true);
+  svg.addEventListener('lostpointercapture', onCancel, true);
   return () => {
     resizeObserver?.disconnect();
-    svg.removeEventListener('pointerdown', onDown);
-    svg.removeEventListener('pointermove', onMove);
-    svg.removeEventListener('pointerup', onUp);
-    svg.removeEventListener('pointercancel', onCancel);
-    svg.removeEventListener('lostpointercapture', onCancel);
-    controlPointers.clear();
-    background.clear();
+    svg.removeEventListener('pointerdown', onDown, true);
+    svg.removeEventListener('pointermove', onMove, true);
+    svg.removeEventListener('pointerup', onUp, true);
+    svg.removeEventListener('pointercancel', onCancel, true);
+    svg.removeEventListener('lostpointercapture', onCancel, true);
+    apply(arbiter.reset());
+    captured.clear();
     doubleTaps.reset();
   };
 }
