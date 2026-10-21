@@ -72,12 +72,12 @@ test('de-ice MODE toggle reaches HIGH, NORM and OFF by a tap in the top, middle 
   }
 });
 
-test('ANNUN TEST and LEVEL show PRESSED while held and RELEASED after release', async ({
+test('ANNUN TEST, MAX and LEVEL show PRESSED while held and RELEASED after release', async ({
   page,
   hasTouch,
 }) => {
   test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
-  for (const id of ['btn.deice_annun_test', 'btn.level']) {
+  for (const id of ['btn.deice_annun_test', 'btn.deice_max', 'btn.level']) {
     const button = control(page, id);
     await expect(button, id).toHaveCount(1);
     await expect(button, id).toHaveAttribute('data-state', 'released');
@@ -91,8 +91,8 @@ test('ANNUN TEST and LEVEL show PRESSED while held and RELEASED after release', 
   }
 });
 
-test('a tap leaves ANNUN TEST and LEVEL RELEASED', async ({ page, hasTouch }) => {
-  for (const id of ['btn.deice_annun_test', 'btn.level']) {
+test('a tap leaves ANNUN TEST, MAX and LEVEL RELEASED', async ({ page, hasTouch }) => {
+  for (const id of ['btn.deice_annun_test', 'btn.deice_max', 'btn.level']) {
     await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
     await expect(control(page, id), id).toHaveAttribute('data-state', 'released');
   }

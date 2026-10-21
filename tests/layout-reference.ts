@@ -25,7 +25,7 @@ export type Relation =
   | 'x-greater-than'
   | 'under-left-quarter-of';
 
-/** Interactive controls: 42 rows. */
+/** Interactive controls: reference rows. */
 export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'sw.light_landing', x: 1047, y: 90, tol: 8, review: true },
   { id: 'sw.light_taxi', x: 1095, y: 90, tol: 8, review: true },
@@ -33,6 +33,7 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'sw.light_strobe', x: 1191, y: 90, tol: 8, review: true },
   { id: 'sw.instr_light', x: 1047, y: 238, tol: 8, review: true },
   { id: 'sw.flood_light', x: 1126, y: 238, tol: 8, review: true },
+  { id: 'btn.deice_max', x: 111, y: 254, tol: 12, review: true },
   { id: 'sw.deice_mode', x: 120, y: 342, tol: 12, review: true },
   { id: 'sw.deice_alternate', x: 232, y: 296, tol: 12, review: true },
   { id: 'sw.deice_windshield', x: 129, y: 410, tol: 12, review: true },
@@ -156,6 +157,9 @@ export const ORDERING: readonly OrderRow[] = [
   ['sw.instr_light', 'right-of', 'region:pfd'],
   ['sw.flood_light', 'left-of', 'region:mfd'],
   // De-ice panel.
+  ['btn.deice_max', 'above', 'sw.deice_mode'],
+  ['btn.deice_max', 'left-of', 'lt.deice_max'],
+  ['btn.deice_max', 'same-row', 'lt.deice_max'],
   ['sw.deice_mode', 'left-of', 'sw.deice_alternate'],
   ['sw.deice_mode', 'above', 'sw.deice_windshield'],
   ['lt.deice_max', 'above', 'lt.deice_high'],

@@ -46,7 +46,13 @@ interface ControlBase {
 export const TOGGLE_SKINS = ['bat', 'rocker', 'softkey'] as const;
 export const ROCKER_SIZES = ['S', 'M', 'L', 'W', 'LIGHT'] as const;
 export const ROCKER_COLOURS = ['white', 'red'] as const;
-export const BUTTON_SKINS = ['chrome-round', 'blue-dome', 'small-black', 'spring-bat'] as const;
+export const BUTTON_SKINS = [
+  'chrome-round',
+  'blue-dome',
+  'small-black',
+  'black-dome',
+  'spring-bat',
+] as const;
 export const LEVER_SKINS = [
   'gear-knob',
   'flaps-block',

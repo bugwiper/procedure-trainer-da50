@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import {
+  BUTTON_SKINS,
   LEVER_SKINS,
   RegistryError,
   defineRegistry,
@@ -494,6 +495,30 @@ describe('momentary button skins and the three-state spring bat', () => {
     });
     expect(targetSide(three)).toBe(28);
     expect(targetSide(button('btn.t2', { hit: { w: 66, h: 70 } }))).toBe(66);
+  });
+});
+
+describe('button skins', () => {
+  it('knows the black dome of the de-ice MAX button', () => {
+    expect(BUTTON_SKINS).toContain('black-dome');
+    for (const skin of BUTTON_SKINS) {
+      const spring: Partial<MomentaryButtonDef> =
+        skin === 'spring-bat'
+          ? {
+              states: [
+                { id: 'neutral', label: 'NEUTRAL' },
+                { id: 'left', label: 'LEFT' },
+                { id: 'right', label: 'RIGHT' },
+              ],
+              default: 'neutral',
+            }
+          : {};
+      expect(() => build([button('btn.s', { skin, ...spring })])).not.toThrow();
+    }
+  });
+
+  it('rejects a button skin outside the vocabulary', () => {
+    expectRejected([button('btn.odd', { skin: 'square' as unknown as 'blue-dome' })], 'btn.odd');
   });
 });
 

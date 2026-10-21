@@ -17,11 +17,21 @@ export interface PushButtonBodyProps {
 export const PRESSED_RING = '#8fb8e6';
 
 /** Visible bezel radius of the round skins (UI-SPEC 8.3 Table B1). */
-export const BEZEL_RADIUS = { 'chrome-round': 26, 'blue-dome': 16, 'small-black': 9 } as const;
+export const BEZEL_RADIUS = {
+  'chrome-round': 26,
+  'blue-dome': 16,
+  'small-black': 9,
+  'black-dome': 17,
+} as const;
 type RoundSkin = keyof typeof BEZEL_RADIUS;
 
 function isRoundSkin(skin: string | undefined): skin is RoundSkin {
-  return skin === 'chrome-round' || skin === 'blue-dome' || skin === 'small-black';
+  return (
+    skin === 'chrome-round' ||
+    skin === 'blue-dome' ||
+    skin === 'small-black' ||
+    skin === 'black-dome'
+  );
 }
 
 /** Width estimate of B612 text; the same number is used as textLength so tests match renders. */
@@ -88,6 +98,7 @@ function RoundBody(props: PushButtonBodyProps & { skin: RoundSkin }) {
       {skin === 'chrome-round' ? <ChromeCap pressed={pressed} /> : null}
       {skin === 'blue-dome' ? <BlueCap pressed={pressed} /> : null}
       {skin === 'small-black' ? <SmallCap pressed={pressed} /> : null}
+      {skin === 'black-dome' ? <BlackDomeCap pressed={pressed} /> : null}
     </g>
   );
 }
@@ -133,6 +144,36 @@ function BlueCap({ pressed }: { pressed: boolean }) {
       />
       {pressed ? (
         <circle cx={0} cy={0} r={12.8} fill="none" stroke={PRESSED_RING} stroke-width={1.5} />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Black glossy dome (the de-ice MAX button, owner finding G-1): flat dark fills and one highlight
+ * arc at the top left, no filter. Pressed: the dome shrinks 2 units, darkens, sinks 1 and shows the
+ * pressed ring.
+ */
+function BlackDomeCap({ pressed }: { pressed: boolean }) {
+  const r = pressed ? 11 : 13;
+  const dy = pressed ? 1 : 0;
+  const arcR = r - 3.5;
+  const at = (deg: number) => {
+    const a = (deg * Math.PI) / 180;
+    return `${(arcR * Math.cos(a)).toFixed(2)} ${(dy + arcR * Math.sin(a)).toFixed(2)}`;
+  };
+  return (
+    <>
+      <circle cx={0} cy={dy} r={r} fill={pressed ? '#050506' : '#111316'} stroke="#3a4048" />
+      <path
+        d={`M${at(195)} A${arcR} ${arcR} 0 0 1 ${at(255)}`}
+        fill="none"
+        stroke={pressed ? '#3a4048' : '#6b7580'}
+        stroke-width={2.5}
+        stroke-linecap="round"
+      />
+      {pressed ? (
+        <circle cx={0} cy={0} r={14.8} fill="none" stroke={PRESSED_RING} stroke-width={1.5} />
       ) : null}
     </>
   );

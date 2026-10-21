@@ -85,10 +85,13 @@ test('@hooks every control reports only legal states', async ({ page, hasTouch }
 
 test('every plain toggle flips by mouse or tap', async ({ page, hasTouch }) => {
   const ids = await page
-    .locator('[data-kind="toggle"]:not([data-control-id="sw.elt"])')
+    .locator(
+      '[data-kind="toggle"]:not([data-control-id="sw.elt"]):not([data-control-id="sw.deice_mode"])',
+    )
     .evaluateAll((els) => els.map((el) => el.getAttribute('data-control-id') ?? ''));
   // The plain toggles of the instrument panel plus the MFD PAGE softkey; the three-position ELT
-  // is exercised by its own cases (e2e/guard.spec.ts, e2e/switch-skins.spec.ts).
+  // and de-ice mode toggle are exercised by their own cases (e2e/guard.spec.ts,
+  // e2e/switch-skins.spec.ts, e2e/inventory.spec.ts).
   expect(ids.length).toBeGreaterThanOrEqual(12);
   for (const id of ids) {
     const group = control(page, id);

@@ -39,6 +39,24 @@ export const DEICE_CONTROLS: readonly ControlSpec[] = [
     nameless: true,
   },
   {
+    // Black momentary push button above the mode toggle (owner finding G-1). The 120 s MAX run is
+    // engine behaviour (the flag deice.max_active, indicators.ts); the button only records its
+    // press and release like every momentary button.
+    id: 'btn.deice_max',
+    kind: 'momentary-button',
+    label: 'MAX',
+    region: 'deice',
+    x: 26,
+    y: 49,
+    hit: { w: 36, h: 36 },
+    states: [
+      { id: 'released', label: 'RELEASED' },
+      { id: 'pressed', label: 'PRESSED' },
+    ],
+    default: 'released',
+    skin: 'black-dome',
+  },
+  {
     id: 'sw.deice_alternate',
     kind: 'guarded-toggle',
     label: 'ALTERNATE',

@@ -82,6 +82,31 @@ test('@hooks one press appends exactly pressed then released', async ({ page, ha
   ]);
 });
 
+test('@hooks the black MAX button records one pressed and one released and lights no lamp', async ({
+  page,
+  hasTouch,
+}) => {
+  const events = () => page.evaluate(() => (globalThis as HookHost).__panel?.events() ?? []);
+  const id = 'btn.deice_max';
+  const button = control(page, id);
+  await expect(button).toHaveCount(1);
+  await expect(button).toHaveAttribute('data-skin', 'black-dome');
+  await expect(button.locator('text')).toHaveText('MAX');
+  await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
+  await expect(button).toHaveAttribute('data-state', 'released');
+  expect((await events()).map((e) => [e.id, e.value])).toEqual([
+    [id, 'pressed'],
+    [id, 'released'],
+  ]);
+  // Pressing MAX alone lights none of the de-ice lamps (the run is engine behaviour).
+  for (const lamp of ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm']) {
+    await expect(page.locator(`[data-indicator-id="${lamp}"]`)).toHaveAttribute(
+      'data-lit',
+      'false',
+    );
+  }
+});
+
 const SPRING = 'btn.stall_gear_test';
 
 /** Press the mouse at a fraction of the hit box width (0 left edge, 1 right edge). */

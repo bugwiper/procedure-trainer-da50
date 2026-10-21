@@ -8,11 +8,11 @@ import type { Page } from '@playwright/test';
 
 /**
  * Regions the gate does not fail yet because a later plan rebuilds them; each plan removes its
- * entry. deice (21), deice_switches (22).
+ * entry. The upper de-ice block (region deice) was rebuilt by plan 21; deice_switches follows in
+ * plan 22.
  */
 const KNOWN_OPEN: readonly string[] = [
-  // Rebuilt by plans 21 and 22.
-  'deice',
+  // Rebuilt by plan 22.
   'deice_switches',
 ];
 

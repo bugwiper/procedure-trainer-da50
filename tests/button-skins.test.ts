@@ -10,7 +10,7 @@ import {
   textWidth,
 } from '../src/ui/panel/skins/PushButton';
 import type { PressedSide } from '../src/ui/panel/skins/PushButton';
-import { countElements, expand, findElements } from './vnode-walk';
+import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
 
 // Push-button skins (PNL-11, D-09, UI-SPEC 8.3). Pure geometry and vnode checks, no DOM.
@@ -42,9 +42,10 @@ function allProps(tree: Tree): unknown[] {
 }
 
 describe('momentary button inventory', () => {
-  it('has five buttons, each with a skin', () => {
+  it('has six buttons, each with a skin', () => {
     expect(BUTTONS.map((b) => b.id).sort()).toEqual([
       'btn.deice_annun_test',
+      'btn.deice_max',
       'btn.engine_start',
       'btn.fadec_test',
       'btn.level',
@@ -65,6 +66,7 @@ describe('momentary button inventory', () => {
       'btn.engine_start': 'chrome-round',
       'btn.fadec_test': 'small-black',
       'btn.deice_annun_test': 'small-black',
+      'btn.deice_max': 'black-dome',
       'btn.level': 'blue-dome',
       'btn.stall_gear_test': 'spring-bat',
     });
@@ -122,7 +124,7 @@ describe('push-button fit', () => {
       const diameter = 2 * BEZEL_RADIUS[skin];
       expect(diameter, def.id).toBeLessThanOrEqual(Math.min(def.hit.w, def.hit.h));
     }
-    expect([26, 16, 9].map((r) => 2 * r)).toEqual([52, 32, 18]);
+    expect([26, 16, 9, 17].map((r) => 2 * r)).toEqual([52, 32, 18, 34]);
   });
 
   it('the spring bat with its throw fits inside its 56 x 30 footprint', () => {
@@ -186,5 +188,54 @@ describe('push-button fit', () => {
         }
       }
     }
+  });
+});
+
+describe('black-dome MAX button (plan 21, G-1)', () => {
+  const max = BUTTONS.find((b) => b.id === 'btn.deice_max');
+
+  it('is a momentary 36 x 36 button labelled MAX, released by default, in region deice', () => {
+    expect(max).toBeDefined();
+    if (max === undefined) return;
+    expect(max.label).toBe('MAX');
+    expect(max.states.map((s) => s.id)).toEqual(['released', 'pressed']);
+    expect(max.default).toBe('released');
+    expect(max.hit).toEqual({ w: 36, h: 36 });
+    expect(max.region).toBe('deice');
+    expect(max.skin).toBe('black-dome');
+    expect(BEZEL_RADIUS['black-dome']).toBe(17);
+    expect(2 * BEZEL_RADIUS['black-dome']).toBeLessThanOrEqual(36);
+  });
+
+  it('draws a dark glossy dome: flat fills, one highlight arc, no filter, within 40 elements', () => {
+    if (max === undefined) throw new Error('no MAX button');
+    for (const state of ['released', 'pressed']) {
+      const tree = body(max, state, null);
+      expect(countElements(tree), state).toBeLessThanOrEqual(40);
+      expect(allProps(tree).some((v) => typeof v === 'string' && v.includes('filter'))).toBe(false);
+      expect(findElements(tree, (el) => el.tag === 'filter')).toHaveLength(0);
+      expect(
+        findElements(tree, (el) => el.tag === 'path'),
+        state,
+      ).toHaveLength(1);
+      // Only the label MAX is printed, whatever the state.
+      expect(
+        findElements(tree, (el) => el.tag === 'text').map((t) => textOf(t)),
+        state,
+      ).toEqual(['MAX']);
+    }
+  });
+
+  it('shrinks and darkens while pressed and shows the ring only then', () => {
+    if (max === undefined) throw new Error('no MAX button');
+    const dome = (state: string) =>
+      findElements(
+        body(max, state, null),
+        (el) => el.tag === 'circle' && el.props['stroke'] === '#3a4048',
+      )[0];
+    expect(Number(dome('pressed')?.props['r'])).toBeLessThan(Number(dome('released')?.props['r']));
+    expect(dome('pressed')?.props['fill']).not.toBe(dome('released')?.props['fill']);
+    expect(allProps(body(max, 'released', null))).not.toContain(PRESSED_RING);
+    expect(allProps(body(max, 'pressed', null))).toContain(PRESSED_RING);
   });
 });
