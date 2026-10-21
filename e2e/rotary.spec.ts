@@ -245,6 +245,9 @@ test('@hooks FAN: a tap on each mark and on the body sets one stop and records o
   ];
   let count = 0;
   for (const [stop, ux, uy] of steps) {
+    // Two quick taps on one control are a double tap (R3-Z3): wait out the pair window so each
+    // step is an ordinary tap, however fast the engine runs the awaits (WebKit phone, plan 41).
+    await afterPairWindow(page);
     await tapFanAt(page, hasTouch, ux, uy);
     await expect(knob, stop).toHaveAttribute('data-state', stop);
     count += 1;
@@ -255,7 +258,9 @@ test('@hooks FAN: a tap on each mark and on the body sets one stop and records o
   // whole px, so the centre is only a fair test when 2 units span more than 1 px; at the full
   // phone view a unit is 0.24 px and the rounding alone moves the tap onto a stop.
   const unit = (await box(page.locator('[data-hit="sw.env_fan"]'))).w / 112;
+  await afterPairWindow(page);
   if (!hasTouch || unit * 2 > 1) await tapFanAt(page, hasTouch, 0, 0);
+  await afterPairWindow(page);
   await tapFanAt(page, hasTouch, -28, 0);
   await expect(knob).toHaveAttribute('data-state', 'f1');
   expect(await eventCount(page)).toBe(count);
