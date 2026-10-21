@@ -4,13 +4,17 @@ import { DA50RG } from '../aircraft/da50rg/panel';
 import { About } from './about/About';
 import { createPanelBridge } from './bridge';
 import { Panel } from './panel/Panel';
-import { buttonCorner, isZoomed, zoomOut } from './panel/zoom';
+import { isStrayFullPanelClick } from './panel/tap-intent';
+import { buttonCorner, isZoomed, viewChangedByTapAt, zoomOut } from './panel/zoom';
 
 const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS);
 
 // UI-only state: neither signal touches the panel store.
 const aboutOpen = signal(false);
 const rotateHintDismissed = signal(false);
+
+/** When a pointer last went down on the Full panel button (event.timeStamp); null until it does. */
+let fullPanelPressedAt: number | null = null;
 
 const closeAbout = () => {
   aboutOpen.value = false;
@@ -27,7 +31,18 @@ export function App() {
             class="zoom-out"
             data-testid="zoom-out"
             data-corner={buttonCorner.value}
-            onClick={() => {
+            onPointerDown={(e) => {
+              fullPanelPressedAt = e.timeStamp;
+            }}
+            onClick={(e) => {
+              // WebKit can send the click of the double tap that zoomed in to the button that
+              // just appeared under the finger; a real tap presses the button first.
+              const stray = isStrayFullPanelClick({
+                shownAt: viewChangedByTapAt(),
+                pressedAt: fullPanelPressedAt,
+                clickAt: e.timeStamp,
+              });
+              if (stray) return;
               zoomOut(bridge.registry.viewBox);
             }}
           >

@@ -11,6 +11,13 @@ export const DOUBLE_TAP_MS = 350;
 /** Largest distance (client px) between the two taps, inclusive. */
 export const DOUBLE_TAP_PX = 24;
 
+/**
+ * After a double tap zooms in, WebKit can deliver a synthesized click to the Full panel button
+ * that has just appeared under the finger. A click inside this many ms of the view change is
+ * ignored unless the button itself was pressed after the change.
+ */
+export const FULL_PANEL_GUARD_MS = 400;
+
 export interface GestureRecord {
   /** Straight-line distance between the down and the up point, in client px. */
   readonly travelPx: number;
@@ -72,4 +79,21 @@ export function createDoubleTapTracker(): DoubleTapTracker {
       last = null;
     },
   };
+}
+
+/**
+ * True when a click on the Full panel button is the stray one left over from the tap that
+ * zoomed in: it comes within FULL_PANEL_GUARD_MS of the view change (shownAt, null when no tap
+ * changed the view) and no pointer was pressed on the button since the change (pressedAt).
+ * A real tap presses the button first, so it is never ignored, however soon it follows. A pure
+ * function of timestamps taken from event.timeStamp; no timer.
+ */
+export function isStrayFullPanelClick(c: {
+  readonly shownAt: number | null;
+  readonly pressedAt: number | null;
+  readonly clickAt: number;
+}): boolean {
+  if (c.shownAt === null) return false;
+  if (c.clickAt - c.shownAt >= FULL_PANEL_GUARD_MS) return false;
+  return c.pressedAt === null || c.pressedAt < c.shownAt;
 }

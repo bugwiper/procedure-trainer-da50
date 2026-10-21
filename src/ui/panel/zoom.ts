@@ -58,6 +58,17 @@ export const buttonCorner: ReadonlySignal<ButtonCorner> = computed(() => {
   return lastCorner;
 });
 
+/**
+ * Time (event.timeStamp of the lifting pointer) of the last view change made by a double tap, or
+ * null; the Full panel button uses it to ignore the synthesized click that follows (plan 32).
+ * Plain value, not a signal: nothing renders from it.
+ */
+let tapViewChangeAt: number | null = null;
+
+export function viewChangedByTapAt(): number | null {
+  return tapViewChangeAt;
+}
+
 export function zoomToRegion(region: Region, viewBox: Size): void {
   viewRect.value = zoomRect(region.bounds, viewBox);
 }
@@ -263,6 +274,7 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     }
     // A pair that changed the view is over; the new view is not a tap in progress.
     if (viewRect.peek() !== lastTapView) {
+      tapViewChangeAt = e.timeStamp;
       doubleTaps.reset();
       lastTapView = null;
     }

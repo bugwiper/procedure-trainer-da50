@@ -463,7 +463,11 @@ describe('isStrayFullPanelClick (WebKit synthesized click after a double tap, pl
     expect(isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + 5 })).toBe(true);
     expect(isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + 120 })).toBe(true);
     expect(
-      isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + FULL_PANEL_GUARD_MS - 1 }),
+      isStrayFullPanelClick({
+        shownAt,
+        pressedAt: null,
+        clickAt: shownAt + FULL_PANEL_GUARD_MS - 1,
+      }),
     ).toBe(true);
   });
 
@@ -477,14 +481,18 @@ describe('isStrayFullPanelClick (WebKit synthesized click after a double tap, pl
     expect(isStrayFullPanelClick({ shownAt, pressedAt: shownAt + 20, clickAt: shownAt + 60 })).toBe(
       false,
     );
-    expect(isStrayFullPanelClick({ shownAt, pressedAt: shownAt, clickAt: shownAt + 1 })).toBe(false);
+    expect(isStrayFullPanelClick({ shownAt, pressedAt: shownAt, clickAt: shownAt + 1 })).toBe(
+      false,
+    );
   });
 
   it('accepts any click from FULL_PANEL_GUARD_MS on, with or without a recorded press', () => {
     expect(
       isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + FULL_PANEL_GUARD_MS }),
     ).toBe(false);
-    expect(isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + 5000 })).toBe(false);
+    expect(isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + 5000 })).toBe(
+      false,
+    );
   });
 
   it('accepts every click when no tap changed the view (shownAt null)', () => {
