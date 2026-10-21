@@ -42,9 +42,10 @@ function allProps(tree: Tree): unknown[] {
 }
 
 describe('momentary button inventory', () => {
-  it('has five buttons, each with a skin (the ANNUN TEST button is a toggle position now)', () => {
+  it('has six buttons, each with a skin (ANNUN TEST is a toggle position, WIND SHIELD a button)', () => {
     expect(BUTTONS.map((b) => b.id).sort()).toEqual([
       'btn.deice_max',
+      'btn.deice_windshield',
       'btn.engine_start',
       'btn.fadec_test',
       'btn.level',
@@ -65,6 +66,7 @@ describe('momentary button inventory', () => {
       'btn.engine_start': 'chrome-round',
       'btn.fadec_test': 'small-black',
       'btn.deice_max': 'black-dome',
+      'btn.deice_windshield': 'black-dome',
       'btn.level': 'blue-dome',
       'btn.stall_gear_test': 'spring-bat',
     });
@@ -235,5 +237,83 @@ describe('black-dome MAX button (plan 21, G-1)', () => {
     expect(dome('pressed')?.props['fill']).not.toBe(dome('released')?.props['fill']);
     expect(allProps(body(max, 'released', null))).not.toContain(PRESSED_RING);
     expect(allProps(body(max, 'pressed', null))).toContain(PRESSED_RING);
+  });
+});
+
+describe('two-line button label (plan 22)', () => {
+  it('keeps every single-line label as it was: size 8 when it fits, else size 6, one line', () => {
+    const expected: Record<string, [number, number]> = {
+      'btn.engine_start': [8, 1],
+      'btn.fadec_test': [8, 1],
+      'btn.level': [8, 1],
+      'btn.deice_max': [8, 1],
+    };
+    for (const def of BUTTONS) {
+      const want = expected[def.id];
+      if (want === undefined) continue;
+      const skin = def.skin as keyof typeof BEZEL_RADIUS;
+      const layout = buttonTextLayout(def, BEZEL_RADIUS[skin]);
+      expect([layout.labelSize, layout.labelLines.length], def.id).toEqual(want);
+    }
+  });
+
+  it('splits a label at the space when its one-line width at size 6 exceeds the hit width', () => {
+    const layout = buttonTextLayout({ label: 'WIND SHIELD', hit: { w: 36, h: 36 } }, 17);
+    expect(textWidth('WIND SHIELD', 6)).toBeGreaterThan(36);
+    expect(layout.labelLines).toEqual(['WIND', 'SHIELD']);
+    expect(layout.labelSize).toBe(6);
+    // The last line is closest to the bezel, the lines are one 7-unit pitch apart.
+    expect(layout.labelYs).toEqual([-26.5, -19.5]);
+    for (const line of layout.labelLines) {
+      expect(textWidth(line, 6)).toBeLessThanOrEqual(36);
+    }
+  });
+
+  it('keeps one Micro 6 line when the label fits at size 6, and a space-less label unsplit', () => {
+    const six = buttonTextLayout({ label: 'AB CD', hit: { w: 20, h: 36 } }, 9);
+    expect(six.labelLines).toEqual(['AB CD']);
+    expect(six.labelSize).toBe(6);
+    const long = buttonTextLayout({ label: 'WINDSHIELDWASH', hit: { w: 36, h: 36 } }, 17);
+    expect(long.labelLines).toEqual(['WINDSHIELDWASH']);
+  });
+
+  it('splits a label with several spaces at the space nearest the middle', () => {
+    const layout = buttonTextLayout({ label: 'A BBBB CC DDDDDDDDD', hit: { w: 30, h: 36 } }, 17);
+    expect(layout.labelLines).toEqual(['A BBBB CC', 'DDDDDDDDD']);
+  });
+});
+
+describe('black-dome WIND SHIELD button (plan 22, G-1)', () => {
+  const ws = BUTTONS.find((b) => b.id === 'btn.deice_windshield');
+
+  it('is a momentary 36 x 36 black-dome button, released by default, in region deice_switches', () => {
+    expect(ws).toBeDefined();
+    if (ws === undefined) return;
+    expect(ws.label).toBe('WIND SHIELD');
+    expect(ws.states.map((s) => s.id)).toEqual(['released', 'pressed']);
+    expect(ws.default).toBe('released');
+    expect(ws.hit).toEqual({ w: 36, h: 36 });
+    expect(ws.region).toBe('deice_switches');
+    expect(ws.skin).toBe('black-dome');
+    expect(DA50RG.get('sw.deice_windshield')).toBeUndefined();
+  });
+
+  it('prints WIND and SHIELD as two lines above the bezel, whatever the state, and no state text', () => {
+    if (ws === undefined) throw new Error('no WIND SHIELD button');
+    for (const state of ['released', 'pressed']) {
+      const tree = body(ws, state, null);
+      const texts = findElements(tree, (el) => el.tag === 'text');
+      expect(
+        texts.map((t) => textOf(t)),
+        state,
+      ).toEqual(['WIND', 'SHIELD']);
+      for (const t of texts) {
+        expect(Number(t.props['y']), state).toBeLessThan(-BEZEL_RADIUS['black-dome']);
+        expect(t.props['font-size'], state).toBe(6);
+      }
+      expect(countElements(tree), state).toBeLessThanOrEqual(40);
+    }
+    expect(allProps(body(ws, 'released', null))).not.toContain(PRESSED_RING);
+    expect(allProps(body(ws, 'pressed', null))).toContain(PRESSED_RING);
   });
 });

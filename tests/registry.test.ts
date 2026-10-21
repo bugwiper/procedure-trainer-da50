@@ -541,4 +541,8 @@ describe('DA50RG still passes every invariant', () => {
     expect(DA50RG.controls.length).toBeGreaterThanOrEqual(30);
     expect(DA50RG.get('sw.fuel_trans')?.kind).toBe('rotary');
   });
+
+  it('has 41 non-guard controls after the de-ice rebuild of plan 22', () => {
+    expect(DA50RG.controls.filter((c) => c.kind !== 'guard')).toHaveLength(41);
+  });
 });

@@ -125,6 +125,26 @@ export const PLACARDS: readonly PlacardDef[] = [
     anchor: 'middle',
     size: 6,
   },
+  // De-ice PUMP toggle (sw.deice_pump, global centre 227, 425; plan 22): PUMP 2 centred above the
+  // highest handle position, PUMP 1 centred below the lowest.
+  {
+    id: 'deice_pump.pump2',
+    near: 'sw.deice_pump',
+    dx: 0,
+    dy: -27,
+    lines: ['PUMP 2'],
+    anchor: 'middle',
+    size: 6,
+  },
+  {
+    id: 'deice_pump.pump1',
+    near: 'sw.deice_pump',
+    dx: 0,
+    dy: 28,
+    lines: ['PUMP 1'],
+    anchor: 'middle',
+    size: 6,
+  },
   {
     id: 'cowl_flap.name',
     near: 'lv.cowl_flap',

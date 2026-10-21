@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { ROCKER_COLOURS, ROCKER_SIZES } from '../src/engine/registry';
 import type { ControlDef, GuardedToggleDef, ToggleDef } from '../src/engine/registry';
-import { BAT_THROW, BatBody, COMPACT_BAT_HEIGHT } from '../src/ui/panel/skins/Bat';
+import { BAT_THROW, BatBody } from '../src/ui/panel/skins/Bat';
 import { ROCKER_FACE, ROCKER_LIFT, RockerBody, rockerExtent } from '../src/ui/panel/skins/Rocker';
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
 import {
@@ -329,9 +329,7 @@ describe('BatBody', () => {
       'sw.alternator_2',
       'sw.deice_ice_light',
       'sw.deice_mode',
-      'sw.deice_pump1',
-      'sw.deice_pump2',
-      'sw.deice_windshield',
+      'sw.deice_pump',
       'sw.engine_master',
       'sw.fadec',
     ]);
@@ -393,18 +391,42 @@ describe('BatBody', () => {
     }
   });
 
-  it('the de-ice bats, under 39 tall, use the compact variant: name in 6 above the footprint', () => {
-    const compact = BATS.filter((b) => b.hit.h < COMPACT_BAT_HEIGHT);
-    expect(compact.map((b) => b.id).sort()).toEqual([
-      'sw.deice_pump1',
-      'sw.deice_pump2',
-      'sw.deice_windshield',
-    ]);
-    for (const def of compact) {
+  it('no compact bat remains: every bat is at least 39 tall and the variant is gone', () => {
+    for (const def of BATS) expect(def.hit.h, def.id).toBeGreaterThanOrEqual(39);
+    expect(readFileSync('src/ui/panel/skins/Bat.tsx', 'utf8')).not.toMatch(/compact/i);
+    // A named bat prints its name in Micro 8 inside the footprint, never in 6 above it.
+    const named = BATS.filter((b) => b.nameless !== true);
+    expect(named.length).toBeGreaterThan(0);
+    for (const def of named) {
       const tree = expand(BatBody({ def, position: 'high', pressed: false }));
-      const label = findElements(tree, (el) => el.tag === 'text' && textOf(el) === def.label)[0];
-      expect(label?.props['font-size'], def.id).toBe(6);
-      expect(Number(label?.props['y']), def.id).toBeLessThan(-def.hit.h / 2);
+      const label = findElements(tree, (el) => el.tag === 'text')[0];
+      expect(label?.props['font-size'], def.id).toBe(8);
+      expect(Number(label?.props['y']), def.id).toBeGreaterThan(-def.hit.h / 2);
+    }
+  });
+});
+
+describe('de-ice PUMP toggle (plan 22, G-1)', () => {
+  const pump = toggle('sw.deice_pump');
+
+  it('is a nameless two-position bat: down PUMP 1, up PUMP 2, default PUMP 1', () => {
+    expect(pump.states.map((st) => st.id)).toEqual(['pump1', 'pump2']);
+    expect(pump.default).toBe('pump1');
+    expect(pump.skin ?? 'bat').toBe('bat');
+    expect(pump.nameless).toBe(true);
+    expect(pump.hit).toEqual({ w: 30, h: 69 });
+    expect(pump.region).toBe('deice_switches');
+    for (const id of ['sw.deice_pump1', 'sw.deice_pump2', 'sw.deice_windshield']) {
+      expect(DA50RG.get(id), id).toBeUndefined();
+    }
+  });
+
+  it('flips on any tap and draws no text in either position', () => {
+    expect(tapTarget(pump.states, 'pump1', 0.1)).toBe('pump2');
+    expect(tapTarget(pump.states, 'pump2', 0.9)).toBe('pump1');
+    for (const position of ['low', 'high'] as const) {
+      const tree = expand(BatBody({ def: pump, position, pressed: false }));
+      expect(findElements(tree, (el) => el.tag === 'text')).toEqual([]);
     }
   });
 });

@@ -19,28 +19,25 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('panel')).toBeVisible();
 });
 
-test('de-ice WIND SHIELD flips by mouse or tap', async ({ page, hasTouch }) => {
-  const sw = control(page, 'sw.deice_windshield');
-  const hit = page.locator('[data-hit="sw.deice_windshield"]');
+test('de-ice PUMP toggle flips between PUMP 1 and PUMP 2 by mouse or tap', async ({
+  page,
+  hasTouch,
+}) => {
+  const sw = control(page, 'sw.deice_pump');
+  const hit = page.locator('[data-hit="sw.deice_pump"]');
   await expect(sw).toHaveCount(1);
-  await expect(sw).toHaveAttribute('data-state', 'off');
-
+  await expect(sw).toHaveAttribute('data-state', 'pump1');
+  for (const id of ['sw.deice_pump1', 'sw.deice_pump2', 'sw.deice_windshield']) {
+    await expect(control(page, id), id).toHaveCount(0);
+  }
   await activate(hit, hasTouch);
-  await expect(sw).toHaveAttribute('data-state', 'on');
-
+  await expect(sw).toHaveAttribute('data-state', 'pump2');
   await activate(hit, hasTouch);
-  await expect(sw).toHaveAttribute('data-state', 'off');
-});
-
-test('de-ice PUMP 2 and PUMP 1 flip by mouse or tap', async ({ page, hasTouch }) => {
-  for (const id of ['sw.deice_pump2', 'sw.deice_pump1']) {
-    const sw = control(page, id);
-    await expect(sw, id).toHaveCount(1);
-    await expect(sw, id).toHaveAttribute('data-state', 'off');
-    await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
-    await expect(sw, id).toHaveAttribute('data-state', 'on');
-    await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
-    await expect(sw, id).toHaveAttribute('data-state', 'off');
+  await expect(sw).toHaveAttribute('data-state', 'pump1');
+  // Nameless: the toggle prints nothing itself, the static placards name the positions.
+  await expect(sw.locator('text')).toHaveCount(0);
+  for (const id of ['deice_pump.pump2', 'deice_pump.pump1']) {
+    await expect(page.locator(`[data-placard="${id}"]`), id).toHaveCount(1);
   }
 });
 
@@ -107,12 +104,12 @@ test('de-ice ICE LIGHT toggle reaches ICE LIGHT, OFF and ANNUN-TEST by a tap in 
   }
 });
 
-test('MAX and LEVEL show PRESSED while held and RELEASED after release', async ({
+test('WIND SHIELD, MAX and LEVEL show PRESSED while held and RELEASED after release', async ({
   page,
   hasTouch,
 }) => {
   test.skip(hasTouch, 'a touch cannot be held in Playwright; covered by the mouse projects');
-  for (const id of ['btn.deice_max', 'btn.level']) {
+  for (const id of ['btn.deice_windshield', 'btn.deice_max', 'btn.level']) {
     const button = control(page, id);
     await expect(button, id).toHaveCount(1);
     await expect(button, id).toHaveAttribute('data-state', 'released');
@@ -126,8 +123,8 @@ test('MAX and LEVEL show PRESSED while held and RELEASED after release', async (
   }
 });
 
-test('a tap leaves MAX and LEVEL RELEASED', async ({ page, hasTouch }) => {
-  for (const id of ['btn.deice_max', 'btn.level']) {
+test('a tap leaves WIND SHIELD, MAX and LEVEL RELEASED', async ({ page, hasTouch }) => {
+  for (const id of ['btn.deice_windshield', 'btn.deice_max', 'btn.level']) {
     await activate(page.locator(`[data-hit="${id}"]`), hasTouch);
     await expect(control(page, id), id).toHaveAttribute('data-state', 'released');
   }

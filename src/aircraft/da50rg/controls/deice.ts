@@ -1,22 +1,16 @@
-import type { ControlSpec, StateDef } from '../../../engine/registry';
+import type { ControlSpec } from '../../../engine/registry';
 
-// DE-ICE panel, top far left (D-07b). Upper block (plan 21, owner finding G-1): the black MAX push
-// button above the three-position MODE toggle, the three derived lamps beside it (indicators.ts)
-// and the ALTERNATE switch at its final place on the right. Below, in region deice_switches, the
-// toggles WIND SHIELD, ICE LIGHT, PUMP 2 and PUMP 1 and the ANNUN TEST button (buttons.ts) stay as
-// they were until plan 22. The ALTERNATE switch is still the cockpit's only guarded switch. The
-// labels are paraphrased placards, the positions are layout facts read from the private reference
-// photos (P650, SIM, the owner's de-ice photo; no AFM wording), and the OFF/ON states are a
-// planner assumption to confirm against the de-ice supplement when the icing scenarios are planned
-// (UI-SPEC unconfirmed item 8). Normal in-flight position: OFF (D-07d).
+// DE-ICE panel, top far left (D-07b; owner finding G-1, plans 21 and 22). Upper block (region
+// deice): the black MAX push button above the three-position MODE toggle, the three derived lamps
+// beside it (indicators.ts) and the guarded ALTERNATE switch on the right. Lower row (region
+// deice_switches, left to right): the black momentary WIND SHIELD push button (buttons.ts), the
+// three-position ICE LIGHT / ANNUN-TEST toggle and the two-way PUMP toggle. The ALTERNATE switch
+// is still the cockpit's only guarded switch. The labels are paraphrased placards, the positions
+// are layout facts read from the private reference photos (the owner's de-ice photo; no AFM
+// wording). The spray, the annunciator self-test and the ice light have no simulated effect yet;
+// they come with the scenarios. Normal in-flight position: everything off, PUMP 1 (D-07d, Q-03).
 //
-// Region deice starts at global (85, 205). The ALTERNATE footprint is x 119..175, y 57..125; the
-// lifted guard flips up into y 27..57, inside the region and over no other control.
-
-const ONOFF: readonly [StateDef, StateDef] = [
-  { id: 'off', label: 'OFF' },
-  { id: 'on', label: 'ON' },
-];
+// Region deice starts at global (85, 205), region deice_switches at (85, 390).
 
 export const DEICE_CONTROLS: readonly ControlSpec[] = [
   {
@@ -75,19 +69,6 @@ export const DEICE_CONTROLS: readonly ControlSpec[] = [
     size: 'M',
     colour: 'red',
   },
-  // The switch row of region deice_switches (global y 410, hit 30 x 36). Kinds and state names
-  // are unconfirmed (UI-SPEC unconfirmed item 8); in-flight default OFF.
-  {
-    id: 'sw.deice_windshield',
-    kind: 'toggle',
-    label: 'WIND SHIELD',
-    region: 'deice_switches',
-    x: 44,
-    y: 20,
-    hit: { w: 30, h: 36 },
-    states: ONOFF,
-    default: 'off',
-  },
   {
     // One three-position toggle (owner finding G-1, plan 22): bottom to top ANNUN-TEST, OFF, ICE
     // LIGHT, default OFF (Q-02: maintained, no spring return). Nameless: the placards ICE LIGHT,
@@ -111,25 +92,20 @@ export const DEICE_CONTROLS: readonly ControlSpec[] = [
     nameless: true,
   },
   {
-    id: 'sw.deice_pump2',
+    // Two-way PUMP toggle (owner finding G-1, plan 22): up PUMP 2, down PUMP 1, default PUMP 1
+    // (Q-03). Nameless: the placards PUMP 2 (above) and PUMP 1 (below) name the positions.
+    id: 'sw.deice_pump',
     kind: 'toggle',
-    label: 'PUMP 2',
+    label: 'DE-ICE PUMP',
     region: 'deice_switches',
-    x: 137,
-    y: 20,
-    hit: { w: 30, h: 36 },
-    states: ONOFF,
-    default: 'off',
-  },
-  {
-    id: 'sw.deice_pump1',
-    kind: 'toggle',
-    label: 'PUMP 1',
-    region: 'deice_switches',
-    x: 120,
-    y: 57,
-    hit: { w: 30, h: 36 },
-    states: ONOFF,
-    default: 'off',
+    x: 142,
+    y: 35,
+    hit: { w: 30, h: 69 },
+    states: [
+      { id: 'pump1', label: 'PUMP 1' },
+      { id: 'pump2', label: 'PUMP 2' },
+    ],
+    default: 'pump1',
+    nameless: true,
   },
 ];

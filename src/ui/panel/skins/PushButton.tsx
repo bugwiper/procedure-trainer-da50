@@ -47,15 +47,33 @@ export interface ButtonTextLayout {
 }
 
 /**
- * Label above the bezel. A label wider than the footprint drops to one Micro 6 line (ANNUN
- * TEST). A button prints no state text (G-0.1): it shows its state by the cap position only.
+ * Where a label that does not fit on one line is split: at the space nearest the middle, or null
+ * when it has none.
+ */
+function splitAtSpace(label: string): readonly [string, string] | null {
+  let best = -1;
+  for (let i = 0; i < label.length; i++) {
+    if (label[i] !== ' ') continue;
+    if (best < 0 || Math.abs(i - label.length / 2) < Math.abs(best - label.length / 2)) best = i;
+  }
+  return best < 0 ? null : [label.slice(0, best), label.slice(best + 1)];
+}
+
+/**
+ * Label above the bezel. A label wider than the footprint at size 8 drops to Micro 6; one that is
+ * still wider at size 6 splits at its space into two Micro 6 lines (WIND SHIELD), the last line
+ * closest to the bezel. A button prints no state text (G-0.1): it shows its state by the cap
+ * position only.
  */
 export function buttonTextLayout(
   def: Pick<MomentaryButtonDef, 'label' | 'hit'>,
   bezelR: number,
 ): ButtonTextLayout {
-  const labelLines = [def.label];
-  const labelSize = textWidth(def.label, 8) > def.hit.w ? 6 : 8;
+  const fits8 = textWidth(def.label, 8) <= def.hit.w;
+  const fits6 = textWidth(def.label, 6) <= def.hit.w;
+  const split = fits6 ? null : splitAtSpace(def.label);
+  const labelLines: readonly string[] = split === null ? [def.label] : split;
+  const labelSize = fits8 ? 8 : 6;
   const lastY = -(bezelR + 2.5);
   const labelYs = labelLines.map((_, i) => lastY - (labelLines.length - 1 - i) * 7);
   return { labelLines, labelSize, labelYs };

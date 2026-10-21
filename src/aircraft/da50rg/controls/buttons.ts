@@ -39,6 +39,21 @@ export const BUTTON_CONTROLS: readonly ControlSpec[] = [
     default: 'released',
     skin: 'small-black',
   },
+  // WIND SHIELD of the de-ice unit (owner finding G-1, plan 22): black momentary push button at the
+  // left of the lower row, the label in two lines above it. Pressing it would spray the windscreen;
+  // that effect comes with the scenarios, the button only records press and release.
+  {
+    id: 'btn.deice_windshield',
+    kind: 'momentary-button',
+    label: 'WIND SHIELD',
+    region: 'deice_switches',
+    x: 28,
+    y: 35,
+    hit: { w: 36, h: 36 },
+    states: RELEASED_PRESSED,
+    default: 'released',
+    skin: 'black-dome',
+  },
   // LEVEL, between the GEAR lever and the FLAPS block. Believed to be the autopilot level
   // function; inert in this phase (UI-SPEC unconfirmed item 11).
   {
