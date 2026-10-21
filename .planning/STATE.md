@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: "01.1"
 current_phase_name: Panel shape, controls and indicator lights
-current_plan: 19 (complete)
+current_plan: 20 (complete)
 status: executing
-stopped_at: Completed 01.1-19-PLAN.md
-last_updated: "2026-10-20T23:11:39.717Z"
+stopped_at: Completed 01.1-20-PLAN.md
+last_updated: "2026-10-21T00:12:52.921Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 869b0e277bffbb7db508ff0226eb80eaa5b44fcf
+state_head: 1be6697dfcb394dc69bcf1112fc8a92466d42180
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 32
-  completed_plans: 28
+  completed_plans: 29
   percent: 14
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 01.1 (Panel shape, controls and indicator lights) — GAP CLOSURE IN PROGRESS (plans 12 to 23 from the owner first-render review)
-Current Plan: 19 (complete)
+Current Plan: 20 (complete)
 Total Plans in Phase: 23
-Status: Plans 01.1-01 to 01.1-19 complete; plan 19 rebuilt the pedestal (own plate, parking brake pulled up to set, THROTTLE, cowl flap with OPEN and CLOSED lamps, nameless and legends lever options); plans 20 to 23 pending
-Last activity: 2026-10-21 — Plan 01.1-19 complete (pedestal rebuild, cowl-flap lamps)
+Status: Plans 01.1-01 to 01.1-20 complete; plan 20 rebuilt the environmental control plate (outlined boxes, TEMPERATURE with WARM, COLD and a triangle, FAN with OFF and three fan-symbol stops, pictogram-only DIRECTION and CIRCULATING AIR, new region env_circ); plans 21 to 23 pending
+Last activity: 2026-10-21 — Plan 01.1-20 complete (environmental control rebuild)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -77,6 +77,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P17 | 15min | 2 tasks | 9 files |
 | Phase 01.1 P18 | approx 25min | 2 tasks | 22 files |
 | Phase 01.1 P19 | 30min | 2 tasks | 18 files |
+| Phase 01.1 P20 | 35min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Plan 17: GEAR TEST lights all four gear lamps; gear plate top 580 drawn under the PFD bezels
 - [Phase 01.1]: Plan 18: the bus panel starts at x 1836 so the ELT placards on the strip plate stay visible; ELT is maintained, rests ARMED (Q-01 default)
 - [Phase 01.1]: Plan 19: levers may be nameless and choose their legends; pedestal placards drawn after every plate; throttle label THROTTLE with id lv.power
+- [Phase 01.1]: Plan 20: environmental group boxes and plate title are shell art (plates.ts), so all four environmental controls are nameless; FAN has OFF plus three stops with fan symbols
 
 ### Pending Todos
 
@@ -141,6 +143,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T23:11:39.620Z
-Stopped at: Completed 01.1-19-PLAN.md
+Last session: 2026-10-21T00:12:52.821Z
+Stopped at: Completed 01.1-20-PLAN.md
 Resume file: None
