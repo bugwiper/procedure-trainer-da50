@@ -17,6 +17,7 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   mfd: MfdFrame,
   // Inert key art (the keys that are not controls) of the softkey rows below the displays.
   mfd_softkeys: SoftkeysFrame,
+  pfd_softkeys: SoftkeysFrame,
 };
 
 /**

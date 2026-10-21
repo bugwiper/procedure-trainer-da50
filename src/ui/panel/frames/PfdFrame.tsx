@@ -1,3 +1,5 @@
+import { PFD_LEGENDS } from '../../../aircraft/da50rg/avionics';
+import { LegendRow } from './MfdFrame';
 import type { FrameProps } from './MfdFrame';
 
 const SKY = '#1f6fc4';
@@ -137,6 +139,8 @@ export function PfdFrame({ region }: FrameProps) {
           HDG
         </text>
       </g>
+
+      <LegendRow display="pfd" legends={PFD_LEGENDS} selectedSlot={-1} />
     </g>
   );
 }

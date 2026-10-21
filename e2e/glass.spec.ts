@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { MFD_ENGINE_LEGENDS, MFD_MAP_LEGENDS } from '../src/aircraft/da50rg/avionics';
+import { MFD_ENGINE_LEGENDS, MFD_MAP_LEGENDS, PFD_LEGENDS } from '../src/aircraft/da50rg/avionics';
 
 // Mirror of the read-only window hook of the e2e build (src/ui/bridge.ts). Declared here because
 // the e2e project has no DOM lib.
@@ -132,4 +132,31 @@ test('@hooks a tap on an inert MFD key appends no event and changes no state', a
   const after = await read();
   expect(after).toEqual(before);
   await expect(page.locator('[data-mfd-page="map"]')).toBeVisible();
+});
+
+test('the PFD shows 12 inert keys and a 12-slot legend row', async ({ page }) => {
+  const region = page.locator('[data-region-id="pfd_softkeys"]');
+  await expect(region.locator('[data-softkey]')).toHaveCount(12);
+  await expect(region.locator('[data-control-id]')).toHaveCount(0);
+  await expect(region.locator('[data-hit]')).toHaveCount(0);
+  const tabs = page.locator('[data-region-id="pfd"] [data-legend-tab]');
+  await expect(tabs).toHaveCount(12);
+  expect(await tabs.allTextContents()).toEqual([...PFD_LEGENDS]);
+});
+
+test('@hooks a tap on a PFD key appends no event and changes no state', async ({
+  page,
+  hasTouch,
+}) => {
+  const read = () =>
+    page.evaluate(() => {
+      const hook = (window as unknown as HookHost).__panel;
+      if (hook === undefined) throw new Error('test hook missing');
+      return { events: hook.events().length, state: JSON.stringify(hook.state()) };
+    });
+  const before = await read();
+  for (const slot of [1, 6, 12]) {
+    await tapAtCentre(page, page.locator(`[data-softkey="pfd:${slot}"]`), hasTouch);
+  }
+  expect(await read()).toEqual(before);
 });

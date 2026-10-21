@@ -151,7 +151,7 @@ describe('viewBox and regions', () => {
     for (const [id, bounds] of Object.entries(expected)) {
       expect(regionBounds(id), id).toEqual(bounds);
     }
-    expect(DA50RG.regions).toHaveLength(23);
+    expect(DA50RG.regions).toHaveLength(24);
   });
 
   it('no two regions overlap with positive area', () => {

@@ -3,6 +3,7 @@ import {
   GLASS,
   MFD_ENGINE_LEGENDS,
   MFD_MAP_LEGENDS,
+  PFD_LEGENDS,
   SOFTKEY_CENTRE_Y,
   SOFTKEY_KEY,
   SOFTKEY_ROWS,
@@ -12,6 +13,7 @@ import {
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import type { PanelBridge } from '../src/ui/bridge';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
+import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
 import { SoftkeysFrame } from '../src/ui/panel/frames/SoftkeysFrame';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { El } from './vnode-walk';
@@ -23,6 +25,11 @@ import type { El } from './vnode-walk';
 // Table D2: MFD key centres, global x.
 const MFD_CENTRES = [
   1288, 1329.5, 1371, 1412.5, 1454, 1495.5, 1537, 1578.5, 1620, 1661.5, 1703, 1744.5,
+] as const;
+
+// Table D2: PFD key centres, global x.
+const PFD_CENTRES = [
+  401.0, 438.9, 476.8, 514.7, 552.6, 590.5, 628.4, 666.3, 704.2, 742.1, 780.0, 817.9,
 ] as const;
 
 function region(id: string) {
@@ -199,5 +206,125 @@ describe('MfdFrame legend row', () => {
     expect(bar).toHaveLength(1);
     expect(bar[0]?.props['height']).toBe(2);
     expect(tabs.map((t) => textOf(t))).toEqual(MFD_ENGINE_LEGENDS.map((t) => t));
+  });
+});
+
+describe('PFD softkey row and region', () => {
+  it('pfd_softkeys {356, 570, 479, 38} is named PFD SOFTKEYS and overlaps no region', () => {
+    const r = region('pfd_softkeys');
+    expect(r.bounds).toEqual({ x: 356, y: 570, w: 479, h: 38 });
+    expect(r.name).toBe('PFD SOFTKEYS');
+    expect(r.controlIds).toEqual([]);
+    const a = r.bounds;
+    for (const other of DA50RG.regions) {
+      if (other.id === r.id) continue;
+      const b = other.bounds;
+      const overlap =
+        Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) &&
+        Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
+      expect(overlap, other.id).toBe(false);
+    }
+    // It ends where landing_gear starts, and below the screen.
+    expect(a.x + a.w).toBe(835);
+    expect(region('landing_gear').bounds.x).toBe(836);
+    expect(region('pfd').bounds.y + region('pfd').bounds.h).toBe(567);
+  });
+
+  it('has 12 keys at 401.0 + 37.9 i with centre y 589, inside the region, last ending left of landing_gear', () => {
+    const b = region('pfd_softkeys').bounds;
+    expect(SOFTKEY_ROWS.pfd.regionId).toBe('pfd_softkeys');
+    for (let i = 0; i < 12; i++) {
+      const c = softkeyCentre('pfd', i);
+      expect(c.x, `slot ${i + 1}`).toBeCloseTo(PFD_CENTRES[i] ?? Number.NaN, 6);
+      expect(c.y).toBe(589);
+      expect(c.x - 15, `slot ${i + 1} left`).toBeGreaterThanOrEqual(b.x);
+      expect(c.x + 15, `slot ${i + 1} right`).toBeLessThanOrEqual(b.x + b.w);
+      expect(c.y - 10).toBeGreaterThanOrEqual(b.y);
+      expect(c.y + 10).toBeLessThanOrEqual(b.y + b.h);
+      if (i > 0) expect(c.x - softkeyCentre('pfd', i - 1).x).toBeGreaterThan(30);
+    }
+    expect(softkeyCentre('pfd', 0).x - 15).toBeCloseTo(386, 6);
+    expect(softkeyCentre('pfd', 11).x + 15).toBeCloseTo(832.9, 6);
+    expect(softkeyCentre('pfd', 11).x + 15).toBeLessThan(region('landing_gear').bounds.x);
+  });
+
+  it('the PFD legend table has the 12 entries of Table D3 in order', () => {
+    expect([...PFD_LEGENDS]).toEqual([
+      'CAS',
+      'Map/HSI',
+      'TFC Map',
+      'PFD Opt',
+      'OBS',
+      'CDI',
+      'DME',
+      'XPDR',
+      'Ident',
+      'TMR/REF',
+      'Nearest',
+      'Alerts',
+    ]);
+  });
+
+  it('every legend tab centre is its key centre minus the screen region x (362)', () => {
+    expect(region('pfd').bounds.x).toBe(362);
+    for (let i = 0; i < 12; i++) {
+      expect(legendTabCentreX('pfd', i), `slot ${i + 1}`).toBeCloseTo(
+        (PFD_CENTRES[i] ?? Number.NaN) - 362,
+        6,
+      );
+    }
+    expect(legendTabCentreX('pfd', 0)).toBeCloseTo(39, 6);
+    expect(legendTabCentreX('pfd', 1) - legendTabCentreX('pfd', 0)).toBeCloseTo(37.9, 6);
+  });
+});
+
+describe('SoftkeysFrame on pfd_softkeys', () => {
+  const tree = expand(SoftkeysFrame({ region: region('pfd_softkeys'), bridge: fakeBridge('map') }));
+  const keys = findElements(tree, (el) => 'data-softkey' in el.props);
+
+  it('draws 12 inert keys marked pfd:1 to pfd:12, region-local, without handlers', () => {
+    expect(keys.map((k) => k.props['data-softkey'])).toEqual(
+      Array.from({ length: 12 }, (_, i) => `pfd:${i + 1}`),
+    );
+    expect(tree.props['pointer-events']).toBe('none');
+    for (const el of findElements(tree, () => true)) {
+      for (const name of Object.keys(el.props)) expect(name, el.tag).not.toMatch(/^on[A-Z]/);
+    }
+    keys.forEach((key, i) => {
+      const rect = findElements(key, (el) => el.tag === 'rect')[0];
+      expect(Number(rect?.props['x']) + 15 + 356, `slot ${i + 1}`).toBeCloseTo(
+        PFD_CENTRES[i] ?? Number.NaN,
+        6,
+      );
+      expect(Number(rect?.props['y']) + 10 + 570).toBe(589);
+    });
+  });
+});
+
+describe('PfdFrame legend row and test ids', () => {
+  const tree = expand(PfdFrame({ region: region('pfd'), bridge: fakeBridge('map') }));
+  const tabs = findElements(tree, (el) => 'data-legend-tab' in el.props);
+
+  it('draws 12 tabs 34 wide at local y 349 with the Table D3 legends', () => {
+    expect(tabs).toHaveLength(12);
+    expect(tabs.map((t) => textOf(t))).toEqual([...PFD_LEGENDS]);
+    tabs.forEach((tab, i) => {
+      const rect = findElements(tab, (el) => el.tag === 'rect')[0];
+      expect(Number(rect?.props['width'])).toBe(34);
+      expect(Number(rect?.props['y'])).toBe(349);
+      expect(Number(rect?.props['x']) + 17, `slot ${i + 1}`).toBeCloseTo(
+        (PFD_CENTRES[i] ?? Number.NaN) - 362,
+        6,
+      );
+    });
+  });
+
+  it('keeps the four PFD test ids', () => {
+    for (const id of ['pfd-attitude', 'pfd-airspeed', 'pfd-altitude', 'pfd-heading']) {
+      expect(
+        findElements(tree, (el) => el.props['data-testid'] === id),
+        id,
+      ).toHaveLength(1);
+    }
   });
 });

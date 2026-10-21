@@ -5,7 +5,7 @@
 // words, no maker or product names (owner rule U-33).
 
 /** The two glass displays of the panel. */
-export type DisplayId = 'mfd';
+export type DisplayId = 'pfd' | 'mfd';
 
 /** Softkeys per display. */
 export const SOFTKEY_SLOT_COUNT = 12;
@@ -31,6 +31,16 @@ export interface SoftkeyRow {
 }
 
 export const SOFTKEY_ROWS: Readonly<Record<DisplayId, SoftkeyRow>> = {
+  // Narrower than the MFD row: pfd_softkeys ends at x 835 because landing_gear starts at 836 and a
+  // key may not leave its region (U-13). Slots 0 to 11 end at x 832.9; all 12 keys are inert art.
+  pfd: {
+    regionId: 'pfd_softkeys',
+    screenRegionId: 'pfd',
+    screenX: 362,
+    firstX: 401,
+    pitch: 37.9,
+    tabWidth: 34,
+  },
   // Centred on the screen; slot 0 is the sw.mfd_page control at (1288, 589).
   mfd: {
     regionId: 'mfd_softkeys',
@@ -55,7 +65,24 @@ export function legendTabCentreX(display: DisplayId, slot: number): number {
 }
 
 // Glass legends (Table D3), static per page; slot 1 is index 0 and a blank slot keeps an empty
-// idle tab. Only the MFD slot 1 is a confirmed word; the other slots are low confidence (U-14).
+// idle tab. The PFD words are read from the photos (high confidence); of the MFD only slot 1 is
+// confirmed, the other slots are low confidence (U-14).
+
+/** PFD: all 12 slots carry a legend. */
+export const PFD_LEGENDS: readonly string[] = [
+  'CAS',
+  'Map/HSI',
+  'TFC Map',
+  'PFD Opt',
+  'OBS',
+  'CDI',
+  'DME',
+  'XPDR',
+  'Ident',
+  'TMR/REF',
+  'Nearest',
+  'Alerts',
+];
 
 /** MFD map page: slots 1, 3, 9, 10, 11 and 12. */
 export const MFD_MAP_LEGENDS: readonly string[] = [

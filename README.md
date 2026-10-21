@@ -10,14 +10,15 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ## Demo controls
 
-The panel has 92 controls and 13 indicator lamps in 23 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
+The panel has 92 controls and 13 indicator lamps in 24 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
 
 - **LIGHTS**, glareshield: LANDING, TAXI, POSITION, STROBE
 - **INSTRUMENT AND FLOOD LIGHT**, between the displays: INSTRUMENT LIGHT and FLOOD LIGHT knobs
 - **DE ICE**, top far left: MAX (push button), the mode toggle (HIGH / NORM / OFF) with its three lamps, and ALTERNATE (the guarded switch)
 - **DE-ICE SWITCHES**, below DE ICE: WIND SHIELD (push button), the ICE LIGHT / OFF / ANNUN-TEST toggle, the PUMP toggle (PUMP 1 / PUMP 2)
 - **ENGINE**, left edge below DE-ICE: FADEC (AUTO / FORCE B), FADEC TEST (push button), ALTERNATOR 1, ALTERNATOR 2
-- **MFD SOFTKEYS**, under the MFD screen: the ENGINE softkey
+- **MFD SOFTKEYS**, under the MFD screen: a row of 12 triangle keys; the first one switches the MFD between the map page and the engine page (its legend, Engine, stands on the glass above it), the other 11 are art only
+- **PFD SOFTKEYS**, under the PFD screen: a row of 12 triangle keys, art only
 - **SWITCH ROW**, under the PFD: PROP DE-ICE, FUEL TRANS, EMERG FUEL PUMP, ENGINE START (push button), ENGINE MASTER, ESS BUS, ELECT. MASTER, AV MASTER, PITOT/STALL HEAT
 - **LANDING GEAR**: GEAR, the STALL TEST / GEAR TEST toggle, and the gear lamps (NOSE, LEFT, RIGHT, UNSAFE)
 - **LEVEL**, between the gear and flap blocks: LEVEL (push button)

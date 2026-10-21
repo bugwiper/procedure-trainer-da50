@@ -77,6 +77,9 @@ export const REGIONS: readonly RegionDef[] = [
   // The softkey strip under the MFD screen. Ends at 608, one unit under the softkey (G-4: the
   // flap region above it grew upward by 5).
   { id: 'mfd_softkeys', name: 'MFD SOFTKEYS', bounds: { x: 1262, y: 570, w: 510, h: 38 } },
+  // The softkey strip under the PFD screen: 12 inert keys, art only (no control). Ends at x 835
+  // because landing_gear starts at 836 and a key may not leave its region; y 570 is below pfd (567).
+  { id: 'pfd_softkeys', name: 'PFD SOFTKEYS', bounds: { x: 356, y: 570, w: 479, h: 38 } },
   // Under the left column and the PFD.
   { id: 'switch_bank', name: 'SWITCH ROW', bounds: { x: 70, y: 621, w: 764, h: 84 } },
   // Gear lever, gear lamps and the STALL/GEAR TEST part.
