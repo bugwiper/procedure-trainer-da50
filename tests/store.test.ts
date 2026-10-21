@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
-import { defineRegistry } from '../src/engine/registry';
+import { defineRegistry, legalStates } from '../src/engine/registry';
 import { deriveState, PanelStore } from '../src/engine/store';
 
 // Store contract suite (PNL-06, D-06, D-07b, D-08). Inline fixture registries only: the real
@@ -487,4 +487,88 @@ describe('consumed watermark (the Phase 3 seam)', () => {
   it('throws RangeError for a watermark at the log length on an empty log', () => {
     expect(() => plainStore().markConsumed(0)).toThrow(RangeError);
   });
+});
+
+// Seeded random walk over the real registry (T-01.1-64): after every step the live state equals the
+// defaults folded with the log, seq values are dense, and a replay into a fresh store agrees.
+describe('retract random walk over the real DA50RG registry', () => {
+  /** Small linear congruential generator; the walk is deterministic, no Math.random. */
+  function lcg(seed: number): () => number {
+    let s = seed >>> 0;
+    return () => {
+      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+      return s / 0x100000000;
+    };
+  }
+
+  function walk(seed: number, withConsumed: boolean): void {
+    const rand = lcg(seed);
+    const pick = <T>(items: readonly T[]): T => {
+      const item = items[Math.floor(rand() * items.length)];
+      if (item === undefined) throw new Error('empty pick');
+      return item;
+    };
+    const store = new PanelStore(DA50RG);
+    let t = 0;
+    let watermark = -1;
+
+    for (let step = 0; step < 300; step++) {
+      const log = store.events();
+      const roll = rand();
+      if (roll < 0.35 && log.length > 0) {
+        const last = log.length - 1;
+        // A retract of any other seq is refused and leaves the log alone.
+        if (last > 0) {
+          const other = Math.floor(rand() * last);
+          const before = store.events();
+          const refusal = store.retract(other);
+          expect(refusal.ok).toBe(false);
+          expect(store.events()).toEqual(before);
+        }
+        const result = store.retract(last);
+        if (last <= watermark) {
+          expect(result).toEqual({ ok: false, reason: 'consumed' });
+          expect(store.events()).toHaveLength(log.length);
+        } else {
+          expect(result.ok).toBe(true);
+          expect(store.events()).toHaveLength(log.length - 1);
+        }
+      } else {
+        const def = pick(DA50RG.controls);
+        t += 1 + Math.floor(rand() * 50);
+        store.dispatch(def.id, pick(legalStates(def)), t);
+      }
+      if (withConsumed && rand() < 0.1 && store.events().length > 0) {
+        const through = store.events().length - 1;
+        store.markConsumed(through);
+        watermark = through;
+        expect(store.consumedThrough).toBe(through);
+        // The consumed newest event can no longer be removed.
+        expect(store.retract(through)).toEqual({ ok: false, reason: 'consumed' });
+        expect(store.events()).toHaveLength(through + 1);
+      }
+
+      const events = store.events();
+      expect(store.snapshot()).toEqual(deriveState(DA50RG, events));
+      expect(events.map((e) => e.seq)).toEqual(events.map((_, i) => i));
+      expect(store.consumedThrough).toBe(watermark);
+    }
+
+    // Replaying the surviving log into a fresh store gives the same snapshot.
+    const replay = new PanelStore(DA50RG);
+    for (const e of store.events()) expect(replay.dispatch(e.id, e.value, e.t).ok).toBe(true);
+    expect(replay.snapshot()).toEqual(store.snapshot());
+    expect(replay.events()).toEqual(store.events());
+  }
+
+  it.each([1, 2, 3, 20261021])('seed %s: state equals the replayed log at every step', (seed) => {
+    walk(seed, false);
+  });
+
+  it.each([1, 2, 3, 20261021])(
+    'seed %s with markConsumed: consumed events never leave the log',
+    (seed) => {
+      walk(seed, true);
+    },
+  );
 });
