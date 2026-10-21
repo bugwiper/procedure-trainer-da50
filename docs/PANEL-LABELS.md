@@ -183,7 +183,7 @@ The bus panel at the far right of the panel carries the circuit breakers. Each p
 | `cb.mfd`, `cb.strobe`, `cb.position`, `cb.taxi_map`, `cb.inst_lt`, `cb.av_bus`, `cb.xfr_pump` (row M4, new in plan 04) | MFD (5), STROBE (5), POSITION (5), TAXI/MAP (5), INST., LT (3), AV BUS (25), XFR, PUMP (5) | none | photo read, assumption | `controls/breakers.ts` |
 | `cb.gcu`, `cb.stall_ht`, `cb.rudder_trim`, `cb.air_ctrl`, `cb.tas`, `cb.iridium` (row M5, new in plan 04; the cell between TAS and IRIDIUM is a blank plug) | GCU (2), STALL, HT. (10), RUDDER, TRIM (3), AIR, CTRL. (5), TAS (3), IRIDIUM (1) | none | photo read, assumption | `controls/breakers.ts` |
 | `cb.com2`, `cb.gps_nav2`, `cb.audio`, `cb.afcs_esp`, `cb.dme`, `cb.twx` (row V6, new in plan 04) | COM2 (5), GPS/, NAV 2 (5), AUDIO (5), AFCS/ESP (7½), DME (3), TWX (3) | none | photo read, assumption | `controls/breakers.ts` |
-| `cb.ecu_a`, `cb.ecu_b`, `cb.ess_tie`, `cb.batt`, `cb.alt1`, `cb.alt2`, `cb.main_tie`, `cb.ecs`, `cb.usb_ports`, `cb.pedals` (lower row, new in plan 04) | ECU, A (10), ECU, B (10), ESS, TIE (50), BATT (60), ALT, 1 (60), ALT, 2 (60), MAIN, TIE (50), ECS (10), USB, PORTS (5), PEDALS (5, rating assumed) | none | photo read, assumption | `controls/breakers.ts` |
+| `cb.ecu_a`, `cb.ecu_b`, `cb.ess_tie`, `cb.batt`, `cb.alt1`, `cb.alt2`, `cb.main_tie`, `cb.ecs`, `cb.usb_ports`, `cb.pedals` (lower row, new in plan 04) | ECU, A (10), ECU, B (10), ESS, TIE (50), BATT (60), ALT, 1 (60), ALT, 2 (60), MAIN, TIE (50), ECS (10), USB, PORTS (5), PEDALS (5) | none | photo read, assumption (the PEDALS rating is the least certain one) | `controls/breakers.ts` |
 | `cb.stall_aoa`, `cb.prop_deice`, `cb.deice` (flap strip, new in plan 04) | STALL/, AOA (2), PROP, DE-ICE (15), DE-ICE (7½) | none | photo read, assumption | `controls/breakers.ts` |
 
 ## Bus panel static text
@@ -199,6 +199,22 @@ The frame of the bus panel carries static shell text only; none of it belongs to
 | DATA / LINK | above the last blank plug, two lines | size 6, like a breaker label; the plug is a hole, not a control |
 
 The first blank plug (in the ESSENTIAL outline) has no label. Source file of all of this: `src/aircraft/da50rg/bus-boxes.ts`, drawn by `src/ui/panel/BusPanelArt.tsx`.
+
+## Avionics static labels
+
+The glass displays, their knob and key columns and the three centre-stack units carry printed words only; none of it changes with a control state and none of it is an id (the rows are plain unit names, so the id table checks ignore them). All keys, knobs and buttons listed here are art: a tap on them only zooms, except the first MFD softkey, which is the control `sw.mfd_page` (its row is in the section "MFD softkey" above). The hardware keys under the glass show a triangle and no word; the words below stand on the glass above them (a blank slot has no tab). No maker, model or logo text appears anywhere. Source of all of it: `src/aircraft/da50rg/avionics.ts`, drawn by the frames named in the last column.
+
+| Unit | Static labels | Basis | File to edit |
+|------|---------------|-------|--------------|
+| PFD softkey legends | CAS, Map/HSI, TFC Map, PFD Opt, OBS, CDI, DME, XPDR, Ident, TMR/REF, Nearest, Alerts (slots 1 to 12, one per tab; the keys show a triangle only) | photo read, high confidence | `avionics.ts` (`PFD_LEGENDS`), `frames/PfdFrame.tsx` |
+| MFD softkey legends, map page | Engine (slot 1), Map Opt (slot 3), Detail (slot 9), All (slot 10), Charts (slot 11), Checklist (slot 12); the other slots have no tab | slot 1 confirmed, the others low confidence (U2-14) | `avionics.ts` (`MFD_MAP_LEGENDS`), `frames/MfdFrame.tsx` |
+| MFD softkey legends, engine page | Engine (slot 1, the selected tab), DEC Fuel (slot 4), INC Fuel (slot 5), RST Fuel (slot 6); the other slots have no tab | slot 1 confirmed, slots 4 to 6 medium confidence | `avionics.ts` (`MFD_ENGINE_LEGENDS`), `frames/MfdFrame.tsx` |
+| PFD knob column, left | VOL, PUSH ID (small knob); NAV, PUSH, 1-2 (NAV knob); HDG, PUSH, HDG SYNC (HDG knob); ALT (ALT knob); the swap button has no word | photo read, assumption (compressed widths, U2-12) | `avionics.ts` (`BEZEL_COLUMNS`), `frames/BezelColumnFrame.tsx` |
+| PFD knob column, right | VOL, PUSH SQ (small knob); EMERG (beside the swap button); COM, PUSH, 1-2 (COM knob); CRS/BARO, PUSH, CRS CTR (CRS/BARO knob); RANGE, PUSH, PAN (joystick); keys MENU, FPL, PROC, CLR, ENT and the direct-to key (an arrow and the letter D, no word); DFLT MAP; FMS, PUSH CRSR (FMS knob) | photo read, assumption (knob set Q2-07, U2-12) | `avionics.ts` (`BEZEL_COLUMNS`), `frames/BezelColumnFrame.tsx` |
+| MFD knob column, right | the same words as the PFD right column: VOL, PUSH SQ, EMERG, COM, PUSH, 1-2, CRS/BARO, CRS CTR, RANGE, PAN, MENU, FPL, PROC, CLR, ENT, DFLT MAP, FMS, PUSH CRSR | photo read, assumption (the strip repeats the PFD right column) | `avionics.ts` (`BEZEL_COLUMNS`), `frames/BezelColumnFrame.tsx` |
+| Audio panel | key legends COM1 MIC, COM1, COM2 MIC, COM2, AUX MIC, AUX, DME, NAV1, ADF, NAV2, PILOT ICS, TEL, COPLT ICS, MUS1, PASS ICS, MUS2, SPKR PA, MKR MUTE, HI SENS, PLAY, MAN SQ (a legend with a space is set on two lines); the red round button has the legends DISPLAY (above) and BACKUP (below); the volume knob has no word | photo read, high confidence for the key list (U2-16) | `avionics.ts` (`AUDIO_PANEL`), `frames/AudioPanelFrame.tsx` |
+| Autopilot panel | VOL, PUSH ID (small knob); NAV, PUSH, 1-2 (NAV knob); HDG, PUSH, HDG SYNC (HDG knob); key legends AP, YD, FD, HDG, NAV, APR, ALT, VNV, VS, NOSE UP, FLC, NOSE DN; ALT (ALT knob) | photo read, assumption (the column is the left strip of the MFD in the photos, U2-17) | `avionics.ts` (`AUTOPILOT_PANEL`), `frames/AutopilotPanelFrame.tsx` |
+| Backup EFIS | KTS, FEET, BARO (the labels of the tape display; the numerals and readings are idle artwork, not labels) | photo read, medium confidence (U2-18) | `avionics.ts` (`STANDBY_EFIS`), `frames/StandbyEfisFrame.tsx` |
 
 ## Superseded by the owner findings
 

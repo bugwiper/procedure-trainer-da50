@@ -2,6 +2,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import {
+  AUDIO_PANEL,
+  AUTOPILOT_PANEL,
+  BEZEL_COLUMNS,
+  MFD_ENGINE_LEGENDS,
+  MFD_MAP_LEGENDS,
+  PFD_LEGENDS,
+  type UnitElement,
+} from '../src/aircraft/da50rg/avionics';
 import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 
@@ -194,5 +203,115 @@ describe('panel label table: static text only (G-0.1)', () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+/** The text of one `## ` section of the document (heading excluded), up to the next section. */
+function section(heading: string): string {
+  const start = doc.indexOf(`\n## ${heading}\n`);
+  expect(start, `section "${heading}" missing`).toBeGreaterThan(-1);
+  const body = doc.slice(start + heading.length + 5);
+  const end = body.indexOf('\n## ');
+  return end === -1 ? body : body.slice(0, end);
+}
+
+/** The table row whose first cell is exactly `unit` (plain text, no backticks). */
+function unitRow(sectionText: string, unit: string): string {
+  const row = sectionText
+    .split('\n')
+    .find((line) => line.startsWith('|') && (line.split('|')[1] ?? '').trim() === unit);
+  expect(row, `no row for "${unit}"`).toBeDefined();
+  return row ?? '';
+}
+
+/** Every printed string of a list of unit elements: static names, sub-legends and key legends. */
+function printedStrings(elements: readonly UnitElement[]): string[] {
+  const out: string[] = [];
+  for (const e of elements) {
+    if (e.kind === 'text') out.push(e.text);
+    if (e.kind === 'key' && e.legend !== null) out.push(e.legend);
+  }
+  return out;
+}
+
+describe('panel label table: circuit breakers (phase 01.2)', () => {
+  const breakers = DA50RG.controls.flatMap((c) => (c.kind === 'circuit-breaker' ? [c] : []));
+  const text = () => section('Circuit breakers');
+
+  it('has the sections Circuit breakers, Bus panel static text and Avionics static labels', () => {
+    for (const heading of ['Circuit breakers', 'Bus panel static text', 'Avionics static labels']) {
+      expect(doc, heading).toContain(`\n## ${heading}\n`);
+    }
+  });
+
+  it('names all 51 breaker ids in the Circuit breakers section', () => {
+    const ids = [...text().matchAll(/`(cb\.[a-z_0-9]+)`/g)].map((m) => m[1]);
+    expect(breakers).toHaveLength(51);
+    expect(new Set(ids).size).toBe(51);
+    expect(breakers.filter((b) => !ids.includes(b.id)).map((b) => b.id)).toEqual([]);
+  });
+
+  it.each(breakers.map((b) => [b.id, b] as const))(
+    'the row of %s gives its printed label lines and its rating as written',
+    (id, b) => {
+      const row =
+        text()
+          .split('\n')
+          .find(
+            (line) => line.startsWith('|') && (line.split('|')[1] ?? '').includes(`\`${id}\``),
+          ) ?? '';
+      expect(row, `${id} has no row`).not.toBe('');
+      // "GPS/, NAV 1 (5)": the label lines joined by a comma, then the rating in brackets.
+      expect(row, id).toContain(`${b.labelLines.join(', ')} (${b.rating})`);
+    },
+  );
+
+  it('prints the half-amp rating as 7½ for the two breakers that carry it', () => {
+    expect(breakers.filter((b) => b.rating === '7½').map((b) => b.id)).toEqual([
+      'cb.afcs_esp',
+      'cb.deice',
+    ]);
+    expect(text()).toContain('AFCS/ESP (7½)');
+    expect(text()).toContain('DE-ICE (7½)');
+  });
+
+  it('lists the static text of the bus panel frame', () => {
+    const frame = section('Bus panel static text');
+    for (const word of ['ESSENTIAL BUS', 'MAIN BUS', 'AVIONICS BUS', 'ADF', 'DATA / LINK']) {
+      expect(frame, word).toContain(word);
+    }
+  });
+});
+
+describe('panel label table: avionics static labels (phase 01.2)', () => {
+  const avionics = () => section('Avionics static labels');
+
+  const UNITS: readonly (readonly [string, readonly string[]])[] = [
+    ['PFD softkey legends', PFD_LEGENDS],
+    ['MFD softkey legends, map page', MFD_MAP_LEGENDS.filter((l) => l !== '')],
+    ['MFD softkey legends, engine page', MFD_ENGINE_LEGENDS.filter((l) => l !== '')],
+    ['PFD knob column, left', printedStrings(BEZEL_COLUMNS.pfd_bezel_left)],
+    ['PFD knob column, right', printedStrings(BEZEL_COLUMNS.pfd_bezel_right)],
+    ['MFD knob column, right', printedStrings(BEZEL_COLUMNS.mfd_bezel_right)],
+    ['Audio panel', printedStrings(AUDIO_PANEL)],
+    ['Autopilot panel', printedStrings(AUTOPILOT_PANEL)],
+    // The backup EFIS labels are drawn by the frame, not carried in the data tables.
+    ['Backup EFIS', ['KTS', 'FEET', 'BARO']],
+  ];
+
+  it('has a table with the columns Unit, Static labels, Basis and File to edit', () => {
+    expect(avionics()).toContain('| Unit | Static labels | Basis | File to edit |');
+  });
+
+  it.each(UNITS)('the row "%s" holds every printed string of its data', (unit, strings) => {
+    expect(strings.length).toBeGreaterThan(0);
+    const row = unitRow(avionics(), unit);
+    expect(strings.filter((s) => !row.includes(s))).toEqual([]);
+  });
+
+  it('holds the DISPLAY and BACKUP legends of the red audio-panel button', () => {
+    const row = unitRow(avionics(), 'Audio panel');
+    expect(row).toContain('DISPLAY');
+    expect(row).toContain('BACKUP');
   });
 });
