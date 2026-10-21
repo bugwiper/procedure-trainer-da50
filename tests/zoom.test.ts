@@ -11,8 +11,15 @@ import {
   isBackgroundTap,
 } from '../src/ui/panel/tap-intent';
 import {
+  BUTTON_BOX,
+  BUTTON_CORNERS,
+  BUTTON_INSET,
   MIN_VIEW_WIDTH,
   ZOOM_PAD,
+  buttonBox,
+  buttonOverlap,
+  chooseButtonCorner,
+  controlFootprints,
   fitScale,
   panRect,
   pinchRect,
@@ -401,6 +408,146 @@ describe('createDoubleTapTracker (R2-Z1)', () => {
     t.reset();
     expect(t.tap(later(100), false)).toBe('none');
     expect(t.tap(later(200), false)).toBe('zoom-in');
+  });
+});
+
+describe('Full panel button corner (R2-T1, D-13)', () => {
+  const footprints = controlFootprints(DA50RG);
+  const landscape = [
+    ['desktop', VIEW_PROFILES.desktop],
+    ['tablet', VIEW_PROFILES.tablet],
+    ['phone', VIEW_PROFILES.phone],
+    ['phone-chromium', { w: 863, h: 332 }],
+  ] as const;
+
+  it('has a footprint for every control and the lifted guard of every guarded toggle', () => {
+    const guarded = DA50RG.controls.filter((d) => d.kind === 'guarded-toggle').length;
+    const guards = DA50RG.controls.filter((d) => d.kind === 'guard').length;
+    expect(guarded).toBeGreaterThan(0);
+    expect(footprints.length).toBe(DA50RG.controls.length - guards + guarded);
+  });
+
+  for (const [name, screen] of landscape) {
+    it(`covers no control footprint in any zoomed region on the ${name} size`, () => {
+      expect(DA50RG.regions.length).toBeGreaterThan(0);
+      let current: 'tr' | 'br' | 'bl' = 'tr';
+      for (const region of DA50RG.regions) {
+        const view = zoomRect(region.bounds, VIEWBOX);
+        const corner = chooseButtonCorner({ view, screen, footprints, current: 'tr' });
+        expect(buttonOverlap(corner, view, screen, footprints), `${region.id} on ${name}`).toBe(0);
+        // The current corner is kept when free, so a chain of views never picks a covered corner.
+        current = chooseButtonCorner({ view, screen, footprints, current });
+        expect(buttonOverlap(current, view, screen, footprints), `${region.id} chained`).toBe(0);
+      }
+    });
+  }
+
+  it('moves off the top right corner for cb_main on the tablet, where it covers cb.main_pump', () => {
+    const region = DA50RG.regions.find((r) => r.id === 'cb_main');
+    expect(region).toBeDefined();
+    if (region === undefined) return;
+    const view = zoomRect(region.bounds, VIEWBOX);
+    const screen = VIEW_PROFILES.tablet;
+    expect(buttonOverlap('tr', view, screen, footprints)).toBeGreaterThan(0);
+    const pump = DA50RG.get('cb.main_pump');
+    const essential = DA50RG.regions.find((r) => r.id === 'cb_essential');
+    expect(pump && essential).toBeTruthy();
+    if (pump === undefined || essential === undefined) return;
+    const pumpOnly = [
+      {
+        x: essential.bounds.x + pump.x - pump.hit.w / 2,
+        y: essential.bounds.y + pump.y - pump.hit.h / 2,
+        w: pump.hit.w,
+        h: pump.hit.h,
+      },
+    ];
+    expect(buttonOverlap('tr', view, screen, pumpOnly)).toBeGreaterThan(0);
+    const corner = chooseButtonCorner({ view, screen, footprints, current: 'tr' });
+    expect(corner).not.toBe('tr');
+  });
+
+  it('keeps a free current corner although a higher priority corner is also free', () => {
+    const view = FULL;
+    const screen = { w: 800, h: 400 };
+    expect(chooseButtonCorner({ view, screen, footprints: [], current: 'bl' })).toBe('bl');
+    expect(chooseButtonCorner({ view, screen, footprints: [], current: 'br' })).toBe('br');
+    expect(chooseButtonCorner({ view, screen, footprints: [], current: 'tr' })).toBe('tr');
+  });
+
+  it('takes the first free corner in priority order when the current one is covered', () => {
+    const screen = { w: 800, h: 400 };
+    const view = { x: 0, y: 0, w: 800, h: 400 };
+    const cover = (corner: 'tr' | 'br' | 'bl') => buttonBox(corner, screen);
+    expect(chooseButtonCorner({ view, screen, footprints: [cover('tr')], current: 'tr' })).toBe(
+      'br',
+    );
+    expect(
+      chooseButtonCorner({ view, screen, footprints: [cover('tr'), cover('br')], current: 'tr' }),
+    ).toBe('bl');
+    expect(chooseButtonCorner({ view, screen, footprints: [cover('bl')], current: 'bl' })).toBe(
+      'tr',
+    );
+  });
+
+  it('treats touching as free and a one pixel overlap as covered', () => {
+    const screen = { w: 800, h: 400 };
+    const view = { x: 0, y: 0, w: 800, h: 400 };
+    const box = buttonBox('tr', screen);
+    const touching = { x: box.x - 20, y: box.y, w: 20, h: box.h };
+    expect(buttonOverlap('tr', view, screen, [touching])).toBe(0);
+    const over = { x: box.x - 20, y: box.y, w: 21, h: box.h };
+    expect(buttonOverlap('tr', view, screen, [over])).toBeGreaterThan(0);
+  });
+
+  it('picks the least overlapping corner when all three are covered', () => {
+    const screen = { w: 800, h: 400 };
+    const view = { x: 0, y: 0, w: 800, h: 400 };
+    const part = (corner: 'tr' | 'br' | 'bl', fraction: number) => {
+      const b = buttonBox(corner, screen);
+      return { x: b.x, y: b.y, w: b.w * fraction, h: b.h };
+    };
+    const footprints3 = [part('tr', 1), part('br', 0.25), part('bl', 0.5)];
+    expect(chooseButtonCorner({ view, screen, footprints: footprints3, current: 'tr' })).toBe('br');
+    // Equal overlap everywhere: the current corner wins, then the priority order.
+    const equal = BUTTON_CORNERS.map((c) => part(c, 1));
+    expect(chooseButtonCorner({ view, screen, footprints: equal, current: 'bl' })).toBe('bl');
+    expect(chooseButtonCorner({ view, screen, footprints: equal, current: 'tr' })).toBe('tr');
+  });
+
+  it('puts the corner boxes 8 px from the two nearest edges', () => {
+    const screen = { w: 800, h: 400 };
+    expect(BUTTON_BOX).toEqual({ w: 112, h: 44 });
+    expect(buttonBox('tr', screen)).toEqual({ x: 800 - BUTTON_INSET - 112, y: 8, w: 112, h: 44 });
+    expect(buttonBox('br', screen)).toEqual({
+      x: 800 - BUTTON_INSET - 112,
+      y: 400 - BUTTON_INSET - 44,
+      w: 112,
+      h: 44,
+    });
+    expect(buttonBox('bl', screen)).toEqual({ x: 8, y: 400 - BUTTON_INSET - 44, w: 112, h: 44 });
+  });
+
+  it('on the portrait phone exactly deice_switches and engine_controls have no free corner (known list)', () => {
+    const screen = { w: 393, h: 631 };
+    const known = new Set(['deice_switches', 'engine_controls']);
+    const covered: string[] = [];
+    for (const region of DA50RG.regions) {
+      const view = zoomRect(region.bounds, VIEWBOX);
+      const free = BUTTON_CORNERS.some((c) => buttonOverlap(c, view, screen, footprints) === 0);
+      if (!free) covered.push(region.id);
+    }
+    // Reason: the zoomed deice and engine regions are nearly as tall as the narrow screen, so all
+    // three corners lie over a control. Best effort on the portrait phone; a stale entry or a new
+    // region fails this test so an improvement or a regression is noticed.
+    expect(covered.sort()).toEqual([...known].sort());
+  });
+
+  it('the .zoom-out box in stage.css equals BUTTON_BOX', () => {
+    const css = readFileSync(new URL('../src/ui/stage.css', import.meta.url), 'utf8');
+    const rule = /\.zoom-out\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(/(?<![-\w])width:\s*(\d+)px/.exec(rule)?.[1]).toBe(String(BUTTON_BOX.w));
+    expect(/min-height:\s*(\d+)px/.exec(rule)?.[1]).toBe(String(BUTTON_BOX.h));
+    for (const corner of BUTTON_CORNERS) expect(css).toContain(`data-corner='${corner}'`);
   });
 });
 

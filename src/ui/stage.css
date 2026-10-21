@@ -143,17 +143,21 @@ body,
   max-width: 80ch;
 }
 
-/* 'Full panel' button inside the panel area, top right, while the view is zoomed (D-21, D-13).
-   The panel area ends where the footer starts, so the footer can never cover it. */
+/* 'Full panel' button inside the panel area while the view is zoomed (D-21, D-13). The panel
+   area ends where the footer starts, so the footer can never cover it. It sits in the corner that
+   covers no control (data-corner, chosen by chooseButtonCorner in viewport.ts, R2-T1): top right,
+   bottom right or bottom left, always 8 px from the two nearest edges. Top left is the rotate
+   hint's. The box is 112 x 44 and equals BUTTON_BOX (a unit test reads both). */
 .zoom-out {
   position: absolute;
   top: calc(8px + env(safe-area-inset-top));
   right: calc(8px + env(safe-area-inset-right));
   z-index: 30;
   box-sizing: border-box;
+  width: 112px;
   min-height: 44px;
-  min-width: 44px;
-  padding: 0 16px;
+  padding: 0 8px;
+  text-align: center;
   border: 1px solid #8fb8e6;
   border-radius: 8px;
   background: #0b0d10;
@@ -163,6 +167,27 @@ body,
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
+}
+
+.zoom-out[data-corner='tr'] {
+  top: calc(8px + env(safe-area-inset-top));
+  right: calc(8px + env(safe-area-inset-right));
+  bottom: auto;
+  left: auto;
+}
+
+.zoom-out[data-corner='br'] {
+  top: auto;
+  right: calc(8px + env(safe-area-inset-right));
+  bottom: 8px;
+  left: auto;
+}
+
+.zoom-out[data-corner='bl'] {
+  top: auto;
+  right: auto;
+  bottom: 8px;
+  left: calc(8px + env(safe-area-inset-left));
 }
 
 /* Rotate hint (D-02): portrait phones only, never blocks the panel. */

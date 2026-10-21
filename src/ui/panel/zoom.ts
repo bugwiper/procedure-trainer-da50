@@ -8,7 +8,16 @@ import type { ReadonlySignal } from '@preact/signals';
 import { VIEWBOX } from '../../aircraft/da50rg/panel';
 import type { Rect, Region, Registry, Size } from '../../engine/registry';
 import { TAP_SLOP_PX, createDoubleTapTracker, isBackgroundTap } from './tap-intent';
-import { fitScale, panRect, pinchRect, screenToView, zoomRect } from './viewport';
+import {
+  chooseButtonCorner,
+  controlFootprints,
+  fitScale,
+  panRect,
+  pinchRect,
+  screenToView,
+  zoomRect,
+} from './viewport';
+import type { ButtonCorner } from './viewport';
 
 /** A pointer that starts on one of these elements belongs to that control for its whole life. */
 const TAP_TARGET_SELECTOR = '[data-hit], [data-detent]';
@@ -28,6 +37,25 @@ export const isZoomed: ReadonlySignal<boolean> = computed(() => {
 export const viewBoxAttr: ReadonlySignal<string> = computed(() => {
   const v = viewRect.value;
   return `${v.x} ${v.y} ${v.w} ${v.h}`;
+});
+
+/** The svg area in CSS px, set at attach and by a ResizeObserver; zero until attached. */
+export const panelScreen = signal<Size>({ w: 0, h: 0 });
+
+const footprints = signal<readonly Rect[]>([]);
+
+/** The corner chosen last; the rule keeps it while it is still free, so the button does not hop. */
+let lastCorner: ButtonCorner = 'tr';
+
+/** The corner of the Full panel button: where it covers no control (R2-T1, D-13). */
+export const buttonCorner: ReadonlySignal<ButtonCorner> = computed(() => {
+  lastCorner = chooseButtonCorner({
+    view: viewRect.value,
+    screen: panelScreen.value,
+    footprints: footprints.value,
+    current: lastCorner,
+  });
+  return lastCorner;
 });
 
 export function zoomToRegion(region: Region, viewBox: Size): void {
@@ -83,6 +111,15 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   const { registry } = opts;
   const { viewBox } = registry;
   fullView.value = { x: 0, y: 0, w: viewBox.w, h: viewBox.h };
+  footprints.value = controlFootprints(registry);
+  lastCorner = 'tr';
+  const measure = () => {
+    const box = svg.getBoundingClientRect();
+    panelScreen.value = { w: box.width, h: box.height };
+  };
+  measure();
+  const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+  resizeObserver?.observe(svg);
 
   const controlPointers = new Set<number>();
   const background = new Map<number, BackgroundPointer>();
@@ -262,6 +299,7 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   svg.addEventListener('pointercancel', onCancel);
   svg.addEventListener('lostpointercapture', onCancel);
   return () => {
+    resizeObserver?.disconnect();
     svg.removeEventListener('pointerdown', onDown);
     svg.removeEventListener('pointermove', onMove);
     svg.removeEventListener('pointerup', onUp);

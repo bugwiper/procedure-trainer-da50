@@ -140,3 +140,97 @@ export function targetSide(def: ControlDef): number {
     }
   }
 }
+
+/** The Full panel button box in CSS px; stage.css fixes the width so it never depends on the font. */
+export const BUTTON_BOX: Size = { w: 112, h: 44 };
+
+/** Distance of the button from its two nearest panel-area edges in CSS px (safe-area insets come on top in CSS). */
+export const BUTTON_INSET = 8;
+
+/** The corners the button may take. Top left is not used: the rotate hint sits there. */
+export type ButtonCorner = 'tr' | 'br' | 'bl';
+
+/** Corner priority order: top right first, then the two bottom corners. */
+export const BUTTON_CORNERS: readonly ButtonCorner[] = ['tr', 'br', 'bl'];
+
+/**
+ * The global rectangle of every control footprint in viewBox units: the region origin plus the
+ * control centre minus half the hit, plus the lifted-guard rectangle of every guarded toggle. The
+ * footprint is a conservative superset of the real hits, so a corner that is free of footprints is
+ * free of hits. The derived guard controls are skipped: their footprint is the switch's own.
+ */
+export function controlFootprints(registry: {
+  readonly regions: readonly { readonly id: string; readonly bounds: Rect }[];
+  readonly controls: readonly ControlDef[];
+}): Rect[] {
+  const origins = new Map(registry.regions.map((r) => [r.id, r.bounds]));
+  const out: Rect[] = [];
+  for (const def of registry.controls) {
+    if (def.kind === 'guard') continue;
+    const origin = origins.get(def.region);
+    if (origin === undefined) continue;
+    const cx = origin.x + def.x;
+    const cy = origin.y + def.y;
+    out.push({ x: cx - def.hit.w / 2, y: cy - def.hit.h / 2, w: def.hit.w, h: def.hit.h });
+    if (def.kind === 'guarded-toggle') {
+      const g = def.guardOpenHit;
+      out.push({ x: cx + g.x, y: cy + g.y, w: g.w, h: g.h });
+    }
+  }
+  return out;
+}
+
+/** The button box of `corner` in CSS px inside `screen` (the svg area). */
+export function buttonBox(corner: ButtonCorner, screen: Size): Rect {
+  const x = corner === 'bl' ? BUTTON_INSET : screen.w - BUTTON_INSET - BUTTON_BOX.w;
+  const y = corner === 'tr' ? BUTTON_INSET : screen.h - BUTTON_INSET - BUTTON_BOX.h;
+  return { x, y, w: BUTTON_BOX.w, h: BUTTON_BOX.h };
+}
+
+/** Total overlap area in CSS px squared of the button at `corner` with the footprints, for `view` fitted into `screen`. */
+export function buttonOverlap(
+  corner: ButtonCorner,
+  view: Rect,
+  screen: Size,
+  footprints: readonly Rect[],
+): number {
+  const s = fitScale(view, screen);
+  const offX = (screen.w - view.w * s) / 2;
+  const offY = (screen.h - view.h * s) / 2;
+  const box = buttonBox(corner, screen);
+  let total = 0;
+  for (const f of footprints) {
+    const left = offX + (f.x - view.x) * s;
+    const top = offY + (f.y - view.y) * s;
+    const w = Math.min(box.x + box.w, left + f.w * s) - Math.max(box.x, left);
+    const h = Math.min(box.y + box.h, top + f.h * s) - Math.max(box.y, top);
+    // Touching edges are not overlap.
+    if (w > 1e-9 && h > 1e-9) total += w * h;
+  }
+  return total;
+}
+
+/**
+ * The corner for the Full panel button: the current corner while it is free of every control
+ * footprint (so the button does not hop during a pan), else the first free corner in priority
+ * order, else the corner with the smallest total overlap (ties by priority, current first).
+ * Pure: no DOM, no clock.
+ */
+export function chooseButtonCorner(input: {
+  view: Rect;
+  screen: Size;
+  footprints: readonly Rect[];
+  current: ButtonCorner;
+}): ButtonCorner {
+  const { view, screen, footprints, current } = input;
+  if (!(screen.w > 0) || !(screen.h > 0)) return current;
+  const order: ButtonCorner[] = [current, ...BUTTON_CORNERS.filter((c) => c !== current)];
+  const overlap = new Map(order.map((c) => [c, buttonOverlap(c, view, screen, footprints)]));
+  const get = (c: ButtonCorner): number => overlap.get(c) ?? Infinity;
+  if (get(current) === 0) return current;
+  const free = BUTTON_CORNERS.find((c) => get(c) === 0);
+  if (free !== undefined) return free;
+  let best = current;
+  for (const c of order) if (get(c) < get(best)) best = c;
+  return best;
+}

@@ -33,6 +33,12 @@ export default defineConfig({
     { name: 'phone-chromium', use: { ...devices['Pixel 7 landscape'] } },
     { name: 'phone-webkit', use: { ...devices['iPhone 15 landscape'] } },
     { name: 'tablet-webkit', use: { ...devices['iPad (gen 11) landscape'] } },
+    // The iPad landscape viewport (944 x 656) on Chromium, so the tablet case runs in the chromium
+    // gate (R2-T1).
+    {
+      name: 'tablet-chromium',
+      use: { ...devices['iPad (gen 11) landscape'], defaultBrowserType: 'chromium' },
+    },
     { name: 'phone-portrait', use: { ...devices['iPhone 15'] } },
   ],
 });

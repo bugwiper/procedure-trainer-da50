@@ -4,7 +4,7 @@ import { DA50RG } from '../aircraft/da50rg/panel';
 import { About } from './about/About';
 import { createPanelBridge } from './bridge';
 import { Panel } from './panel/Panel';
-import { isZoomed, zoomOut } from './panel/zoom';
+import { buttonCorner, isZoomed, zoomOut } from './panel/zoom';
 
 const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS);
 
@@ -26,6 +26,7 @@ export function App() {
             type="button"
             class="zoom-out"
             data-testid="zoom-out"
+            data-corner={buttonCorner.value}
             onClick={() => {
               zoomOut(bridge.registry.viewBox);
             }}
