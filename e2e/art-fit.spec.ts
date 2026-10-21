@@ -210,3 +210,82 @@ test('no two text strings of the panel overlap', async ({ page }) => {
   const stale = TEXT_OVERLAP_KNOWN.filter((pair) => !found.has(pair));
   expect(stale).toEqual([]);
 });
+
+/** The glyph band of every breaker label and plug label, the lines of the bus art and the sockets. */
+interface ClearanceGeometry {
+  readonly labels: readonly TextBox[];
+  /** Points sampled every 0.5 units along every outline path and pump box, in svg units. */
+  readonly linePoints: readonly { kind: string; x: number; y: number }[];
+  readonly sockets: readonly Box[];
+}
+
+async function readClearanceGeometry(page: Page): Promise<ClearanceGeometry> {
+  return page.getByTestId('panel').evaluate((node) => {
+    const svg = node as unknown as SVGSVGElement;
+    const ctm = svg.getScreenCTM();
+    if (ctm === null) throw new Error('no screen CTM');
+    const inv = ctm.inverse();
+    const toBox = (el: Element): Box => {
+      const r = el.getBoundingClientRect();
+      const p1 = new DOMPoint(r.left, r.top).matrixTransform(inv);
+      const p2 = new DOMPoint(r.right, r.bottom).matrixTransform(inv);
+      return { x: p1.x, y: p1.y, w: p2.x - p1.x, h: p2.y - p1.y };
+    };
+    const labels: TextBox[] = [];
+    for (const el of Array.from(
+      svg.querySelectorAll('[data-breaker-label], [data-shell="bus-plug-label"]'),
+    )) {
+      const full = toBox(el);
+      const owner = el.closest('[data-control-id]')?.getAttribute('data-control-id') ?? 'plug';
+      labels.push({
+        owner,
+        text: (el.textContent ?? '').trim(),
+        box: { x: full.x, y: full.y + full.h * 0.2, w: full.w, h: full.h * 0.6 },
+      });
+    }
+    const linePoints: { kind: string; x: number; y: number }[] = [];
+    const lines = svg.querySelectorAll('[data-shell="bus-outline"], [data-shell="bus-pump-box"]');
+    for (const el of Array.from(lines)) {
+      const geom = el as unknown as SVGGeometryElement;
+      const own = geom.getScreenCTM();
+      if (own === null) continue;
+      const kind = el.getAttribute('data-shell') ?? '';
+      const total = geom.getTotalLength();
+      for (let s = 0; s <= total; s += 0.5) {
+        const p = geom.getPointAtLength(s);
+        const q = new DOMPoint(p.x, p.y).matrixTransform(own).matrixTransform(inv);
+        linePoints.push({ kind, x: q.x, y: q.y });
+      }
+    }
+    const sockets = Array.from(svg.querySelectorAll('[data-breaker-socket]')).map(toBox);
+    return { labels, linePoints, sockets };
+  });
+}
+
+test('no breaker or plug label touches an outline, a pump box or the socket of a breaker', async ({
+  page,
+}) => {
+  const geo = await readClearanceGeometry(page);
+  expect(geo.labels.length).toBeGreaterThanOrEqual(19);
+  expect(geo.linePoints.length).toBeGreaterThan(500);
+  const failures: string[] = [];
+  for (const label of geo.labels) {
+    const b = label.box;
+    const hit = geo.linePoints.find(
+      (p) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h,
+    );
+    if (hit !== undefined) {
+      failures.push(
+        `${label.owner} "${label.text}" touches a ${hit.kind} at ${hit.x.toFixed(1)}, ${hit.y.toFixed(1)}`,
+      );
+    }
+    for (const s of geo.sockets) {
+      if (overlapArea(b, s) > 0) {
+        failures.push(
+          `${label.owner} "${label.text}" touches the socket at ${s.x.toFixed(1)}, ${s.y.toFixed(1)}`,
+        );
+      }
+    }
+  }
+  expect(failures).toEqual([]);
+});

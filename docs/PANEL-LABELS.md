@@ -173,11 +173,13 @@ The de-ice unit at the top far left, as the owner described it. It was rebuilt b
 
 ## Circuit breakers
 
-The bus panel at the far right of the panel carries the circuit breakers. Each prints its label above the breaker and its amp rating on the cap; both are the same whether the breaker is pushed in or pulled out. A pulled breaker shows a raised cap and a white ring and prints no IN or OUT word (G-0.1). This section holds the breakers that exist so far; later plans of phase 01.2 add the other rows.
+The bus panel at the far right of the panel carries the circuit breakers. Each prints its label above the breaker and its amp rating on the cap; both are the same whether the breaker is pushed in or pulled out. A pulled breaker shows a raised cap and a white ring and prints no IN or OUT word (G-0.1). This section holds one row per grid row; every breaker prints its label (a comma below is a line break) and its rating, and nothing else. Labels and ratings are the printed words and numerals read from photos (the labels agree across three photos, ratings are less certain); COM 1 and GPS/NAV 1 carry the digit by default (Q2-03).
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
-| `cb.pitot` (new in plan 02) | PITOT above the breaker, rating 20 on the cap | none | assumption | `controls/breakers.ts` |
+| `cb.sam`, `cb.ahrs`, `cb.com1`, `cb.gps_nav1`, `cb.adc`, `cb.eng_inst` (row A1, new in plan 04) | SAM (3), AHRS (5), COM 1 (5), GPS/, NAV 1 (5), ADC (5), ENG, INST (5); the rating is on the cap | none | photo read, assumption | `controls/breakers.ts` |
+| `cb.xpdr`, `cb.flaps`, `cb.pitot` (new in plan 02), `cb.landing`, `cb.flood`, `cb.gear_warn`, `cb.emerg_pump` (row A2, new in plan 04) | XPDR (5), FLAPS (4), PITOT (20), LANDING (5), FLOOD (5), GEAR, WARN (5), EMERG, PUMP (5) | none | photo read, assumption | `controls/breakers.ts` |
+| `cb.pfd`, `cb.master_ctrl`, `cb.cowl_flap`, `cb.av_gdu_fan`, `cb.gear`, `cb.main_pump` (row A3, new in plan 04; the cell between MASTER CTRL. and COWL FLAP is a blank plug) | PFD (5), MASTER, CTRL. (2), COWL, FLAP (3), AV/GDU, FAN (3), GEAR (5), MAIN, PUMP (5) | none | photo read, assumption | `controls/breakers.ts` |
 
 ## Bus panel static text
 

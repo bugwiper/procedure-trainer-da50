@@ -61,17 +61,58 @@ export interface BreakerRow {
   readonly labelDx?: number;
 }
 
+const X = CB_COLUMN_X;
+const Y = CB_ROW_Y;
+
+/** Short constructor for a grid breaker; the label is the label lines joined (a trailing slash glues). */
+function cb(
+  name: string,
+  label: string,
+  labelLines: readonly string[],
+  rating: string,
+  group: BreakerGroup,
+  region: string,
+  x: number,
+  y: number,
+): BreakerRow {
+  return { id: `cb.${name}`, label, labelLines, rating, group, region, x, y };
+}
+
+// Labels and ratings are the printed words and numerals (three photos agree for the essential
+// rows; positions are scaled from oblique photos to the real pitch, tolerance 8, owner review).
+// COM 1 and GPS/NAV 1 carry the digit by default (UI-SPEC Q2-03).
 export const BREAKER_ROWS: readonly BreakerRow[] = [
-  {
-    id: 'cb.pitot',
-    label: 'PITOT',
-    labelLines: ['PITOT'],
-    rating: '20',
-    group: 'essential',
-    region: 'cb_essential',
-    x: CB_COLUMN_X[2],
-    y: CB_ROW_Y.A2,
-  },
+  // Row A1 (essential bus).
+  cb('sam', 'SAM', ['SAM'], '3', 'essential', 'cb_essential', X[0], Y.A1),
+  cb('ahrs', 'AHRS', ['AHRS'], '5', 'essential', 'cb_essential', X[1], Y.A1),
+  cb('com1', 'COM 1', ['COM 1'], '5', 'essential', 'cb_essential', X[2], Y.A1),
+  cb('gps_nav1', 'GPS/NAV 1', ['GPS/', 'NAV 1'], '5', 'essential', 'cb_essential', X[3], Y.A1),
+  cb('adc', 'ADC', ['ADC'], '5', 'essential', 'cb_essential', X[4], Y.A1),
+  cb('eng_inst', 'ENG INST', ['ENG', 'INST'], '5', 'essential', 'cb_essential', X[5], Y.A1),
+  // Row A2 (essential bus; the last one stands in its own pump box).
+  cb('xpdr', 'XPDR', ['XPDR'], '5', 'essential', 'cb_essential', X[0], Y.A2),
+  cb('flaps', 'FLAPS', ['FLAPS'], '4', 'essential', 'cb_essential', X[1], Y.A2),
+  cb('pitot', 'PITOT', ['PITOT'], '20', 'essential', 'cb_essential', X[2], Y.A2),
+  cb('landing', 'LANDING', ['LANDING'], '5', 'essential', 'cb_essential', X[3], Y.A2),
+  cb('flood', 'FLOOD', ['FLOOD'], '5', 'essential', 'cb_essential', X[4], Y.A2),
+  cb('gear_warn', 'GEAR WARN', ['GEAR', 'WARN'], '5', 'essential', 'cb_essential', X[5], Y.A2),
+  cb('emerg_pump', 'EMERG PUMP', ['EMERG', 'PUMP'], '5', 'essential', 'cb_essential', X[6], Y.A2),
+  // Row A3: the cell at c3 is a blank plug; the first two are essential by outline, the rest main.
+  cb('pfd', 'PFD', ['PFD'], '5', 'essential', 'cb_essential', X[0], Y.A3),
+  cb(
+    'master_ctrl',
+    'MASTER CTRL.',
+    ['MASTER', 'CTRL.'],
+    '2',
+    'essential',
+    'cb_essential',
+    X[1],
+    Y.A3,
+  ),
+  cb('cowl_flap', 'COWL FLAP', ['COWL', 'FLAP'], '3', 'main', 'cb_essential', X[3], Y.A3),
+  cb('av_gdu_fan', 'AV/GDU FAN', ['AV/GDU', 'FAN'], '3', 'main', 'cb_essential', X[4], Y.A3),
+  cb('gear', 'GEAR', ['GEAR'], '5', 'main', 'cb_essential', X[5], Y.A3),
+  cb('main_pump', 'MAIN PUMP', ['MAIN', 'PUMP'], '5', 'main', 'cb_essential', X[6], Y.A3),
 ];
 
 /** Turns a row into a ControlSpec: region-local centre, hit by group. */

@@ -83,8 +83,55 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
  * M4 412, M5 456, V6 514, lower row and flap strip at y 690). Later plans append their rows.
  */
 export const CB_REFERENCE: readonly ReferencePosition[] = [
+  // Row A1, y 261 (essential bus, region cb_essential).
+  { id: 'cb.sam', x: 1906, y: 261, tol: 8, review: true },
+  { id: 'cb.ahrs', x: 1942, y: 261, tol: 8, review: true },
+  { id: 'cb.com1', x: 1978, y: 261, tol: 8, review: true },
+  { id: 'cb.gps_nav1', x: 2014, y: 261, tol: 8, review: true },
+  { id: 'cb.adc', x: 2050, y: 261, tol: 8, review: true },
+  { id: 'cb.eng_inst', x: 2086, y: 261, tol: 8, review: true },
+  // Row A2, y 305.
+  { id: 'cb.xpdr', x: 1906, y: 305, tol: 8, review: true },
+  { id: 'cb.flaps', x: 1942, y: 305, tol: 8, review: true },
   { id: 'cb.pitot', x: 1978, y: 305, tol: 8, review: true },
+  { id: 'cb.landing', x: 2014, y: 305, tol: 8, review: true },
+  { id: 'cb.flood', x: 2050, y: 305, tol: 8, review: true },
+  { id: 'cb.gear_warn', x: 2086, y: 305, tol: 8, review: true },
+  { id: 'cb.emerg_pump', x: 2122, y: 305, tol: 8, review: true },
+  // Row A3, y 349 (the cell at x 1978 is a blank plug).
+  { id: 'cb.pfd', x: 1906, y: 349, tol: 8, review: true },
+  { id: 'cb.master_ctrl', x: 1942, y: 349, tol: 8, review: true },
+  { id: 'cb.cowl_flap', x: 2014, y: 349, tol: 8, review: true },
+  { id: 'cb.av_gdu_fan', x: 2050, y: 349, tol: 8, review: true },
+  { id: 'cb.gear', x: 2086, y: 349, tol: 8, review: true },
+  { id: 'cb.main_pump', x: 2122, y: 349, tol: 8, review: true },
 ];
+
+/**
+ * Row and column membership of the breaker grid, typed in by hand from the printed layout (not
+ * read from the generator). Task 2 of plan 04 extends the lists with the Main and Avionics rows,
+ * the lower row and the flap strip.
+ */
+export const CB_ROWS = {
+  A1: ['cb.sam', 'cb.ahrs', 'cb.com1', 'cb.gps_nav1', 'cb.adc', 'cb.eng_inst'],
+  A2: [
+    'cb.xpdr',
+    'cb.flaps',
+    'cb.pitot',
+    'cb.landing',
+    'cb.flood',
+    'cb.gear_warn',
+    'cb.emerg_pump',
+  ],
+  A3: ['cb.pfd', 'cb.master_ctrl', 'cb.cowl_flap', 'cb.av_gdu_fan', 'cb.gear', 'cb.main_pump'],
+} as const;
+
+/** Column chains, top to bottom. */
+export const CB_COLUMNS = {
+  c1: ['cb.sam', 'cb.xpdr', 'cb.pfd'],
+  c2: ['cb.ahrs', 'cb.flaps', 'cb.master_ctrl'],
+  c7: ['cb.emerg_pump', 'cb.main_pump'],
+} as const;
 
 /** The thirteen derived lamps (seven gear and flap lamps, the ELT lamp, two cowl-flap lamps, three de-ice lamps). */
 export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
@@ -224,6 +271,17 @@ export const ORDERING: readonly OrderRow[] = [
   ['btn.level', 'left-of', 'lt.flap_up'],
   ['lt.elt', 'left-of', 'sw.elt'],
   ['lt.elt', 'same-row', 'sw.elt'],
+  // Circuit breakers (phase 01.2 plan 04, Table C3): row chains, column chains, the bus panel
+  // right of the MFD.
+  ...Object.values(CB_ROWS).flatMap((ids): OrderRow[] => [
+    ...chain(ids, 'left-of'),
+    ...chain(ids, 'same-row'),
+  ]),
+  ...Object.values(CB_COLUMNS).flatMap((ids): OrderRow[] => chain(ids, 'above')),
+  ['cb.master_ctrl', 'left-of', 'cb.cowl_flap'],
+  ...Object.values(CB_ROWS)
+    .flat()
+    .map((id): OrderRow => [id, 'right-of', 'region:mfd']),
 ];
 
 /**
