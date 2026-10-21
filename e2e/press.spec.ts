@@ -16,11 +16,13 @@ interface HookHost {
   __panel?: { events(): { id: string; value: string }[] };
 }
 
-/** Table T2: the case table, extended by plans 38 and 39. */
+/** Table T2 and T3: the case table, extended by plans 38 and 39. */
 interface PressCase {
   readonly name: string;
-  /** The data-hit value of the hit element, also the control id of the group that shows the state. */
-  readonly hit: string;
+  /** Selector of the hit element a press lands on. */
+  readonly selector: string;
+  /** The control id of the group that shows the state (data-state). */
+  readonly id: string;
   readonly region: string;
   /** The state before a tap and the state a tap on the hit centre leads to. */
   readonly before: string;
@@ -32,7 +34,8 @@ interface PressCase {
 const CASES: readonly PressCase[] = [
   {
     name: 'engine master toggle',
-    hit: 'sw.engine_master',
+    selector: '[data-hit="sw.engine_master"]',
+    id: 'sw.engine_master',
     region: 'switch_bank',
     before: 'on',
     after: 'off',
@@ -40,7 +43,8 @@ const CASES: readonly PressCase[] = [
   },
   {
     name: 'circuit breaker',
-    hit: 'cb.pitot',
+    selector: '[data-hit="cb.pitot"]',
+    id: 'cb.pitot',
     region: 'cb_essential',
     before: 'in',
     after: 'out',
@@ -48,10 +52,29 @@ const CASES: readonly PressCase[] = [
   },
   {
     name: 'guard cover',
-    hit: 'sw.deice_alternate.guard',
+    selector: '[data-hit="sw.deice_alternate.guard"]',
+    id: 'sw.deice_alternate.guard',
     region: 'deice',
     before: 'closed',
     after: 'open',
+    ring: false,
+  },
+  {
+    name: 'parking brake flap',
+    selector: '[data-hit="lv.parking_brake"]',
+    id: 'lv.parking_brake',
+    region: 'pedestal',
+    before: 'off',
+    after: 'set',
+    ring: true,
+  },
+  {
+    name: 'flaps marker T/O',
+    selector: '[data-detent="lv.flaps:to"]',
+    id: 'lv.flaps',
+    region: 'flaps',
+    before: 'up',
+    after: 'to',
     ring: false,
   },
 ];
@@ -70,10 +93,10 @@ async function viewNumbers(page: Page): Promise<{ x: number; y: number; w: numbe
   return { x: x ?? NaN, y: y ?? NaN, w: w ?? NaN, h: h ?? NaN };
 }
 
-/** The centre of a hit element in whole client px, so slop distances are exact. */
-async function hitCentre(page: Page, hit: string): Promise<Point> {
-  const box = await page.locator(`[data-hit="${hit}"]`).boundingBox();
-  if (box === null) throw new Error(`no box for ${hit}`);
+/** The centre of a hit element (by selector) in whole client px, so slop distances are exact. */
+async function hitCentre(page: Page, selector: string): Promise<Point> {
+  const box = await page.locator(selector).boundingBox();
+  if (box === null) throw new Error(`no box for ${selector}`);
   return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
 }
 
@@ -115,9 +138,9 @@ for (const c of CASES) {
   test.describe(c.name, () => {
     test('mouse: the press is pending, the lift actuates', async ({ page }, testInfo) => {
       test.skip(!isMouseProject(testInfo.project.name), 'mouse path');
-      const group = control(page, c.hit);
+      const group = control(page, c.id);
       await expect(group).toHaveAttribute('data-state', c.before);
-      const p = await hitCentre(page, c.hit);
+      const p = await hitCentre(page, c.selector);
       await page.mouse.move(p.x, p.y);
       await page.mouse.down();
       await expect(group).toHaveAttribute('data-state', c.before);
@@ -129,8 +152,8 @@ for (const c of CASES) {
 
     test('touch: touchStart leaves the state, touchEnd actuates', async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
-      const group = control(page, c.hit);
-      const p = await hitCentre(page, c.hit);
+      const group = control(page, c.id);
+      const p = await hitCentre(page, c.selector);
       const send = await touchSender(page);
       await send('touchStart', [p]);
       await expect(group).toHaveAttribute('data-state', c.before);
@@ -145,10 +168,10 @@ for (const c of CASES) {
     }, testInfo) => {
       test.skip(!isMouseProject(testInfo.project.name), 'mouse path');
       await zoomIntoRegion(page, false, c.region);
-      const group = control(page, c.hit);
+      const group = control(page, c.id);
       const before = await viewNumbers(page);
       const by = await panVector(page, MOUSE_SLOP_PX + 25);
-      await mouseDrag(page, await hitCentre(page, c.hit), by);
+      await mouseDrag(page, await hitCentre(page, c.selector), by);
       const after = await viewNumbers(page);
       expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeGreaterThan(0.5);
       expect(after.w).toBeCloseTo(before.w);
@@ -161,10 +184,10 @@ for (const c of CASES) {
     }, testInfo) => {
       test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
       await zoomIntoRegion(page, true, c.region);
-      const group = control(page, c.hit);
+      const group = control(page, c.id);
       const before = await viewNumbers(page);
       const by = await panVector(page, TOUCH_SLOP_PX + 25);
-      await touchDrag(page, await hitCentre(page, c.hit), by);
+      await touchDrag(page, await hitCentre(page, c.selector), by);
       const after = await viewNumbers(page);
       expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeGreaterThan(0.5);
       expect(after.w).toBeCloseTo(before.w);
@@ -172,58 +195,61 @@ for (const c of CASES) {
       await expect(group).not.toHaveAttribute('data-pressed', 'true');
     });
 
-    test('mouse: a move of exactly the slop is a tap, one pixel more is a pan', async ({
+    // The press one pixel beyond the slop comes first: a tap that actuates can move the lever
+    // handle over a marker, and a press on the handle is its own drag, not the case under test.
+    test('mouse: one pixel more than the slop is a pan, exactly the slop is a tap', async ({
       page,
     }, testInfo) => {
       test.skip(!isMouseProject(testInfo.project.name), 'mouse path');
       await zoomIntoRegion(page, false, c.region);
-      const group = control(page, c.hit);
+      const group = control(page, c.id);
       const start = await viewNumbers(page);
-      const p = await hitCentre(page, c.hit);
+      const dir = (await panVector(page, 1)).x;
 
+      const q = await hitCentre(page, c.selector);
+      await page.mouse.move(q.x, q.y);
+      await page.mouse.down();
+      await page.mouse.move(q.x + dir * (MOUSE_SLOP_PX + 1), q.y);
+      await page.mouse.up();
+      await expect(group).toHaveAttribute('data-state', c.before);
+      const panned = await viewNumbers(page);
+      expect(Math.abs(panned.x - start.x) + Math.abs(panned.y - start.y)).toBeGreaterThan(0.01);
+
+      const p = await hitCentre(page, c.selector);
       await page.mouse.move(p.x, p.y);
       await page.mouse.down();
       await page.mouse.move(p.x + MOUSE_SLOP_PX, p.y);
       await page.mouse.up();
       await expect(group).toHaveAttribute('data-state', c.after);
       const tapped = await viewNumbers(page);
-      expect([tapped.x, tapped.y, tapped.w]).toEqual([start.x, start.y, start.w]);
-
-      // The same press, one pixel beyond the slop, discards: the state stays where the tap left it.
-      const q = await hitCentre(page, c.hit);
-      await page.mouse.move(q.x, q.y);
-      await page.mouse.down();
-      await page.mouse.move(q.x + MOUSE_SLOP_PX + 1, q.y);
-      await page.mouse.up();
-      await expect(group).toHaveAttribute('data-state', c.after);
-      const panned = await viewNumbers(page);
-      expect(Math.abs(panned.x - tapped.x) + Math.abs(panned.y - tapped.y)).toBeGreaterThan(0.01);
+      expect([tapped.x, tapped.y, tapped.w]).toEqual([panned.x, panned.y, panned.w]);
     });
 
-    test('touch: a move of exactly the slop is a tap, one pixel more is a pan', async ({
+    test('touch: one pixel more than the slop is a pan, exactly the slop is a tap', async ({
       page,
     }, testInfo) => {
       test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
       await zoomIntoRegion(page, true, c.region);
-      const group = control(page, c.hit);
+      const group = control(page, c.id);
       const start = await viewNumbers(page);
       const send = await touchSender(page);
-      const p = await hitCentre(page, c.hit);
+      const dir = (await panVector(page, 1)).x;
 
+      const q = await hitCentre(page, c.selector);
+      await send('touchStart', [q]);
+      await send('touchMove', [{ x: q.x + dir * (TOUCH_SLOP_PX + 1), y: q.y }]);
+      await send('touchEnd', []);
+      await expect(group).toHaveAttribute('data-state', c.before);
+      const panned = await viewNumbers(page);
+      expect(Math.abs(panned.x - start.x) + Math.abs(panned.y - start.y)).toBeGreaterThan(0.01);
+
+      const p = await hitCentre(page, c.selector);
       await send('touchStart', [p]);
       await send('touchMove', [{ x: p.x + TOUCH_SLOP_PX, y: p.y }]);
       await send('touchEnd', []);
       await expect(group).toHaveAttribute('data-state', c.after);
       const tapped = await viewNumbers(page);
-      expect([tapped.x, tapped.y, tapped.w]).toEqual([start.x, start.y, start.w]);
-
-      const q = await hitCentre(page, c.hit);
-      await send('touchStart', [q]);
-      await send('touchMove', [{ x: q.x + TOUCH_SLOP_PX + 1, y: q.y }]);
-      await send('touchEnd', []);
-      await expect(group).toHaveAttribute('data-state', c.after);
-      const panned = await viewNumbers(page);
-      expect(Math.abs(panned.x - tapped.x) + Math.abs(panned.y - tapped.y)).toBeGreaterThan(0.01);
+      expect([tapped.x, tapped.y, tapped.w]).toEqual([panned.x, panned.y, panned.w]);
     });
 
     test('at the full view a drag from the hit changes neither state nor view', async ({
@@ -231,8 +257,8 @@ for (const c of CASES) {
     }, testInfo) => {
       const name = testInfo.project.name;
       test.skip(!isMouseProject(name) && name !== 'phone-chromium', 'Chromium gestures only');
-      const group = control(page, c.hit);
-      const p = await hitCentre(page, c.hit);
+      const group = control(page, c.id);
+      const p = await hitCentre(page, c.selector);
       if (name === 'phone-chromium') {
         await touchDrag(page, p, { x: TOUCH_SLOP_PX + 25, y: TOUCH_SLOP_PX + 25 });
       } else {
@@ -247,8 +273,8 @@ for (const c of CASES) {
       page,
     }, testInfo) => {
       test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
-      const group = control(page, c.hit);
-      const p = await hitCentre(page, c.hit);
+      const group = control(page, c.id);
+      const p = await hitCentre(page, c.selector);
       const spare = await backgroundPoint(page, c.region);
       const send = await touchSender(page);
       await send('touchStart', [p]);
@@ -279,8 +305,8 @@ test('touch: a pinch whose two fingers both start on switches zooms and leaves b
   const [idA, idB] = [ids[0] ?? '', ids[1] ?? ''];
   const stateA = await control(page, idA).getAttribute('data-state');
   const stateB = await control(page, idB).getAttribute('data-state');
-  const a = await hitCentre(page, idA);
-  const b = await hitCentre(page, idB);
+  const a = await hitCentre(page, `[data-hit="${idA}"]`);
+  const b = await hitCentre(page, `[data-hit="${idB}"]`);
   const send = await touchSender(page);
   await send('touchStart', [a, b]);
   const dx = b.x - a.x;
@@ -312,7 +338,7 @@ test('the guard: a drag from the cover or the switch pans, a tap lifts and flips
 
   // A tap whose lift is separate from its press: nothing changes before the lift.
   const tapOn = async (hit: string, control: Locator, before: string, after: string) => {
-    const p = await hitCentre(page, hit);
+    const p = await hitCentre(page, `[data-hit="${hit}"]`);
     if (touch) {
       const send = await touchSender(page);
       await send('touchStart', [p]);
@@ -331,7 +357,7 @@ test('the guard: a drag from the cover or the switch pans, a tap lifts and flips
   const v0 = await viewNumbers(page);
   await drag(
     page,
-    await hitCentre(page, 'sw.deice_alternate.guard'),
+    await hitCentre(page, '[data-hit="sw.deice_alternate.guard"]'),
     await panVector(page, slop + 25),
   );
   const v1 = await viewNumbers(page);
@@ -344,11 +370,48 @@ test('the guard: a drag from the cover or the switch pans, a tap lifts and flips
 
   // A drag from the switch pans and does not flip it.
   const v2 = await viewNumbers(page);
-  await drag(page, await hitCentre(page, 'sw.deice_alternate'), await panVector(page, slop + 25));
+  await drag(
+    page,
+    await hitCentre(page, '[data-hit="sw.deice_alternate"]'),
+    await panVector(page, slop + 25),
+  );
   const v3 = await viewNumbers(page);
   expect(Math.abs(v3.x - v2.x) + Math.abs(v3.y - v2.y)).toBeGreaterThan(0.5);
   await expect(sw).toHaveAttribute('data-state', 'on');
   await expect(guard).toHaveAttribute('data-state', 'open');
+});
+
+test('a tap on the drag-only EMERGENCY GEAR EXTENSION lever, on its handle or its far track end, changes nothing', async ({
+  page,
+}, testInfo) => {
+  const name = testInfo.project.name;
+  test.skip(!isMouseProject(name) && name !== 'phone-chromium', 'Chromium gestures only');
+  const touch = name === 'phone-chromium';
+  await zoomIntoRegion(page, touch, 'under_panel_centre');
+  const lever = control(page, 'lv.emerg_gear');
+  await expect(lever).toHaveAttribute('data-state', 'normal');
+  // The track runs 60 units along y: the handle rests at +30 (normal), the far end is at -30.
+  const points = await page.evaluate(() => {
+    const g = document.querySelector('[data-control-id="lv.emerg_gear"]');
+    if (!(g instanceof SVGGraphicsElement)) return null;
+    const m = g.getScreenCTM();
+    if (m === null) return null;
+    const at = (y: number) => {
+      const p = new DOMPoint(0, y).matrixTransform(m);
+      return { x: Math.round(p.x), y: Math.round(p.y) };
+    };
+    return { handle: at(30), far: at(-30), middle: at(0) };
+  });
+  if (points === null) throw new Error('no lever geometry');
+  for (const p of [points.handle, points.far, points.middle]) {
+    if (touch) {
+      await page.touchscreen.tap(p.x, p.y);
+    } else {
+      await page.mouse.click(p.x, p.y);
+    }
+    await expect(lever).toHaveAttribute('data-state', 'normal');
+  }
+  expect(await eventCount(page)).toBeLessThanOrEqual(0);
 });
 
 test.describe('@hooks the event log', () => {
@@ -364,13 +427,13 @@ test.describe('@hooks the event log', () => {
       // A drag at the full view, then a drag while zoomed, then a boundary-plus-one move.
       const slop = touch ? TOUCH_SLOP_PX : MOUSE_SLOP_PX;
       const drag = touch ? touchDrag : mouseDrag;
-      await drag(page, await hitCentre(page, c.hit), { x: slop + 25, y: slop + 25 });
+      await drag(page, await hitCentre(page, c.selector), { x: slop + 25, y: slop + 25 });
       expect(await eventCount(page)).toBe(0);
       await zoomIntoRegion(page, touch, c.region);
-      await drag(page, await hitCentre(page, c.hit), await panVector(page, slop + 25));
+      await drag(page, await hitCentre(page, c.selector), await panVector(page, slop + 25));
       expect(await eventCount(page)).toBe(0);
 
-      const p = await hitCentre(page, c.hit);
+      const p = await hitCentre(page, c.selector);
       if (touch) {
         const send = await touchSender(page);
         await send('touchStart', [p]);
@@ -386,7 +449,7 @@ test.describe('@hooks the event log', () => {
       const events = await page.evaluate(
         () => (globalThis as unknown as HookHost).__panel?.events() ?? [],
       );
-      expect(events.map((e) => [e.id, e.value])).toEqual([[c.hit, c.after]]);
+      expect(events.map((e) => [e.id, e.value])).toEqual([[c.id, c.after]]);
     });
   }
 });

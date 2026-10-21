@@ -3,12 +3,14 @@ import type { Ref } from 'preact';
 import { useRef } from 'preact/hooks';
 import { detentOffset, projectToTrack, snapToDetent } from '../../../engine/detents';
 import type { DetentDef, DetentLeverDef } from '../../../engine/registry';
+import type { DispatchResult } from '../../../engine/store';
 import type { WidgetProps } from '../ControlWidget';
+import { registerPressTarget, seqOf } from '../press-targets';
+import type { PressTarget } from '../press-targets';
 import { FlapBody } from '../skins/Flap';
 import { EnvIcon, ENV_ICONS, LEVER_ART, LeverHandle, LeverTrack } from '../skins/LeverHandles';
 
 const MIN_DRAG_PX = 4;
-const TAP_SLOP_PX = 10;
 const FONT = 'B612, system-ui, sans-serif';
 
 interface DragStart {
@@ -19,13 +21,6 @@ interface DragStart {
   /** Offset of the grab point from the handle centre, in lever-local units. */
   readonly grabX: number;
   readonly grabY: number;
-}
-
-interface TapStart {
-  readonly pointerId: number;
-  readonly x: number;
-  readonly y: number;
-  readonly detent: string;
 }
 
 /** Splits a long placard into two balanced lines at a space. */
@@ -39,15 +34,29 @@ function placardLines(label: string): string[] {
   return [label.slice(0, best), label.slice(best + 1)];
 }
 
-/** Pointer handlers of one lever; absent in static renders (tests), present in the widget. */
+/**
+ * Pointer handlers of the drag handle of one lever; absent in static renders (tests), present in
+ * the widget. The handle is a drag control and keeps its own gesture until plan 39; the marker
+ * taps and the tap-toggle flap are latching presses on the press arbiter (see LeverPress).
+ */
 export interface LeverHandlers {
   readonly onHandleDown: (e: PointerEvent) => void;
   readonly onHandleMove: (e: PointerEvent) => void;
   readonly onHandleUp: (e: PointerEvent) => void;
   readonly clearDrag: () => void;
-  readonly onMarkerDown: (detent: string) => (e: PointerEvent) => void;
-  readonly onMarkerUp: (e: PointerEvent) => void;
-  readonly clearTap: () => void;
+}
+
+/** A ref callback that registers a press target on a hit rectangle. */
+export type PressRef = (el: SVGRectElement | null) => void;
+
+/**
+ * The press registrations of one lever (R3-Z2): the ref callback of the tap-toggle hit and the
+ * ref callback of every marker rectangle by detent id. Absent in static renders (tests), so the
+ * pure body keeps working without a render context.
+ */
+export interface LeverPress {
+  readonly brake: PressRef;
+  readonly marker: (detent: string) => PressRef;
 }
 
 /** The other detent of a two-detent tap-toggle lever: a tap goes from the current one to it. */
@@ -56,49 +65,51 @@ export function tapToggleTarget(def: DetentLeverDef, state: string): string {
   return other.id;
 }
 
-/** Pointer handlers of a tap-toggle lever; absent in static renders (tests). */
-export interface TapToggleHandlers {
-  readonly onDown: (e: PointerEvent) => void;
-  readonly onUp: (e: PointerEvent) => void;
-  readonly clear: () => void;
+/** What a press target of a lever needs from its widget; everything is read at call time. */
+export interface TapTogglePressDeps {
+  readonly def: DetentLeverDef;
+  readonly stateOf: () => string;
+  readonly actuate: (id: string, detent: string) => DispatchResult;
+  readonly setPending: (on: boolean) => void;
 }
 
 /**
- * The tap logic of a tap-toggle lever, without hooks so a node test can drive it: a primary
- * pointer that goes down and comes up within the tap slop actuates the other detent once; a
- * longer gesture, a cancel and a lost capture clear without actuating. `setPressed` drives the
- * transient pressed ring only.
+ * The press target of a tap-toggle lever (R3-Z2): a latch target whose tap actuates the other
+ * detent and returns the sequence number of the event, or null when nothing was recorded. Pure and
+ * hook-free; the pressed ring is driven by the gesture layer through setPending, never by the
+ * factory itself.
  */
-export function makeTapToggleHandlers(
-  def: DetentLeverDef,
-  stateOf: () => string,
-  actuate: (detent: string) => void,
-  setPressed: (pressed: boolean) => void,
-): TapToggleHandlers {
-  let start: { pointerId: number; x: number; y: number } | null = null;
-  const clear = () => {
-    start = null;
-    setPressed(false);
-  };
+export function makeTapTogglePress(deps: TapTogglePressDeps): PressTarget {
+  const { def, stateOf, actuate, setPending } = deps;
   return {
-    onDown: (e) => {
-      if (!e.isPrimary) return;
-      try {
-        (e.currentTarget as Element).setPointerCapture(e.pointerId);
-      } catch {
-        // The pointer may already be gone; the tap is still evaluated on pointerup.
-      }
-      start = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
-      setPressed(true);
+    cls: 'latch',
+    setPending,
+    tap() {
+      return seqOf(actuate(def.id, tapToggleTarget(def, stateOf())));
     },
-    onUp: (e) => {
-      const s = start;
-      if (!e.isPrimary || s === null || s.pointerId !== e.pointerId) return;
-      clear();
-      if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > TAP_SLOP_PX) return;
-      actuate(tapToggleTarget(def, stateOf()));
+  };
+}
+
+export interface MarkerPressDeps {
+  readonly def: DetentLeverDef;
+  /** The detent this marker rectangle stands for. */
+  readonly detent: string;
+  readonly actuate: (id: string, detent: string) => DispatchResult;
+}
+
+/**
+ * The press target of one marker rectangle of a lever (R3-Z2): a latch target whose tap jumps to
+ * its detent and returns the sequence number, or null when the store records nothing (the detent
+ * is the current one). A marker has no pending visual. A drag-only lever has no marker, so it is
+ * never given one (PNL-06).
+ */
+export function makeMarkerPress(deps: MarkerPressDeps): PressTarget {
+  const { def, detent, actuate } = deps;
+  return {
+    cls: 'latch',
+    tap() {
+      return seqOf(actuate(def.id, detent));
     },
-    clear,
   };
 }
 
@@ -113,8 +124,9 @@ export interface LeverBodyProps {
   readonly regionWidth: number;
   readonly handlers?: LeverHandlers;
   readonly groupRef?: Ref<SVGGElement>;
-  /** Tap-toggle levers only: the pointer handlers and the transient pressed ring. */
-  readonly toggle?: TapToggleHandlers;
+  /** The press registrations of the brake hit and the marker rectangles (absent in static renders). */
+  readonly press?: LeverPress;
+  /** Tap-toggle levers only: the transient pressed ring. */
   readonly pressed?: boolean;
 }
 
@@ -126,9 +138,9 @@ function TapToggleBody({
   def,
   state,
   groupRef,
-  toggle,
+  press,
   pressed,
-}: Pick<LeverBodyProps, 'def' | 'state' | 'groupRef' | 'toggle' | 'pressed'>) {
+}: Pick<LeverBodyProps, 'def' | 'state' | 'groupRef' | 'press' | 'pressed'>) {
   const current: DetentDef = def.detents.find((d) => d.id === state) ?? def.detents[0]!;
   return (
     <g
@@ -137,6 +149,7 @@ function TapToggleBody({
       data-kind={def.kind}
       data-skin={def.skin}
       data-state={state}
+      data-pressed={pressed === true ? 'true' : undefined}
       role="img"
       aria-label={`${def.label}: ${current.label}`}
       transform={`translate(${def.x} ${def.y})`}
@@ -150,10 +163,7 @@ function TapToggleBody({
         height={def.hit.h}
         fill="transparent"
         pointer-events="all"
-        onPointerDown={toggle?.onDown}
-        onPointerUp={toggle?.onUp}
-        onPointerCancel={toggle?.clear}
-        onLostPointerCapture={toggle?.clear}
+        ref={press?.brake}
       />
     </g>
   );
@@ -173,18 +183,12 @@ export function LeverBody({
   regionWidth,
   handlers,
   groupRef,
-  toggle,
+  press,
   pressed,
 }: LeverBodyProps) {
   if (def.tapToggle === true) {
     return (
-      <TapToggleBody
-        def={def}
-        state={state}
-        groupRef={groupRef}
-        toggle={toggle}
-        pressed={pressed}
-      />
+      <TapToggleBody def={def} state={state} groupRef={groupRef} press={press} pressed={pressed} />
     );
   }
   const current: DetentDef = def.detents.find((d) => d.id === state) ?? def.detents[0]!;
@@ -354,10 +358,7 @@ export function LeverBody({
             height={side}
             fill="transparent"
             pointer-events="all"
-            onPointerDown={handlers?.onMarkerDown(d.id)}
-            onPointerUp={handlers?.onMarkerUp}
-            onPointerCancel={handlers?.clearTap}
-            onLostPointerCapture={handlers?.clearTap}
+            ref={press?.marker(d.id)}
           />
         );
       })}
@@ -424,15 +425,16 @@ export function DetentLever(props: WidgetProps<DetentLeverDef>) {
 /** The tap-toggle lever widget: a tap on the footprint toggles the two detents (R2-4.2). */
 function TapToggleLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
   const pressed = useSignal(false);
-  const handlers = useRef<TapToggleHandlers | null>(null);
-  handlers.current ??= makeTapToggleHandlers(
+  // Built in the render body and registered by a ref callback on every render, so the target
+  // never closes over stale props; it reads the state at call time.
+  const target = makeTapTogglePress({
     def,
-    () => bridge.stateOf(def.id).value,
-    (detent) => bridge.actuate(def.id, detent),
-    (p) => {
+    stateOf: () => bridge.stateOf(def.id).peek(),
+    actuate: (id, detent) => bridge.actuate(id, detent),
+    setPending: (p) => {
       pressed.value = p;
     },
-  );
+  });
   const state = bridge.stateOf(def.id).value;
   return (
     <LeverBody
@@ -441,7 +443,10 @@ function TapToggleLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
       handlePos={0}
       dragging={false}
       regionWidth={def.hit.w}
-      toggle={handlers.current}
+      press={{
+        brake: (el) => registerPressTarget(el, target),
+        marker: () => () => undefined,
+      }}
       pressed={pressed.value}
     />
   );
@@ -451,7 +456,6 @@ function DragLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
   const groupRef = useRef<SVGGElement>(null);
   const drag = useSignal<DragStart | null>(null);
   const dragPos = useSignal<number | null>(null);
-  const tap = useSignal<TapStart | null>(null);
 
   const state = bridge.stateOf(def.id).value;
   const current: DetentDef = def.detents.find((d) => d.id === state) ?? def.detents[0]!;
@@ -512,28 +516,6 @@ function DragLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
     bridge.actuate(def.id, snapToDetent(pos, def.detents));
   };
 
-  const onMarkerDown = (detent: string) => (e: PointerEvent) => {
-    if (!e.isPrimary) return;
-    try {
-      (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    } catch {
-      // The pointer may already be gone; the tap is still evaluated on pointerup.
-    }
-    tap.value = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, detent };
-  };
-
-  const onMarkerUp = (e: PointerEvent) => {
-    const s = tap.value;
-    if (!e.isPrimary || s === null || s.pointerId !== e.pointerId) return;
-    tap.value = null;
-    if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > TAP_SLOP_PX) return;
-    bridge.actuate(def.id, s.detent);
-  };
-
-  const clearTap = () => {
-    tap.value = null;
-  };
-
   const region = bridge.registry.regions.find((r) => r.id === def.region);
 
   return (
@@ -544,14 +526,17 @@ function DragLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
       dragging={drag.value !== null}
       regionWidth={region?.bounds.w ?? def.hit.w}
       groupRef={groupRef}
-      handlers={{
-        onHandleDown,
-        onHandleMove,
-        onHandleUp,
-        clearDrag,
-        onMarkerDown,
-        onMarkerUp,
-        clearTap,
+      handlers={{ onHandleDown, onHandleMove, onHandleUp, clearDrag }}
+      press={{
+        brake: () => undefined,
+        marker: (detent) => {
+          const target = makeMarkerPress({
+            def,
+            detent,
+            actuate: (id, value) => bridge.actuate(id, value),
+          });
+          return (el) => registerPressTarget(el, target);
+        },
       }}
     />
   );

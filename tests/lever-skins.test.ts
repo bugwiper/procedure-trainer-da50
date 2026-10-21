@@ -3,11 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { PLACARDS } from '../src/aircraft/da50rg/placards';
 import type { ControlDef, DetentLeverDef } from '../src/engine/registry';
+import type { DispatchResult } from '../src/engine/store';
+import { createPanelBridge } from '../src/ui/bridge';
 import { FLAP, FlapBody, flapPlate } from '../src/ui/panel/skins/Flap';
 import { ENV_ICONS, LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
 import {
   LeverBody,
-  makeTapToggleHandlers,
+  makeMarkerPress,
+  makeTapTogglePress,
   tapToggleTarget,
 } from '../src/ui/panel/widgets/DetentLever';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
@@ -352,56 +355,147 @@ describe('pedestal levers (plan 19, G-3)', () => {
     }
   });
 
-  it('a tap toggles the other detent once; a long gesture, a cancel and a lost capture do nothing', () => {
+  const hit = { getBoundingClientRect: () => ({ top: 0, height: 20 }) } as unknown as Element;
+  const info = { down: { x: 1, y: 3 }, up: { x: 2, y: 4 }, hit };
+  const okResult = (id: string, value: string, seq: number): DispatchResult => ({
+    ok: true,
+    event: { seq, t: 0, id, value, source: 'user' },
+  });
+
+  it('makeTapTogglePress is a latch target: a tap actuates the other detent and returns the sequence number', () => {
     const brake = lever('lv.parking_brake');
     expect(tapToggleTarget(brake, 'off')).toBe('set');
     expect(tapToggleTarget(brake, 'set')).toBe('off');
+    const calls: [string, string][] = [];
+    const pending: boolean[] = [];
     let state = 'off';
-    const calls: string[] = [];
-    let pressed = false;
-    const handlers = makeTapToggleHandlers(
-      brake,
-      () => state,
-      (detent) => {
-        calls.push(detent);
-        state = detent;
+    const target = makeTapTogglePress({
+      def: brake,
+      stateOf: () => state,
+      actuate: (id, value) => {
+        calls.push([id, value]);
+        state = value;
+        return okResult(id, value, 7);
       },
-      (p) => {
-        pressed = p;
+      setPending: (on) => pending.push(on),
+    });
+    expect(target.cls).toBe('latch');
+    expect(target.tap?.(info)).toBe(7);
+    expect(calls).toEqual([['lv.parking_brake', 'set']]);
+    expect(target.tap?.(info)).toBe(7);
+    expect(calls).toEqual([
+      ['lv.parking_brake', 'set'],
+      ['lv.parking_brake', 'off'],
+    ]);
+    // The factory never drives the pending visual itself; the gesture layer does through setPending.
+    expect(pending).toEqual([]);
+    target.setPending?.(true);
+    expect(pending).toEqual([true]);
+  });
+
+  it('makeTapTogglePress returns null for a rejected dispatch and never throws', () => {
+    const target = makeTapTogglePress({
+      def: lever('lv.parking_brake'),
+      stateOf: () => 'off',
+      actuate: (): DispatchResult => ({ ok: false, reason: 'unchanged' }),
+      setPending: () => undefined,
+    });
+    expect(target.tap?.(info)).toBeNull();
+  });
+
+  it('makeTapTogglePress drives a real bridge: the sequence number is that of the recorded event', () => {
+    const bridge = createPanelBridge(DA50RG);
+    const target = makeTapTogglePress({
+      def: lever('lv.parking_brake'),
+      stateOf: () => bridge.stateOf('lv.parking_brake').peek(),
+      actuate: (id, value) => bridge.actuate(id, value),
+      setPending: () => undefined,
+    });
+    expect(target.tap?.(info)).toBe(0);
+    expect(bridge.stateOf('lv.parking_brake').value).toBe('set');
+    expect(target.tap?.(info)).toBe(1);
+    expect(bridge.stateOf('lv.parking_brake').value).toBe('off');
+  });
+
+  it('makeMarkerPress is a latch target that actuates its own detent and has no pending visual', () => {
+    const calls: [string, string][] = [];
+    const target = makeMarkerPress({
+      def: lever('lv.flaps'),
+      detent: 'to',
+      actuate: (id, value) => {
+        calls.push([id, value]);
+        return okResult(id, value, 3);
       },
-    );
-    const ev = (x: number, y: number, over: Partial<PointerEvent> = {}): PointerEvent =>
-      ({
-        isPrimary: true,
-        pointerId: 1,
-        clientX: x,
-        clientY: y,
-        currentTarget: { setPointerCapture: () => undefined },
-        ...over,
-      }) as unknown as PointerEvent;
-    handlers.onDown(ev(100, 100));
-    expect(pressed).toBe(true);
-    handlers.onUp(ev(102, 101));
-    expect(pressed).toBe(false);
-    expect(calls).toEqual(['set']);
-    handlers.onDown(ev(100, 100));
-    handlers.onUp(ev(100, 100));
-    expect(calls).toEqual(['set', 'off']);
-    // An up without a down is nothing; a drag beyond the slop is nothing.
-    handlers.onUp(ev(100, 100));
-    handlers.onDown(ev(100, 100));
-    handlers.onUp(ev(100, 140));
-    expect(calls).toEqual(['set', 'off']);
-    // Cancel and lost capture clear without actuating.
-    handlers.onDown(ev(100, 100));
-    handlers.clear();
-    expect(pressed).toBe(false);
-    handlers.onUp(ev(100, 100));
-    expect(calls).toEqual(['set', 'off']);
-    // A second pointer (not primary) is ignored.
-    handlers.onDown(ev(100, 100, { isPrimary: false }));
-    handlers.onUp(ev(100, 100, { isPrimary: false }));
-    expect(calls).toEqual(['set', 'off']);
+    });
+    expect(target.cls).toBe('latch');
+    expect('setPending' in target).toBe(false);
+    expect(target.tap?.(info)).toBe(3);
+    expect(calls).toEqual([['lv.flaps', 'to']]);
+  });
+
+  it('makeMarkerPress returns null when the store rejects (an unchanged state records nothing)', () => {
+    const bridge = createPanelBridge(DA50RG);
+    const flaps = lever('lv.flaps');
+    const start = flaps.default;
+    const target = makeMarkerPress({
+      def: flaps,
+      detent: start,
+      actuate: (id, value) => bridge.actuate(id, value),
+    });
+    expect(target.tap?.(info)).toBeNull();
+    const other = makeMarkerPress({
+      def: flaps,
+      detent: flaps.detents.find((d) => d.id !== start)?.id ?? start,
+      actuate: (id, value) => bridge.actuate(id, value),
+    });
+    expect(other.tap?.(info)).toBe(0);
+  });
+
+  it('the lever source holds no tap handler, no tap slop and keeps capture for the handle drag only', () => {
+    const src = sourceOf('../src/ui/panel/widgets/DetentLever.tsx');
+    // The removed names are built from parts so no source line of the repo names them again.
+    expect(src).not.toContain(['makeTap', 'ToggleHandlers'].join(''));
+    expect(src).not.toContain(['TapToggle', 'Handlers'].join(''));
+    expect(src).not.toContain('onMarkerDown');
+    expect(src).not.toContain('onMarkerUp');
+    expect(src).not.toContain('TAP_SLOP_PX');
+    expect(src.match(/setPointerCapture/g)).toHaveLength(1);
+    expect(src).toContain('registerPressTarget');
+  });
+
+  it('a lever body asks the press prop for one ref per marker rect and none for a drag-only lever or the handle', () => {
+    const asked: string[] = [];
+    const press = {
+      brake: () => undefined,
+      marker: (id: string) => {
+        asked.push(id);
+        return () => undefined;
+      },
+    };
+    const render = (def: DetentLeverDef): El =>
+      expand(
+        LeverBody({
+          def,
+          state: def.default,
+          handlePos: 0,
+          dragging: false,
+          regionWidth: regionWidth(def),
+          press,
+        }),
+      );
+    const flaps = lever('lv.flaps');
+    const tree = render(flaps);
+    const markers = findElements(tree, (el) => 'data-detent' in el.props);
+    expect(markers.length).toBeGreaterThan(0);
+    expect(asked).toEqual(markers.map((m) => String(m.props['data-detent']).split(':')[1]));
+    for (const m of markers) expect(m.props['onPointerDown']).toBeUndefined();
+    const handle = findElements(tree, (el) => 'data-hit' in el.props);
+    expect(handle).toHaveLength(1);
+    asked.length = 0;
+    const emergency = lever('lv.emerg_gear');
+    expect(emergency.dragOnly).toBe(true);
+    expect(findElements(render(emergency), (el) => 'data-detent' in el.props)).toHaveLength(0);
+    expect(asked).toEqual([]);
   });
 
   it('the throttle is the POWER lever under its plate name THROTTLE (Q-04): id, steps, default and MAX kept', () => {
