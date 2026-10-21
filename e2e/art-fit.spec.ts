@@ -289,3 +289,98 @@ test('no breaker or plug label touches an outline, a pump box or the socket of a
   }
   expect(failures).toEqual([]);
 });
+
+/** The labels of the shell: placards, plate headings with their frames, bracket titles and lines. */
+interface ShellLabel {
+  /** What the element is: placard, heading, heading-frame, bracket-title or bracket-line. */
+  readonly kind: string;
+  /** Data id of the placard, heading or bracket group. */
+  readonly id: string;
+  readonly text: string;
+  readonly box: Box;
+}
+
+async function readShellLabels(page: Page): Promise<ShellLabel[]> {
+  return page.getByTestId('panel').evaluate((node) => {
+    const svg = node as unknown as SVGSVGElement;
+    const ctm = svg.getScreenCTM();
+    if (ctm === null) throw new Error('no screen CTM');
+    const inv = ctm.inverse();
+    const toBox = (el: Element, band: boolean): Box => {
+      const r = el.getBoundingClientRect();
+      const p1 = new DOMPoint(r.left, r.top).matrixTransform(inv);
+      const p2 = new DOMPoint(r.right, r.bottom).matrixTransform(inv);
+      const h = p2.y - p1.y;
+      // Texts use the glyph band (middle 60 percent), outlines their whole box.
+      return band
+        ? { x: p1.x, y: p1.y + h * 0.2, w: p2.x - p1.x, h: h * 0.6 }
+        : { x: p1.x, y: p1.y, w: p2.x - p1.x, h };
+    };
+    const out: ShellLabel[] = [];
+    const text = (el: Element) => (el.textContent ?? '').trim();
+    for (const el of Array.from(svg.querySelectorAll('[data-placard]'))) {
+      out.push({
+        kind: 'placard',
+        id: el.getAttribute('data-placard') ?? '',
+        text: text(el),
+        box: toBox(el, true),
+      });
+    }
+    for (const group of Array.from(svg.querySelectorAll('[data-shell="plate-heading"]'))) {
+      const id = group.getAttribute('data-heading') ?? '';
+      const label = group.querySelector('text');
+      const frame = group.querySelector('rect');
+      if (label !== null) {
+        out.push({ kind: 'heading', id, text: text(label), box: toBox(label, true) });
+      }
+      if (frame !== null) {
+        out.push({
+          kind: 'heading-frame',
+          id,
+          text: text(label ?? frame),
+          box: toBox(frame, false),
+        });
+      }
+    }
+    for (const group of Array.from(svg.querySelectorAll('[data-shell="bracket-group"]'))) {
+      const id = group.getAttribute('data-bracket') ?? '';
+      const title = group.querySelector('[data-shell="bracket-title"]');
+      const line = group.querySelector('[data-shell="bracket-line"]');
+      if (title !== null) {
+        out.push({ kind: 'bracket-title', id, text: text(title), box: toBox(title, true) });
+      }
+      if (line !== null) {
+        out.push({ kind: 'bracket-line', id, text: text(title ?? line), box: toBox(line, false) });
+      }
+    }
+    return out;
+  });
+}
+
+/**
+ * Shell labels known to stand off every plate, as "kind:id" with the reason. Entries come from
+ * earlier plans; the engine strip (FADEC, ALTERNATOR, the numerals, AUTO, FORCE B, TEST, ON, OFF)
+ * must never appear here. A stale entry fails the gate like in the text-overlap list.
+ */
+const SHELL_LABEL_OFF_PLATE_KNOWN: Readonly<Record<string, string>> = {};
+
+test('every shell placard, heading and bracket title lies on a plate', async ({ page }) => {
+  const geo = await readGeometry(page);
+  const labels = await readShellLabels(page);
+  expect(labels.filter((l) => l.kind === 'placard').length).toBeGreaterThanOrEqual(30);
+  expect(labels.filter((l) => l.kind === 'heading').length).toBeGreaterThanOrEqual(3);
+  expect(labels.filter((l) => l.kind === 'bracket-title').length).toBeGreaterThanOrEqual(2);
+  const off = new Map<string, string>();
+  for (const label of labels) {
+    const key = `${label.kind}:${label.id}`;
+    const onSome = geo.plates.some((plate) => outside(label.box, plate.box) === null);
+    if (onSome) continue;
+    off.set(key, `"${label.text}" lies on no plate`);
+  }
+  const unexpected = [...off.keys()].filter((key) => !(key in SHELL_LABEL_OFF_PLATE_KNOWN)).sort();
+  expect(unexpected, unexpected.map((key) => `${key}: ${off.get(key) ?? ''}`).join('\n')).toEqual(
+    [],
+  );
+  const stale = Object.keys(SHELL_LABEL_OFF_PLATE_KNOWN).filter((key) => !off.has(key));
+  expect(stale).toEqual([]);
+});

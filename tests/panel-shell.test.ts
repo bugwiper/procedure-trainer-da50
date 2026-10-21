@@ -419,6 +419,20 @@ describe('plate placards', () => {
     }
   });
 
+  it('the start point of every placard lies inside some plate (no browser needed)', () => {
+    for (const p of PLACARDS) {
+      const def = DA50RG.get(p.near);
+      const region = DA50RG.regions.find((r) => r.id === def?.region);
+      if (def === undefined || region === undefined) continue;
+      const x = region.bounds.x + def.x + p.dx;
+      const y = region.bounds.y + def.y + placardLineY(p, 0);
+      const plate = PLATES.find(
+        (pl) => x >= pl.x && x <= pl.x + pl.w && y >= pl.y && y <= pl.y + pl.h,
+      );
+      expect(plate, `${p.id} starts on a plate`).toBeDefined();
+    }
+  });
+
   it('draws one text element per placard line, with exactly the PLACARDS lines', () => {
     const expected = PLACARDS.flatMap((p) => p.lines);
     expect(drawn.map((el) => textOf(el))).toEqual(expected);
