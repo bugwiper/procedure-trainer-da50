@@ -106,6 +106,17 @@ describe('pinchRect', () => {
     expect(r.w).toBeCloseTo(MIN_VIEW_WIDTH);
   });
 
+  it('a pinch-in never widens a view that is already narrower than MIN_VIEW_WIDTH (WR-03)', () => {
+    const narrow: Rect = { x: 1100, y: 600, w: 68, h: 51 };
+    for (const factor of [1.01, 1.5, 4]) {
+      const r = pinchRect(narrow, { x: 1130, y: 620 }, factor, VIEWBOX);
+      expect(r.w, `factor ${factor}`).toBeLessThanOrEqual(narrow.w + 1e-9);
+      expect(r.w, `factor ${factor}`).toBeCloseTo(narrow.w);
+    }
+    // A pinch-out from the same view still grows it.
+    expect(pinchRect(narrow, { x: 1130, y: 620 }, 0.5, VIEWBOX).w).toBeGreaterThan(narrow.w);
+  });
+
   it('never goes above the full viewBox and ends at the whole panel when pinching out', () => {
     expect(pinchRect(view, { x: 900, y: 500 }, 0.001, VIEWBOX)).toEqual(FULL);
     // A tall region reaches the full height first and still ends at the whole panel.

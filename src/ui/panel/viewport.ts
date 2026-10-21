@@ -7,7 +7,7 @@ import type { ControlDef, Rect, Size } from '../../engine/registry';
 /** viewBox units kept around a region when it is zoomed to. */
 export const ZOOM_PAD = 10;
 
-/** Pinch-in limit: the narrowest view in viewBox units. */
+/** Pinch-in limit: the narrowest view a pinch reaches in viewBox units (never widens a narrower view). */
 export const MIN_VIEW_WIDTH = 200;
 
 /** A view this close to the full viewBox in either axis snaps to the full viewBox. */
@@ -52,7 +52,10 @@ export function pinchRect(
 ): Rect {
   const aspect = current.h / current.w;
   const wanted = current.w / factor;
-  const width = Math.min(Math.max(wanted, MIN_VIEW_WIDTH), viewBox.w);
+  // The pinch-in limit never widens a view that is already narrower (a double-tap zoom into a
+  // small region, e.g. 68 wide): a pinch-in keeps it, only a pinch-out grows it (review WR-03).
+  const floor = Math.min(MIN_VIEW_WIDTH, current.w);
+  const width = Math.min(Math.max(wanted, floor), viewBox.w);
   const height = width * aspect;
   if (width >= viewBox.w * SNAP_TO_FULL || height >= viewBox.h * SNAP_TO_FULL) {
     return fullRect(viewBox);
