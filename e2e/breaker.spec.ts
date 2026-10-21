@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { ALL_REGION_IDS, CB_REFERENCE } from '../tests/layout-reference';
-import { FULL_VIEWBOX, activate, zoomIntoRegion } from './support/zoom';
+import { FULL_VIEWBOX, activate, buttonCoverage, zoomIntoRegion } from './support/zoom';
 
 // Circuit-breaker contract on the built panel (PNL-12, D-02, D-03, owner rule G-0.1): the first
 // breaker, cb.pitot, starts pushed in without a ring, one tap pulls it (raised cap, one white ring),
@@ -243,17 +243,7 @@ test('the Full panel button covers no breaker hit in any breaker region', async 
 }) => {
   for (const region of BREAKER_REGIONS) {
     await zoomInto(page, hasTouch, region);
-    const covered = await page.evaluate(() => {
-      const button = document.querySelector('[data-testid="zoom-out"]');
-      if (button === null) return ['no button'];
-      const b = button.getBoundingClientRect();
-      return Array.from(document.querySelectorAll('[data-hit^="cb."]'))
-        .filter((el) => {
-          const r = el.getBoundingClientRect();
-          return r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
-        })
-        .map((el) => el.getAttribute('data-hit') ?? '');
-    });
+    const covered = await buttonCoverage(page);
     expect(covered, region).toEqual([]);
   }
 });

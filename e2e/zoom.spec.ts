@@ -6,6 +6,7 @@ import {
   activate,
   activateAt,
   backgroundPoint,
+  buttonCoverage,
   doubleActivateAt,
   zoomIntoRegion,
 } from './support/zoom';
@@ -209,6 +210,52 @@ test('every region with controls reaches full tap size when zoomed', async ({
         .map((el) => el.getAttribute('data-hit') ?? el.getAttribute('data-detent') ?? '');
     }, id);
     expect(covered, `${id} covered by Full panel`).toEqual([]);
+  }
+});
+
+test('the Full panel button covers no control hit in any region', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  const ids = await page
+    .locator('[data-region-id]')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-region-id') ?? ''));
+  expect(ids.length).toBeGreaterThanOrEqual(8);
+  for (const id of ids) {
+    await zoomIntoRegion(page, hasTouch, id);
+    expect(await buttonCoverage(page), `${id} covered by Full panel`).toEqual([]);
+    const report = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="zoom-out"]');
+      if (el === null) return null;
+      const b = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+      const intersects = (r: DOMRect): boolean =>
+        r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
+      const footer = document.querySelector('.footer')?.getBoundingClientRect();
+      const hint = document.querySelector('[data-testid="rotate-hint"]');
+      const hintBox =
+        hint !== null && getComputedStyle(hint).display !== 'none'
+          ? hint.getBoundingClientRect()
+          : null;
+      return {
+        topmost: hit !== null && (hit === el || el.contains(hit)),
+        footerOverlap: footer === undefined ? true : intersects(footer),
+        hintOverlap: hintBox === null ? false : intersects(hintBox),
+        inViewport:
+          b.left >= 0 &&
+          b.top >= 0 &&
+          b.right <= document.documentElement.clientWidth &&
+          b.bottom <= document.documentElement.clientHeight,
+        corner: el.getAttribute('data-corner'),
+      };
+    });
+    expect(report, id).not.toBeNull();
+    expect(report?.topmost, `${id}: button is topmost at its centre`).toBe(true);
+    expect(report?.footerOverlap, `${id}: button intersects footer`).toBe(false);
+    expect(report?.hintOverlap, `${id}: button intersects rotate hint`).toBe(false);
+    expect(report?.inViewport, `${id}: button inside viewport`).toBe(true);
+    expect(['tr', 'br', 'bl'], `${id}: corner`).toContain(report?.corner);
   }
 });
 

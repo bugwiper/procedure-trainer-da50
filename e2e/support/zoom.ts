@@ -120,3 +120,22 @@ export async function zoomIntoRegion(
   await activateAt(page, p, hasTouch);
   await expect(page.getByTestId('panel'), regionId).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
 }
+
+/**
+ * The ids of every [data-hit] and [data-detent] element on the whole page whose box overlaps the
+ * box of the Full panel button (touching is not overlap), or ['no button'] when the button is
+ * absent (R2-T1, D-13).
+ */
+export async function buttonCoverage(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const button = document.querySelector('[data-testid="zoom-out"]');
+    if (button === null) return ['no button'];
+    const b = button.getBoundingClientRect();
+    return Array.from(document.querySelectorAll('[data-hit], [data-detent]'))
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
+      })
+      .map((el) => el.getAttribute('data-hit') ?? el.getAttribute('data-detent') ?? '');
+  });
+}
