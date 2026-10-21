@@ -67,11 +67,13 @@ npm run build          # production build
 npm run typecheck      # type-check
 npm run lint           # lint
 npm run format:check   # check formatting
-npm test               # unit tests
-npm run e2e            # end-to-end tests
+npm test               # unit tests (Vitest: layout, reference-table and static-text gates)
+npm run e2e            # end-to-end tests (Playwright; builds dist-e2e with the test hook and serves it)
 ```
 
-`BASE_PATH` sets the deploy base path (default "/").
+`BASE_PATH` sets the deploy base path (default "/"). The e2e run uses the base `/procedure-trainer-da-50/` on port 4173; set `PW_PORT` to use another port (parallel worktrees). Playwright projects: desktop-chromium, desktop-webkit, phone-chromium, phone-webkit, tablet-chromium, tablet-webkit and phone-portrait (run one with `npx playwright test --project=tablet-chromium`). Specs titled `@hooks` read the test-only `window.__panel` hook and are skipped when `PW_BASE_URL` points the run at a deployed site.
+
+The panel is a data-driven registry (`src/aircraft/da50rg`) rendered by Preact widgets (`src/ui`) over a pure store with an action log (`src/engine`). There are no scenarios yet.
 
 ## Stack
 

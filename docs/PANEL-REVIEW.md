@@ -1,5 +1,7 @@
 # Panel Review List (first render, owner check)
 
+> Status 2026-10-21: the owner's live-site review passed (see the UAT files of phases 01.1 and 01.2). The assumed labels, defaults and sizes below were accepted without corrections; the open questions are carried to the time the scenarios are defined (`.planning/todos/pending/2026-10-21-labels-and-bus-membership-revisit.md`). The "Round 5" and earlier "morning review" sections are historical entry points.
+
 This is a training aid, not the AFM. The panel of phase 01.1 was drawn from private reference photos that are not part of this repository. Wherever the photos did not settle a label, position, colour, size, kind, state or default, the plans made an assumption. This document lists every such assumption by panel area so the owner can check the first render and correct what is wrong. It contains layout facts only: no photo, crop, trace or aircraft manual text. The document was brought up to date for the rebuilt panel (gap-closure plans 12 to 22) by plan 23; phase 01.2 (circuit breakers, glass display shape and the avionics units) was added by plans 01 to 09; the second round of gap closure from the owner's live-site review (plans 24 to 31: double-tap zoom, Full panel button corners, parking brake flap, FAN click spots, engine strip words, ON and OFF placards) updated the areas below. the third round (plans 33 to 40: bus titles on Safari, the pulled parking brake plate, press arbitration and the double click on a switch) updated the shell, pedestal and gesture statements below. Start the morning review at the section "Round 5: morning review" at the very end (the earlier "Round 2" to "Round 4" sections stay for the record), and read the label table in [PANEL-LABELS.md](PANEL-LABELS.md) next to it.
 
 ## How to correct an item
@@ -139,7 +141,7 @@ No state text is printed under the cluster any more (the earlier GEAR DOWN LOCKE
 
 ## Flap block (region `flaps`)
 
-The flap lever is confirmed (`lv.flaps`, flaps-block skin, UP, T/O, LDG, default UP). The three flap lamps are assumptions. No airframe maker mark is drawn (the former RUBIN placeholder was removed by the owner). The flap plate was raised to y 608 (the top of the flap art, G-4); the seam to the gear plate at x 1150 is clear of LEVEL and of the RUBIN mark.
+The flap lever is confirmed (`lv.flaps`, flaps-block skin, UP, T/O, LDG, default UP). The three flap lamps are assumptions. No airframe maker mark is drawn (the former RUBIN placeholder was removed by the owner). The flap plate was raised to y 608 (the top of the flap art, G-4); the seam to the gear plate at x 1150 is clear of LEVEL.
 
 | Id            | Placard      | Assumed kind and skin         | Assumed states and default | Centre (tol)  | What is uncertain                                                    | Photos          | File to change  |
 | ------------- | ------------ | ----------------------------- | -------------------------- | ------------- | -------------------------------------------------------------------- | --------------- | --------------- |
