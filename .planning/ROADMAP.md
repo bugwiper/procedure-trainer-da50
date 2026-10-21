@@ -72,7 +72,7 @@ Plans:
   4. A single click or tap never zooms; a double click or double tap on the panel background zooms in and, while zoomed, fully out (a double tap on a control stays two control taps); the "Full panel" button is never hidden behind the footer and never covers a control.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 37/40 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch; plan 32 was a quick fix of two WebKit findings without a plan file; 9 more gap-closure plans 33 to 41 planned from the owner live-site review, round 3 (R3 findings), executed on the phase 01.2 branch)
+**Plans:** 38/40 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch; plan 32 was a quick fix of two WebKit findings without a plan file; 9 more gap-closure plans 33 to 41 planned from the owner live-site review, round 3 (R3 findings), executed on the phase 01.2 branch)
 
 Plans:
 **Wave 1**
@@ -181,7 +181,7 @@ Plans:
 - [x] 01.1-38-PLAN.md — R3-Z2: parking brake flap, lever marker taps and FAN spots act on release
 
 **Wave 32**
-- [ ] 01.1-39-PLAN.md — R3-Z2: momentary controls commit after 100 ms held still; drag controls keep their gesture and can be pinched over
+- [x] 01.1-39-PLAN.md — R3-Z2: momentary controls commit after 100 ms held still; drag controls keep their gesture and can be pinched over
 
 **Wave 33**
 - [ ] 01.1-40-PLAN.md — R3-Z3: a double click or double tap on a latching control zooms and retracts the first actuation; PNL-15, ROADMAP and README wording
