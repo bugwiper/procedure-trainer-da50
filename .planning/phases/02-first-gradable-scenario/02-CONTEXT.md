@@ -30,6 +30,7 @@ Requirements: SCN-01, SCN-02, SCN-03, SCN-04, SCN-05, SCN-07, SCN-08, PNL-03, SE
 
 ### Annunciation and initial state
 - **D-06:** The annunciation "ENG OIL TEMP" appears in the **PFD**: right side, about one third from the bottom, left of the altitude tape, **static red text in a black block**, no flashing. The owner can supply a reference image (to be placed in `.input/`).
+- **D-06a:** Reference for the look (owner image `.input/cas-warnings-table-card.jpg`, pocket-card table of CAS messages with the page of the checklist and the meaning): each CAS message is a **short chip with a black background and coloured text**: **warnings in red** (e.g. ENG OIL TEMP, FUEL PRESS, GB OIL TEMP, OIL PRES, COOLANT TEMP, L/R DOOR OPEN), **cautions in yellow** (e.g. ALTN 1 FAIL, ALTN 2 FAIL); related messages can share a row (ALTN 1 FAIL and ALTN 2 FAIL). ENG OIL TEMP is a red warning, trigger **oil temperature above 125 degrees C (red range)**, checklist page 4. The annunciation level (warning red, caution yellow) and the message text are scenario/rule data, so the same mechanism serves the other CAS messages of later scenarios.
 - **D-07:** The initial state, which is also the trigger of the warning, has the **oil temperature on the PFD above 125 degrees C (red range)**, e.g. 128. In Phase 2 the value stays fixed during the run (it does not fall after POWER is reduced; live behaviour is Phase 3). The oil pressure indication is green.
 - **D-08:** The scenario sets **named aircraft-state quantities** (e.g. `oil_temp_c: 128`, oil pressure green). Instruments and annunciation rules read these quantities; the message ENG OIL TEMP results from a rule (oil temperature above 125 degrees C) rather than being a literal in the scenario. This is the seam Phase 3 builds on (reactions, live values) without a format change. — **Reversibility:** costly — every later scenario and the engine/instrument binding depend on the quantity model.
 
@@ -72,6 +73,7 @@ Requirements: SCN-01, SCN-02, SCN-03, SCN-04, SCN-05, SCN-07, SCN-08, PNL-03, SE
 - `.planning/PROJECT.md` — key decisions (engine design, panel rules, gestures)
 
 ### Procedure source (private, view only)
+- `.input/cas-warnings-table-card.jpg` — owner's pocket-card table of CAS messages (look of the chips, colours red/yellow, trigger and meaning per message, checklist page). Private, never committed. Source for the message list of later scenarios.
 - `.input/oil-temp-checklist-card.jpg` — owner's pocket checklist card "ENG OIL TEMP / OIL TEMPERATURE HIGH" (check oil pressure; branch too low / green; steps listed above). Private, never committed.
 - `.input/DA50RG_AFM.pdf` § 03-08 ENG OIL TEMP (pp. 03-12/03-13, issue 018) and `.input/afm-notes.md` — procedure steps, oil temperature red range above 125 degrees C, CAS warning wording. Private, never committed or quoted beyond `docs/CONTENT-POLICY.md`.
 - `docs/CONTENT-POLICY.md` — verbatim limit (12 words per checklist line), no WARNING/CAUTION/NOTE copying, scenario source and revision metadata.
