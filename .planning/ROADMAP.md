@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 24/31 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch)
+**Plans:** 25/31 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch)
 
 Plans:
 **Wave 1**
@@ -140,7 +140,7 @@ Plans:
 - [x] 01.1-24-PLAN.md — Shared e2e zoom helper, zoom and breaker specs migrated, behaviour-neutral (prepares R2-Z1)
 
 **Wave 19**
-- [ ] 01.1-25-PLAN.md — R2-Z1: a single click or tap never zooms; double click or double tap on the background zooms in and out; a double tap on a control stays two control taps
+- [x] 01.1-25-PLAN.md — R2-Z1: a single click or tap never zooms; double click or double tap on the background zooms in and out; a double tap on a control stays two control taps
 
 **Wave 20**
 - [ ] 01.1-26-PLAN.md — R2-T1: Full panel button picks a corner where it covers no control, tablet chromium project, strict gate over every region
