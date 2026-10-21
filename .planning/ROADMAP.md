@@ -72,7 +72,7 @@ Plans:
   4. A single tap on the panel background while zoomed zooms fully out; the "Full panel" button is never hidden behind the footer.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 22/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
+**Plans:** 23/23 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review)
 
 Plans:
 **Wave 1**
@@ -132,7 +132,7 @@ Plans:
 - [x] 01.1-22-PLAN.md — De-ice unit part 2: lower row, ALTERNATE under its guard, framed heading
 
 **Wave 17**
-- [ ] 01.1-23-PLAN.md — Live-condition rehearsal, exact inventory gates, documents, final gates, morning-review list
+- [x] 01.1-23-PLAN.md — Live-condition rehearsal, exact inventory gates, documents, final gates, morning-review list
 
 ### Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels (INSERTED)
 
