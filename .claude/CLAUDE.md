@@ -212,14 +212,24 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+- **Counts are derived, never literals.** Inventory counts (controls, lamps, regions, plates, breakers) come from independent reference tables in `tests/` (`tests/layout-reference.ts`, the label and review tables) and are compared with the registry; a changed number is a data edit plus a table edit, not a literal in a spec. Panel space is 2180 x 1300 (`VIEWBOX` in `src/aircraft/da50rg/panel.ts`, mirrored as `PANEL_VIEWBOX` in the test reference).
+- **Data-driven registry.** A control is data with a `kind` (`toggle`, `guarded-toggle`, `guard`, `detent-lever`, `momentary-button`, `rotary`, `circuit-breaker`) and a skin; widgets, hit footprints, labels and tests read the registry. Controls, lamps, regions and plates are added by data, not by widget code. Control state lives in the store, never in the DOM.
+- **Owner rules (G-0).** Static labels only: no text on the panel changes with a control state (state shows by position or lamp only; a pulled breaker shows a raised cap and a white ring, no IN/OUT text). A lamp exists only where the original has one. Parts stay inside their plates. Every label that is not known for sure is listed in `docs/PANEL-LABELS.md` and `docs/PANEL-REVIEW.md`.
+- **Brand rule.** The panel reads GO-AROUND (not the maker name), no real maker names on the panel, no RUBIN mark; DA50RG is kept. Gated by `tests/brand.test.ts`, `tests/panel-shell.test.ts`, `e2e/brand.spec.ts`.
+- **No real photos or AFM text committed.** Reference photos and the AFM live in `.input/` (private, git-ignored); documents describe layout facts only and refer to photos by short name (see `docs/CONTENT-POLICY.md`).
+- **Gesture contract (PNL-15).** A control acts on release. A single click or tap never zooms; a double click or double tap zooms into the region and, while zoomed, fully out. On a latching control the first tap actuates and the recognised pair (350 ms, 24 px, same control) retracts it from the log. Slops: 10 px touch and pen, 5 px mouse, then the press becomes a pan; a second finger pinches, also over controls. Momentary buttons commit after 100 ms held still and never zoom; drag controls (lever handles, knob bodies) start at 4 px. Only the main mouse button operates controls.
+- **Tests.** Vitest (`tests/*.test.ts`, node environment) holds layout, reference-table and static-text gates plus pure engine and arbiter cases. Playwright specs in `e2e/` hit the production build; specs that read `window.__panel` carry `@hooks` in the title (the hook exists only in the e2e build, `VITE_TEST_HOOKS=1`) and are excluded in live mode (`PW_BASE_URL`). `PW_PORT` selects the preview port for parallel worktrees. Waiting between two quick taps on one control uses the shared pair-window helper.
+- **Git.** Phase branches `gsd/phase-NN-slug`; Conventional Commits with the plan id as scope for plan work (`feat(01.1-37): ...`, `test(...)`, `docs(01.1-41): ...`), `fix(panel): ...` for review fixes; planning documents under `.planning/`. Nothing is pushed by agents; publishing is the owner's step.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
 
 ## Architecture
 
-Architecture not yet mapped. Follow existing patterns found in the codebase.
+- `src/engine`: pure TypeScript, no framework, no clock, no timers. `registry.ts` (control and region definitions, validation by `defineRegistry`), `store.ts` (`PanelStore`: `dispatch`, append-only event log, `deriveState`, `retract` of the newest event, `markConsumed` watermark seam for Phase 3, `onRetract`), `indicators.ts` (lamps derived from control state), `rotary.ts` and `detents.ts` (knob and lever geometry).
+- `src/aircraft/da50rg`: the DA50 RG panel as data. `panel.ts` (viewBox, 30 regions, device profiles, registry assembly), `controls/*` (92 controls by family: lights, de-ice, engine, gear-flaps, pedestal, switch-bank, under-panel, knobs, buttons, mfd, breakers), `indicators.ts` (13 lamps), `plates.ts`, `placards.ts`, `bus-boxes.ts`, `avionics.ts` (inert PFD/MFD columns, audio panel, standby EFIS, autopilot panel).
+- `src/ui`: Preact and signals. `bridge.ts` connects store to signals (and the test hook), `App.tsx`, `about/`. `panel/`: `Panel.tsx`, `PanelShell.tsx` and `BusPanelArt.tsx` (static art), `widgets/` (one per kind), `skins/` (shapes), `frames/` (glass and avionics art), `press-arbiter.ts` (pure press machine), `press-targets.ts`, `tap-intent.ts` (slops and pair decision), `zoom.ts` (pointer glue, view signal, Full panel corner), `viewport.ts` (pure zoom, pan, pinch and footprint maths).
+- Scenarios, grading, reactions and the engine clock do not exist yet (Phase 2 onward). Deferred engine behaviours are in `.planning/todos/pending/`.
 <!-- GSD:architecture-end -->
 
 <!-- GSD:skills-start source:skills/ -->
