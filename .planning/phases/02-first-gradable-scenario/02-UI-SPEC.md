@@ -317,7 +317,7 @@ One recursive component, `ChecklistOutline`, renders the scenario's step tree in
 | Decision | A line whose answer chooses a branch ("Check oil pressure") | Rendered as a Line (Body); its branches are nested directly under it, one level in |
 | Branch | A condition label plus child nodes (lines, steps, groups, decisions; a branch may hold another decision, so branches nest) | Condition label as text in Label style (14/700), ends with a colon, taken from the data (at most 8 words, for example "If in green range:"); children one level in |
 
-**Structure.** Nested `<ul>` and `<li>`: each level adds `padding-left: 16px` and a 2 px left rule `#3a424b` (the rule makes the nesting readable without colour). Three branch levels at 18 px per level leave 257 px of text width on a 375 px portrait phone (card inner width 311 px), so no horizontal scroll and no smaller text. Long lines wrap inside their level.
+**Structure.** Nested `<ul>` and `<li>`: each level adds `padding-left: 16px` and a 2 px left rule `#3a424b` (the rule makes the nesting readable without colour). Three branch levels at 16 px per level (the 2 px rule is drawn inside that 16 px gutter) leave 263 px of text width on a 375 px portrait phone (card inner width 311 px), so no horizontal scroll and no smaller text. Long lines wrap inside their level.
 
 **Branch status** is computed by the engine from the branch condition against the scenario's initial quantities and handed to the view as data; the view never evaluates conditions.
 
@@ -426,7 +426,7 @@ Applicable state considerations resolved: 12 covered, 3 backstop, 2 unresolved.
 | overflow | briefing/debrief card on phone landscape (315 px high) | ✅ covered | Card scrolls internally, action row sticky, result stays first |
 | zero-one-many | harmful actions in the debrief | ✅ covered | "None.", one row, many rows, heading carries the count |
 | partial | decision branches and nested sub-conditions (applies, not applicable, open) | ✅ covered | Shown through the checklist outline: not-applicable branches appear as muted "Not applicable", never omitted; briefing omits their children (exam), debrief lists them ungraded |
-| overflow | outline nesting depth on a 375 px portrait phone | ✅ covered | Cap of 3 branch levels, 18 px per level, text wraps, 257 px of text width left, no horizontal scroll |
+| overflow | outline nesting depth on a 375 px portrait phone | ✅ covered | Cap of 3 branch levels, 16 px per level, text wraps, 263 px of text width left, no horizontal scroll |
 | zero-one-many | critical steps missed (reason line) | ✅ covered | Singular and plural reason copy defined |
 | populated | CAS chip with 1 to 6 active messages | 🧪 backstop | Only one chip exists in Phase 2; stacking rule is unit-tested on synthetic rules and checked visually on the first multi-message scenario |
 | populated | session area at full view on a phone | 🧪 backstop | 29 px buttons at 0.242 scale; region zoom is the answer; owner reviews the first render on a real phone (U-05) |
