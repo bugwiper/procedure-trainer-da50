@@ -9,7 +9,10 @@ import {
   tapStop,
 } from '../../../engine/rotary';
 import type { RotaryDef } from '../../../engine/registry';
+import type { DispatchResult } from '../../../engine/store';
 import type { WidgetProps } from '../ControlWidget';
+import { registerPressTarget, seqOf } from '../press-targets';
+import type { PressTarget } from '../press-targets';
 
 const MIN_DRAG_PX = 4;
 const FONT = 'B612, system-ui, sans-serif';
@@ -208,14 +211,47 @@ export function RotaryBody({ def, state, dragAngle, pressed }: RotaryBodyProps) 
   );
 }
 
+/** What the press target of a click spot needs from its widget; everything is read at call time. */
+export interface SpotPressDeps {
+  readonly def: RotaryDef;
+  /** Client point to knob-local units; null when the knob has no screen matrix. */
+  readonly toLocal: (clientX: number, clientY: number) => { x: number; y: number } | null;
+  readonly actuate: (id: string, stop: string) => DispatchResult;
+  readonly setPending: (on: boolean) => void;
+}
+
 /**
- * Knob widget (D-07, D-10). Phase 1 pointer contract: primary pointer only, capture on
- * pointerdown, no click listener; cancel and lost capture clear without dispatching. A release
- * under 4 px of travel is a tap: the right half steps one stop clockwise, the left half one back
- * (a two-stop knob always toggles); a knob with click spots (the FAN) sets the stop of the tapped
- * spot, or the stop nearest to the tapped angle on the body between the spots. A longer gesture is a drag: the pointer follows the finger
- * in a UI-local signal and the nearest stop is committed on release. Only stop ids reach the
- * store (T-01.1-07).
+ * The press target of the click spots of a knob (R3-Z2, R2-4.1): a latch target that acts on the
+ * tap only. The tap converts the pointer-down point to knob-local units and sets the stop that
+ * tapStop gives for it (null, the dead zone at the exact centre, records nothing). The factory
+ * does not compare with the current stop: the store rejects an unchanged state and the result
+ * carries no sequence number. Pure and hook-free; the pressed ring is driven by the gesture layer
+ * through setPending, never by the factory itself.
+ */
+export function makeSpotPress(deps: SpotPressDeps): PressTarget {
+  const { def, toLocal, actuate, setPending } = deps;
+  return {
+    cls: 'latch',
+    setPending,
+    tap(info) {
+      const local = toLocal(info.down.x, info.down.y);
+      if (local === null) return null;
+      const stop = tapStop(def, local.x, local.y);
+      return stop === null ? null : seqOf(actuate(def.id, stop));
+    },
+  };
+}
+
+/**
+ * Knob widget (D-07, D-10). The knob body keeps its own pointer contract (plan 39 registers it as
+ * a drag-owned target): primary pointer only, capture on pointerdown, no click listener; cancel
+ * and lost capture clear without dispatching. A release under 4 px of travel is a tap: the right
+ * half steps one stop clockwise, the left half one back (a two-stop knob always toggles); a knob
+ * with click spots sets the stop nearest to the tapped angle on the body between the spots. A
+ * longer gesture is a drag: the pointer follows the finger in a UI-local signal and the nearest
+ * stop is committed on release. The click spots (the FAN) are latching press targets on the press
+ * arbiter (R3-Z2): they act on release and give their pointer to the view when it moves or a
+ * second finger lands. Only stop ids reach the store (T-01.1-07).
  */
 export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
   const groupRef = useRef<SVGGElement>(null);
@@ -299,6 +335,17 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
     bridge.actuate(def.id, stepStop(def, bridge.stateOf(def.id).value, g.local.x >= 0 ? 1 : -1));
   };
 
+  // Built in the render body and registered by a ref callback on every render, so the target
+  // never closes over stale props.
+  const spotPress = makeSpotPress({
+    def,
+    toLocal,
+    actuate: (id, stop) => bridge.actuate(id, stop),
+    setPending: (on) => {
+      pressed.value = on;
+    },
+  });
+
   return (
     <g
       ref={groupRef}
@@ -334,11 +381,7 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
           height={spot.h}
           fill="transparent"
           pointer-events="all"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={clear}
-          onLostPointerCapture={clear}
+          ref={(el: SVGRectElement | null) => registerPressTarget(el, spotPress)}
         />
       ))}
     </g>

@@ -77,6 +77,15 @@ const CASES: readonly PressCase[] = [
     after: 'to',
     ring: false,
   },
+  {
+    name: 'FAN spot f2',
+    selector: '[data-detent="sw.env_fan:f2"]',
+    id: 'sw.env_fan',
+    region: 'env_control',
+    before: 'off',
+    after: 'f2',
+    ring: false,
+  },
 ];
 
 function control(page: Page, id: string): Locator {

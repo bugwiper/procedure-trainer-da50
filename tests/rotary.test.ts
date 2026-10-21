@@ -14,7 +14,9 @@ import {
   tapStop,
 } from '../src/engine/rotary';
 import { fitScale, targetSide, zoomRect } from '../src/ui/panel/viewport';
-import { RotaryBody } from '../src/ui/panel/widgets/Rotary';
+import type { DispatchResult } from '../src/engine/store';
+import { createPanelBridge } from '../src/ui/bridge';
+import { RotaryBody, makeSpotPress } from '../src/ui/panel/widgets/Rotary';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 
 // Rotary kind (PNL-11, D-07, D-09, D-10): pure stop logic, the registry invariants, the tap-size
@@ -586,5 +588,117 @@ describe('Rotary.tsx type scale', () => {
     );
     expect(sizes.length).toBeGreaterThanOrEqual(2);
     expect(sizes.filter((s) => ![6, 8, 10, 14].includes(s))).toEqual([]);
+  });
+});
+
+describe('makeSpotPress (plan 38, R3-Z2): what a tap on a FAN spot does', () => {
+  const fan = knob('sw.env_fan');
+  const hit = {} as unknown as Element;
+  const info = { down: { x: 100, y: 200 }, up: { x: 101, y: 201 }, hit };
+
+  function rig(local: { x: number; y: number } | null, seq = 4) {
+    const calls: [string, string][] = [];
+    const asked: [number, number][] = [];
+    const pending: boolean[] = [];
+    const target = makeSpotPress({
+      def: fan,
+      toLocal: (x, y) => {
+        asked.push([x, y]);
+        return local;
+      },
+      actuate: (id, value): DispatchResult => {
+        calls.push([id, value]);
+        return { ok: true, event: { seq, t: 0, id, value, source: 'user' } };
+      },
+      setPending: (on) => pending.push(on),
+    });
+    return { target, calls, asked, pending };
+  }
+
+  it('is a latch target; a tap converts the pointer-down point and actuates the stop of its spot', () => {
+    for (const spot of fan.spots ?? []) {
+      const r = rig({ x: spot.x, y: spot.y });
+      expect(r.target.cls).toBe('latch');
+      expect(r.target.tap?.(info), spot.stop).toBe(4);
+      expect(r.calls).toEqual([['sw.env_fan', spot.stop]]);
+      // The knob-local conversion uses the pointer-down point, not the up point.
+      expect(r.asked).toEqual([[100, 200]]);
+    }
+  });
+
+  it('the dead zone at the exact centre (tapStop null) actuates nothing and returns null', () => {
+    const r = rig({ x: 0, y: 0 });
+    expect(r.target.tap?.(info)).toBeNull();
+    expect(r.calls).toEqual([]);
+  });
+
+  it('a point that cannot be converted actuates nothing and returns null', () => {
+    const r = rig(null);
+    expect(r.target.tap?.(info)).toBeNull();
+    expect(r.calls).toEqual([]);
+  });
+
+  it('returns the sequence number of the dispatch result, null for a rejection', () => {
+    const spot = fan.spots?.[0];
+    if (spot === undefined) throw new Error('no spots');
+    const rejected = makeSpotPress({
+      def: fan,
+      toLocal: () => ({ x: spot.x, y: spot.y }),
+      actuate: (): DispatchResult => ({ ok: false, reason: 'unchanged' }),
+      setPending: () => undefined,
+    });
+    expect(rejected.tap?.(info)).toBeNull();
+    expect(rig({ x: spot.x, y: spot.y }, 11).target.tap?.(info)).toBe(11);
+  });
+
+  it('passes a stop equal to the current one to actuate: the store rejects it, the factory does not compare', () => {
+    const bridge = createPanelBridge(DA50RG);
+    const off = fan.spots?.find((sp) => sp.stop === fan.default);
+    if (off === undefined) throw new Error('no spot of the default stop');
+    const seen: string[] = [];
+    const target = makeSpotPress({
+      def: fan,
+      toLocal: () => ({ x: off.x, y: off.y }),
+      actuate: (id, value) => {
+        seen.push(value);
+        return bridge.actuate(id, value);
+      },
+      setPending: () => undefined,
+    });
+    expect(target.tap?.(info)).toBeNull();
+    expect(seen).toEqual([fan.default]);
+  });
+
+  it('drives a real bridge: a tap on the f2 spot records one event and sets f2', () => {
+    const bridge = createPanelBridge(DA50RG);
+    const f2 = fan.spots?.find((sp) => sp.stop === 'f2');
+    if (f2 === undefined) throw new Error('no f2 spot');
+    const target = makeSpotPress({
+      def: fan,
+      toLocal: () => ({ x: f2.x, y: f2.y }),
+      actuate: (id, value) => bridge.actuate(id, value),
+      setPending: () => undefined,
+    });
+    expect(target.tap?.(info)).toBe(0);
+    expect(bridge.stateOf('sw.env_fan').value).toBe('f2');
+  });
+
+  it('setPending is the one the gesture layer drives; the factory never calls it', () => {
+    const r = rig({ x: 0, y: -22 });
+    r.target.tap?.(info);
+    expect(r.pending).toEqual([]);
+    r.target.setPending?.(true);
+    r.target.setPending?.(false);
+    expect(r.pending).toEqual([true, false]);
+  });
+
+  it('the spot rectangles carry no pointer handler of their own: only the body hit does', () => {
+    const src = readFileSync(
+      fileURLToPath(new URL('../src/ui/panel/widgets/Rotary.tsx', import.meta.url)),
+      'utf8',
+    );
+    // Lines naming it: the definition and the body hit rectangle (the spots no longer use it).
+    expect(src.split('\n').filter((l) => l.includes('onPointerDown'))).toHaveLength(2);
+    expect(src).toContain('registerPressTarget');
   });
 });
