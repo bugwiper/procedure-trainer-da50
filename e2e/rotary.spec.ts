@@ -269,7 +269,7 @@ test('@hooks a drag in progress records nothing and a drag back to the same stop
   expect(events.map((e) => [e.id, e.value])).toEqual([['sw.flood_light', 's50']]);
 });
 
-test('a mouse move under 4 px acts as a tap', async ({ page }, testInfo) => {
+test('@hooks a mouse move under 4 px acts as a tap', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop mouse path');
   const hit = page.locator('[data-hit="sw.instr_light"]');
   const b = await box(hit);
