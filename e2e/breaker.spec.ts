@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { PANEL_VIEWBOX } from '../tests/layout-reference';
+import { ALL_REGION_IDS, CB_REFERENCE, PANEL_VIEWBOX } from '../tests/layout-reference';
 
 // Circuit-breaker contract on the built panel (PNL-12, D-02, D-03, owner rule G-0.1): the first
 // breaker, cb.pitot, starts pushed in without a ring, one tap pulls it (raised cap, one white ring),
-// a second tap pushes it back in, and no state text exists at any time.
+// a second tap pushes it back in, and no state text exists at any time. The second half of the
+// file covers all 51 breakers of the registry (ids from the independent reference table).
 
 const ID = 'cb.pitot';
 const REGION = 'cb_essential';
@@ -15,7 +16,7 @@ const PORTRAIT_NOTE =
 // Mirror of the read-only window hook of the e2e build (src/ui/bridge.ts). Declared here because
 // the e2e project has no DOM lib.
 interface PanelHook {
-  events(): { id: string; value: string }[];
+  events(): { id: string; value: string; source: string; seq: number }[];
 }
 type HookHost = { __panel?: PanelHook };
 
@@ -26,6 +27,10 @@ interface Point {
 
 function breaker(page: Page): Locator {
   return page.locator(`[data-control-id="${ID}"]`);
+}
+
+function breakerOf(page: Page, id: string): Locator {
+  return page.locator(`[data-control-id="${id}"]`);
 }
 
 function hit(page: Page): Locator {
@@ -198,4 +203,141 @@ test('@hooks the first tap appends exactly one event, cb.pitot out', async ({ pa
     [ID, 'out'],
     [ID, 'in'],
   ]);
+});
+
+// ---------------------------------------------------------------------------------------------
+// All breakers (plan 04): the ids come from the independent reference table, never a typed list.
+
+const ALL_IDS: readonly string[] = CB_REFERENCE.map((r) => r.id);
+const BREAKER_REGIONS: readonly string[] = ALL_REGION_IDS.filter((id) => id.startsWith('cb_'));
+
+/** Budget of svg elements below the panel root (UI-SPEC U-27; an unmeasured figure of the plan). */
+const ELEMENT_BUDGET = 2500;
+
+/** Region id of every breaker, read from the DOM, in reference order. */
+async function regionOfEach(page: Page): Promise<Map<string, string>> {
+  const pairs = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('[data-kind="circuit-breaker"]')).map((el) => [
+      el.getAttribute('data-control-id') ?? '',
+      el.closest('[data-region-id]')?.getAttribute('data-region-id') ?? '',
+    ]),
+  );
+  return new Map(pairs.map(([id, region]) => [id ?? '', region ?? '']));
+}
+
+/** Zooms into a region from whatever the current view is (touch and mouse alike). */
+async function zoomInto(page: Page, hasTouch: boolean, region: string): Promise<void> {
+  if ((await page.getByTestId('zoom-out').count()) > 0) {
+    await activate(page.getByTestId('zoom-out'), hasTouch);
+    await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  }
+  const p = await backgroundPoint(page, region);
+  if (hasTouch) await page.touchscreen.tap(p.x, p.y);
+  else await page.mouse.click(p.x, p.y);
+  await expect(page.getByTestId('panel'), region).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+}
+
+/**
+ * Taps every breaker once, in reference order. Mouse projects click each hit at the full view;
+ * touch projects zoom into the region first and zoom out between regions.
+ */
+async function tapEach(page: Page, hasTouch: boolean): Promise<void> {
+  if (!hasTouch) {
+    for (const id of ALL_IDS) await page.locator(`[data-hit="${id}"]`).click();
+    return;
+  }
+  const regionOf = await regionOfEach(page);
+  for (const region of BREAKER_REGIONS) {
+    const ids = ALL_IDS.filter((id) => regionOf.get(id) === region);
+    expect(ids.length, region).toBeGreaterThan(0);
+    await zoomInto(page, hasTouch, region);
+    for (const id of ids) await page.locator(`[data-hit="${id}"]`).tap();
+  }
+  if ((await page.getByTestId('zoom-out').count()) > 0) {
+    await page.getByTestId('zoom-out').tap();
+    await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  }
+}
+
+test('all 51 breakers exist, start pushed in and show no ring', async ({ page }) => {
+  const cbs = page.locator('[data-kind="circuit-breaker"]');
+  await expect(cbs).toHaveCount(ALL_IDS.length);
+  expect(ALL_IDS).toHaveLength(51);
+  const ids = await cbs.evaluateAll((els) => els.map((el) => el.getAttribute('data-control-id')));
+  expect([...ids].sort()).toEqual([...ALL_IDS].sort());
+  for (const id of ALL_IDS) {
+    await expect(breakerOf(page, id), id).toHaveAttribute('data-state', 'in');
+  }
+  await expect(page.locator('[data-breaker-ring]')).toHaveCount(0);
+  await expect(page.locator('[data-hit^="cb."]')).toHaveCount(ALL_IDS.length);
+});
+
+test('every breaker can be pulled and pushed in again, with 51 rings when all are out', async ({
+  page,
+  hasTouch,
+}) => {
+  const before = await panelText(page);
+  await tapEach(page, hasTouch);
+  for (const id of ALL_IDS) {
+    await expect(breakerOf(page, id), id).toHaveAttribute('data-state', 'out');
+  }
+  await expect(page.locator('[data-breaker-ring]')).toHaveCount(ALL_IDS.length);
+  expect(await panelText(page), 'text list unchanged with all breakers out').toEqual(before);
+  await expect(page.locator('[data-state-text]')).toHaveCount(0);
+
+  await tapEach(page, hasTouch);
+  for (const id of ALL_IDS) {
+    await expect(breakerOf(page, id), id).toHaveAttribute('data-state', 'in');
+  }
+  await expect(page.locator('[data-breaker-ring]')).toHaveCount(0);
+  expect(await panelText(page), 'text list unchanged after pushing all in').toEqual(before);
+});
+
+test('@hooks 102 events: 51 out then 51 in, in order, all from the user', async ({
+  page,
+  hasTouch,
+}) => {
+  const events = () => page.evaluate(() => (globalThis as HookHost).__panel?.events() ?? []);
+  expect(await events()).toHaveLength(0);
+  await tapEach(page, hasTouch);
+  await tapEach(page, hasTouch);
+  const logged = await events();
+  expect(logged).toHaveLength(2 * ALL_IDS.length);
+  expect(logged.map((e) => [e.id, e.value])).toEqual([
+    ...ALL_IDS.map((id) => [id, 'out']),
+    ...ALL_IDS.map((id) => [id, 'in']),
+  ]);
+  for (const e of logged) expect(e.source).toBe('user');
+  expect(logged.map((e) => e.seq)).toEqual(logged.map((_e, i) => i));
+});
+
+test('the Full panel button covers no breaker hit in any breaker region', async ({
+  page,
+  hasTouch,
+}) => {
+  for (const region of BREAKER_REGIONS) {
+    await zoomInto(page, hasTouch, region);
+    const covered = await page.evaluate(() => {
+      const button = document.querySelector('[data-testid="zoom-out"]');
+      if (button === null) return ['no button'];
+      const b = button.getBoundingClientRect();
+      return Array.from(document.querySelectorAll('[data-hit^="cb."]'))
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
+        })
+        .map((el) => el.getAttribute('data-hit') ?? '');
+    });
+    expect(covered, region).toEqual([]);
+  }
+});
+
+test('the built panel stays within its element budget', async ({ page }, testInfo) => {
+  const count = await page.getByTestId('panel').evaluate((svg) => svg.querySelectorAll('*').length);
+  testInfo.annotations.push({ type: 'element-count', description: String(count) });
+  // The measured number lands in the log and the SUMMARY (UI-SPEC U-27).
+  console.log(`panel svg elements below the root: ${count} (budget ${ELEMENT_BUDGET})`);
+  expect(count, `panel svg elements (budget ${ELEMENT_BUDGET})`).toBeLessThanOrEqual(
+    ELEMENT_BUDGET,
+  );
 });

@@ -18,6 +18,7 @@ import { LeverBody } from '../src/ui/panel/widgets/DetentLever';
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
 import { RotaryBody } from '../src/ui/panel/widgets/Rotary';
 import { SoftkeyBody } from '../src/ui/panel/widgets/Toggle';
+import { CB_REFERENCE } from './layout-reference';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { Tree } from './vnode-walk';
 
@@ -197,7 +198,7 @@ describe('circuit breaker family text is state-independent', () => {
   );
 
   it('every breaker in both states: the label lines and the rating only, no state text, at most 12 elements', () => {
-    expect(breakers.length).toBeGreaterThan(0);
+    expect(breakers).toHaveLength(CB_REFERENCE.length);
     for (const def of breakers) {
       const expected = [...def.labelLines, def.rating].sort();
       for (const state of def.states.map((s) => s.id)) {

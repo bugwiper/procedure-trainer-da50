@@ -8,6 +8,7 @@ import {
   breakerExtent,
   labelBaseline,
 } from '../src/ui/panel/skins/Breaker';
+import { CB_REFERENCE } from './layout-reference';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { Tree } from './vnode-walk';
 
@@ -248,5 +249,58 @@ describe('breaker skin: visible extent stays inside the hit', () => {
     expect(BREAKER_COMPACT.socketR).toBeLessThan(BREAKER_NORMAL.socketR);
     expect(BREAKER_COMPACT.capR.in).toBeLessThan(BREAKER_NORMAL.capR.in);
     expect(BREAKER_COMPACT.ringR).toBeLessThan(BREAKER_NORMAL.ringR);
+  });
+});
+
+describe('breaker skin: all breakers of the registry', () => {
+  const all = DA50RG.controls.filter((c): c is CircuitBreakerDef => c.kind === 'circuit-breaker');
+
+  it('the registry holds the 51 breakers of the reference table', () => {
+    expect(all).toHaveLength(CB_REFERENCE.length);
+    expect(all.length).toBe(51);
+  });
+
+  it('every breaker in both states prints the same strings, shows the ring only when out and has at most 12 elements', () => {
+    for (const def of all) {
+      const expected = [...def.labelLines, def.rating].sort();
+      for (const state of STATES) {
+        for (const pressed of [false, true]) {
+          const tree = render(def, state, pressed);
+          const id = `${def.id} ${state} pressed ${String(pressed)}`;
+          expect(textStrings(tree), id).toEqual(expected);
+          expect(
+            findElements(tree, (el) => 'data-breaker-ring' in el.props),
+            id,
+          ).toHaveLength(state === 'out' ? 1 : 0);
+          expect(countElements(tree), id).toBeLessThanOrEqual(12);
+        }
+      }
+    }
+  });
+
+  it('the visible extent of every breaker lies inside its hit rectangle and inside its region', () => {
+    for (const def of all) {
+      const region = DA50RG.regions.find((r) => r.id === def.region);
+      expect(region, def.id).toBeDefined();
+      if (region === undefined) continue;
+      const hit: Rect = { x: -def.hit.w / 2, y: -def.hit.h / 2, w: def.hit.w, h: def.hit.h };
+      const regionLocal: Rect = { x: 0, y: 0, w: region.bounds.w, h: region.bounds.h };
+      for (const state of STATES) {
+        for (const pressed of [false, true]) {
+          const extent = breakerExtent(def, state, pressed);
+          const id = `${def.id} ${state} pressed ${String(pressed)}`;
+          expect(inside(extent, hit), id).toBe(true);
+          const local: Rect = { ...extent, x: extent.x + def.x, y: extent.y + def.y };
+          expect(inside(local, regionLocal), `${id} in region`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('only the lower row uses the compact set, with the 24 x 28 hit', () => {
+    for (const def of all) {
+      expect(def.compact === true, def.id).toBe(def.group === 'lower');
+      expect(def.hit, def.id).toEqual(def.group === 'lower' ? { w: 24, h: 28 } : { w: 28, h: 28 });
+    }
   });
 });
