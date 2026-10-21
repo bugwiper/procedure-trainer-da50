@@ -140,7 +140,7 @@ Plans:
 **Depends on**: Phase 01.1
 **Requirements**: PNL-12, PNL-13
 **Success Criteria** (what must be TRUE):
-  1. All circuit breakers (Essential, Main and Avionics bus) sit at their real positions with legible labels and work as a new control kind with states in and out, all pushed in by default, with an IN or OUT text for readability.
+  1. All circuit breakers (Essential, Main and Avionics bus) sit at their real positions with legible labels and work as a new control kind with states in and out, all pushed in by default, a pulled breaker shown by a raised cap and a white ring and no state text (owner rule G-0.1, which supersedes the earlier wording; see the 01.2 UI-SPEC "Override and Decision Record").
   2. The PFD and MFD show the G1000 NXi shape with all softkeys; the MFD page softkey and the engine page still work.
   3. The audio panel, autopilot panel and backup EFIS are visible in their real positions and look like the real units; their buttons do nothing for now.
   4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.

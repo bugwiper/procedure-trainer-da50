@@ -181,10 +181,11 @@ describe('phase 01.2 owner decision U-01 (widened to 2180)', () => {
     },
   );
 
-  it('the review document names the new space, the heading and the two decisions', () => {
+  it('the review document names the new space, the heading and the decisions P2-01 to P2-03', () => {
     expect(review).toContain('Phase 01.2');
     expect(review).toContain('P2-01');
     expect(review).toContain('P2-02');
+    expect(review).toContain('P2-03');
     expect(review).toContain('2180');
     expect(review).not.toContain('2000 x 1300');
   });
