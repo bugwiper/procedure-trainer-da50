@@ -4,16 +4,16 @@ current_phase: "01.2"
 current_phase_name: Circuit breakers, G1000 shapes and avionics panels
 current_plan: 9
 status: executing
-stopped_at: Completed 01.1-29-PLAN.md
-last_updated: "2026-10-21T12:25:22.400Z"
+stopped_at: Completed 01.1-30-PLAN.md
+last_updated: "2026-10-21T12:30:46.069Z"
 last_activity: 2026-10-21
-last_activity_desc: Plan 01.1-29 complete (round-2 gap closure, engine strip FADEC and ALTERNATOR groups as plate text); plans 01.1-30..31 follow on the 01.2 branch
-state_head: fdec421098afba812161c2099f5fc287d0d9dd59
+last_activity_desc: Plan 01.1-30 complete (round-2 gap closure, ON and OFF plate placards at the light rockers); plan 01.1-31 follows on the 01.2 branch
+state_head: e35f45f2b3b37486e9dfaca91d77d73e3c9314ca
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 49
-  completed_plans: 47
+  completed_plans: 48
   percent: 14
 ---
 
@@ -32,8 +32,8 @@ Phase: 01.2 (Circuit breakers, G1000 shapes and avionics panels) — EXECUTING
 Current Plan: 9
 Total Plans in Phase: 9
 Status: All 9 plans of phase 01.2 complete; next is the verification step. Plan 09 (documents only, no src change) extended the label table with the avionics static labels, wrote the review list with Q2-01..Q2-10, U2-01..U2-37, P2-06..P2-15 and the section Round 3 (owner entry point), updated the README (92 controls, 13 lamps, 30 regions) and ran all gates: typecheck, lint, format, 1499 unit tests, build, 255 chromium e2e passed, live-conditions rehearsal 205 passed, WebKit 419 of 420 passed (one tablet layout finding: the Full panel button covers cb.main_pump while the MAIN region is zoomed; recorded in Round 3 and the todo). Earlier plans:  Plan 01 widened the panel space to 2180 x 1300 (right side only). Plan 02 added the circuit-breaker kind (flat cb. ids, states in and out) with one real breaker, cb.pitot, and derived the inventory gates from independent tables. Plan 03 built the bus panel frame: regions cb_main, cb_low, cb_strip (23 regions), the bus-panel plate, the three stair-step outlines with titles, three blank plugs, three pump boxes and the lower-row sub-panel, all as data (bus-boxes.ts) drawn by BusPanelArt. Plan 04 filled the grid with all 51 breakers (92 controls), with an independent reference, relation and containment gates, a label-clearance gate and an all-breaker e2e (1347 svg elements, budget 2500). Plan 05 gave both displays the 41-unit bezel lip, 12 triangle softkeys each (only sw.mfd_page is a control, 23 keys are inert art, new region pfd_softkeys, 24 regions), a glass header strip, a content band and a 12-slot legend row, with an e2e glass zone gate and a widened brand gate (1577 svg elements, budget 2500). Plan 06 added the six view-only avionics regions (pfd_bezel_left, pfd_bezel_right, audio_panel, standby_efis, autopilot_panel, mfd_bezel_right; 30 regions), reworked the centre-stack plate and added three unit plates (13 plates), replaced the placeholder outlines by region-owned housings announced as not operable, and added an e2e gate proving a tap only zooms (1604 svg elements, budget 2500). Plan 07 drew the three bezel knob and key columns as inert data-driven art (BEZEL_COLUMNS, BezelColumnFrame: 12 knobs, 2 joysticks, 3 swap buttons, 12 keys, each column group within 150 elements; 1773 svg elements, budget 2500). Plan 08 drew the audio panel (21 keys, 21 lamp slivers with 3 lit, volume knob, red DISPLAY BACKUP button), the backup EFIS (attitude display, tape display, knob) and the autopilot panel (4 knobs, swap button, 12 keys) as inert data-driven art (AUDIO_PANEL, STANDBY_EFIS, AUTOPILOT_PANEL; each group within 150 elements; 2023 svg elements, budget 2500; PNL-13 complete). Nothing was pushed; publishing is the owner's step. Phase 01.1 (23 plans) is complete.
-Round 2 gap closure: STATE.md now also tracks the round-2 gap plans 24..31 of phase 01.1, which execute sequentially on this phase 01.2 branch (plan and SUMMARY files stay in the 01.1 directory). Done: plan 01.1-24 (shared e2e zoom helper, behaviour-neutral), plan 01.1-25 (R2-Z1: a single click or tap never zooms, a double click or double tap on the background zooms in and out, a double tap on a control stays two control taps), plan 01.1-26 (R2-T1: the Full panel button takes the corner that covers no control, tablet-chromium project in the chromium gate), plan 01.1-27 (R2-4.2: the parking brake is a hinged flap, flat released and a 60 degree wedge pulled, one tap toggles, tapToggle plus parking-flap as registry data), plan 01.1-28 (R2-4.1: the FAN has four direct click spots), plan 01.1-29 (R2-5.2: the engine strip as in the aircraft, FADEC and ALTERNATOR bracket groups with AUTO, FORCE B, TEST, ON, OFF and the framed numerals 1 and 2 as plate text, the four controls nameless, sw.fadec states ordered force_b then auto, gate that every shell label lies on a plate). Next: plan 01.1-30 (ON / OFF plate placards at the light rockers).
-Last activity: 2026-10-21 — Plan 01.1-29 complete (engine strip FADEC and ALTERNATOR groups)
+Round 2 gap closure: STATE.md now also tracks the round-2 gap plans 24..31 of phase 01.1, which execute sequentially on this phase 01.2 branch (plan and SUMMARY files stay in the 01.1 directory). Done: plan 01.1-24 (shared e2e zoom helper, behaviour-neutral), plan 01.1-25 (R2-Z1: a single click or tap never zooms, a double click or double tap on the background zooms in and out, a double tap on a control stays two control taps), plan 01.1-26 (R2-T1: the Full panel button takes the corner that covers no control, tablet-chromium project in the chromium gate), plan 01.1-27 (R2-4.2: the parking brake is a hinged flap, flat released and a 60 degree wedge pulled, one tap toggles, tapToggle plus parking-flap as registry data), plan 01.1-28 (R2-4.1: the FAN has four direct click spots), plan 01.1-29 (R2-5.2: the engine strip as in the aircraft, FADEC and ALTERNATOR bracket groups with AUTO, FORCE B, TEST, ON, OFF and the framed numerals 1 and 2 as plate text, the four controls nameless, sw.fadec states ordered force_b then auto, gate that every shell label lies on a plate), plan 01.1-30 (R2-1.1: ON above OFF printed once per side of the four light rockers, left of LANDING and right of STROBE, as plate text at the heights of the upper and lower rocker halves, no drawing code changed). Next: plan 01.1-31 (documents, wording, final gates).
+Last activity: 2026-10-21 — Plan 01.1-30 complete (ON and OFF plate placards at the light rockers)
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -96,6 +96,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01.1 P27 | 10min | 2 tasks | 12 files |
 | Phase 01.1 P28 | 20min | 2 tasks | 11 files |
 | Phase 01.1 P29 | 25min | 3 tasks | 14 files |
+| Phase 01.1 P30 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Plan 26: Full panel button takes tr, br or bl by a pure rule over control footprints; tablet-chromium project added to the chromium gate
 - [Phase 01.1]: Plan 27: PARKING BRAKE is a tap-toggle hinged flap (tapToggle option plus parking-flap skin as registry data); LeverBody delegates to FlapBody, wall computed from hinge, length and a 60 degree constant
 - [Phase 01.1]: Plan 29: sw.fadec orders force_b then auto so the default auto is drawn up (AUTO above, FORCE B below); engine strip words are plate text, parts nameless
+- [Phase 01.1]: Plan 30: ON and OFF printed once per side of the four light rockers (left of LANDING, right of STROBE) as plate text; ON at the upper rocker half, OFF at the lower
 
 ### Pending Todos
 
@@ -175,6 +177,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T12:25:22.171Z
-Stopped at: Completed 01.1-29-PLAN.md
+Last session: 2026-10-21T12:30:45.850Z
+Stopped at: Completed 01.1-30-PLAN.md
 Resume file: None
