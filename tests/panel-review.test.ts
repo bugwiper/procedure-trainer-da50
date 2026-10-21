@@ -8,6 +8,7 @@ import {
   INDICATOR_POSITIONS,
   REFERENCE_POSITIONS,
 } from './layout-reference';
+import { MOMENTARY_HOLD_MS } from '../src/ui/panel/press-arbiter';
 import { MOUSE_SLOP_PX, TOUCH_SLOP_PX } from '../src/ui/panel/tap-intent';
 
 // D-03, D-06, T-01.1-21: the owner review list exists, is linked from the README and carries
@@ -406,6 +407,18 @@ describe('zoom wording (R2-Z1 plan 31, R3-Z3 plan 40)', () => {
       expect(spec).toContain('R2-Z1');
     }
   });
+
+  it('the README states the press arbitration, the momentary hold and the single click rule', () => {
+    expect(readme).toMatch(/acts when you lift/);
+    expect(readme).toContain(`${TOUCH_SLOP_PX} px`);
+    expect(readme).toContain(`mouse ${MOUSE_SLOP_PX} px`);
+    expect(readme).toMatch(/second finger turns it into a pan or a pinch/);
+    expect(readme).toMatch(/drag controls[^.]*keep their gesture/);
+    expect(readme).toContain(`about ${MOMENTARY_HOLD_MS / 1000} s`);
+    expect(readme).toMatch(/a quick tap is a press and a release/);
+    expect(readme).toMatch(/single click or tap never zooms/);
+    expect(readme).not.toContain('they act while held and return when you let go');
+  });
 });
 
 // Plan 31: the Round 4 section is the owner's one entry point for the gap-closure round 2.
@@ -415,12 +428,15 @@ describe('round 2 gap-closure review (R2 findings, plan 31)', () => {
   const round4 = (): string => {
     const at = review.search(/^## .*Round 4/m);
     expect(at, 'Round 4 section missing').toBeGreaterThan(-1);
-    return review.slice(at);
+    const rest = review.slice(at);
+    const next = rest.slice(3).search(/^## /m);
+    return next === -1 ? rest : rest.slice(0, next + 3);
   };
 
-  it('has Round 4: morning review as the last section', () => {
+  it('keeps Round 4: morning review for the record (it is no longer the last section)', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Round 4: morning review');
+    expect(headings).toContain('## Round 4: morning review');
+    expect(headings[headings.length - 1]).not.toBe('## Round 4: morning review');
   });
 
   it('lists at least 9 numbered items and names every R2 finding', () => {
@@ -474,5 +490,118 @@ describe('round 2 gap-closure review (R2 findings, plan 31)', () => {
     ]) {
       expect(review, needle).toContain(needle);
     }
+  });
+});
+
+// Plan 41: the Round 5 section is the owner's one entry point for the third gap-closure round
+// (plans 33 to 40, owner findings R3-1.1, R3-4.1, R3-Z2 and R3-Z3).
+describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
+  const lineOf = (label: string): string =>
+    review.split('\n').find((line) => line.includes(`**${label}**`)) ?? '';
+  const sectionFrom = (heading: RegExp): string => {
+    const at = review.search(heading);
+    expect(at, `${String(heading)} section missing`).toBeGreaterThan(-1);
+    const rest = review.slice(at);
+    const next = rest.slice(3).search(/^## /m);
+    return next === -1 ? rest : rest.slice(0, next + 3);
+  };
+  const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
+
+  it('has Round 5: morning review as the last section and keeps Round 4', () => {
+    const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
+    expect(headings[headings.length - 1]).toBe('## Round 5: morning review');
+    expect(headings).toContain('## Round 4: morning review');
+  });
+
+  it('the opening paragraph sends the owner to Round 5', () => {
+    const opening = review.split('\n')[2] ?? '';
+    expect(opening).toMatch(/Start the morning review at the section "Round 5: morning review"/);
+    expect(opening).not.toMatch(/Start the morning review at the section "Round 4/);
+  });
+
+  it('lists at least ten numbered items and names every R3 finding', () => {
+    const text = round5();
+    const items = text.split('\n').filter((line) => /^\d+\. /.test(line));
+    expect(items.length).toBeGreaterThanOrEqual(10);
+    for (const id of ['R3-1.1', 'R3-4.1', 'R3-Z2', 'R3-Z3']) {
+      expect(text, id).toContain(id);
+    }
+  });
+
+  it('gives the live check command and says nothing was pushed', () => {
+    expect(round5()).toContain('PW_BASE_URL=');
+    expect(round5()).toMatch(/nothing was pushed/i);
+  });
+
+  it('has no unfilled item: the tablet project, the rehearsal and the WebKit outcome are recorded', () => {
+    const text = round5();
+    expect(text).toMatch(/tablet-chromium/);
+    expect(text).toMatch(/WebKit/);
+    expect(text).toMatch(/live-conditions rehearsal/);
+    expect(text).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b/i);
+  });
+
+  it('has the decisions section R3-D1 to R3-D8, each with the cost of undoing it', () => {
+    const decisions = sectionFrom(/^## Gap-closure round 3 decisions/m);
+    expect(decisions.length).toBeGreaterThan(0);
+    for (let i = 1; i <= 8; i++) {
+      const label = `R3-D${String(i)}`;
+      const line = decisions.split('\n').find((l) => l.includes(`**${label}**`)) ?? '';
+      expect(line, `${label} missing`).not.toBe('');
+      expect(line, label).toMatch(/Cost of undoing:\s*\S+/);
+      expect(lineOf(label), label).toBe(line);
+    }
+  });
+
+  it('the decisions name the constants and files they depend on', () => {
+    const decisions = sectionFrom(/^## Gap-closure round 3 decisions/m);
+    for (const needle of [
+      'busTitleCut',
+      'flapPlate',
+      'topFraction',
+      'retract',
+      'markConsumed',
+      'createPressArbiter',
+      `${String(TOUCH_SLOP_PX)} px`,
+      `${String(MOUSE_SLOP_PX)} px`,
+      `${String(MOMENTARY_HOLD_MS)} ms`,
+      'resolveControlTap',
+      'nextDeadline',
+    ]) {
+      expect(decisions, needle).toContain(needle);
+    }
+  });
+
+  it('no line calls the pulled brake a wedge unless R3-D2 stands on the same line', () => {
+    const wedgeLines = review.split('\n').filter((line) => /wedge/i.test(line));
+    expect(wedgeLines.length).toBeLessThanOrEqual(3);
+    for (const line of wedgeLines) expect(line).toContain('R3-D2');
+  });
+
+  it('every line that keeps the old double tap on a control sentence points to R3-Z3', () => {
+    const lines = review.split('\n').filter((line) => /two control taps/.test(line));
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+    for (const line of lines) {
+      expect(line).toContain('R3-Z3');
+      expect(line).toContain('R3-D7');
+    }
+  });
+
+  it('the shell section says the bus titles are unstroked text over a plate-coloured rectangle', () => {
+    expect(review).not.toContain('cut the shared edges they sit on;');
+    expect(review).toMatch(/unstroked text over a plate-coloured rectangle/);
+  });
+
+  it('describes the pulled brake as a hinged plate', () => {
+    const row = review.split('\n').find((l) => l.startsWith('| `lv.parking_brake`')) ?? '';
+    expect(row).toMatch(/plate/);
+    expect(row).not.toMatch(/wedge/i);
+  });
+
+  it('keeps the hygiene rules in the new sections', () => {
+    const text = `${sectionFrom(/^## Gap-closure round 3 decisions/m)}\n${round5()}`;
+    expect(text).not.toMatch(/!\[[^\]]*\]\(/);
+    expect(text).not.toMatch(/\.input/);
+    expect(text).not.toMatch(/garmin|diamond/i);
   });
 });
