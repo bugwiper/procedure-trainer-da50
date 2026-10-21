@@ -13,8 +13,8 @@ The journey runs in vertical slices, each of which ends with something a pilot c
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Deployed Playable Panel** - Live GitHub Pages site where a responsive DA50 panel can be operated by mouse or touch; content policy decided (completed 2026-10-20)
-- [ ] **Phase 01.1: Panel shape, controls and indicator lights** (INSERTED) - Real panel outline, every switch, rocker, button and lever at its real position, working gear and flap lights, zoom fixes
-- [ ] **Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels** (INSERTED) - All circuit breakers, G1000 NXi PFD and MFD with softkeys, audio and autopilot panels, backup EFIS
+- [x] **Phase 01.1: Panel shape, controls and indicator lights** (INSERTED) - Real panel outline, every switch, rocker, button and lever at its real position, working gear and flap lights, zoom fixes (completed 2026-10-21)
+- [x] **Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels** (INSERTED) - All circuit breakers, G1000 NXi PFD and MFD with softkeys, audio and autopilot panels, backup EFIS (completed 2026-10-21)
 - [ ] **Phase 2: First Gradable Scenario** - Oil Temp High runs end to end: start, briefing, operate the panel, "Procedure complete", PASS/FAIL debrief
 - [ ] **Phase 3: Reactive Scenarios and Initial Pack** - Scripted reactions and escalation; Oil Temp High, Electrical Failure and Engine Fire all playable
 - [ ] **Phase 4: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
@@ -72,7 +72,7 @@ Plans:
   4. A single click or tap never zooms; a double click or double tap zooms in and, while zoomed, fully out, on the panel background and on a latching control (the first tap actuates, the recognised pair retracts it, so the control stays unchanged; momentary and drag controls stay two presses); a press that moves or gains a second finger pans or pinches; the "Full panel" button is never hidden behind the footer and never covers a control.
   5. Brand marks read GO-AROUND and DA50RG (no maker name, no RUBIN mark); the layout reference tests pass and the live site serves the result.
 
-**Plans:** 40/40 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch; plan 32 was a quick fix of two WebKit findings without a plan file; 9 more gap-closure plans 33 to 41 planned from the owner live-site review, round 3 (R3 findings), executed on the phase 01.2 branch)
+**Plans:** 41/41 plans complete (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch; plan 32 was a quick fix of two WebKit findings without a plan file; 9 more gap-closure plans 33 to 41 planned from the owner live-site review, round 3 (R3 findings), executed on the phase 01.2 branch)
 
 Plans:
 **Wave 1**
@@ -200,7 +200,7 @@ Plans:
   3. The audio panel, autopilot panel, backup EFIS and the knob and key columns beside the displays are visible in their real positions and look like the real units; their buttons do nothing for now (a tap only zooms into the unit).
   4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.
 
-**Plans:** 9/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
+**Plans:** 9/9 plans complete (planned unattended; owner decision: panel space widened to 2180 x 1300)
 
 Plans:
 **Wave 1**
