@@ -115,9 +115,21 @@ export function makeMarkerPress(deps: MarkerPressDeps): PressTarget {
   };
 }
 
-/** The press target of a drag control: it keeps its pointer and only needs the discard hook. */
-function ownTarget(discard: () => void): PressTarget {
-  return { cls: 'own', dragStartPx: DRAG_START_PX, discard };
+/**
+ * The press target of a lever handle (R3-Z2, R3-Z3): a drag control that keeps its pointer and only
+ * needs the discard hook. After a marker tap the handle rests on that very marker, so a second
+ * tap of a double tap lands on the handle: its pair key is the key of the marker under it, which
+ * lets the gesture layer join the pair (a join never starts one: a double tap on the handle
+ * alone stays two presses). A drag-only lever has no markers and no pair key.
+ */
+export function makeHandlePress(deps: {
+  readonly def: DetentLeverDef;
+  readonly state: string;
+  readonly discard: () => void;
+}): PressTarget {
+  const { def, state, discard } = deps;
+  const own = { cls: 'own', dragStartPx: DRAG_START_PX, discard } as const;
+  return def.dragOnly === true ? own : { ...own, pairKey: `${def.id}:${state}` };
 }
 
 export interface LeverBodyProps {
@@ -541,7 +553,8 @@ function DragLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
         // The handle is an own target: the widget keeps the drag and its capture, the gesture
         // layer only lets a second finger take the press away before DRAG_START_PX of travel and
         // then calls discard, which clears the local drag so no stale position remains.
-        handle: (el) => registerPressTarget(el, ownTarget(clearDrag)),
+        handle: (el) =>
+          registerPressTarget(el, makeHandlePress({ def, state, discard: clearDrag })),
         marker: (detent) => {
           const target = makeMarkerPress({
             def,

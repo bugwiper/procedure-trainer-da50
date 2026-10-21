@@ -222,6 +222,65 @@ describe('own pointer', () => {
   });
 });
 
+describe('own pointer with a join key (R3-Z3: a lever handle resting on the marker just tapped)', () => {
+  const JOIN: TargetDescriptor = {
+    cls: 'own',
+    key: 'lv.flaps',
+    dragStartPx: DRAG_START_PX,
+    joinKey: 'lv.flaps:to',
+  };
+
+  it('does not end a pair at down and is pending like any drag control', () => {
+    const m = createPressArbiter();
+    expect(m.down(sample(1, 10, 10, 0), JOIN)).toEqual([]);
+    expect(m.stateOf(1)).toBe('pending');
+  });
+
+  it('a still quick lift is a join-only tap with the join key', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 10, 10, 0), JOIN);
+    const taps = only(m.up(sample(1, 10, 10, TAP_MAX_MS)), 'tap');
+    expect(taps).toHaveLength(1);
+    expect(taps[0]?.key).toBe('lv.flaps:to');
+    expect(taps[0]?.quick).toBe(true);
+    expect(taps[0]?.joinOnly).toBe(true);
+    expect(m.stateOf(1)).toBeUndefined();
+  });
+
+  it('a lift later than TAP_MAX_MS ends the pair and taps nothing', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 10, 10, 0), JOIN);
+    expect(types(m.up(sample(1, 10, 10, TAP_MAX_MS + 1)))).toEqual(['pair-break']);
+  });
+
+  it('a drag past DRAG_START_PX ends the pair once and owns the pointer, the lift says nothing', () => {
+    const m = createPressArbiter();
+    m.down(sample(1, 10, 10, 0), JOIN);
+    expect(types(m.move(sample(1, 10 + DRAG_START_PX, 10, 5)))).toEqual(['pair-break']);
+    expect(m.stateOf(1)).toBe('owned');
+    expect(m.move(sample(1, 10 + DRAG_START_PX * 4, 10, 10))).toEqual([]);
+    expect(m.up(sample(1, 10 + DRAG_START_PX * 4, 10, 20))).toEqual([]);
+  });
+
+  it('a cancel ends the pair; a second finger discards the press and ends the pair', () => {
+    const a = createPressArbiter();
+    a.down(sample(1, 10, 10, 0), JOIN);
+    expect(types(a.cancel(1))).toEqual(['pair-break']);
+    const b = createPressArbiter();
+    b.down(sample(1, 10, 10, 0), JOIN);
+    expect(types(b.down(sample(2, 300, 300, 1, 'touch', false), BACKGROUND))).toEqual([
+      'discard',
+      'pair-break',
+    ]);
+  });
+
+  it('an own descriptor without a join key still ends the pair at down and lifts without a tap', () => {
+    const m = createPressArbiter();
+    expect(types(m.down(sample(1, 10, 10, 0), DRAG))).toEqual(['pair-break']);
+    expect(m.up(sample(1, 10, 10, 20))).toEqual([]);
+  });
+});
+
 describe('stale records, cancel, reset, untracked pointers', () => {
   it('a primary touch going down drops an old touch record with pair-break', () => {
     const m = createPressArbiter();

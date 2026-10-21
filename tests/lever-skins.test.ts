@@ -9,6 +9,7 @@ import { FLAP, FlapBody, flapPlate } from '../src/ui/panel/skins/Flap';
 import { ENV_ICONS, LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
 import {
   LeverBody,
+  makeHandlePress,
   makeMarkerPress,
   makeTapTogglePress,
   tapToggleTarget,
@@ -431,6 +432,34 @@ describe('pedestal levers (plan 19, G-3)', () => {
     expect('setPending' in target).toBe(false);
     expect(target.tap?.(info)).toBe(3);
     expect(calls).toEqual([['lv.flaps', 'to']]);
+  });
+
+  it('makeHandlePress is an own target whose pair key is the marker under the handle (R3-Z3)', () => {
+    const flaps = lever('lv.flaps');
+    let cleared = 0;
+    const clear = () => {
+      cleared++;
+    };
+    const handle = makeHandlePress({ def: flaps, state: 'to', discard: clear });
+    expect(handle.cls).toBe('own');
+    handle.discard?.();
+    expect(cleared).toBe(1);
+    expect(handle.pairKey).toBe('lv.flaps:to');
+    expect('tap' in handle).toBe(false);
+    // Every marker key a handle can rest on exists as a marker of the lever.
+    for (const d of flaps.detents) {
+      expect(makeHandlePress({ def: flaps, state: d.id, discard: clear }).pairKey).toBe(
+        `lv.flaps:${d.id}`,
+      );
+    }
+  });
+
+  it('makeHandlePress of a drag-only lever has no pair key: nothing is ever under its handle', () => {
+    const drag = LEVERS.find((l) => l.dragOnly === true);
+    if (drag === undefined) throw new Error('no drag-only lever');
+    const handle = makeHandlePress({ def: drag, state: drag.default, discard: () => undefined });
+    expect(handle.cls).toBe('own');
+    expect(handle.pairKey).toBeUndefined();
   });
 
   it('makeMarkerPress returns null when the store rejects (an unchanged state records nothing)', () => {

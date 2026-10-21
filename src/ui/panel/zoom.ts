@@ -116,7 +116,9 @@ function kindOf(e: PointerEvent): PointerKind {
  *      quick tap lands on the same pair key (the target's pairKey, else its hit key) within the
  *      pair limits, resolveControlTap retracts the first actuation through the injected retract
  *      option (the log, never the bridge, is touched by the caller), the second tap is not
- *      actuated and the view zooms as for the background; momentary and drag controls never pair;
+ *      actuated and the view zooms as for the background; momentary and drag controls never pair,
+ *      except that the handle of a marker lever, resting on the marker just tapped, may join a
+ *      pair (never start one);
  *  (f) stale record sweep: a primary pointer going down drops every tracked pointer of its kind,
  *      so a lost pointerup or pointercancel can never leave the panel blocked;
  *  (g) a momentary target commits its press after MOMENTARY_HOLD_MS held still (one timer, see
@@ -284,14 +286,17 @@ export function attachZoomGestures(
             break;
           }
           const key = record?.target?.pairKey ?? effect.key;
-          onTap(effect.up.x, effect.up.y, effect.at, () =>
-            resolveControlTap(
+          onTap(effect.up.x, effect.up.y, effect.at, () => {
+            const result = resolveControlTap(
               doubleTaps,
               { x: effect.up.x, y: effect.up.y, at: effect.at, key },
               isZoomed.peek(),
               { act, retract: (seq) => opts.retract?.(seq) ?? false },
-            ),
-          );
+            );
+            // A join-only tap (a lever handle) completes a pair but is never the first tap of one.
+            if (effect.joinOnly === true && result === 'actuated') doubleTaps.reset();
+            return result;
+          });
           break;
         }
         case 'pair-break':
@@ -379,7 +384,14 @@ export function attachZoomGestures(
       descriptor =
         registered === undefined
           ? { cls: 'own', key, dragStartPx: 0 }
-          : { cls: registered.cls, key, dragStartPx: registered.dragStartPx ?? 0 };
+          : {
+              cls: registered.cls,
+              key,
+              dragStartPx: registered.dragStartPx ?? 0,
+              ...(registered.cls === 'own' && registered.pairKey !== undefined
+                ? { joinKey: registered.pairKey }
+                : {}),
+            };
     }
     // Effects of a stale record with the same pointer id are applied before the new record is
     // stored; the new pointer's own "pending on" is routed to it explicitly.

@@ -15,7 +15,11 @@
 //    quick tap (press then release); movement beyond the slop or a second pointer before the
 //    commit discards it; after the commit every move and every other pointer is ignored.
 //  - own: the control keeps the pointer and the machine emits nothing for it; before the drag has
-//    travelled dragStartPx a second pointer takes it away; from then on it is owned.
+//    travelled dragStartPx a second pointer takes it away; from then on it is owned. An own
+//    descriptor with a joinKey (a lever handle resting on the marker just tapped, R3-Z3) does not
+//    end a tap pair at its down: a still, quick lift is reported as a join-only tap, which may
+//    complete a pair but is never remembered as the first tap of one; a drag, a cancel or a long
+//    press ends the pair.
 
 import { TAP_MAX_MS, isBackgroundTap, slopPx } from './tap-intent';
 import type { PointerKind } from './tap-intent';
@@ -34,6 +38,8 @@ export interface TargetDescriptor {
   readonly key: string | null;
   /** Own class only: the travel (client px) from which the pointer is owned; 0 or absent: from the start. */
   readonly dragStartPx?: number;
+  /** Own class with dragStartPx > 0 only: the pair key a still, quick lift joins (see above). */
+  readonly joinKey?: string;
 }
 
 export interface PointerSample {
@@ -77,6 +83,8 @@ export type PressEffect =
       readonly at: number;
       /** Lifted within TAP_MAX_MS. */
       readonly quick: boolean;
+      /** The tap of an own press with a join key: it may complete a pair, never start one. */
+      readonly joinOnly?: boolean;
     }
   /** A momentary commit, with the down point. */
   | { readonly type: 'press'; readonly id: number; readonly key: string | null; readonly at: Point }
@@ -112,6 +120,8 @@ interface Rec {
   readonly cls: TargetClass;
   readonly key: string | null;
   readonly dragStartPx: number;
+  /** Own only: the pair key a still, quick lift joins; null when the press ends a pair at its down. */
+  readonly joinKey: string | null;
   phase: PointerState;
   readonly downX: number;
   readonly downY: number;
@@ -219,6 +229,7 @@ export function createPressArbiter(): PressArbiter {
         cls: d.cls,
         key: d.key,
         dragStartPx,
+        joinKey: d.cls === 'own' && dragStartPx > 0 ? (d.joinKey ?? null) : null,
         phase: 'view',
         downX: s.x,
         downY: s.y,
@@ -267,7 +278,7 @@ export function createPressArbiter(): PressArbiter {
           pairBreak(out);
           break;
         case 'own':
-          pairBreak(out);
+          if (rec.joinKey === null) pairBreak(out);
           rec.phase = dragStartPx > 0 ? 'pending' : 'owned';
           break;
       }
@@ -283,7 +294,10 @@ export function createPressArbiter(): PressArbiter {
       const out: PressEffect[] = [];
       if (r.phase === 'pending') {
         if (r.cls === 'own') {
-          if (travelOf(r, r.x, r.y) >= r.dragStartPx) r.phase = 'owned';
+          if (travelOf(r, r.x, r.y) >= r.dragStartPx) {
+            r.phase = 'owned';
+            if (r.joinKey !== null) pairBreak(out);
+          }
           return out;
         }
         if (travelOf(r, r.x, r.y) <= slopPx(r.kind)) return out;
@@ -335,7 +349,25 @@ export function createPressArbiter(): PressArbiter {
           return out;
         case 'pending':
           forget(r);
-          if (r.cls === 'own') return out;
+          if (r.cls === 'own') {
+            if (r.joinKey === null) return out;
+            if (durationMs > TAP_MAX_MS) {
+              pairBreak(out);
+              return out;
+            }
+            out.push({
+              type: 'tap',
+              id: r.id,
+              key: r.joinKey,
+              down,
+              up: { x: s.x, y: s.y },
+              durationMs,
+              at: s.t,
+              quick: true,
+              joinOnly: true,
+            });
+            return out;
+          }
           if (travelPx > slopPx(r.kind)) {
             discardPending(r, out);
             pairBreak(out);
@@ -396,7 +428,8 @@ export function createPressArbiter(): PressArbiter {
       if (r === undefined) return [];
       const out: PressEffect[] = [];
       forget(r);
-      // An own pointer already broke the pair at its down; there is nothing more to say.
+      // An own pointer already broke the pair at its down (a joining one when it became owned).
+      if (r.cls === 'own' && r.joinKey !== null && r.phase === 'pending') pairBreak(out);
       if (r.phase === 'owned' || r.phase === 'ignored' || r.cls === 'own') return out;
       endWithoutLift(r, out);
       pairBreak(out);

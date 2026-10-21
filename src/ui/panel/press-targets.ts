@@ -35,7 +35,11 @@ export interface PressTarget {
   discard?(): void;
   /** Own class only: the travel (client px) from which the control owns the pointer. */
   readonly dragStartPx?: number;
-  /** The key a double-tap pair is matched on (plan 40); default the key of the element. */
+  /**
+   * The key a double-tap pair is matched on (plan 40); default the key of the element. On an own
+   * target it is the key the press may JOIN (a lever handle resting on the marker just tapped); a
+   * join completes a pair but never starts one.
+   */
   readonly pairKey?: string;
 }
 
