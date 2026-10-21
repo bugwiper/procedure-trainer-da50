@@ -72,7 +72,7 @@ Plans:
   4. A single click or tap never zooms; a double click or double tap on the panel background zooms in and, while zoomed, fully out (a double tap on a control stays two control taps); the "Full panel" button is never hidden behind the footer and never covers a control.
   5. Brand marks read GO-AROUND, RUBIN and DA50RG; the layout reference tests pass and the live site serves the result.
 
-**Plans:** 30/31 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch)
+**Plans:** 31/31 plans executed (12 gap-closure plans 12 to 23 planned from the owner first-render review; 8 more gap-closure plans 24 to 31 planned from the owner live-site review, round 2, executed on the phase 01.2 branch)
 
 Plans:
 **Wave 1**
@@ -158,7 +158,7 @@ Plans:
 - [x] 01.1-30-PLAN.md — R2-1.1: ON and OFF plate placards once per side of the four light rockers
 
 **Wave 25**
-- [ ] 01.1-31-PLAN.md — Documents, README, ROADMAP and REQUIREMENTS wording (PNL-15), R2-5.1 verified, final gates incl. tablet chromium, live rehearsal and one WebKit attempt
+- [x] 01.1-31-PLAN.md — Documents, README, ROADMAP and REQUIREMENTS wording (PNL-15), R2-5.1 verified, final gates incl. tablet chromium, live rehearsal and one WebKit attempt
 
 ### Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels (INSERTED)
 
