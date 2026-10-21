@@ -145,10 +145,35 @@ Plans:
   3. The audio panel, autopilot panel and backup EFIS are visible in their real positions and look like the real units; their buttons do nothing for now.
   4. The layout reference tests cover circuit breakers and avionics, and the live site serves the complete panel.
 
-**Plans:** 0 plans
+**Plans:** 0/9 plans executed (planned unattended; owner decision: panel space widened to 2180 x 1300)
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 01.2 to break down)
+**Wave 1**
+- [ ] 01.2-01-PLAN.md — Widen the panel space to 2180 x 1300 (right side only), shell silhouette, width literals removed, owner decision recorded in the UI-SPEC
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 01.2-02-PLAN.md — Circuit-breaker kind end to end with one breaker (cb.pitot), derived inventory gates, state-text wording amended
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 01.2-03-PLAN.md — Bus panel geometry and art: breaker regions, bus plate, stair-step outlines, titles, plugs, pump boxes
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 01.2-04-PLAN.md — All 51 breakers at their positions, independent layout reference, label-clearance and element-budget gates
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 01.2-05-PLAN.md — PFD and MFD shape: bezel lip, 12 softkeys per display, glass header and legend rows
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 01.2-06-PLAN.md — Avionics unit geometry: six regions, four plates, housings instead of placeholder outlines
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 01.2-07-PLAN.md — Knob and key columns beside both displays
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 01.2-08-PLAN.md — Audio panel, backup EFIS and autopilot panel
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 01.2-09-PLAN.md — Label and review documents, README, deferred-behaviour todo, final gates and morning-review list
 
 ### Phase 2: First Gradable Scenario
 
