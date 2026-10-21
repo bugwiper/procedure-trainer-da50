@@ -39,24 +39,29 @@ export function UnitGroup({ id, children }: { id: string; children?: ComponentCh
   );
 }
 
+/** The housing rectangle: equal to the region frame, drawn first so the unit's art lies on it. */
+export function HousingRect({ w, h }: { w: number; h: number }) {
+  return (
+    <rect
+      data-unit-housing
+      x={0}
+      y={0}
+      width={w}
+      height={h}
+      rx={4}
+      fill={HOUSING_FILL}
+      stroke={HOUSING_RIM}
+      stroke-width={1}
+    />
+  );
+}
+
 /** Housing frame of one unit region: a rounded rectangle equal to the region frame, or nothing. */
 export function UnitHousing({ region }: FrameProps) {
   const { w, h } = region.bounds;
   return (
     <UnitGroup id={region.id}>
-      {HOUSED.includes(region.id) ? (
-        <rect
-          data-unit-housing
-          x={0}
-          y={0}
-          width={w}
-          height={h}
-          rx={4}
-          fill={HOUSING_FILL}
-          stroke={HOUSING_RIM}
-          stroke-width={1}
-        />
-      ) : null}
+      {HOUSED.includes(region.id) ? <HousingRect w={w} h={h} /> : null}
     </UnitGroup>
   );
 }

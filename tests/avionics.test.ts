@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  AUDIO_PANEL,
   BEZEL_COLUMNS,
   GLASS,
   MFD_ENGINE_LEGENDS,
@@ -17,6 +18,7 @@ import type { ColumnText } from '../src/aircraft/da50rg/avionics';
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
 import { PLATES } from '../src/aircraft/da50rg/plates';
 import type { PanelBridge } from '../src/ui/bridge';
+import { AudioPanelFrame } from '../src/ui/panel/frames/AudioPanelFrame';
 import { BezelColumnFrame } from '../src/ui/panel/frames/BezelColumnFrame';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
@@ -1124,5 +1126,226 @@ describe('review document on the knob columns (plan 07)', () => {
     ]) {
       expect(review, needle).toContain(needle);
     }
+  });
+});
+
+// Plan 08 task 1: the audio panel (D-05, T-01.2-13): 21 keys with legends and lamp slivers, a
+// volume knob and the red DISPLAY BACKUP button, all inert. Positions are typed in as global
+// literals (Table G1); the data holds region-local coordinates.
+
+const AUDIO_LEGENDS = [
+  'COM1 MIC',
+  'COM1',
+  'COM2 MIC',
+  'COM2',
+  'AUX MIC',
+  'AUX',
+  'DME',
+  'NAV1',
+  'ADF',
+  'NAV2',
+  'PILOT ICS',
+  'TEL',
+  'COPLT ICS',
+  'MUS1',
+  'PASS ICS',
+  'MUS2',
+  'SPKR PA',
+  'MKR MUTE',
+  'HI SENS',
+  'PLAY',
+  'MAN SQ',
+] as const;
+
+describe('audio panel data (Table G1)', () => {
+  const origin = region('audio_panel').bounds;
+  const keys = AUDIO_PANEL.filter((e) => e.kind === 'key');
+  const glob = (e: { cx: number; cy: number }) => ({ x: e.cx + origin.x, y: e.cy + origin.y });
+
+  it('has 21 keys 25 x 20 with the legends in reading order', () => {
+    expect(origin).toEqual({ x: 946, y: 196, w: 60, h: 378 });
+    expect(keys).toHaveLength(21);
+    expect(keys.map((k) => k.legend)).toEqual([...AUDIO_LEGENDS]);
+    for (const k of keys) expect([k.w, k.h]).toEqual([25, 20]);
+  });
+
+  it('puts the keys in two columns (962, 990) and eleven rows of pitch 26; row 9 has no right key', () => {
+    const rows = [214, 240, 266, 292, 318, 344, 370, 396, 422, 448, 474];
+    const expected: [number, number][] = [];
+    rows.forEach((y, i) => {
+      expected.push([962, y]);
+      if (i !== 8) expected.push([990, y]);
+    });
+    expect(keys.map((k) => [glob(k).x, glob(k).y])).toEqual(expected);
+    expect(glob(keys[0] ?? { cx: 0, cy: 0 })).toEqual({ x: 962, y: 214 });
+    expect(glob(keys[20] ?? { cx: 0, cy: 0 })).toEqual({ x: 990, y: 474 });
+    const row9 = keys.filter((k) => glob(k).y === 422);
+    expect(row9.map((k) => k.legend)).toEqual(['SPKR PA']);
+  });
+
+  it('has 21 lamp slivers, exactly COM1 MIC, COM1 and PILOT ICS lit (U-16)', () => {
+    expect(keys.every((k) => k.lamp === 'lit' || k.lamp === 'unlit')).toBe(true);
+    expect(keys.filter((k) => k.lamp === 'lit').map((k) => k.legend)).toEqual([
+      'COM1 MIC',
+      'COM1',
+      'PILOT ICS',
+    ]);
+  });
+
+  it('has the volume knob (976, 508, R 11) and the DISPLAY BACKUP button (976, 541, r 9)', () => {
+    const knobs = AUDIO_PANEL.filter((e) => e.kind === 'knob');
+    const buttons = AUDIO_PANEL.filter((e) => e.kind === 'button');
+    expect(knobs).toHaveLength(1);
+    expect(buttons).toHaveLength(1);
+    const k = knobs[0];
+    const b = buttons[0];
+    expect(k && [glob(k).x, glob(k).y, k.r]).toEqual([976, 508, 11]);
+    expect(b && [glob(b).x, glob(b).y, b.r]).toEqual([976, 541, 9]);
+  });
+
+  it('carries the DISPLAY and BACKUP legends at baselines 563 and 570, middle anchor, size 6', () => {
+    const texts = AUDIO_PANEL.filter((e) => e.kind === 'text').map((e) => [
+      e.text,
+      e.x + origin.x,
+      e.y + origin.y,
+      e.size,
+      e.anchor,
+    ]);
+    expect(texts).toEqual([
+      ['DISPLAY', 976, 563, 6, 'middle'],
+      ['BACKUP', 976, 570, 6, 'middle'],
+    ]);
+  });
+
+  it('every key lies inside the region and the centre-stack plate; no two keys overlap', () => {
+    const plate = PLATES.find((p) => p.regions.includes('audio_panel'));
+    expect(plate?.id).toBe('centre-stack');
+    for (const k of keys) {
+      expect(k.cx - k.w / 2, k.legend ?? '').toBeGreaterThanOrEqual(0);
+      expect(k.cx + k.w / 2, k.legend ?? '').toBeLessThanOrEqual(origin.w);
+      expect(k.cy - k.h / 2, k.legend ?? '').toBeGreaterThanOrEqual(0);
+      expect(k.cy + k.h / 2, k.legend ?? '').toBeLessThanOrEqual(origin.h);
+      expect(glob(k).x - k.w / 2).toBeGreaterThanOrEqual(plate?.x ?? Infinity);
+      expect(glob(k).x + k.w / 2).toBeLessThanOrEqual((plate?.x ?? 0) + (plate?.w ?? 0));
+    }
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        const a = keys[i];
+        const b = keys[j];
+        if (a === undefined || b === undefined) continue;
+        const apart =
+          a.cx + a.w / 2 <= b.cx - b.w / 2 ||
+          b.cx + b.w / 2 <= a.cx - a.w / 2 ||
+          a.cy + a.h / 2 <= b.cy - b.h / 2 ||
+          b.cy + b.h / 2 <= a.cy - a.h / 2;
+        expect(apart, `${a.legend ?? ''} and ${b.legend ?? ''}`).toBe(true);
+      }
+    }
+  });
+
+  it('the knob and button lie inside the region, clear of each other and of the last key row', () => {
+    const knob = AUDIO_PANEL.find((e) => e.kind === 'knob');
+    const button = AUDIO_PANEL.find((e) => e.kind === 'button');
+    if (knob?.kind !== 'knob' || button?.kind !== 'button') throw new Error('parts missing');
+    const lastRowBottom = Math.max(...keys.map((k) => k.cy + k.h / 2));
+    expect(knob.cy - knob.r).toBeGreaterThan(lastRowBottom);
+    expect(button.cy - button.r).toBeGreaterThanOrEqual(knob.cy + knob.r);
+    for (const part of [knob, button]) {
+      expect(part.cx - part.r).toBeGreaterThanOrEqual(0);
+      expect(part.cx + part.r).toBeLessThanOrEqual(origin.w);
+      expect(part.cy + part.r).toBeLessThan(origin.h);
+    }
+    // DISPLAY and BACKUP lie below the button and inside the region.
+    for (const t of AUDIO_PANEL.filter((e) => e.kind === 'text')) {
+      expect(t.y).toBeGreaterThan(button.cy + button.r);
+      expect(t.y).toBeLessThanOrEqual(origin.h);
+      expect(t.x).toBeGreaterThan(0);
+      expect(t.x).toBeLessThan(origin.w);
+    }
+  });
+});
+
+describe('AudioPanelFrame', () => {
+  const render = () =>
+    expand(AudioPanelFrame({ region: region('audio_panel'), bridge: fakeBridge('map') }));
+
+  it('keeps the not-operable group and the housing', () => {
+    const tree = render();
+    expect(tree.props['role']).toBe('img');
+    expect(tree.props['aria-label']).toBe('AUDIO PANEL (NOT OPERABLE)');
+    expect(tree.props['data-unit']).toBe('audio_panel');
+    expect(findElements(tree, (e) => e.props['data-unit-housing'] !== undefined)).toHaveLength(1);
+  });
+
+  it('draws 21 keys, 21 lamp slivers (3 lit), the knob and the DISPLAY BACKUP button', () => {
+    const tree = render();
+    expect(findElements(tree, (e) => e.props['data-key'] !== undefined)).toHaveLength(21);
+    const lamps = findElements(tree, (e) => e.props['data-lamp'] !== undefined);
+    expect(lamps).toHaveLength(21);
+    const lit = lamps.filter((l) => l.props['data-lamp-lit'] === 'true');
+    expect(lit).toHaveLength(3);
+    for (const l of lit) expect(l.props['fill']).toBe('#ffb81c');
+    for (const l of lamps.filter((x) => x.props['data-lamp-lit'] !== 'true')) {
+      expect(l.props['fill']).toBe('#3a3f46');
+      expect([l.props['width'], l.props['height']]).toEqual([12, 2]);
+    }
+    expect(findElements(tree, (e) => e.props['data-knob'] !== undefined)).toHaveLength(1);
+    const button = findElements(tree, (e) => e.props['data-display-backup'] !== undefined);
+    expect(button).toHaveLength(1);
+    const cap = button[0] && findElements(button[0], (e) => e.props['fill'] === '#c4161f');
+    expect(cap).toHaveLength(1);
+    expect(
+      button[0] && findElements(button[0], (e) => e.props['stroke'] === '#f0535b'),
+    ).toHaveLength(1);
+  });
+
+  it('splits two-word legends at the space (cy - 1.4, cy + 5.6) and sets one word at cy + 2.1', () => {
+    const tree = render();
+    const origin = region('audio_panel').bounds;
+    const keyOf = (legend: string) => {
+      const data = AUDIO_PANEL.find((e) => e.kind === 'key' && e.legend === legend);
+      if (data?.kind !== 'key') throw new Error(legend);
+      const el = findElements(tree, (e) => e.props['data-key'] === data.id)[0];
+      if (el === undefined) throw new Error(`no key ${legend}`);
+      return { data, texts: findElements(el, (e) => e.tag === 'text') };
+    };
+    const two = keyOf('COM1 MIC');
+    expect(two.texts.map((t) => textOf(t))).toEqual(['COM1', 'MIC']);
+    expect(Number(two.texts[0]?.props['y'])).toBeCloseTo(two.data.cy - 1.4, 6);
+    expect(Number(two.texts[1]?.props['y'])).toBeCloseTo(two.data.cy + 5.6, 6);
+    const one = keyOf('AUX');
+    expect(one.texts.map((t) => textOf(t))).toEqual(['AUX']);
+    expect(Number(one.texts[0]?.props['y'])).toBeCloseTo(one.data.cy + 2.1, 6);
+    expect(origin.w).toBe(60);
+  });
+
+  it('prints every legend once, the full key list plus DISPLAY and BACKUP', () => {
+    const strings = findElements(render(), (e) => e.tag === 'text').map((e) => textOf(e));
+    const words = [...AUDIO_LEGENDS.flatMap((l) => l.split(' ')), 'DISPLAY', 'BACKUP'];
+    expect([...strings].sort()).toEqual([...words].sort());
+  });
+
+  it('carries no handler, hit rectangle, control id or tabindex; fonts 6 and 8; at most 150 elements', () => {
+    const tree = render();
+    const offenders = findElements(tree, (el) =>
+      Object.keys(el.props).some(
+        (k) =>
+          /^on[A-Z]/.test(k) || k === 'data-hit' || k === 'data-control-id' || k === 'tabindex',
+      ),
+    );
+    expect(offenders).toEqual([]);
+    for (const el of findElements(tree, (e) => e.tag === 'text')) {
+      expect([6, 8]).toContain(el.props['font-size']);
+    }
+    expect(countElements(tree)).toBeLessThanOrEqual(150);
+    expect(
+      findElements(tree, (e) =>
+        ['image', 'filter', 'linearGradient', 'radialGradient'].includes(e.tag),
+      ),
+    ).toEqual([]);
+  });
+
+  it('adds nothing to the control registry', () => {
+    expect(region('audio_panel').controlIds).toEqual([]);
   });
 });

@@ -178,13 +178,14 @@ const COLUMNS: readonly ColumnExpect[] = [
   },
 ];
 
-test('the three columns show 14 round parts, 3 swap buttons and 12 keys in total', async ({
+test('the three columns show 12 knobs, 2 joysticks, 3 swap buttons and 12 keys in total', async ({
   page,
 }) => {
-  await expect(page.locator('[data-unit] [data-knob]')).toHaveCount(12);
-  await expect(page.locator('[data-unit] [data-joystick]')).toHaveCount(2);
-  await expect(page.locator('[data-unit] [data-swap]')).toHaveCount(3);
-  await expect(page.locator('[data-unit] [data-key]')).toHaveCount(12);
+  const columns = page.locator('[data-unit$="_bezel_left"], [data-unit$="_bezel_right"]');
+  await expect(columns.locator('[data-knob]')).toHaveCount(12);
+  await expect(columns.locator('[data-joystick]')).toHaveCount(2);
+  await expect(columns.locator('[data-swap]')).toHaveCount(3);
+  await expect(columns.locator('[data-key]')).toHaveCount(12);
 });
 
 for (const col of COLUMNS) {
@@ -200,6 +201,87 @@ for (const col of COLUMNS) {
     await expect(unit.locator('[data-key]')).toHaveCount(col.keys);
   });
 }
+
+// Plan 08: the audio panel. Typed in by hand: the strings it prints (sorted) and its parts.
+const AUDIO_TEXTS = [
+  'COM1',
+  'MIC',
+  'COM1',
+  'COM2',
+  'MIC',
+  'COM2',
+  'AUX',
+  'MIC',
+  'AUX',
+  'DME',
+  'NAV1',
+  'ADF',
+  'NAV2',
+  'PILOT',
+  'ICS',
+  'TEL',
+  'COPLT',
+  'ICS',
+  'MUS1',
+  'PASS',
+  'ICS',
+  'MUS2',
+  'SPKR',
+  'PA',
+  'MKR',
+  'MUTE',
+  'HI',
+  'SENS',
+  'PLAY',
+  'MAN',
+  'SQ',
+  'DISPLAY',
+  'BACKUP',
+];
+
+test('the audio panel shows 21 keys, 21 lamp slivers (3 lit), one knob and the DISPLAY BACKUP button', async ({
+  page,
+}) => {
+  const unit = page.locator('[data-unit="audio_panel"]');
+  await expect(unit.locator('[data-key]')).toHaveCount(21);
+  await expect(unit.locator('[data-lamp]')).toHaveCount(21);
+  await expect(unit.locator('[data-lamp-lit="true"]')).toHaveCount(3);
+  await expect(unit.locator('[data-knob]')).toHaveCount(1);
+  await expect(unit.locator('[data-display-backup]')).toHaveCount(1);
+  await expect(unit.locator('[data-hit], [data-control-id], [tabindex]')).toHaveCount(0);
+  const shown = await unit.locator('text').allTextContents();
+  expect([...shown].sort()).toEqual([...AUDIO_TEXTS].sort());
+});
+
+test('@hooks a tap on an audio key and on the DISPLAY BACKUP button emits no event', async ({
+  page,
+  hasTouch,
+}) => {
+  const read = () =>
+    page.evaluate(() => {
+      const hook = (window as unknown as HookHost).__panel;
+      if (hook === undefined) throw new Error('test hook missing');
+      return { events: hook.events().length, state: JSON.stringify(hook.state()) };
+    });
+  const before = await read();
+  for (const selector of ['[data-key="com1-mic"]', '[data-display-backup]']) {
+    const target = page.locator(`[data-unit="audio_panel"] ${selector}`);
+    const p = await target.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await activateAt(page, p, hasTouch);
+    await page.waitForTimeout(450);
+    expect(await read(), selector).toEqual(before);
+    // Leave the zoomed view so the next target is at its full-view place again.
+    if ((await page.getByTestId('panel').getAttribute('viewBox')) !== FULL_VIEWBOX) {
+      const button = page.getByTestId('zoom-out');
+      if (hasTouch) await button.tap();
+      else await button.click();
+      await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+    }
+  }
+});
 
 for (const [id] of UNITS) {
   test(`@hooks a tap on ${id} only zooms: no event, no state change, back to the full view`, async ({

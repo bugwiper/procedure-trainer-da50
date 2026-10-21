@@ -175,8 +175,10 @@ export interface ColumnKey {
   readonly cy: number;
   readonly w: number;
   readonly h: number;
-  /** Printed word; null for the direct-to key. */
+  /** Printed word; null for the direct-to key. A legend with a space is drawn on two lines. */
   readonly legend: string | null;
+  /** Lamp sliver on the key (audio panel): lit amber or unlit; absent when the key has none. */
+  readonly lamp?: 'lit' | 'unlit';
 }
 
 /** A static name or sub-legend; size 8 for knob names, 6 for sub-legends. */
@@ -190,6 +192,18 @@ export interface ColumnText {
 }
 
 export type ColumnElement = ColumnKnob | ColumnJoystick | ColumnSwap | ColumnKey | ColumnText;
+
+/** The red DISPLAY BACKUP button of the audio panel: bezel of radius r around a red cap. */
+export interface ColumnButton {
+  readonly kind: 'button';
+  readonly id: string;
+  readonly cx: number;
+  readonly cy: number;
+  readonly r: number;
+}
+
+/** Everything an avionics unit may draw: the column vocabulary plus the red button. */
+export type UnitElement = ColumnElement | ColumnButton;
 
 const knob = (id: string, cx: number, cy: number, r: number): ColumnKnob => ({
   kind: 'knob',
@@ -282,11 +296,13 @@ const PFD_RIGHT_GLOBAL: readonly ColumnElement[] = [
 ];
 
 /** Local-space copy of a global table: region origin subtracted from every x and y. */
-function toLocal(ox: number, oy: number, list: readonly ColumnElement[]): readonly ColumnElement[] {
-  return list.map((e): ColumnElement => {
-    if (e.kind === 'text') return { ...e, x: e.x - ox, y: e.y - oy };
-    return { ...e, cx: e.cx - ox, cy: e.cy - oy };
-  });
+function toLocal<T extends UnitElement>(ox: number, oy: number, list: readonly T[]): readonly T[] {
+  return list.map(
+    (e) =>
+      (e.kind === 'text'
+        ? { ...e, x: e.x - ox, y: e.y - oy }
+        : { ...e, cx: e.cx - ox, cy: e.cy - oy }) as T,
+  );
 }
 
 /** Copy of a global table moved right by dx; sizes, radii, legends and baselines are unchanged. */
@@ -308,3 +324,64 @@ export const BEZEL_COLUMNS: Readonly<Record<BezelColumnId, readonly ColumnElemen
   pfd_bezel_right: toLocal(875, 196, PFD_RIGHT_GLOBAL),
   mfd_bezel_right: toLocal(1782, 196, MFD_RIGHT_GLOBAL),
 };
+
+// Centre-stack units (phase 01.2 plan 08, D-05, D-06): the audio panel, the backup EFIS and the
+// autopilot panel as inert art. Same convention as the columns: tables in global units, stored
+// region-local. Layout facts only (key legends are functional words), no maker or model names.
+
+const unitKey = (
+  cx: number,
+  cy: number,
+  legend: string,
+  w: number,
+  h: number,
+  lamp?: 'lit' | 'unlit',
+): ColumnKey => ({
+  kind: 'key',
+  id: legend.toLowerCase().replace(/\s+/g, '-'),
+  cx,
+  cy,
+  w,
+  h,
+  legend,
+  ...(lamp === undefined ? {} : { lamp }),
+});
+
+/** Table G1 key legends: left key, right key (null: no key) per row, eleven rows of pitch 26. */
+const AUDIO_ROWS: readonly (readonly [string, string | null])[] = [
+  ['COM1 MIC', 'COM1'],
+  ['COM2 MIC', 'COM2'],
+  ['AUX MIC', 'AUX'],
+  ['DME', 'NAV1'],
+  ['ADF', 'NAV2'],
+  ['PILOT ICS', 'TEL'],
+  ['COPLT ICS', 'MUS1'],
+  ['PASS ICS', 'MUS2'],
+  ['SPKR PA', null],
+  ['MKR MUTE', 'HI SENS'],
+  ['PLAY', 'MAN SQ'],
+];
+
+/** Lamp slivers lit as in the photos (U-16); every other key shows an unlit sliver. */
+const AUDIO_LIT: readonly string[] = ['COM1 MIC', 'COM1', 'PILOT ICS'];
+
+const audioKeys = (): ColumnKey[] =>
+  AUDIO_ROWS.flatMap(([left, right], row): ColumnKey[] => {
+    const cy = 214 + 26 * row;
+    const lamp = (legend: string): 'lit' | 'unlit' =>
+      AUDIO_LIT.includes(legend) ? 'lit' : 'unlit';
+    const keys = [unitKey(962, cy, left, 25, 20, lamp(left))];
+    if (right !== null) keys.push(unitKey(990, cy, right, 25, 20, lamp(right)));
+    return keys;
+  });
+
+const AUDIO_GLOBAL: readonly UnitElement[] = [
+  ...audioKeys(),
+  knob('volume', 976, 508, 11),
+  { kind: 'button', id: 'display-backup', cx: 976, cy: 541, r: 9 },
+  sub('DISPLAY', 976, 563),
+  sub('BACKUP', 976, 570),
+];
+
+/** Table G1: the audio panel in the local space of `audio_panel` (946, 196). */
+export const AUDIO_PANEL: readonly UnitElement[] = toLocal(946, 196, AUDIO_GLOBAL);

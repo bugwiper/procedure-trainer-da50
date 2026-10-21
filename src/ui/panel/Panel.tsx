@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import type { PanelBridge } from '../bridge';
 import { ControlWidget } from './ControlWidget';
 import { Defs } from './Defs';
+import { AudioPanelFrame } from './frames/AudioPanelFrame';
 import { BezelColumnFrame } from './frames/BezelColumnFrame';
 import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
@@ -25,7 +26,7 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   pfd_bezel_right: BezelColumnFrame,
   mfd_bezel_right: BezelColumnFrame,
   // Inert avionics units: housing and a not-operable label, no control, no handler (D-05, D-06).
-  audio_panel: UnitHousing,
+  audio_panel: AudioPanelFrame,
   standby_efis: UnitHousing,
   autopilot_panel: UnitHousing,
 };

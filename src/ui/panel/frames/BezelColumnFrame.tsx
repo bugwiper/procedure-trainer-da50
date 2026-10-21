@@ -1,12 +1,13 @@
 import { BEZEL_COLUMNS } from '../../../aircraft/da50rg/avionics';
 import type {
   BezelColumnId,
-  ColumnElement,
+  ColumnButton,
   ColumnJoystick,
   ColumnKey,
   ColumnKnob,
   ColumnSwap,
   ColumnText,
+  UnitElement,
 } from '../../../aircraft/da50rg/avionics';
 import type { FrameProps } from './MfdFrame';
 import { UnitGroup } from './UnitHousing';
@@ -29,6 +30,11 @@ const KEY_TOP_EDGE = 'rgba(255,255,255,0.14)';
 const GLYPH = '#e6e9ed';
 const NAME_FILL = '#c9d0d8';
 const SUB_FILL = '#aab3bd';
+const LAMP_LIT = '#ffb81c';
+const LAMP_OFF = '#3a3f46';
+const BUTTON_BEZEL = '#0c0d0f';
+const BUTTON_CAP = '#c4161f';
+const BUTTON_HIGHLIGHT = '#f0535b';
 
 const TICKS = 16;
 
@@ -57,7 +63,7 @@ function highlightPath(cx: number, cy: number, r: number): string {
   return `M ${polar(cx, cy, ra, 205)} A ${n(ra)} ${n(ra)} 0 0 1 ${polar(cx, cy, ra, 250)}`;
 }
 
-function Knob({ e }: { e: ColumnKnob }) {
+export function Knob({ e }: { e: ColumnKnob }) {
   return (
     <g data-knob={e.id}>
       <circle cx={e.cx} cy={e.cy} r={e.r} fill={DISC} stroke={DISC_RIM} stroke-width={1} />
@@ -121,10 +127,57 @@ function Swap({ e }: { e: ColumnSwap }) {
   );
 }
 
-function Key({ e }: { e: ColumnKey }) {
+/**
+ * Round red push button (the DISPLAY BACKUP button of the audio panel): dark bezel of radius r,
+ * red cap at 0.78 r and a light highlight arc. Inert like every unit part.
+ */
+function Button({ e }: { e: ColumnButton }) {
+  const cap = e.r * 0.78;
+  return (
+    <g data-display-backup={e.id}>
+      <circle cx={e.cx} cy={e.cy} r={e.r} fill={BUTTON_BEZEL} stroke={DISC_RIM} stroke-width={1} />
+      <circle cx={e.cx} cy={e.cy} r={n(cap)} fill={BUTTON_CAP} />
+      <path
+        d={highlightPath(e.cx, e.cy, cap)}
+        fill="none"
+        stroke={BUTTON_HIGHLIGHT}
+        stroke-width={0.8}
+      />
+    </g>
+  );
+}
+
+/** Key legend lines: a legend with a space is split at the first space into two lines. */
+function legendLines(legend: string): readonly string[] {
+  const at = legend.indexOf(' ');
+  return at < 0 ? [legend] : [legend.slice(0, at), legend.slice(at + 1)];
+}
+
+/** One key legend line (size 6), anchored in the middle of the key. */
+function KeyLine({ x, y, text }: { x: number; y: number; text: string }) {
+  return (
+    <text x={n(x)} y={n(y)} text-anchor="middle" font-family={FONT} font-size={6} fill={GLYPH}>
+      {text}
+    </text>
+  );
+}
+
+export function Key({ e }: { e: ColumnKey }) {
+  const lines = e.legend === null ? [] : legendLines(e.legend);
   return (
     <g data-key={e.id}>
       <Cap cx={e.cx} cy={e.cy} w={e.w} h={e.h} />
+      {e.lamp === undefined ? null : (
+        <rect
+          data-lamp
+          data-lamp-lit={e.lamp === 'lit' ? 'true' : 'false'}
+          x={n(e.cx - 6)}
+          y={n(e.cy - 9)}
+          width={12}
+          height={2}
+          fill={e.lamp === 'lit' ? LAMP_LIT : LAMP_OFF}
+        />
+      )}
       {e.legend === null ? (
         <>
           <text
@@ -144,17 +197,13 @@ function Key({ e }: { e: ColumnKey }) {
             stroke-width={1}
           />
         </>
+      ) : lines.length === 2 ? (
+        <>
+          <KeyLine x={e.cx} y={e.cy - 1.4} text={lines[0] ?? ''} />
+          <KeyLine x={e.cx} y={e.cy + 5.6} text={lines[1] ?? ''} />
+        </>
       ) : (
-        <text
-          x={e.cx}
-          y={n(e.cy + 2.1)}
-          text-anchor="middle"
-          font-family={FONT}
-          font-size={6}
-          fill={GLYPH}
-        >
-          {e.legend}
-        </text>
+        <KeyLine x={e.cx} y={e.cy + 2.1} text={e.legend} />
       )}
     </g>
   );
@@ -173,7 +222,8 @@ function Legend({ e }: { e: ColumnText }) {
   );
 }
 
-function Element({ e }: { e: ColumnElement }) {
+/** One part of an inert unit, drawn by kind; the centre-stack frames share it. */
+export function ColumnPart({ e }: { e: UnitElement }) {
   switch (e.kind) {
     case 'knob':
       return <Knob e={e} />;
@@ -185,6 +235,8 @@ function Element({ e }: { e: ColumnElement }) {
       return <Key e={e} />;
     case 'text':
       return <Legend e={e} />;
+    case 'button':
+      return <Button e={e} />;
   }
 }
 
@@ -201,7 +253,7 @@ export function BezelColumnFrame({ region }: FrameProps) {
   return (
     <UnitGroup id={region.id}>
       {elements.map((e, i) => (
-        <Element key={i} e={e} />
+        <ColumnPart key={i} e={e} />
       ))}
     </UnitGroup>
   );
