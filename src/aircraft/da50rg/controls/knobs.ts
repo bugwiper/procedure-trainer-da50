@@ -44,8 +44,16 @@ export const KNOB_CONTROLS: readonly ControlSpec[] = [
     // Global 1020, 932.
     x: 63,
     y: 182,
-    hit: { w: 80, h: 40 },
+    // Four direct click spots (R2-4.1, Table F1): each holds the printed mark of its position and
+    // reaches the 44 px tap size at the region zoom. The footprint holds exactly the spots.
+    hit: { w: 112, h: 86 },
     r: 14,
+    spots: [
+      { stop: 'f1', x: -37, y: -22, w: 37, h: 37 },
+      { stop: 'f2', x: 0, y: -22, w: 37, h: 37 },
+      { stop: 'f3', x: 37, y: -22, w: 37, h: 37 },
+      { stop: 'off', x: 0, y: 24, w: 37, h: 37 },
+    ],
     // OFF at the bottom, then three fixed stops clockwise up to about 2 o'clock (owner photo,
     // G-3). Only OFF is printed; the three stops carry fan symbols from small to large.
     scale: 'fan',

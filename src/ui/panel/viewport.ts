@@ -110,6 +110,10 @@ export function targetSide(def: ControlDef): number {
         ? Math.min(def.hit.w / 2, def.hit.h)
         : Math.min(def.hit.w, def.hit.h);
     case 'rotary':
+      // A knob with click spots: the smallest spot side (R2-4.1).
+      if (def.spots !== undefined && def.spots.length > 0) {
+        return Math.min(...def.spots.map((s) => Math.min(s.w, s.h)));
+      }
       // Two stops: any tap toggles, so the whole footprint is the target. More stops: the
       // right and left halves are separate targets.
       return def.stops.length === 2

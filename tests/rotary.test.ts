@@ -5,7 +5,14 @@ import { KNOB_CONTROLS } from '../src/aircraft/da50rg/controls/knobs';
 import { DA50RG, VIEW_PROFILES } from '../src/aircraft/da50rg/panel';
 import { RegistryError, defineRegistry, legalStates } from '../src/engine/registry';
 import type { ControlSpec, RotaryDef } from '../src/engine/registry';
-import { angleOf, nearestStop, stepStop, stopAngle } from '../src/engine/rotary';
+import {
+  MIN_RADIUS,
+  angleOf,
+  nearestStop,
+  stepStop,
+  stopAngle,
+  tapStop,
+} from '../src/engine/rotary';
 import { fitScale, targetSide, zoomRect } from '../src/ui/panel/viewport';
 import { RotaryBody } from '../src/ui/panel/widgets/Rotary';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
@@ -185,7 +192,95 @@ describe('DA50RG knobs (Table K1)', () => {
     expect(fan.default).toBe('off');
     expect(fan.scale).toBe('fan');
     expect(fan.nameless).toBe(true);
-    expect(fan.hit).toEqual({ w: 80, h: 40 });
+    expect(fan.hit).toEqual({ w: 112, h: 86 });
+  });
+
+  it('FAN has four click spots, one per stop, disjoint, inside the footprint (R2-4.1, Table F1)', () => {
+    const fan = knob('sw.env_fan');
+    const spots = fan.spots ?? [];
+    expect(spots.map((s) => s.stop).sort()).toEqual(['f1', 'f2', 'f3', 'off']);
+    for (const s of spots) {
+      expect(Math.abs(s.x) + s.w / 2, s.stop).toBeLessThanOrEqual(fan.hit.w / 2);
+      expect(Math.abs(s.y) + s.h / 2, s.stop).toBeLessThanOrEqual(fan.hit.h / 2);
+      expect(Math.min(s.w, s.h), s.stop).toBeGreaterThanOrEqual(36.4);
+    }
+    for (let i = 0; i < spots.length; i++) {
+      for (let j = i + 1; j < spots.length; j++) {
+        const a = spots[i]!;
+        const b = spots[j]!;
+        const ox = Math.min(a.x + a.w / 2, b.x + b.w / 2) - Math.max(a.x - a.w / 2, b.x - b.w / 2);
+        const oy = Math.min(a.y + a.h / 2, b.y + b.h / 2) - Math.max(a.y - a.h / 2, b.y - b.h / 2);
+        expect(ox > 1e-9 && oy > 1e-9, `${a.stop} / ${b.stop}`).toBe(false);
+      }
+    }
+  });
+
+  it('every FAN spot contains the mark of its stop (the point at radius r + 8 and the stop angle)', () => {
+    const fan = knob('sw.env_fan');
+    for (const stop of fan.stops) {
+      const spot = fan.spots?.find((s) => s.stop === stop.id);
+      const a = (stop.angle * Math.PI) / 180;
+      const mx = (fan.r + 8) * Math.sin(a);
+      const my = -(fan.r + 8) * Math.cos(a);
+      expect(Math.abs(mx - (spot?.x ?? NaN)), `${stop.id} x`).toBeLessThanOrEqual(
+        (spot?.w ?? 0) / 2,
+      );
+      expect(Math.abs(my - (spot?.y ?? NaN)), `${stop.id} y`).toBeLessThanOrEqual(
+        (spot?.h ?? 0) / 2,
+      );
+    }
+  });
+
+  it('no other knob has spots', () => {
+    for (const def of rotaries) {
+      if (def.id !== 'sw.env_fan') expect(def.spots, def.id).toBeUndefined();
+    }
+  });
+});
+
+describe('tapStop (R2-4.1)', () => {
+  const fan = knob('sw.env_fan');
+
+  it('a point inside each spot gives the stop of that spot', () => {
+    for (const spot of fan.spots ?? []) {
+      expect(tapStop(fan, spot.x, spot.y), spot.stop).toBe(spot.stop);
+      expect(tapStop(fan, spot.x + spot.w / 2 - 1, spot.y - spot.h / 2 + 1), spot.stop).toBe(
+        spot.stop,
+      );
+    }
+  });
+
+  it('a tap on the printed mark of a stop gives that stop', () => {
+    for (const stop of fan.stops) {
+      const a = (stop.angle * Math.PI) / 180;
+      expect(tapStop(fan, (fan.r + 8) * Math.sin(a), -(fan.r + 8) * Math.cos(a)), stop.id).toBe(
+        stop.id,
+      );
+    }
+  });
+
+  it('a body point outside the spots gives the stop nearest to its angle', () => {
+    // Right and left of the centre at half height lie between the spots.
+    expect(tapStop(fan, 28, 0)).toBe('f3');
+    expect(tapStop(fan, -28, 0)).toBe('f1');
+    expect(tapStop(fan, 30, 40)).toBe('off');
+  });
+
+  it('the exact centre gives null, and so does anything under the minimum radius', () => {
+    expect(tapStop(fan, 0, 0)).toBeNull();
+    expect(tapStop(fan, MIN_RADIUS * 0.9, 0)).toBeNull();
+    expect(MIN_RADIUS).toBe(2);
+  });
+
+  it('a boundary shared by two touching spots gives a declared stop', () => {
+    const declared = fan.stops.map((s) => s.id);
+    expect(declared).toContain(tapStop(fan, 18.5, -22));
+    expect(declared).toContain(tapStop(fan, -18.5, -22));
+    expect(declared).toContain(tapStop(fan, 0, -3.5));
+  });
+
+  it('rejects non-finite input', () => {
+    expect(() => tapStop(fan, NaN, 0)).toThrow(RangeError);
   });
 });
 
@@ -246,6 +341,72 @@ describe('rotary registry invariants', () => {
     );
   });
 
+  describe('spots (R2-4.1)', () => {
+    const three = stops(0, 90, 180);
+    const wide = { hit: { w: 100, h: 60 } } as const;
+    const spot = (stop: string, x: number, y = 0, w = 30, h = 30) => ({ stop, x, y, w, h });
+    const valid = [spot('a', -33), spot('b', 0), spot('c', 33)];
+
+    it('a valid list builds, touching spots included', () => {
+      expect(() => define(build({ stops: three, ...wide, spots: valid }))).not.toThrow();
+      expect(() =>
+        define(
+          build({ stops: three, ...wide, spots: [spot('a', -30), spot('b', 0), spot('c', 30)] }),
+        ),
+      ).not.toThrow();
+    });
+
+    it('rejects a stop without a spot, two spots for one stop and an unknown stop', () => {
+      expect(() =>
+        define(build({ stops: three, ...wide, spots: [spot('a', -33), spot('b', 0)] })),
+      ).toThrow(/stop "c" has no spot/);
+      expect(() =>
+        define(
+          build({ stops: three, ...wide, spots: [...valid, { ...spot('a', 0, 20), w: 5, h: 5 }] }),
+        ),
+      ).toThrow(/two spots/);
+      expect(() =>
+        define(
+          build({ stops: three, ...wide, spots: [spot('a', -33), spot('b', 0), spot('z', 33)] }),
+        ),
+      ).toThrow(/unknown stop/);
+    });
+
+    it('rejects a side that is not positive and a spot outside the footprint', () => {
+      expect(() =>
+        define(
+          build({
+            stops: three,
+            ...wide,
+            spots: [spot('a', -33, 0, 0), spot('b', 0), spot('c', 33)],
+          }),
+        ),
+      ).toThrow(/positive sides/);
+      expect(() =>
+        define(
+          build({ stops: three, ...wide, spots: [spot('a', -36), spot('b', 0), spot('c', 33)] }),
+        ),
+      ).toThrow(/leaves the/);
+      expect(() =>
+        define(
+          build({
+            stops: three,
+            ...wide,
+            spots: [spot('a', -33), spot('b', 0, 16), spot('c', 33)],
+          }),
+        ),
+      ).toThrow(/leaves the/);
+    });
+
+    it('rejects two spots that overlap with positive area', () => {
+      expect(() =>
+        define(
+          build({ stops: three, ...wide, spots: [spot('a', -33), spot('b', -10), spot('c', 33)] }),
+        ),
+      ).toThrow(/overlap/);
+    });
+  });
+
   it('keeps the sw. prefix, distinct stop ids and a legal default', () => {
     expect(() => define(build({ stops: stops(0, 90), id: 'lv.k' }))).toThrow(/must start with/);
     expect(() =>
@@ -265,7 +426,8 @@ describe('rotary registry invariants', () => {
 describe('tap-size rule for knobs', () => {
   it('two-stop knobs use the whole footprint, others half the width', () => {
     expect(targetSide(knob('sw.instr_light'))).toBe(30);
-    expect(targetSide(knob('sw.env_fan'))).toBe(40);
+    // The FAN has click spots: the smallest spot side (R2-4.1).
+    expect(targetSide(knob('sw.env_fan'))).toBe(37);
     expect(targetSide(knob('sw.fuel_trans'))).toBe(66);
   });
 
@@ -404,7 +566,7 @@ describe('RotaryBody art', () => {
       }
     });
 
-    it('steps toward the maximum on the right half, toward OFF on the left, both ends clamp', () => {
+    it('stepStop itself still steps toward the maximum, toward OFF, both ends clamp (not used by the FAN taps)', () => {
       expect(stepStop(def, 'off', 1)).toBe('f1');
       expect(stepStop(def, 'f1', 1)).toBe('f2');
       expect(stepStop(def, 'f2', 1)).toBe('f3');

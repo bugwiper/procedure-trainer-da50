@@ -168,6 +168,18 @@ export interface RotaryStopDef {
   readonly angle: number;
 }
 
+/**
+ * Direct click spot of one rotary stop (R2-4.1): a knob-local rectangle, centre (x, y) and size
+ * (w, h) in units, centre of the knob at (0, 0). A tap inside it sets the stop at once.
+ */
+export interface RotarySpotDef {
+  readonly stop: StateId;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
 /** Round knob with 2 to 5 stops (D-07, D-09). Only the committed stop reaches the store. */
 export interface RotaryDef extends ControlBase {
   readonly kind: 'rotary';
@@ -181,6 +193,11 @@ export interface RotaryDef extends ControlBase {
    * propeller glyph per further stop, growing small to large, no dots, no numbers), or `none`.
    */
   readonly scale?: 'arc' | 'fan' | 'none';
+  /**
+   * Direct click spots, one per stop (R2-4.1). Present: a tap on a spot sets its stop at once and
+   * the half-stepping is gone; absent: the knob steps by halves. Validated at load.
+   */
+  readonly spots?: readonly RotarySpotDef[];
 }
 
 /** Bus groups of the circuit breakers (UI-SPEC 01.2, Table A1). Re-checked at run time. */
@@ -370,6 +387,54 @@ function checkRotary(def: RotaryDef): void {
     throw new RegistryError(
       `knob "${def.id}" radius ${def.r} does not fit inside its ${def.hit.w} x ${def.hit.h} hit footprint`,
     );
+  }
+  if (def.spots !== undefined) checkRotarySpots(def, def.spots);
+}
+
+/** Spot rules (R2-4.1): one spot per stop, positive sides, inside the footprint, disjoint. */
+function checkRotarySpots(def: RotaryDef, spots: readonly RotarySpotDef[]): void {
+  const stopIds = new Set(def.stops.map((s) => s.id));
+  const seen = new Set<StateId>();
+  for (const spot of spots) {
+    if (!stopIds.has(spot.stop)) {
+      throw new RegistryError(`knob "${def.id}" spot names unknown stop "${spot.stop}"`);
+    }
+    if (seen.has(spot.stop)) {
+      throw new RegistryError(`knob "${def.id}" has two spots for stop "${spot.stop}"`);
+    }
+    seen.add(spot.stop);
+    if (![spot.x, spot.y, spot.w, spot.h].every(Number.isFinite) || !(spot.w > 0 && spot.h > 0)) {
+      throw new RegistryError(
+        `knob "${def.id}" spot "${spot.stop}" needs finite coordinates and positive sides`,
+      );
+    }
+    if (
+      Math.abs(spot.x) + spot.w / 2 > def.hit.w / 2 ||
+      Math.abs(spot.y) + spot.h / 2 > def.hit.h / 2
+    ) {
+      throw new RegistryError(
+        `knob "${def.id}" spot "${spot.stop}" leaves the ${def.hit.w} x ${def.hit.h} hit footprint`,
+      );
+    }
+  }
+  for (const stop of def.stops) {
+    if (!seen.has(stop.id)) {
+      throw new RegistryError(`knob "${def.id}" stop "${stop.id}" has no spot`);
+    }
+  }
+  for (let i = 0; i < spots.length; i++) {
+    for (let j = i + 1; j < spots.length; j++) {
+      const a = spots[i];
+      const b = spots[j];
+      if (a === undefined || b === undefined) continue;
+      const overlapX =
+        Math.min(a.x + a.w / 2, b.x + b.w / 2) - Math.max(a.x - a.w / 2, b.x - b.w / 2);
+      const overlapY =
+        Math.min(a.y + a.h / 2, b.y + b.h / 2) - Math.max(a.y - a.h / 2, b.y - b.h / 2);
+      if (overlapX > 1e-9 && overlapY > 1e-9) {
+        throw new RegistryError(`knob "${def.id}" spots "${a.stop}" and "${b.stop}" overlap`);
+      }
+    }
   }
 }
 

@@ -1,12 +1,17 @@
 import { useSignal } from '@preact/signals';
 import { useRef } from 'preact/hooks';
-import { angleOf, nearestStop, stepStop, stopAngle } from '../../../engine/rotary';
+import {
+  MIN_RADIUS,
+  angleOf,
+  nearestStop,
+  stepStop,
+  stopAngle,
+  tapStop,
+} from '../../../engine/rotary';
 import type { RotaryDef } from '../../../engine/registry';
 import type { WidgetProps } from '../ControlWidget';
 
 const MIN_DRAG_PX = 4;
-/** A drag point closer than this to the knob centre gives no stable angle. */
-const MIN_RADIUS = 2;
 const FONT = 'B612, system-ui, sans-serif';
 const KNURLS = 24;
 
@@ -15,8 +20,8 @@ interface Gesture {
   /** Client point of pointerdown, for the travel threshold. */
   readonly x: number;
   readonly y: number;
-  /** The pointerdown was on the right half of the knob (local x >= 0). */
-  readonly right: boolean;
+  /** Knob-local point of pointerdown: its half steps a knob, its spot sets a stop. */
+  readonly local: { readonly x: number; readonly y: number };
   dragging: boolean;
   lastAngle: number | null;
 }
@@ -207,7 +212,8 @@ export function RotaryBody({ def, state, dragAngle, pressed }: RotaryBodyProps) 
  * Knob widget (D-07, D-10). Phase 1 pointer contract: primary pointer only, capture on
  * pointerdown, no click listener; cancel and lost capture clear without dispatching. A release
  * under 4 px of travel is a tap: the right half steps one stop clockwise, the left half one back
- * (a two-stop knob always toggles). A longer gesture is a drag: the pointer follows the finger
+ * (a two-stop knob always toggles); a knob with click spots (the FAN) sets the stop of the tapped
+ * spot, or the stop nearest to the tapped angle on the body between the spots. A longer gesture is a drag: the pointer follows the finger
  * in a UI-local signal and the nearest stop is committed on release. Only stop ids reach the
  * store (T-01.1-07).
  */
@@ -253,7 +259,7 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
       pointerId: e.pointerId,
       x: e.clientX,
       y: e.clientY,
-      right: local.x >= 0,
+      local,
       dragging: false,
       lastAngle: null,
     };
@@ -283,7 +289,14 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
       if (angle !== null) bridge.actuate(def.id, nearestStop(def, angle));
       return;
     }
-    bridge.actuate(def.id, stepStop(def, bridge.stateOf(def.id).value, g.right ? 1 : -1));
+    if (def.spots !== undefined) {
+      // A knob with click spots: the spot (or the nearest angle) sets its stop at once; the store
+      // rejects an unchanged state, so the current stop records no event (R2-4.1).
+      const stop = tapStop(def, g.local.x, g.local.y);
+      if (stop !== null) bridge.actuate(def.id, stop);
+      return;
+    }
+    bridge.actuate(def.id, stepStop(def, bridge.stateOf(def.id).value, g.local.x >= 0 ? 1 : -1));
   };
 
   return (
@@ -311,6 +324,23 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
         onPointerCancel={clear}
         onLostPointerCapture={clear}
       />
+      {(def.spots ?? []).map((spot) => (
+        <rect
+          key={spot.stop}
+          data-detent={`${def.id}:${spot.stop}`}
+          x={spot.x - spot.w / 2}
+          y={spot.y - spot.h / 2}
+          width={spot.w}
+          height={spot.h}
+          fill="transparent"
+          pointer-events="all"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={clear}
+          onLostPointerCapture={clear}
+        />
+      ))}
     </g>
   );
 }

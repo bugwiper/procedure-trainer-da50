@@ -69,3 +69,22 @@ export function nearestStop(def: RotaryDef, angle: number): StateId {
   if (best === undefined) throw new RangeError(`knob "${def.id}" has no stops`);
   return best;
 }
+
+/** A point closer than this to the knob centre gives no stable angle (units, knob-local). */
+export const MIN_RADIUS = 2;
+
+/**
+ * Stop a tap at the knob-local point (x, y) selects (R2-4.1), for a knob with spots: the stop of the
+ * spot that contains the point (a boundary shared by two touching spots goes to the earlier spot);
+ * otherwise, for a point at least MIN_RADIUS from the centre, the stop nearest to the angle of the
+ * point; otherwise null. A knob without spots is not asked: its taps keep stepStop.
+ */
+export function tapStop(def: RotaryDef, x: number, y: number): StateId | null {
+  assertFinite(x, 'x');
+  assertFinite(y, 'y');
+  for (const spot of def.spots ?? []) {
+    if (Math.abs(x - spot.x) <= spot.w / 2 && Math.abs(y - spot.y) <= spot.h / 2) return spot.stop;
+  }
+  if (Math.hypot(x, y) < MIN_RADIUS) return null;
+  return nearestStop(def, angleOf(x, y));
+}
