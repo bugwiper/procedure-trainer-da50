@@ -114,7 +114,11 @@ function kindOf(e: PointerEvent): PointerKind {
  *      pair is consumed, so a double tap on a control stays two control taps (a control tap
  *      resets the pair tracker);
  *  (f) stale record sweep: a primary pointer going down drops every tracked pointer of its kind,
- *      so a lost pointerup or pointercancel can never leave the panel blocked.
+ *      so a lost pointerup or pointercancel can never leave the panel blocked;
+ *  (g) a momentary target commits its press after MOMENTARY_HOLD_MS held still (one timer, see
+ *      schedule below); a lift before that is a quick tap (press then release); movement beyond
+ *      the slop or a second pointer before the commit discards it; after the commit it keeps
+ *      the pointer and the lift or a cancel releases it.
  */
 export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registry }): () => void {
   const { registry } = opts;
@@ -230,6 +234,17 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
           target?.discard?.();
           break;
         }
+        case 'press': {
+          // A momentary commit (or the first half of a quick tap): the control acts now.
+          const record = records.get(effect.id);
+          record?.target?.press?.({ down: effect.at, up: effect.at, hit: record.hit });
+          doubleTaps.reset();
+          lastTapView = null;
+          break;
+        }
+        case 'release':
+          records.get(effect.id)?.target?.release?.();
+          break;
         case 'tap': {
           if (effect.key === null) {
             onTap(effect.up.x, effect.up.y, effect.at);
@@ -258,7 +273,10 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
       return;
     }
     const target = records.get(pointerId)?.target;
-    const wanted = state === 'view' || (state === 'pending' && target !== undefined);
+    // A drag control (own class) keeps the capture it takes itself on its hit element; this layer
+    // captures a pointer only once the machine took it over as a view pointer.
+    const wanted =
+      state === 'view' || (state === 'pending' && target !== undefined && target.cls !== 'own');
     if (!wanted || captured.has(pointerId)) return;
     captured.add(pointerId);
     try {
@@ -272,6 +290,34 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   const syncAll = () => {
     for (const id of Array.from(records.keys())) syncCapture(id);
     for (const id of Array.from(captured)) syncCapture(id);
+  };
+
+  /**
+   * The one hold timer (R3-Z2, plan 39). The machine has no timer: after every call this layer
+   * clears the timer and, when the machine reports a deadline of a pending momentary press,
+   * schedules tick for it. The delay is the deadline minus the timestamp of the event just handled
+   * (both from the event clock, never mixed with the wall clock), and tick is called with the
+   * deadline value itself, so the commit does not depend on when the timeout really fired.
+   */
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const clearTimer = () => {
+    if (timer === null) return;
+    clearTimeout(timer);
+    timer = null;
+  };
+  const schedule = (now: number) => {
+    clearTimer();
+    const deadline = arbiter.nextDeadline();
+    if (deadline === null) return;
+    timer = setTimeout(
+      () => {
+        timer = null;
+        apply(arbiter.tick(deadline));
+        syncAll();
+        schedule(deadline);
+      },
+      Math.max(0, deadline - now),
+    );
   };
 
   const sampleOf = (e: PointerEvent) => ({
@@ -309,18 +355,21 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     syncCapture(e.pointerId);
     // A pinch makes the first pointer a view pointer too, possibly one the machine took over.
     syncAll();
+    schedule(e.timeStamp);
   };
 
   const onMove = (e: PointerEvent) => {
     apply(arbiter.move(sampleOf(e)));
     syncCapture(e.pointerId);
     syncAll();
+    schedule(e.timeStamp);
   };
 
   const onUp = (e: PointerEvent) => {
     apply(arbiter.up(sampleOf(e)));
     syncCapture(e.pointerId);
     syncAll();
+    schedule(e.timeStamp);
   };
 
   // lostpointercapture follows every pointerup: only a pointer still tracked was cancelled.
@@ -328,6 +377,7 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
     apply(arbiter.cancel(e.pointerId));
     syncCapture(e.pointerId);
     syncAll();
+    schedule(e.timeStamp);
   };
 
   svg.addEventListener('pointerdown', onDown, true);
@@ -337,6 +387,7 @@ export function attachZoomGestures(svg: SVGSVGElement, opts: { registry: Registr
   svg.addEventListener('lostpointercapture', onCancel, true);
   return () => {
     resizeObserver?.disconnect();
+    clearTimer();
     svg.removeEventListener('pointerdown', onDown, true);
     svg.removeEventListener('pointermove', onMove, true);
     svg.removeEventListener('pointerup', onUp, true);

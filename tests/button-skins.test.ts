@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import type { MomentaryButtonDef, Rect } from '../src/engine/registry';
+import type { DispatchResult } from '../src/engine/store';
+import { makeMomentaryPress } from '../src/ui/panel/widgets/MomentaryButton';
 import {
   BEZEL_RADIUS,
   PRESSED_RING,
@@ -335,5 +337,99 @@ describe('black-dome WIND SHIELD button (plan 22, G-1)', () => {
     }
     expect(allProps(body(ws, 'released', null))).not.toContain(PRESSED_RING);
     expect(allProps(body(ws, 'pressed', null))).toContain(PRESSED_RING);
+  });
+});
+
+describe('makeMomentaryPress (plan 39, R3-Z2): what a momentary press does', () => {
+  const hit = {} as unknown as Element;
+  const infoAt = (x: number) => ({ down: { x, y: 0 }, up: { x, y: 0 }, hit });
+
+  function rig(def: MomentaryButtonDef) {
+    const calls: [string, string][] = [];
+    const target = makeMomentaryPress({
+      def,
+      // The decision runs on the down point of the info: left of zero is the left half.
+      isLeftHalf: (info) => info.down.x < 0,
+      actuate: (id, value): DispatchResult => {
+        calls.push([id, value]);
+        return { ok: true, event: { seq: calls.length, t: 0, id, value, source: 'user' } };
+      },
+    });
+    return { target, calls };
+  }
+
+  function button(id: string): MomentaryButtonDef {
+    const def = BUTTONS.find((b) => b.id === id);
+    if (def === undefined) throw new Error(`unknown button ${id}`);
+    return def;
+  }
+
+  it('is a momentary target with no tap and no setPending', () => {
+    const { target } = rig(button('btn.engine_start'));
+    expect(target.cls).toBe('momentary');
+    expect('tap' in target).toBe(false);
+    expect('setPending' in target).toBe(false);
+  });
+
+  it('a two-state button: press gives pressed and returns the event number, release gives released', () => {
+    for (const id of BUTTONS.filter((b) => b.states.length === 2).map((b) => b.id)) {
+      const { target, calls } = rig(button(id));
+      expect(target.press?.(infoAt(-5)), id).toBe(1);
+      expect(target.press?.(infoAt(5)), id).toBe(2);
+      target.release?.();
+      expect(calls, id).toEqual([
+        [id, 'pressed'],
+        [id, 'pressed'],
+        [id, 'released'],
+      ]);
+    }
+  });
+
+  it('the spring toggle: the left half gives stall_test, the right half gear_test, release neutral', () => {
+    const { target, calls } = rig(button('btn.stall_gear_test'));
+    target.press?.(infoAt(-3));
+    target.release?.();
+    target.press?.(infoAt(3));
+    target.release?.();
+    expect(calls).toEqual([
+      ['btn.stall_gear_test', 'stall_test'],
+      ['btn.stall_gear_test', 'neutral'],
+      ['btn.stall_gear_test', 'gear_test'],
+      ['btn.stall_gear_test', 'neutral'],
+    ]);
+  });
+
+  it('asks isLeftHalf with the info of the press, so the down point decides', () => {
+    const seen: number[] = [];
+    const def = button('btn.stall_gear_test');
+    const target = makeMomentaryPress({
+      def,
+      isLeftHalf: (info) => {
+        seen.push(info.down.x);
+        return true;
+      },
+      actuate: (id, value): DispatchResult => ({
+        ok: true,
+        event: { seq: 1, t: 0, id, value, source: 'user' },
+      }),
+    });
+    target.press?.({ down: { x: 42, y: 1 }, up: { x: 99, y: 1 }, hit });
+    expect(seen).toEqual([42]);
+  });
+
+  it('a discard changes nothing: a discarded press never acted', () => {
+    const { target, calls } = rig(button('btn.engine_start'));
+    target.discard?.();
+    expect(calls).toEqual([]);
+  });
+
+  it('returns null for a rejected dispatch', () => {
+    const def = button('btn.engine_start');
+    const target = makeMomentaryPress({
+      def,
+      isLeftHalf: () => true,
+      actuate: (): DispatchResult => ({ ok: false, reason: 'unchanged' }),
+    });
+    expect(target.press?.(infoAt(0))).toBeNull();
   });
 });

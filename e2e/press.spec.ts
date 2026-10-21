@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { PANEL_VIEWBOX } from '../tests/layout-reference';
+import { MOMENTARY_HOLD_MS } from '../src/ui/panel/press-arbiter';
 import { MOUSE_SLOP_PX, TOUCH_SLOP_PX } from '../src/ui/panel/tap-intent';
 import { touchSender } from './support/touch';
 import { FULL_VIEWBOX, backgroundPoint, zoomIntoRegion } from './support/zoom';
@@ -461,4 +462,330 @@ test.describe('@hooks the event log', () => {
       expect(events.map((e) => [e.id, e.value])).toEqual([[c.id, c.after]]);
     });
   }
+});
+
+// Momentary controls commit after MOMENTARY_HOLD_MS held still (R3-Z2 item 2, plan 39). Table M1.
+// The hold time comes from src/ui/panel/press-arbiter.ts, never typed here.
+
+interface MomentaryCase {
+  readonly name: string;
+  readonly id: string;
+  readonly region: string;
+  readonly rest: string;
+  /** Where on the hit (fraction of its width) a press lands and the state it commits. */
+  readonly presses: readonly { readonly fraction: number; readonly state: string }[];
+}
+
+const MOMENTARY: readonly MomentaryCase[] = [
+  {
+    name: 'ENGINE START',
+    id: 'btn.engine_start',
+    region: 'switch_bank',
+    rest: 'released',
+    presses: [{ fraction: 0.5, state: 'pressed' }],
+  },
+  {
+    name: 'FADEC TEST',
+    id: 'btn.fadec_test',
+    region: 'engine_controls',
+    rest: 'released',
+    presses: [{ fraction: 0.5, state: 'pressed' }],
+  },
+  {
+    name: 'STALL TEST / GEAR TEST',
+    id: 'btn.stall_gear_test',
+    region: 'landing_gear',
+    rest: 'neutral',
+    presses: [
+      { fraction: 0.25, state: 'stall_test' },
+      { fraction: 0.75, state: 'gear_test' },
+    ],
+  },
+  {
+    name: 'DE-ICE MAX',
+    id: 'btn.deice_max',
+    region: 'deice',
+    rest: 'released',
+    presses: [{ fraction: 0.5, state: 'pressed' }],
+  },
+  {
+    name: 'WIND SHIELD',
+    id: 'btn.deice_windshield',
+    region: 'deice_switches',
+    rest: 'released',
+    presses: [{ fraction: 0.5, state: 'pressed' }],
+  },
+  {
+    name: 'LEVEL',
+    id: 'btn.level',
+    region: 'level',
+    rest: 'released',
+    presses: [{ fraction: 0.5, state: 'pressed' }],
+  },
+];
+
+/** A point at a fraction of the width and the middle of the height of a hit element, in whole px. */
+async function pointAt(page: Page, selector: string, fraction: number): Promise<Point> {
+  const box = await page.locator(selector).boundingBox();
+  if (box === null) throw new Error(`no box for ${selector}`);
+  return { x: Math.round(box.x + box.width * fraction), y: Math.round(box.y + box.height / 2) };
+}
+
+/** Both view numbers equal, to compare a view before and after a gesture. */
+async function viewString(page: Page): Promise<string | null> {
+  return page.getByTestId('panel').getAttribute('viewBox');
+}
+
+/** Waits long enough for a pending press to have committed if it was going to. */
+async function pastHold(page: Page): Promise<void> {
+  await page.waitForTimeout(MOMENTARY_HOLD_MS + 150);
+}
+
+function gestureKind(name: string): 'mouse' | 'touch' | null {
+  return isMouseProject(name) ? 'mouse' : name === 'phone-chromium' ? 'touch' : null;
+}
+
+for (const c of MOMENTARY) {
+  const selector = `[data-hit="${c.id}"]`;
+
+  test.describe(`momentary ${c.name}`, () => {
+    test('mouse: held past the hold time it is pressed, the lift returns it to rest', async ({
+      page,
+    }, testInfo) => {
+      test.skip(!isMouseProject(testInfo.project.name), 'mouse path');
+      const group = control(page, c.id);
+      await expect(group).toHaveAttribute('data-state', c.rest);
+      for (const press of c.presses) {
+        const at = await pointAt(page, selector, press.fraction);
+        await page.mouse.move(at.x, at.y);
+        const t0 = Date.now();
+        await page.mouse.down();
+        const early = await group.getAttribute('data-state');
+        // The commit is not instant: a read right after the press still sees the rest state (only
+        // asserted when the read really was early, so a slow runner cannot make it flaky).
+        if (Date.now() - t0 < MOMENTARY_HOLD_MS / 2) expect(early).toBe(c.rest);
+        await expect(group).toHaveAttribute('data-state', press.state);
+        await page.mouse.up();
+        await expect(group).toHaveAttribute('data-state', c.rest);
+      }
+    });
+
+    test('touch: held past the hold time it is pressed, the lift returns it to rest', async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
+      const group = control(page, c.id);
+      const send = await touchSender(page);
+      for (const press of c.presses) {
+        await send('touchStart', [await pointAt(page, selector, press.fraction)]);
+        await expect(group).toHaveAttribute('data-state', press.state);
+        await send('touchEnd', []);
+        await expect(group).toHaveAttribute('data-state', c.rest);
+      }
+    });
+
+    test('a press that moves beyond the slop before the hold pans and never presses', async ({
+      page,
+    }, testInfo) => {
+      const kind = gestureKind(testInfo.project.name);
+      test.skip(kind === null, 'Chromium gestures only');
+      const touch = kind === 'touch';
+      await zoomIntoRegion(page, touch, c.region);
+      const group = control(page, c.id);
+      const before = await viewNumbers(page);
+      const by = await panVector(page, (touch ? TOUCH_SLOP_PX : MOUSE_SLOP_PX) + 25);
+      const from = await pointAt(page, selector, c.presses[0]?.fraction ?? 0.5);
+      if (touch) {
+        const send = await touchSender(page);
+        await send('touchStart', [from]);
+        await send('touchMove', [{ x: from.x + by.x, y: from.y + by.y }]);
+        await pastHold(page);
+        await expect(group).toHaveAttribute('data-state', c.rest);
+        await send('touchEnd', []);
+      } else {
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(from.x + by.x, from.y + by.y);
+        await pastHold(page);
+        await expect(group).toHaveAttribute('data-state', c.rest);
+        await page.mouse.up();
+      }
+      await expect(group).toHaveAttribute('data-state', c.rest);
+      const after = await viewNumbers(page);
+      expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeGreaterThan(0.5);
+      expect(after.w).toBeCloseTo(before.w);
+    });
+
+    test('touch: a second finger before the hold pinches and the button never presses', async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
+      const group = control(page, c.id);
+      const p = await pointAt(page, selector, c.presses[0]?.fraction ?? 0.5);
+      const spare = await backgroundPoint(page, c.region);
+      const send = await touchSender(page);
+      await send('touchStart', [p]);
+      await send('touchStart', [p, spare]);
+      const away = (f: number): Point[] => [
+        { x: p.x - (spare.x - p.x) * f * 0.5, y: p.y - (spare.y - p.y) * f * 0.5 },
+        { x: spare.x + (spare.x - p.x) * f * 0.5, y: spare.y + (spare.y - p.y) * f * 0.5 },
+      ];
+      for (let i = 1; i <= 8; i++) await send('touchMove', away(i / 2));
+      await pastHold(page);
+      await expect(group).toHaveAttribute('data-state', c.rest);
+      await send('touchEnd', []);
+      await expect(group).toHaveAttribute('data-state', c.rest);
+      expect((await viewNumbers(page)).w).toBeLessThan(PANEL_VIEWBOX.w);
+    });
+
+    test('after the commit a far move does not pan and the lift still releases it', async ({
+      page,
+    }, testInfo) => {
+      const kind = gestureKind(testInfo.project.name);
+      test.skip(kind === null, 'Chromium gestures only');
+      const touch = kind === 'touch';
+      await zoomIntoRegion(page, touch, c.region);
+      const group = control(page, c.id);
+      const press = c.presses[0];
+      if (press === undefined) throw new Error('no press');
+      const view = await viewString(page);
+      const by = await panVector(page, (touch ? TOUCH_SLOP_PX : MOUSE_SLOP_PX) + 60);
+      const from = await pointAt(page, selector, press.fraction);
+      if (touch) {
+        const send = await touchSender(page);
+        await send('touchStart', [from]);
+        await expect(group).toHaveAttribute('data-state', press.state);
+        for (let i = 1; i <= 6; i++) {
+          await send('touchMove', [{ x: from.x + (by.x * i) / 6, y: from.y + (by.y * i) / 6 }]);
+        }
+        await expect(group).toHaveAttribute('data-state', press.state);
+        await send('touchEnd', []);
+      } else {
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await expect(group).toHaveAttribute('data-state', press.state);
+        await page.mouse.move(from.x + by.x, from.y + by.y, { steps: 6 });
+        await expect(group).toHaveAttribute('data-state', press.state);
+        await page.mouse.up();
+      }
+      await expect(group).toHaveAttribute('data-state', c.rest);
+      expect(await viewString(page)).toBe(view);
+    });
+
+    test('touch: after the commit a second finger on the background is ignored', async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== 'phone-chromium', 'Chromium touch emulation only');
+      const group = control(page, c.id);
+      const press = c.presses[0];
+      if (press === undefined) throw new Error('no press');
+      const p = await pointAt(page, selector, press.fraction);
+      const spare = await backgroundPoint(page, c.region);
+      const send = await touchSender(page);
+      await send('touchStart', [p]);
+      await expect(group).toHaveAttribute('data-state', press.state);
+      await send('touchStart', [p, spare]);
+      const away = (f: number): Point[] => [
+        { x: p.x, y: p.y },
+        { x: spare.x + (spare.x - p.x) * f * 0.5, y: spare.y + (spare.y - p.y) * f * 0.5 },
+      ];
+      for (let i = 1; i <= 8; i++) await send('touchMove', away(i / 2));
+      await expect(group).toHaveAttribute('data-state', press.state);
+      expect(await viewString(page)).toBe(FULL_VIEWBOX);
+      await send('touchEnd', []);
+      await expect(group).toHaveAttribute('data-state', c.rest);
+      expect(await viewString(page)).toBe(FULL_VIEWBOX);
+    });
+  });
+}
+
+test.describe('@hooks momentary controls and the event log', () => {
+  const events = (page: Page) =>
+    page.evaluate(() => (globalThis as unknown as HookHost).__panel?.events() ?? []);
+
+  for (const c of MOMENTARY) {
+    const selector = `[data-hit="${c.id}"]`;
+
+    test(`${c.name}: a quick tap records pressed then released`, async ({ page }, testInfo) => {
+      const kind = gestureKind(testInfo.project.name);
+      test.skip(kind === null && testInfo.project.name !== 'tablet-chromium', 'Chromium only');
+      const press = c.presses[0];
+      if (press === undefined) throw new Error('no press');
+      const at = await pointAt(page, selector, press.fraction);
+      if (kind === 'mouse') {
+        await page.mouse.move(at.x, at.y);
+        await page.mouse.down();
+        await page.mouse.up();
+      } else if (kind === 'touch') {
+        const send = await touchSender(page);
+        await send('touchStart', [at]);
+        await send('touchEnd', []);
+      } else {
+        await page.touchscreen.tap(at.x, at.y);
+      }
+      await expect(control(page, c.id)).toHaveAttribute('data-state', c.rest);
+      expect((await events(page)).map((e) => [e.id, e.value])).toEqual([
+        [c.id, press.state],
+        [c.id, c.rest],
+      ]);
+    });
+
+    test(`${c.name}: a press moved beyond the slop or pinched records nothing`, async ({
+      page,
+    }, testInfo) => {
+      const kind = gestureKind(testInfo.project.name);
+      test.skip(kind === null, 'Chromium gestures only');
+      const touch = kind === 'touch';
+      expect(await eventCount(page)).toBe(0);
+      const from = await pointAt(page, selector, c.presses[0]?.fraction ?? 0.5);
+      const d = (touch ? TOUCH_SLOP_PX : MOUSE_SLOP_PX) + 25;
+      if (touch) {
+        const send = await touchSender(page);
+        await send('touchStart', [from]);
+        await send('touchMove', [{ x: from.x + d, y: from.y + d }]);
+        await pastHold(page);
+        await send('touchEnd', []);
+        // A pinch: a second finger before the hold.
+        const spare = await backgroundPoint(page, c.region);
+        const q = await pointAt(page, selector, c.presses[0]?.fraction ?? 0.5);
+        await send('touchStart', [q]);
+        await send('touchStart', [q, spare]);
+        await pastHold(page);
+        await send('touchEnd', []);
+      } else {
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(from.x + d, from.y + d);
+        await pastHold(page);
+        await page.mouse.up();
+      }
+      expect(await eventCount(page)).toBe(0);
+    });
+  }
+
+  test('two quick presses of ENGINE START record pressed, released, pressed, released and leave the view', async ({
+    page,
+  }, testInfo) => {
+    const kind = gestureKind(testInfo.project.name);
+    test.skip(kind === null && testInfo.project.name !== 'tablet-chromium', 'Chromium only');
+    const selector = '[data-hit="btn.engine_start"]';
+    const at = await pointAt(page, selector, 0.5);
+    for (let i = 0; i < 2; i++) {
+      if (kind === 'mouse') {
+        await page.mouse.move(at.x, at.y);
+        await page.mouse.down();
+        await page.mouse.up();
+      } else {
+        await page.touchscreen.tap(at.x, at.y);
+      }
+    }
+    await expect.poll(() => eventCount(page)).toBe(4);
+    expect((await events(page)).map((e) => [e.id, e.value])).toEqual([
+      ['btn.engine_start', 'pressed'],
+      ['btn.engine_start', 'released'],
+      ['btn.engine_start', 'pressed'],
+      ['btn.engine_start', 'released'],
+    ]);
+    expect(await viewString(page)).toBe(FULL_VIEWBOX);
+  });
 });

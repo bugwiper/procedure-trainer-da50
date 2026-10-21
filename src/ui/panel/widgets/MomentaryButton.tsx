@@ -1,25 +1,60 @@
 import { useRef } from 'preact/hooks';
 import type { MomentaryButtonDef } from '../../../engine/registry';
+import type { DispatchResult } from '../../../engine/store';
 import type { WidgetProps } from '../ControlWidget';
+import { registerPressTarget, seqOf } from '../press-targets';
+import type { PressInfo, PressTarget } from '../press-targets';
 import { PushButtonBody } from '../skins/PushButton';
 import type { PressedSide } from '../skins/PushButton';
 
+/** What the press target of a momentary control needs from its widget. */
+export interface MomentaryPressDeps {
+  readonly def: Pick<MomentaryButtonDef, 'id' | 'states'>;
+  /** True when the down point of the press is in the left half of the control. */
+  readonly isLeftHalf: (info: PressInfo) => boolean;
+  readonly actuate: (id: string, value: string) => DispatchResult;
+}
+
+/**
+ * The press target of a momentary control (R3-Z2, plan 39): a momentary target whose press
+ * actuates the first pressed state, or for a three-state control the state of the half under the
+ * down point (the left half is the first side), and whose release actuates the rest state. The
+ * store rejects an unchanged state, so a repeated release is harmless. A discarded press never
+ * changed anything, so discard does nothing. Pure and hook-free: the hold time and every timer
+ * live in the gesture layer, the widget owns no pointer.
+ */
+export function makeMomentaryPress(deps: MomentaryPressDeps): PressTarget {
+  const { def, isLeftHalf, actuate } = deps;
+  const [rest, first, second] = def.states;
+  return {
+    cls: 'momentary',
+    press(info) {
+      const side = second === undefined || isLeftHalf(info) ? first : second;
+      return seqOf(actuate(def.id, side.id));
+    },
+    release() {
+      actuate(def.id, rest.id);
+    },
+    discard() {
+      // A press that was taken away before its commit never changed anything.
+    },
+  };
+}
+
 /**
  * Momentary push button (D-07c) and the spring-return three-position toggle (D-09). Pointer
- * contract: only primary pointers; pointerdown captures the pointer and actuates the pressed
- * state at once (for a three-state toggle the state of the half under the pointer); the first
- * of pointerup, pointercancel or lostpointercapture actuates the rest state exactly once (a
- * per-press flag, with the store's "unchanged" rejection as the backstop), so the part can
- * never stay stuck pressed (RESEARCH Pitfall 7). The held side is read back from the store
- * state, so a ring or a thrown bat can never outlive the press.
+ * contract (R3-Z2): the widget owns no pointer. The hit rectangle registers a momentary press
+ * target; the gesture layer commits the press after MOMENTARY_HOLD_MS held still (a quick tap is
+ * a press and a release together), releases it on the lift or a cancel, and takes the pointer
+ * away (a pan or a pinch) before the commit. The held side is read back from the store state, so
+ * a ring or a thrown bat can never outlive the press (RESEARCH Pitfall 7).
  */
 export function MomentaryButton({ def, bridge }: WidgetProps<MomentaryButtonDef>) {
   const [released, pressed] = def.states;
-  const activePointer = useRef<number | null>(null);
   const groupRef = useRef<SVGGElement>(null);
 
   const state = bridge.stateOf(def.id).value;
-  const [, firstSide, secondSide] = def.states;
+  const [, , secondSide] = def.states;
   const pressedSide: PressedSide =
     secondSide === undefined
       ? null
@@ -29,33 +64,23 @@ export function MomentaryButton({ def, bridge }: WidgetProps<MomentaryButtonDef>
           ? 'right'
           : null;
 
-  const release = (e: PointerEvent) => {
-    if (activePointer.current !== e.pointerId) return;
-    activePointer.current = null;
-    bridge.actuate(def.id, released.id);
-  };
-
-  /** True when the pointer is in the left half of the control (local x below 0). */
-  const isLeftHalf = (e: PointerEvent): boolean => {
+  /** True when the down point is in the left half of the control (local x below 0). */
+  const isLeftHalf = (info: PressInfo): boolean => {
     const matrix = groupRef.current?.getScreenCTM();
     if (matrix) {
-      return new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse()).x < 0;
+      return new DOMPoint(info.down.x, info.down.y).matrixTransform(matrix.inverse()).x < 0;
     }
-    const box = (e.currentTarget as Element).getBoundingClientRect();
-    return e.clientX < box.left + box.width / 2;
+    const box = info.hit.getBoundingClientRect();
+    return info.down.x < box.left + box.width / 2;
   };
 
-  const onPointerDown = (e: PointerEvent) => {
-    if (!e.isPrimary || activePointer.current !== null) return;
-    try {
-      (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    } catch {
-      // The pointer may already be gone; the release is still handled on pointerup.
-    }
-    activePointer.current = e.pointerId;
-    const target = secondSide === undefined || isLeftHalf(e) ? firstSide : secondSide;
-    bridge.actuate(def.id, target.id);
-  };
+  // Built in the render body and registered by a ref callback on every render, so the target
+  // never closes over stale props.
+  const press = makeMomentaryPress({
+    def,
+    isLeftHalf,
+    actuate: (id, value) => bridge.actuate(id, value),
+  });
 
   const stateLabel = (def.states.find((s) => s.id === state) ?? released).label;
 
@@ -79,10 +104,7 @@ export function MomentaryButton({ def, bridge }: WidgetProps<MomentaryButtonDef>
         height={def.hit.h}
         fill="transparent"
         pointer-events="all"
-        onPointerDown={onPointerDown}
-        onPointerUp={release}
-        onPointerCancel={release}
-        onLostPointerCapture={release}
+        ref={(el: SVGRectElement | null) => registerPressTarget(el, press)}
       />
     </g>
   );
