@@ -133,6 +133,39 @@ describe('lever family text is state-independent', () => {
   });
 });
 
+describe('tap-toggle lever (parking flap) text is state-independent', () => {
+  const flapLevers = DA50RG.controls.filter(
+    (c): c is DetentLeverDef => c.kind === 'detent-lever' && c.tapToggle === true,
+  );
+
+  it('the PARKING BRAKE flap is rendered through FlapBody and prints no text in either state', () => {
+    expect(flapLevers.map((d) => d.id)).toEqual(['lv.parking_brake']);
+    for (const def of flapLevers) {
+      for (const detent of def.detents) {
+        const tree = expand(
+          LeverBody({
+            def,
+            state: detent.id,
+            handlePos: detent.pos,
+            dragging: false,
+            regionWidth: def.hit.w,
+          }),
+        );
+        const id = `${def.id}/${detent.id}`;
+        expect(
+          findElements(tree, (el) => 'data-flap' in el.props),
+          id,
+        ).toHaveLength(1);
+        expect(textStrings(tree), id).toEqual([]);
+        expect(
+          findElements(tree, (el) => 'data-state-text' in el.props),
+          id,
+        ).toHaveLength(0);
+      }
+    }
+  });
+});
+
 describe('push button family text is state-independent', () => {
   const buttons = DA50RG.controls.filter(
     (c): c is MomentaryButtonDef => c.kind === 'momentary-button',

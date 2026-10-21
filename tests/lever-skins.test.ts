@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
+import { PLACARDS } from '../src/aircraft/da50rg/placards';
 import type { ControlDef, DetentLeverDef } from '../src/engine/registry';
+import { FLAP, FlapBody, flapWall } from '../src/ui/panel/skins/Flap';
 import { ENV_ICONS, LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
 import {
   LeverBody,
@@ -414,6 +416,133 @@ describe('pedestal levers (plan 19, G-3)', () => {
     expect(all).not.toContain('POWER');
     expect(all.filter((t) => t === 'MAX')).toHaveLength(1);
     expect(all).toEqual(expect.arrayContaining(['0 %', '50 %', '100 %']));
+  });
+});
+
+describe('PARKING BRAKE flap geometry (R2-4.2, Table P1)', () => {
+  const brake = lever('lv.parking_brake');
+  const flap = (state: string, pressed = false): El =>
+    expand(FlapBody({ def: brake, state, pressed }));
+
+  type P = readonly [number, number];
+  function polygonPoints(el: El): P[] {
+    return String(el.props['points'])
+      .trim()
+      .split(/\s+/)
+      .map((pair) => {
+        const [x, y] = pair.split(',').map(Number);
+        return [x ?? NaN, y ?? NaN] as P;
+      });
+  }
+
+  /** All points of the art of a tree (rect corners, polygon points, line ends). */
+  function artPoints(tree: El): P[] {
+    const out: P[] = [];
+    for (const el of findElements(tree, () => true)) {
+      const n = (k: string): number => Number(el.props[k]);
+      if (el.tag === 'rect') {
+        out.push([n('x'), n('y')], [n('x') + n('width'), n('y') + n('height')]);
+      } else if (el.tag === 'polygon') {
+        out.push(...polygonPoints(el));
+      } else if (el.tag === 'line') {
+        out.push([n('x1'), n('y1')], [n('x2'), n('y2')]);
+      }
+    }
+    return out;
+  }
+
+  it('released: a flat face, the recess, no wall; pulled: exactly one wall polygon of three points', () => {
+    const off = flap('off');
+    expect(findElements(off, (el) => 'data-flap-wall' in el.props)).toHaveLength(0);
+    expect(findElements(off, (el) => 'data-flap-face' in el.props)).toHaveLength(1);
+    // The released face is axis-aligned: a rect, not a polygon.
+    expect(findElements(off, (el) => el.tag === 'polygon')).toHaveLength(0);
+    // The recess is the first element in both states.
+    const set = flap('set');
+    for (const tree of [off, set]) {
+      expect(findElements(tree, (el) => el.tag === 'rect')[0]?.props['fill']).toBe('#050506');
+    }
+    const walls = findElements(set, (el) => 'data-flap-wall' in el.props);
+    expect(walls).toHaveLength(1);
+    expect(polygonPoints(walls[0]!)).toHaveLength(3);
+  });
+
+  it('the wall is a true rotation about the hinge by 45 to 75 degrees, recomputable from the constants', () => {
+    const wall = polygonPoints(findElements(flap('set'), (el) => 'data-flap-wall' in el.props)[0]!);
+    const [h, r, t] = wall as [P, P, P];
+    const edge = (a: P, b: P): number => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    // The hinge corner is the one whose two edges have the flap length.
+    expect(edge(h, r)).toBeCloseTo(FLAP.length, 2);
+    expect(edge(h, t)).toBeCloseTo(FLAP.length, 2);
+    const angle =
+      (Math.acos(
+        ((r[0] - h[0]) * (t[0] - h[0]) + (r[1] - h[1]) * (t[1] - h[1])) / (edge(h, r) * edge(h, t)),
+      ) *
+        180) /
+      Math.PI;
+    expect(angle).toBeGreaterThanOrEqual(45);
+    expect(angle).toBeLessThanOrEqual(75);
+    expect(angle).toBeCloseTo(FLAP.angleDeg, 1);
+    // The pure helper gives the same numbers, and the hinge sits on the lower edge of the flat flap.
+    const [ph, pr, pt] = flapWall();
+    expect(h[0]).toBeCloseTo(ph.x, 2);
+    expect(r[1]).toBeCloseTo(pr.y, 2);
+    expect(t[0]).toBeCloseTo(pt.x, 2);
+    expect(ph.y).toBe(FLAP.hingeY);
+    expect(pr.y).toBe(FLAP.hingeY - FLAP.length);
+    // Any allowed angle keeps both edges at the flap length.
+    for (const deg of [45, 60, 75]) {
+      const [a, b, c] = flapWall(deg);
+      expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeCloseTo(FLAP.length, 6);
+      expect(Math.hypot(c.x - a.x, c.y - a.y)).toBeCloseTo(FLAP.length, 6);
+    }
+  });
+
+  it('draws a lifted face lighter than the wall and a highlight on the free edge when pulled', () => {
+    const set = flap('set');
+    const wall = findElements(set, (el) => 'data-flap-wall' in el.props)[0]!;
+    const face = findElements(set, (el) => 'data-flap-face' in el.props);
+    expect(face).toHaveLength(1);
+    expect(face[0]?.tag).toBe('polygon');
+    expect(polygonPoints(face[0]!)).toHaveLength(4);
+    expect(face[0]?.props['fill']).not.toBe(wall.props['fill']);
+    const lum = (hex: unknown): number => parseInt(String(hex).slice(1, 3), 16);
+    expect(lum(face[0]?.props['fill'])).toBeGreaterThan(lum(wall.props['fill']));
+    expect(findElements(set, (el) => 'data-flap-free' in el.props)).toHaveLength(1);
+  });
+
+  it('the pressed ring is transient: it differs only while a pointer is down', () => {
+    for (const state of ['off', 'set']) {
+      const recess = (pressed: boolean) =>
+        findElements(flap(state, pressed), (el) => el.tag === 'rect')[0]?.props['stroke'];
+      expect(recess(true), state).toBe('#8fb8e6');
+      expect(recess(false), state).not.toBe('#8fb8e6');
+    }
+  });
+
+  it('keeps all art inside the footprint, at most 14 elements, no text, in both states', () => {
+    for (const state of ['off', 'set']) {
+      for (const pressed of [false, true]) {
+        const tree = flap(state, pressed);
+        const id = `${state}/${String(pressed)}`;
+        expect(countElements(tree), id).toBeLessThanOrEqual(14);
+        expect(
+          findElements(tree, (el) => el.tag === 'text'),
+          id,
+        ).toEqual([]);
+        for (const [x, y] of artPoints(tree)) {
+          expect(Math.abs(x), id).toBeLessThanOrEqual(brake.hit.w / 2);
+          expect(Math.abs(y), id).toBeLessThanOrEqual(brake.hit.h / 2);
+        }
+      }
+    }
+  });
+
+  it('the placard stays the only name: PARKING / BRAKE on the plate, nothing on the flap', () => {
+    const placard = PLACARDS.find((p) => p.id === 'parking_brake.name');
+    expect(placard?.lines).toEqual(['PARKING', 'BRAKE']);
+    expect(placard?.near).toBe('lv.parking_brake');
+    for (const d of brake.detents) expect(texts(body(brake, d.id)), d.id).toEqual([]);
   });
 });
 

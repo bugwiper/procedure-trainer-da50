@@ -21,9 +21,9 @@ const TONE = {
   face: '#2b3036',
   edge: '#4a525c',
   freeEdge: '#6b7580',
-  wall: '#14161a',
-  wallEdge: '#3a4048',
-  lifted: '#3a4048',
+  wall: '#222830',
+  wallEdge: '#4a525c',
+  lifted: '#56606b',
   highlight: '#6b7580',
 } as const;
 
@@ -105,7 +105,7 @@ export function FlapBody({ state, pressed }: FlapBodyProps) {
             points={pts(flapWall())}
             fill={TONE.wall}
             stroke={TONE.wallEdge}
-            stroke-width={0.5}
+            stroke-width={0.8}
             stroke-linejoin="round"
           />
           <polygon
@@ -113,7 +113,7 @@ export function FlapBody({ state, pressed }: FlapBodyProps) {
             points={pts(face)}
             fill={TONE.lifted}
             stroke={TONE.edge}
-            stroke-width={0.5}
+            stroke-width={0.8}
             stroke-linejoin="round"
           />
           <line
