@@ -544,12 +544,64 @@ describe('button skins', () => {
   });
 });
 
+/** A well-formed tap-toggle lever: two detents, the parking-flap skin, tapToggle. */
+const TAP_TOGGLE: Partial<DetentLeverDef> = {
+  detents: [
+    { id: 'off', label: 'OFF', pos: 0 },
+    { id: 'set', label: 'SET', pos: 1 },
+  ],
+  default: 'off',
+  skin: 'parking-flap',
+  tapToggle: true,
+};
+
+describe('tap-toggle levers (R2-4.2)', () => {
+  it('builds a two-detent lever with tapToggle and the parking-flap skin', () => {
+    const def = build([lever('lv.flap', TAP_TOGGLE)]).get('lv.flap') as DetentLeverDef;
+    expect(def.tapToggle).toBe(true);
+    expect(def.skin).toBe('parking-flap');
+  });
+
+  it('rejects tapToggle on a lever without exactly two detents', () => {
+    expectRejected([lever('lv.flap', { ...TAP_TOGGLE, detents: LEVER_THREE })], 'lv.flap');
+    expectRejected(
+      [lever('lv.flap', { ...TAP_TOGGLE, detents: [{ id: 'off', label: 'OFF', pos: 0 }] })],
+      'lv.flap',
+    );
+  });
+
+  it('rejects tapToggle on a drag-only lever', () => {
+    expectRejected([lever('lv.flap', { ...TAP_TOGGLE, dragOnly: true })], 'drag-only');
+  });
+
+  it('rejects tapToggle on a lever with tap markers', () => {
+    expectRejected([lever('lv.flap', { ...TAP_TOGGLE, markers: ['off'] })], 'marker');
+  });
+
+  it('rejects the parking-flap skin without tapToggle and tapToggle without the skin', () => {
+    expectRejected([lever('lv.flap', { ...TAP_TOGGLE, tapToggle: undefined })], 'tapToggle');
+    expectRejected([lever('lv.flap', { ...TAP_TOGGLE, skin: 'gear-knob' })], 'parking-flap');
+    expectRejected([lever('lv.flap', { ...TAP_TOGGLE, skin: undefined })], 'parking-flap');
+  });
+});
+
+const LEVER_THREE: DetentLeverDef['detents'] = [
+  { id: 'up', label: 'UP', pos: 0 },
+  { id: 'mid', label: 'MID', pos: 0.5 },
+  { id: 'down', label: 'DOWN', pos: 1 },
+];
+
 describe('lever skins', () => {
   it('accepts every skin of the vocabulary and none', () => {
     expect(LEVER_SKINS).toContain('power-grip');
     expect(LEVER_SKINS).toHaveLength(9);
     expect(LEVER_SKINS).not.toContain('bat-small');
-    for (const skin of LEVER_SKINS) expect(() => build([lever('lv.s', { skin })])).not.toThrow();
+    expect(LEVER_SKINS).toContain('parking-flap');
+    expect(LEVER_SKINS).not.toContain('parking-lever');
+    for (const skin of LEVER_SKINS) {
+      const over: Partial<DetentLeverDef> = skin === 'parking-flap' ? TAP_TOGGLE : { skin };
+      expect(() => build([lever('lv.s', over)])).not.toThrow();
+    }
     expect(() => build([lever('lv.none')])).not.toThrow();
   });
 

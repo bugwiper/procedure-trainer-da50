@@ -253,6 +253,31 @@ describe('targetSide', () => {
     ).toBe(25);
   });
 
+  it('counts the whole footprint of a tap-toggle lever: the smaller side', () => {
+    const flap: ControlDef = {
+      id: 'lv.x',
+      label: 'X',
+      region: 'pedestal',
+      x: 50,
+      y: 100,
+      hit: { w: 44, h: 88 },
+      kind: 'detent-lever',
+      detents: [
+        { id: 'off', label: 'OFF', pos: 0 },
+        { id: 'set', label: 'SET', pos: 1 },
+      ],
+      default: 'off',
+      track: { length: 44, axis: 'v' },
+      skin: 'parking-flap',
+      tapToggle: true,
+    };
+    // The drag rule would give min(44, 88 - 44, 44) = 44 here; make the track long so it differs.
+    expect(targetSide(flap)).toBe(44);
+    expect(targetSide({ ...flap, track: { length: 80, axis: 'v' } })).toBe(44);
+    expect(targetSide({ ...flap, hit: { w: 60, h: 40 } })).toBe(40);
+    expect(targetSide(DA50RG.get('lv.parking_brake') as ControlDef)).toBe(44);
+  });
+
   it('matches the plan 03 rule for every control of DA50RG', () => {
     for (const def of DA50RG.controls) {
       expect(targetSide(def), def.id).toBeGreaterThan(0);

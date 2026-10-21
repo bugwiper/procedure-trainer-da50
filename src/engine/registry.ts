@@ -61,7 +61,7 @@ export const LEVER_SKINS = [
   'pull-tab',
   'pull-boot',
   'env-slider',
-  'parking-lever',
+  'parking-flap',
   'cowl-slider',
 ] as const;
 
@@ -142,6 +142,11 @@ export interface DetentLeverDef extends ControlBase {
   /** Centred on (x, y); 'v': pos 0 = bottom, 'h': pos 0 = left. */
   readonly track: { readonly length: number; readonly axis: 'v' | 'h' };
   readonly skin?: LeverSkin;
+  /**
+   * A tap anywhere on the footprint toggles between the two detents; no dragging, no markers, no
+   * track (R2-4.2). Goes with the parking-flap skin, both or neither; exactly two detents.
+   */
+  readonly tapToggle?: true;
 }
 
 export interface MomentaryButtonDef extends ControlBase {
@@ -459,6 +464,26 @@ function checkRockerFields(def: { id: ControlId; size?: string; colour?: string 
 function checkLeverSkin(def: DetentLeverDef): void {
   if (def.skin !== undefined && !(LEVER_SKINS as readonly string[]).includes(def.skin)) {
     throw new RegistryError(`lever "${def.id}" has unknown skin "${def.skin}"`);
+  }
+  const flapSkin = def.skin === 'parking-flap';
+  if (def.tapToggle === true && !flapSkin) {
+    throw new RegistryError(`lever "${def.id}" has tapToggle but its skin is not "parking-flap"`);
+  }
+  if (flapSkin && def.tapToggle !== true) {
+    throw new RegistryError(`lever "${def.id}" has the "parking-flap" skin but not tapToggle`);
+  }
+  if (def.tapToggle === true) {
+    if (def.detents.length !== 2) {
+      throw new RegistryError(
+        `lever "${def.id}" has tapToggle and ${def.detents.length} detents (exactly 2 required)`,
+      );
+    }
+    if (def.dragOnly === true) {
+      throw new RegistryError(`lever "${def.id}" has tapToggle and is drag-only`);
+    }
+    if (def.markers !== undefined && def.markers.length > 0) {
+      throw new RegistryError(`lever "${def.id}" has tapToggle and cannot have tap markers`);
+    }
   }
 }
 

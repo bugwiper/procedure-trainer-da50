@@ -46,7 +46,8 @@ export const LEVER_ART: Readonly<Record<LeverSkin, SkinArt>> = {
   'pull-boot': { along: 22, across: 12, nameInset: 6.5, tick: 8, tickColour: '#6b7580' },
   'power-grip': { along: 15, across: 22, tick: 7, tickColour: '#4a525c' },
   'cowl-slider': { along: 8, across: 10, tick: 4, tickColour: '#4a525c' },
-  'parking-lever': { along: 14, across: 10, tick: 4, tickColour: '#4a525c' },
+  // Drawn by FlapBody, never by the handle code; the numbers only keep the table type-complete.
+  'parking-flap': { along: 0, across: 0, tick: 0, tickColour: '#4a525c' },
   'env-slider': { along: 7, across: 11, tick: 6, tickColour: '#6b7580' },
 };
 
@@ -201,19 +202,8 @@ export function LeverHandle({ skin, axis, dragging }: LeverHandleProps) {
           <rect x={-8} y={-5} width={16} height={1} fill={BLACK_EDGE} />
         </g>
       );
-    case 'parking-lever':
-      return (
-        <g>
-          <path
-            d="M-10 14L10 14L6 -14L-6 -14Z"
-            fill={BLACK}
-            stroke={dragging ? DRAG_RING : BLACK_EDGE}
-            stroke-width={dragging ? 2 : 1}
-            stroke-linejoin="round"
-          />
-          <path d="M-5 -13L5 -13" stroke={BLACK_EDGE} stroke-width={1} />
-        </g>
-      );
+    case 'parking-flap':
+      return null;
     case 'env-slider': {
       // 22 across the slot by 14 along it.
       const w = axis === 'v' ? 22 : 14;
@@ -334,8 +324,8 @@ export function LeverTrack({ skin, length, axis, handleAt }: LeverTrackProps) {
       );
     case 'cowl-slider':
       return <Slot axis={axis} w={8} length={length} pad={12} />;
-    case 'parking-lever':
-      return <Slot axis={axis} w={8} length={length} pad={14} />;
+    case 'parking-flap':
+      return null;
     case 'env-slider':
       return <Slot axis={axis} w={4} length={length} pad={14} />;
     default:

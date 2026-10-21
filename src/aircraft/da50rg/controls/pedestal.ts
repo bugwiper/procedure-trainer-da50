@@ -129,9 +129,10 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     skin: 'env-slider', // horizontal; COCK, SIM
   },
   {
-    // Parking brake, upper left of the pedestal (owner photo, G-3): a small lever that is pulled
-    // up to set the brake, so OFF is the bottom position and SET the top one. Only the placard
-    // PARKING / BRAKE names it; no legends, no state text.
+    // Parking brake, upper left of the pedestal (owner photo, G-3, R2-4.2): a small hinged flap
+    // that lies flat when released (off) and stands up when pulled (set). Only the placard
+    // PARKING / BRAKE names it; no legends, no state text. The track stays in the data but the
+    // flap does not use it.
     id: 'lv.parking_brake',
     kind: 'detent-lever',
     label: 'PARKING BRAKE',
@@ -148,7 +149,8 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
       { id: 'set', label: 'SET', pos: 1 },
     ],
     default: 'off', // in flight the brake is released (D-07d)
-    // Small black lever with two stops (PED, SIM, owner photo).
-    skin: 'parking-lever',
+    // A hinged flap in pseudo-perspective, toggled by a tap (R2-4.2, owner side-view photo).
+    skin: 'parking-flap',
+    tapToggle: true,
   },
 ];

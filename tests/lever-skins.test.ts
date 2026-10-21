@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import type { ControlDef, DetentLeverDef } from '../src/engine/registry';
 import { ENV_ICONS, LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
-import { LeverBody } from '../src/ui/panel/widgets/DetentLever';
+import {
+  LeverBody,
+  makeTapToggleHandlers,
+  tapToggleTarget,
+} from '../src/ui/panel/widgets/DetentLever';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
 
@@ -298,24 +302,47 @@ describe('nameless levers and chosen legends (plan 19, G-3)', () => {
 });
 
 describe('pedestal levers (plan 19, G-3)', () => {
-  it('PARKING BRAKE is pulled up to set: OFF at the bottom (pos 0), SET at the top (pos 1)', () => {
+  it('PARKING BRAKE keeps its id, states, default and name (R2-4.2): a tap-toggle flap with no drag', () => {
     const brake = lever('lv.parking_brake');
     expect(brake.detents.map((d) => [d.id, d.pos])).toEqual([
       ['off', 0],
       ['set', 1],
     ]);
     expect(brake.default).toBe('off');
-    expect(brake.track.axis).toBe('v');
-    // Both positions stay tap markers (ids and state ids unchanged).
+    expect(brake.label).toBe('PARKING BRAKE');
+    expect(brake.nameless).toBe(true);
+    expect(brake.skin).toBe('parking-flap');
+    expect(brake.tapToggle).toBe(true);
+    expect(brake.hit).toEqual({ w: 44, h: 88 });
     expect(brake.markers).toBeUndefined();
     expect(brake.dragOnly).not.toBe(true);
-    const tree = body(brake, 'off');
-    expect(findElements(tree, (el) => 'data-detent' in el.props)).toHaveLength(2);
+  });
+
+  it('PARKING BRAKE draws one hit over the whole footprint, no detent markers, no track', () => {
+    const brake = lever('lv.parking_brake');
+    for (const d of brake.detents) {
+      const tree = body(brake, d.id);
+      expect(
+        findElements(tree, (el) => 'data-detent' in el.props),
+        d.id,
+      ).toHaveLength(0);
+      const hits = findElements(tree, (el) => 'data-hit' in el.props);
+      expect(hits, d.id).toHaveLength(1);
+      expect(hits[0]?.props['data-hit']).toBe('lv.parking_brake');
+      expect(hits[0]?.props['x']).toBe(-brake.hit.w / 2);
+      expect(hits[0]?.props['y']).toBe(-brake.hit.h / 2);
+      expect(hits[0]?.props['width']).toBe(brake.hit.w);
+      expect(hits[0]?.props['height']).toBe(brake.hit.h);
+      // No track slot, no detent tick path (the flap does not use the track).
+      expect(
+        findElements(tree, (el) => el.tag === 'path'),
+        d.id,
+      ).toEqual([]);
+    }
   });
 
   it('PARKING BRAKE prints nothing: no name, no legends, no state text, in either position', () => {
     const brake = lever('lv.parking_brake');
-    expect(brake.nameless).toBe(true);
     expect(brake.legends).toEqual([]);
     for (const d of brake.detents) {
       expect(texts(body(brake, d.id)), d.id).toEqual([]);
@@ -323,21 +350,56 @@ describe('pedestal levers (plan 19, G-3)', () => {
     }
   });
 
-  it('the handle of PARKING BRAKE rises when the brake is set', () => {
+  it('a tap toggles the other detent once; a long gesture, a cancel and a lost capture do nothing', () => {
     const brake = lever('lv.parking_brake');
-    const handleY = (state: string) => {
-      const handle = findElements(
-        body(brake, state),
-        (el) =>
-          el.tag === 'g' &&
-          el.props['pointer-events'] === 'none' &&
-          typeof el.props['transform'] === 'string' &&
-          !('data-control-id' in el.props),
-      ).find((g) => /^translate\(/.test(String(g.props['transform'])));
-      const match = /translate\(\S+ (-?[\d.]+)\)/.exec(String(handle?.props['transform']));
-      return Number(match?.[1]);
-    };
-    expect(handleY('set')).toBeLessThan(handleY('off'));
+    expect(tapToggleTarget(brake, 'off')).toBe('set');
+    expect(tapToggleTarget(brake, 'set')).toBe('off');
+    let state = 'off';
+    const calls: string[] = [];
+    let pressed = false;
+    const handlers = makeTapToggleHandlers(
+      brake,
+      () => state,
+      (detent) => {
+        calls.push(detent);
+        state = detent;
+      },
+      (p) => {
+        pressed = p;
+      },
+    );
+    const ev = (x: number, y: number, over: Partial<PointerEvent> = {}): PointerEvent =>
+      ({
+        isPrimary: true,
+        pointerId: 1,
+        clientX: x,
+        clientY: y,
+        currentTarget: { setPointerCapture: () => undefined },
+        ...over,
+      }) as unknown as PointerEvent;
+    handlers.onDown(ev(100, 100));
+    expect(pressed).toBe(true);
+    handlers.onUp(ev(102, 101));
+    expect(pressed).toBe(false);
+    expect(calls).toEqual(['set']);
+    handlers.onDown(ev(100, 100));
+    handlers.onUp(ev(100, 100));
+    expect(calls).toEqual(['set', 'off']);
+    // An up without a down is nothing; a drag beyond the slop is nothing.
+    handlers.onUp(ev(100, 100));
+    handlers.onDown(ev(100, 100));
+    handlers.onUp(ev(100, 140));
+    expect(calls).toEqual(['set', 'off']);
+    // Cancel and lost capture clear without actuating.
+    handlers.onDown(ev(100, 100));
+    handlers.clear();
+    expect(pressed).toBe(false);
+    handlers.onUp(ev(100, 100));
+    expect(calls).toEqual(['set', 'off']);
+    // A second pointer (not primary) is ignored.
+    handlers.onDown(ev(100, 100, { isPrimary: false }));
+    handlers.onUp(ev(100, 100, { isPrimary: false }));
+    expect(calls).toEqual(['set', 'off']);
   });
 
   it('the throttle is the POWER lever under its plate name THROTTLE (Q-04): id, steps, default and MAX kept', () => {
@@ -359,7 +421,7 @@ describe('POWER grip, COWL FLAP, PARKING BRAKE and the environmental sliders', (
   const EXPECTED: Record<string, string> = {
     'lv.power': 'power-grip',
     'lv.cowl_flap': 'cowl-slider',
-    'lv.parking_brake': 'parking-lever',
+    'lv.parking_brake': 'parking-flap',
     'lv.env_direction': 'env-slider',
     'lv.env_temp': 'env-slider',
     'lv.env_circ': 'env-slider',

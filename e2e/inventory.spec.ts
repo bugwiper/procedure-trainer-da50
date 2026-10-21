@@ -163,7 +163,20 @@ test('console levers open in their in-flight defaults', async ({ page }) => {
   }
 });
 
-test('every detent of DIRECTION, TEMPERATURE, CIRCULATING AIR, PARKING BRAKE and COWL FLAP is reachable by tap', async ({
+test('two taps on the PARKING BRAKE flap set it and return it to off', async ({
+  page,
+  hasTouch,
+}) => {
+  const brake = control(page, 'lv.parking_brake');
+  const hit = page.locator('[data-hit="lv.parking_brake"]');
+  await expect(page.locator('[data-detent^="lv.parking_brake:"]')).toHaveCount(0);
+  await activate(hit, hasTouch);
+  await expect(brake).toHaveAttribute('data-state', 'set');
+  await activate(hit, hasTouch);
+  await expect(brake).toHaveAttribute('data-state', 'off');
+});
+
+test('every detent of DIRECTION, TEMPERATURE, CIRCULATING AIR and COWL FLAP is reachable by tap', async ({
   page,
   hasTouch,
 }) => {
@@ -171,7 +184,6 @@ test('every detent of DIRECTION, TEMPERATURE, CIRCULATING AIR, PARKING BRAKE and
     'lv.env_direction': ['defrost', 'feet', 'face'],
     'lv.env_temp': ['cold', 't25', 't75', 'warm', 't50'],
     'lv.env_circ': ['recirc', 'fresh'],
-    'lv.parking_brake': ['set', 'off'],
     'lv.cowl_flap': ['open', 'closed'],
   };
   for (const [id, detents] of Object.entries(sequences)) {

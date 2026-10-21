@@ -123,6 +123,8 @@ export function targetSide(def: ControlDef): number {
     case 'guard':
       return Math.min(def.hit.w, def.hit.h, def.openHit.w, def.openHit.h);
     case 'detent-lever': {
+      // A tap-toggle lever is operated by a tap anywhere on its footprint (R2-4.2).
+      if (def.tapToggle === true) return Math.min(def.hit.w, def.hit.h);
       const { length, axis } = def.track;
       const vertical = axis === 'v';
       const along = vertical ? def.hit.h : def.hit.w;

@@ -120,7 +120,7 @@ test('ALTERNATE STATIC and ALTERNATE AIR pull by marker tap, EMERGENCY GEAR EXTE
 const CONSOLE_SKINS: Record<string, string> = {
   'lv.power': 'power-grip',
   'lv.cowl_flap': 'cowl-slider',
-  'lv.parking_brake': 'parking-lever',
+  'lv.parking_brake': 'parking-flap',
   'lv.env_direction': 'env-slider',
   'lv.env_temp': 'env-slider',
   'lv.env_circ': 'env-slider',
@@ -181,21 +181,27 @@ test('DIRECTION draws pictograms only and TEMPERATURE prints only COLD and WARM'
   await expect(page.locator('[data-shell="group-box"]')).toHaveCount(4);
 });
 
-test('PARKING BRAKE is pulled up to set: SET is the upper marker, OFF the lower one', async ({
+test('PARKING BRAKE is a flap: a tap pulls it up (one wall), a second tap releases it (no wall)', async ({
   page,
   hasTouch,
 }) => {
   const brake = control(page, 'lv.parking_brake');
+  const hit = page.locator('[data-hit="lv.parking_brake"]');
   await expect(brake).toHaveAttribute('data-state', 'off');
-  const off = await centre(page.locator('[data-detent="lv.parking_brake:off"]'));
-  const set = await centre(page.locator('[data-detent="lv.parking_brake:set"]'));
-  expect(set.y).toBeLessThan(off.y);
-  await activate(page.locator('[data-detent="lv.parking_brake:set"]'), hasTouch);
+  await expect(brake).toHaveAttribute('data-skin', 'parking-flap');
+  // One hit over the whole footprint, no detent markers.
+  await expect(hit).toHaveCount(1);
+  await expect(page.locator('[data-detent^="lv.parking_brake:"]')).toHaveCount(0);
+  await expect(brake.locator('[data-flap-wall]')).toHaveCount(0);
+  await activate(hit, hasTouch);
   await expect(brake).toHaveAttribute('data-state', 'set');
-  // Nothing is printed on the lever: the plate placard names it.
+  await expect(brake.locator('[data-flap-wall]')).toHaveCount(1);
+  // Nothing is printed on the flap: the plate placard names it.
   await expect(brake.locator('text')).toHaveCount(0);
-  await activate(page.locator('[data-detent="lv.parking_brake:off"]'), hasTouch);
+  await activate(hit, hasTouch);
   await expect(brake).toHaveAttribute('data-state', 'off');
+  await expect(brake.locator('[data-flap-wall]')).toHaveCount(0);
+  await expect(brake.locator('text')).toHaveCount(0);
 });
 
 test('the pedestal levers print no name of their own, the plate placards name them', async ({

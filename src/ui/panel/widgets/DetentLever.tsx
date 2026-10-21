@@ -4,6 +4,7 @@ import { useRef } from 'preact/hooks';
 import { detentOffset, projectToTrack, snapToDetent } from '../../../engine/detents';
 import type { DetentDef, DetentLeverDef } from '../../../engine/registry';
 import type { WidgetProps } from '../ControlWidget';
+import { FlapBody } from '../skins/Flap';
 import { EnvIcon, ENV_ICONS, LEVER_ART, LeverHandle, LeverTrack } from '../skins/LeverHandles';
 
 const MIN_DRAG_PX = 4;
@@ -49,6 +50,58 @@ export interface LeverHandlers {
   readonly clearTap: () => void;
 }
 
+/** The other detent of a two-detent tap-toggle lever: a tap goes from the current one to it. */
+export function tapToggleTarget(def: DetentLeverDef, state: string): string {
+  const other = def.detents.find((d) => d.id !== state) ?? def.detents[0]!;
+  return other.id;
+}
+
+/** Pointer handlers of a tap-toggle lever; absent in static renders (tests). */
+export interface TapToggleHandlers {
+  readonly onDown: (e: PointerEvent) => void;
+  readonly onUp: (e: PointerEvent) => void;
+  readonly clear: () => void;
+}
+
+/**
+ * The tap logic of a tap-toggle lever, without hooks so a node test can drive it: a primary
+ * pointer that goes down and comes up within the tap slop actuates the other detent once; a
+ * longer gesture, a cancel and a lost capture clear without actuating. `setPressed` drives the
+ * transient pressed ring only.
+ */
+export function makeTapToggleHandlers(
+  def: DetentLeverDef,
+  stateOf: () => string,
+  actuate: (detent: string) => void,
+  setPressed: (pressed: boolean) => void,
+): TapToggleHandlers {
+  let start: { pointerId: number; x: number; y: number } | null = null;
+  const clear = () => {
+    start = null;
+    setPressed(false);
+  };
+  return {
+    onDown: (e) => {
+      if (!e.isPrimary) return;
+      try {
+        (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      } catch {
+        // The pointer may already be gone; the tap is still evaluated on pointerup.
+      }
+      start = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
+      setPressed(true);
+    },
+    onUp: (e) => {
+      const s = start;
+      if (!e.isPrimary || s === null || s.pointerId !== e.pointerId) return;
+      clear();
+      if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > TAP_SLOP_PX) return;
+      actuate(tapToggleTarget(def, stateOf()));
+    },
+    clear,
+  };
+}
+
 export interface LeverBodyProps {
   readonly def: DetentLeverDef;
   /** Committed detent id. */
@@ -60,6 +113,50 @@ export interface LeverBodyProps {
   readonly regionWidth: number;
   readonly handlers?: LeverHandlers;
   readonly groupRef?: Ref<SVGGElement>;
+  /** Tap-toggle levers only: the pointer handlers and the transient pressed ring. */
+  readonly toggle?: TapToggleHandlers;
+  readonly pressed?: boolean;
+}
+
+/**
+ * Body of a tap-toggle lever (R2-4.2): the hinged flap and one hit over the whole footprint. No
+ * track, tick, legend or marker; prints no text. Pure, no hooks.
+ */
+function TapToggleBody({
+  def,
+  state,
+  groupRef,
+  toggle,
+  pressed,
+}: Pick<LeverBodyProps, 'def' | 'state' | 'groupRef' | 'toggle' | 'pressed'>) {
+  const current: DetentDef = def.detents.find((d) => d.id === state) ?? def.detents[0]!;
+  return (
+    <g
+      ref={groupRef}
+      data-control-id={def.id}
+      data-kind={def.kind}
+      data-skin={def.skin}
+      data-state={state}
+      role="img"
+      aria-label={`${def.label}: ${current.label}`}
+      transform={`translate(${def.x} ${def.y})`}
+    >
+      <FlapBody def={def} state={state} pressed={pressed === true} />
+      <rect
+        data-hit={def.id}
+        x={-def.hit.w / 2}
+        y={-def.hit.h / 2}
+        width={def.hit.w}
+        height={def.hit.h}
+        fill="transparent"
+        pointer-events="all"
+        onPointerDown={toggle?.onDown}
+        onPointerUp={toggle?.onUp}
+        onPointerCancel={toggle?.clear}
+        onLostPointerCapture={toggle?.clear}
+      />
+    </g>
+  );
 }
 
 /**
@@ -76,7 +173,20 @@ export function LeverBody({
   regionWidth,
   handlers,
   groupRef,
+  toggle,
+  pressed,
 }: LeverBodyProps) {
+  if (def.tapToggle === true) {
+    return (
+      <TapToggleBody
+        def={def}
+        state={state}
+        groupRef={groupRef}
+        toggle={toggle}
+        pressed={pressed}
+      />
+    );
+  }
   const current: DetentDef = def.detents.find((d) => d.id === state) ?? def.detents[0]!;
   const dragOnly = def.dragOnly === true;
   const markerIds = dragOnly ? [] : (def.markers ?? def.detents.map((d) => d.id));
@@ -307,7 +417,37 @@ export function LeverBody({
  * has no marker targets, so a tap cannot move it (PNL-06, T-01-21). The art is the pure
  * LeverBody; this wrapper owns the signals, the ref and the pointer handlers.
  */
-export function DetentLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
+export function DetentLever(props: WidgetProps<DetentLeverDef>) {
+  return props.def.tapToggle === true ? <TapToggleLever {...props} /> : <DragLever {...props} />;
+}
+
+/** The tap-toggle lever widget: a tap on the footprint toggles the two detents (R2-4.2). */
+function TapToggleLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
+  const pressed = useSignal(false);
+  const handlers = useRef<TapToggleHandlers | null>(null);
+  handlers.current ??= makeTapToggleHandlers(
+    def,
+    () => bridge.stateOf(def.id).value,
+    (detent) => bridge.actuate(def.id, detent),
+    (p) => {
+      pressed.value = p;
+    },
+  );
+  const state = bridge.stateOf(def.id).value;
+  return (
+    <LeverBody
+      def={def}
+      state={state}
+      handlePos={0}
+      dragging={false}
+      regionWidth={def.hit.w}
+      toggle={handlers.current}
+      pressed={pressed.value}
+    />
+  );
+}
+
+function DragLever({ def, bridge }: WidgetProps<DetentLeverDef>) {
   const groupRef = useRef<SVGGElement>(null);
   const drag = useSignal<DragStart | null>(null);
   const dragPos = useSignal<number | null>(null);
