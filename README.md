@@ -19,6 +19,10 @@ The panel has 92 controls and 13 indicator lamps in 30 regions, placed where the
 - **ENGINE**, left edge below DE-ICE: FADEC (AUTO / FORCE B), FADEC TEST (push button), ALTERNATOR 1, ALTERNATOR 2
 - **MFD SOFTKEYS**, under the MFD screen: a row of 12 triangle keys; the first one switches the MFD between the map page and the engine page (its legend, Engine, stands on the glass above it), the other 11 are art only
 - **PFD SOFTKEYS**, under the PFD screen: a row of 12 triangle keys, art only
+- **KNOB AND KEY COLUMNS**, beside both displays: the PFD left column (VOL, NAV, HDG and ALT knobs, swap button), the PFD right column and the MFD right column (VOL, COM, CRS/BARO and FMS knobs, swap button, RANGE joystick, six keys), all art only
+- **AUDIO PANEL**, centre stack: 21 keys with lamp slivers, the volume knob and the red DISPLAY BACKUP button, art only
+- **BACKUP EFIS**, centre stack: a small attitude display, a tape display and a knob, art only
+- **AUTOPILOT PANEL**, between the displays: four knobs, a swap button and 12 keys, art only
 - **SWITCH ROW**, under the PFD: PROP DE-ICE, FUEL TRANS, EMERG FUEL PUMP, ENGINE START (push button), ENGINE MASTER, ESS BUS, ELECT. MASTER, AV MASTER, PITOT/STALL HEAT
 - **LANDING GEAR**: GEAR, the STALL TEST / GEAR TEST toggle, and the gear lamps (NOSE, LEFT, RIGHT, UNSAFE)
 - **LEVEL**, between the gear and flap blocks: LEVEL (push button)
@@ -30,7 +34,7 @@ The panel has 92 controls and 13 indicator lamps in 30 regions, placed where the
 - **PEDESTAL**: PARKING BRAKE (pulled up to set), THROTTLE (0 to 100 % in 5 % steps), COWL FLAP (CLOSED / OPEN) with its two position lamps
 - **UNDER PANEL R**: ALTERNATE AIR
 - **BUS PANEL FRAME**, far right: the ESSENTIAL, MAIN and AVIONICS bus outlines with their titles, three blank plugs, three pump boxes and the lower-row panel (art only)
-- **CIRCUIT BREAKERS**, bus panel at the far right: 51 breakers with their printed labels and ratings, 38 in the ESSENTIAL, MAIN and AVIONICS bus boxes (three blank plugs between them), 10 in the lower row and 3 on the flap strip under the MFD (STALL/AOA, PROP DE-ICE, DE-ICE); all start pushed in, a tap pulls a breaker out, showing a raised cap and a white ring, a second tap pushes it back in
+- **CIRCUIT BREAKERS**, bus panel at the far right: 51 breakers with their printed labels and ratings, 38 in the ESSENTIAL, MAIN and AVIONICS bus boxes (three blank plugs between them), 10 in the lower row and 3 on the flap strip under the MFD (STALL/AOA, PROP DE-ICE, DE-ICE); all start pushed in
 
 How it behaves:
 
@@ -39,6 +43,8 @@ How it behaves:
 - ALTERNATE is the cockpit's only guarded switch, a normal toggle under a red guard: tap the guard to lift it, then tap the toggle; the guard stays up until you tap it closed. ELECT. MASTER and ELT are red but unguarded and flip with one tap.
 - The gear and flap lamps follow the GEAR and FLAPS levers. Holding GEAR TEST lights all four gear lamps. Lamps are derived from the control states; nothing pulses.
 - The de-ice mode lamps follow the mode toggle (HIGH amber, NORM white); the MAX lamp stays dark until the 120 s run exists in the engine phase.
+- A tap on a circuit breaker pulls it out, showing a raised cap and a white ring (no text); a second tap pushes it back in. Nothing else in the cockpit reacts to a pulled breaker yet.
+- The softkeys other than the first MFD key, the knob and key columns, and every key, knob and button of the audio panel (including DISPLAY BACKUP), the backup EFIS and the autopilot panel do nothing: a tap on them only zooms into their region.
 - ENGINE START, FADEC TEST, MAX, WIND SHIELD, LEVEL and the STALL TEST / GEAR TEST toggle are momentary: they act while held and return when you let go, also when you slide off the button first.
 - The de-ice, lighting and environmental controls move and are recorded, but their systems are not simulated yet (spray, ice light, annunciator test and the MAX run belong to the engine phase).
 - The panel keeps the true spacing and proportions of the aircraft, so some controls are small at the full view. On every device, a tap or click on a region's background zooms into it at full tap size; "Full panel" (or a double tap or double click) zooms out.
