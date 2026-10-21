@@ -5,10 +5,12 @@ import type { ControlDef, Rect } from '../src/engine/registry';
 import {
   DOUBLE_TAP_MS,
   DOUBLE_TAP_PX,
+  FULL_PANEL_GUARD_MS,
   TAP_MAX_MS,
   TAP_SLOP_PX,
   createDoubleTapTracker,
   isBackgroundTap,
+  isStrayFullPanelClick,
 } from '../src/ui/panel/tap-intent';
 import {
   BUTTON_BOX,
@@ -451,6 +453,46 @@ describe('createDoubleTapTracker (R2-Z1)', () => {
     t.reset();
     expect(t.tap(later(100), false)).toBe('none');
     expect(t.tap(later(200), false)).toBe('zoom-in');
+  });
+});
+
+describe('isStrayFullPanelClick (WebKit synthesized click after a double tap, plan 32)', () => {
+  const shownAt = 1000;
+
+  it('ignores a click that arrives right after the view changed and had no press on the button', () => {
+    expect(isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + 5 })).toBe(true);
+    expect(isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + 120 })).toBe(true);
+    expect(
+      isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + FULL_PANEL_GUARD_MS - 1 }),
+    ).toBe(true);
+  });
+
+  it('ignores a click whose press happened before the button appeared', () => {
+    expect(isStrayFullPanelClick({ shownAt, pressedAt: shownAt - 30, clickAt: shownAt + 10 })).toBe(
+      true,
+    );
+  });
+
+  it('accepts a click that follows a press on the button, however fast the tap', () => {
+    expect(isStrayFullPanelClick({ shownAt, pressedAt: shownAt + 20, clickAt: shownAt + 60 })).toBe(
+      false,
+    );
+    expect(isStrayFullPanelClick({ shownAt, pressedAt: shownAt, clickAt: shownAt + 1 })).toBe(false);
+  });
+
+  it('accepts any click from FULL_PANEL_GUARD_MS on, with or without a recorded press', () => {
+    expect(
+      isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + FULL_PANEL_GUARD_MS }),
+    ).toBe(false);
+    expect(isStrayFullPanelClick({ shownAt, pressedAt: null, clickAt: shownAt + 5000 })).toBe(false);
+  });
+
+  it('accepts every click when no tap changed the view (shownAt null)', () => {
+    expect(isStrayFullPanelClick({ shownAt: null, pressedAt: null, clickAt: 3 })).toBe(false);
+  });
+
+  it('guards for about 400 ms', () => {
+    expect(FULL_PANEL_GUARD_MS).toBe(400);
   });
 });
 
