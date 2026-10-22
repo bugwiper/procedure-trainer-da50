@@ -288,6 +288,49 @@ test('@hooks the briefing shows source, disclaimer and the outline over the unch
   expect(footer?.height ?? 0).toBeGreaterThanOrEqual(MIN_FOOTER_PX);
 });
 
+test('@hooks Medium: the level is chosen in the briefing, no checklist, the debrief names it', async ({
+  page,
+  hasTouch,
+}) => {
+  await openBriefing(page, hasTouch);
+  const easy = page.getByTestId('briefing-level-easy');
+  const medium = page.getByTestId('briefing-level-medium');
+  await expect(easy).toHaveAttribute('aria-pressed', 'true');
+  await expect(medium).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('briefing-outline')).toBeVisible();
+
+  await afterShield(page);
+  await activate(medium, hasTouch);
+  await expect(medium).toHaveAttribute('aria-pressed', 'true');
+  await expect(easy).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('briefing-outline')).toHaveCount(0);
+  await expect(page.getByTestId('briefing-situation')).toBeVisible();
+
+  // Both level buttons are real touch targets inside the viewport.
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  for (const button of [easy, medium]) {
+    const box = await button.boundingBox();
+    expect(box).not.toBeNull();
+    if (box === null || viewport === null) return;
+    expect(box.height).toBeGreaterThanOrEqual(MIN_BUTTON_PX);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+  }
+
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeHidden();
+  expect(await screenOf(page)).toBe('running');
+  await goldenTaps(page, hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.getByTestId('debrief-level')).toHaveText('Level: Medium');
+  // The debrief always shows the checklist with its verdicts.
+  await expect(page.getByTestId('debrief-row')).toHaveCount(2);
+});
+
 test('@hooks Start run starts in the initial state on the full panel', async ({
   page,
   hasTouch,
@@ -420,6 +463,7 @@ test('@hooks the golden run grades PASS and keeps the end state', async ({ page,
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.getByTestId('debrief-level')).toHaveText('Level: Easy');
   const rows = page.getByTestId('debrief-row');
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toHaveAttribute('data-verdict', 'Done');

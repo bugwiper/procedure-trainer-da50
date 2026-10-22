@@ -3,6 +3,8 @@ import type { Scenario } from '../../scenario/schema';
 import { harmfulLine, reasonLines } from '../debrief-text';
 import { buildOutline } from '../outline';
 import { ChecklistOutline } from './ChecklistOutline';
+import { LEVEL_NAMES } from '../session';
+import type { Level } from '../session';
 import { Modal } from './Modal';
 
 /**
@@ -10,16 +12,18 @@ import { Modal } from './Modal';
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
  * apply muted, an order line under every ordered group and the harmful actions with their
- * virtual-clock time. No score, no timeline. It sits on the shared modal shell: Escape is Back to panel,
+ * virtual-clock time. It names the level of the run ("Level: Easy"). No score, no timeline. It sits on the shared modal shell: Escape is Back to panel,
  * a tap on the backdrop does nothing.
  */
 export function Debrief({
   scenario,
   result,
+  level,
   onClose,
 }: {
   readonly scenario: Scenario;
   readonly result: GradeResult;
+  readonly level: Level;
   readonly onClose: () => void;
 }) {
   const outline = buildOutline(scenario, result.branches, 'debrief', result);
@@ -54,6 +58,9 @@ export function Debrief({
           {line}
         </p>
       ))}
+      <p class="briefing-meta" data-testid="debrief-level">
+        {`Level: ${LEVEL_NAMES[level]}`}
+      </p>
       <h3 class="debrief-heading">Steps</h3>
       <ChecklistOutline items={outline} />
       <h3 class="debrief-heading" data-testid="debrief-harmful-heading">

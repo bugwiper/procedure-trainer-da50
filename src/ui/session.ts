@@ -2,7 +2,8 @@
 // (free, briefing, running, debrief), how a run starts from a scenario and how it ends in a grade. No router;
 // the screen is a signal. This module has no DOM access, so it is unit tested in node. The UI owns
 // randomness (rng) and real time (the frame driver of plan 09 advances the run's VirtualClock);
-// the engine never sees either.
+// the engine never sees either. It also holds the difficulty level (Easy or Medium, phase 02.1): display
+// state chosen in the briefing; grade never receives it.
 
 import { signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
@@ -16,6 +17,15 @@ import type { Scenario } from '../scenario/schema';
 import type { PanelBridge } from './bridge';
 
 export type Screen = 'free' | 'choosing' | 'briefing' | 'running' | 'debrief';
+
+/** The difficulty level of a run (phase 02.1): Easy briefs with the checklist, Medium without it. */
+export type Level = 'easy' | 'medium';
+
+/** The levels in display order. */
+export const LEVELS: readonly Level[] = ['easy', 'medium'];
+
+/** The display name of each level, as the briefing buttons and the debrief print it. */
+export const LEVEL_NAMES: Readonly<Record<Level, string>> = { easy: 'Easy', medium: 'Medium' };
 
 /** What a session button asked for while a run was live; the confirm holds it (U-03). */
 export type PendingAction = 'new' | 'choose';
@@ -79,6 +89,11 @@ export interface Session {
   readonly busyKey: ReadonlySignal<string | null>;
   /** The virtual clock of the current run; null outside a run. */
   readonly clock: ReadonlySignal<VirtualClock | null>;
+  /**
+   * The level of the briefing and of the current or last run; easy at creation and kept for the
+   * page lifetime. grade never receives it.
+   */
+  readonly level: ReadonlySignal<Level>;
   /** Free and not busy only: opens one random allowed scenario and shows its briefing. */
   newSituation(): Promise<void>;
   /**
@@ -103,6 +118,11 @@ export interface Session {
   retryLoad(): Promise<void>;
   /** Closes the load-error message; the area returns to the free panel. */
   dismissFailure(): void;
+  /**
+   * Briefing only: sets the level. On any other screen it does nothing, so the level of a run
+   * cannot change between Start run and its debrief.
+   */
+  setLevel(level: Level): void;
   /** Briefing only: the panel takes the scenario's initial state and the run begins. */
   startRun(): void;
   /** Briefing only: back to the free panel, nothing changed. */
@@ -156,6 +176,7 @@ export function createSession(deps: SessionDeps): Session {
     | { readonly kind: 'chosen'; readonly ref: ScenarioRef; readonly key: string }
     | null = null;
   const clock = signal<VirtualClock | null>(null);
+  const level = signal<Level>('easy');
 
   /** Table N1 "start": baseline without an event, a fresh clock, then the screen. */
   const start = (opened: Scenario): void => {
@@ -280,6 +301,7 @@ export function createSession(deps: SessionDeps): Session {
     busyKey,
     confirm,
     clock,
+    level,
     async newSituation() {
       if (busy.peek()) return;
       // A live run asks first; the request waits in the confirm (U-03).
@@ -342,6 +364,10 @@ export function createSession(deps: SessionDeps): Session {
       else await runChosen(request.ref, request.key);
     },
     dismissFailure,
+    setLevel(next) {
+      if (screen.peek() !== 'briefing') return;
+      level.value = next;
+    },
     startRun() {
       const briefed = briefing.peek();
       if (screen.peek() !== 'briefing' || briefed === null) return;

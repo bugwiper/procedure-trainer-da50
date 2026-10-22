@@ -86,7 +86,7 @@ describe('Debrief on the shell', () => {
 
   it('renders as a Modal with the debrief id and Escape as Back to panel', () => {
     const onClose = vi.fn();
-    const vnode = Debrief({ scenario, result, onClose });
+    const vnode = Debrief({ scenario, result, level: 'easy', onClose });
     expect(vnode.type).toBe(Modal);
     const props = vnode.props as {
       id: string;

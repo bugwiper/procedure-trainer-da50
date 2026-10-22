@@ -18,6 +18,7 @@ import { Briefing } from './screens/Briefing';
 import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
 import { Debrief } from './screens/Debrief';
 import { createSession } from './session';
+import type { Level } from './session';
 
 const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
 
@@ -88,6 +89,10 @@ const closeDebrief = () => {
 
 const startRun = () => {
   session.startRun();
+};
+
+const setLevel = (level: Level) => {
+  session.setLevel(level);
 };
 
 const backToPanel = () => {
@@ -181,10 +186,21 @@ export function App() {
       </footer>
       {aboutOpen.value ? <About onClose={closeAbout} /> : null}
       {screen === 'briefing' && briefed !== null ? (
-        <Briefing briefed={briefed} onStart={startRun} onBack={backToPanel} />
+        <Briefing
+          briefed={briefed}
+          level={session.level.value}
+          onLevel={setLevel}
+          onStart={startRun}
+          onBack={backToPanel}
+        />
       ) : null}
       {screen === 'debrief' && scenario !== null && result !== null ? (
-        <Debrief scenario={scenario} result={result} onClose={closeDebrief} />
+        <Debrief
+          scenario={scenario}
+          result={result}
+          level={session.level.value}
+          onClose={closeDebrief}
+        />
       ) : null}
       {session.confirm.value !== null ? (
         <LeaveConfirm
