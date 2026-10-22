@@ -17,7 +17,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-06**: Controls with safety consequences are guarded or confirm-to-actuate, and stray touches on neutral areas are never graded as forbidden actions
 - [x] **PNL-08**: Panel layout reproduces the real DA50 RG positions (which control is where, relative placement and grouping, incl. under-panel controls) closely enough to build position memory for emergencies; touch sizing must never relocate a control
 - [x] **PNL-09**: On every device (phone first), the user can zoom into a panel region (pinch, or double click or double tap on the background or a latching control) with enlarged hit targets, without changing the true layout (promoted from PNL-V2-01; the gesture contract itself is PNL-15)
-- [ ] **PNL-07**: A simplified transponder section lets the user enter a squawk code (no full G1000 menu structure)
+- [x] **PNL-07**: A simplified transponder section lets the user enter a squawk code (no full G1000 menu structure)
 - [x] **PNL-10**: The panel visually reproduces the real DA50 RG (instrument panel outline, centre console, under-panel areas) in kind-of real shapes and real colours; brand marks are replaced (GARMIN with GO-AROUND; no airframe maker mark is drawn, the RUBIN placeholder was removed on owner request; DA50RG kept)
 - [x] **PNL-11**: Every switch, rocker, push button, lever and knob exists at its real position in kind-of real shape and colour; all of them work by mouse or touch (state shown by position and lamp only; labels are static placards and no text changes with a control state, owner rule G-0.1, which supersedes the earlier "position and text" wording); the light switches are white rockers and movable
 - [x] **PNL-12**: Every circuit breaker of the Essential, Main and Avionics bus exists at its real position as a control kind with states in and out (pushed in by default, pulled out shows a raised cap with a white ring and no state text, owner rule G-0.1, overriding the first IN/OUT text wording); tap toggles. The set is 51 breakers (flat `cb.*` ids): 38 in the three bus boxes, 10 in the lower row and 3 on the flap strip. Breaker effects on systems are deferred to Phase 3 (todo)
@@ -129,7 +129,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLT-04 | Phase 2 | Complete |
 | SCN-06 | Phase 3 | Pending |
 | PNL-04 | Phase 3 | Pending |
-| PNL-07 | Phase 3 | Pending |
+| PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Pending |
 | SES-02 | Phase 4 | Pending |
 | SES-05 | Phase 4 | Pending |
