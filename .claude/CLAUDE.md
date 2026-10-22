@@ -13,7 +13,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 - **Tech stack**: TypeScript + Vite, SVG-rendered panel — static output suited to GitHub Pages, scalable graphics for all screen sizes
 - **Hosting**: GitHub Pages (static only) — no server-side enforcement in v1
 - **Devices**: desktop, tablet, phone — touch and mouse input, responsive scaling
-- **Content format**: YAML scenario files with schema validation — manual extensibility
+- **Content format**: TOON scenario files with schema validation and line-numbered errors — manual extensibility
 - **Safety/legal**: Clearly marked as training aid, not replacing AFM — liability
 
 <!-- GSD:project-end -->
@@ -31,11 +31,11 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 | Node.js | 24 LTS in CI (local 26.x fine) | Build/test runtime | Vite 8 needs `^20.19 \|\| >=22.12`; Vitest 5 needs `^22.12 \|\| ^24 \|\| >=26`. Node 24 satisfies everything. Node 20 does NOT satisfy Vitest 5. | HIGH |
 | TypeScript | **`~6.0.3` (pin to 6.0.x, NOT 7)** | Language / type-check | TS 7.0 (native Go port, released 2026-07-08) ships **no programmatic API**; typescript-eslint 8.71.2 declares peer `typescript >=4.8.4 <6.1.0`. Microsoft itself tells API-dependent tooling to stay on 6.0. 6.0.3 passed type-check in the probe with `strict`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`. Revisit when TS 7.1 + typescript-eslint support land. Vite/esbuild-style transpilation does not use `tsc`, so build speed is unaffected. | HIGH |
 | Vite | 8.3.x | Dev server, bundler (Rolldown-based in v8), static build | Brief mandates it; first-class GitHub Pages guide; `import.meta.glob` gives lazy per-pack chunks (needed for gate-ready pack separation). | HIGH |
-| Preact | 11.0.1 (stable `latest`) | UI/rendering of SVG panel and screens | See "UI framework" rationale below. ~3 KB runtime, JSX renders SVG natively, signals give fine-grained gauge updates. Probe bundle (Preact + signals + zod + yaml + one component) was 33 KB gzip. Fallback if any ecosystem lib balks at v11: `preact@10.29.x`. | MEDIUM |
+| Preact | 11.0.1 (stable `latest`) | UI/rendering of SVG panel and screens | See "UI framework" rationale below. ~3 KB runtime, JSX renders SVG natively, signals give fine-grained gauge updates. Probe bundle (Preact + signals + zod + one component) was 33 KB gzip, before the parser. Fallback if any ecosystem lib balks at v11: `preact@10.29.x`. | MEDIUM |
 | @preact/signals | 2.11.3 | Reactive aircraft/panel state bound to SVG attributes | Peer range explicitly includes `preact >=11.0.0-0`. Updating a needle rotation re-renders only that attribute, not the component tree. | MEDIUM |
 | @preact/preset-vite | 2.10.6 | Vite plugin for Preact (JSX, HMR) | Peer range lists Vite 8. Verified building in probe. | HIGH |
-| yaml (eemeli/yaml) | 2.9.1 | Parse scenario YAML, with positions | Gives `doc.errors`, `LineCounter`, and `doc.getIn(path, true)` node ranges, so a Zod error path maps to "line 9, col 5". Default YAML 1.2 so `no`/`off`/`yes` stay strings (verified: `mode: no` came through as a string, not boolean false - the "Norway problem" is absent). Non-developer authors need line numbers. | HIGH |
-| Zod | 4.6.7 | Scenario schema = single source of truth (validation + TS types + JSON Schema) | `z.strictObject` catches typos like `requird:` (verified: "Unrecognized key ... line 9, col 5"). `z.infer` gives engine types for free. `z.toJSONSchema()` emits a JSON Schema that gives authors in VS Code autocomplete + inline validation (see YAML authoring). `z.discriminatedUnion` models the action/condition/reaction variants cleanly. | HIGH |
+| @toon-format/toon | 4.4.0 (pinned exactly) | Parse scenario TOON files | TOON is a Working Draft spec (11 releases in 11 months), so the version is pinned exactly and a conformance test guards every upgrade. `decode` in strict mode throws `ToonDecodeError` with a 1-based line; schema errors get line and column from the project's own path-to-line index (`src/scenario/toon-index.ts`). Non-developer authors need line numbers. | MEDIUM |
+| Zod | 4.6.7 | Scenario schema = single source of truth (validation + TS types + JSON Schema) | `z.strictObject` catches typos like `requird:` (verified: "Unrecognized key ... line 9, col 5"). `z.infer` gives engine types for free. `z.toJSONSchema()` stays an optional documentation artifact for the authoring guide (there is no editor schema support for TOON). `z.discriminatedUnion` models the action/condition/reaction variants cleanly. | HIGH |
 | Plain TypeScript pure-function engine (no library) | - | Scenario evaluation: action matching, ordering, forbidden actions, timed reactions, scoring | See "State machine / rules engine" rationale. Deterministic, framework-free, trivially unit-testable with a virtual clock. | HIGH (as a design decision) |
 | GitHub Pages via GitHub Actions | actions: checkout v7, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5 | Hosting + CI/CD | Official Vite guide workflow (fetched 2026-10-19). Pin by commit SHA as the guide does. | HIGH |
 
@@ -60,7 +60,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 | ESLint | 10.13.0 | Lint (flat config) | Verified working with TS 6.0.3 type-aware rules (`projectService: true`). |
 | typescript-eslint | 8.71.2 | TS lint rules | Peer TS `<6.1.0`, which is why TS is pinned to 6.0.x. |
 | @eslint/js | 10.0.1 | Base ESLint rules | |
-| Prettier | 3.9.10 | Formatting | Format YAML scenario files too (consistent authoring). |
+| Prettier | 3.9.10 | Formatting | Format code, JSON and Markdown. Never format TOON scenario files with the library encoder: it drops comments. |
 | happy-dom | 21.0.3 | Lightweight DOM for Vitest | Preferred over jsdom for speed; SVG support is adequate for non-layout tests. Do not assert on geometry/layout in it (use Playwright). |
 
 ## Detailed Rationale for the Key Questions
@@ -76,21 +76,22 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ### State machine / rules engine: do NOT use XState for scenario evaluation
 
-- Scenarios are **data (YAML), not code**. XState machines are defined in code; to drive them from YAML you must write a YAML-to-machine compiler, i.e. build your own interpreter anyway, plus learn XState's quirks.
+- Scenarios are **data (TOON), not code**. XState machines are defined in code; to drive them from TOON you must write a TOON-to-machine compiler, i.e. build your own interpreter anyway, plus learn XState's quirks.
 - The evaluation is not a classic FSM. It is "match a stream of user actions against required / optional / ordered-group / unordered / forbidden constraints and fire timed or triggered reactions". Natural model: `step(state, event) -> state` where `event` is `{type:'userAction', control, value, t}` or `{type:'tick', t}`; derived grading is a pure function over the recorded action log. Order constraints are a small piece of logic, not a statechart.
 - Determinism and testability: with a virtual clock (`tick(dtMs)` events, no `setTimeout` inside the engine) you can unit test "temperature escalates to engine failure if ignored for 45 s" instantly, and replay a recorded run for debrief.
 - Bundle/complexity cost with no gain.
-- Conditions in YAML are a small **declarative DSL validated by Zod** (e.g. `{ when: { control: oil_temp_gauge, op: gt, value: 240 } }`, `{ after: 30s, if: not_done: [action_id] }`). Never `eval`/`new Function` expressions from YAML; scenario files are authored by non-developers and may later be user-supplied.
+- Conditions in TOON are a small **declarative DSL validated by Zod** (e.g. `{ when: { control: oil_temp_gauge, op: gt, value: 240 } }`, `{ after: 30s, if: not_done: [action_id] }`). Never `eval`/`new Function` expressions from TOON; scenario files are authored by non-developers and may later be user-supplied.
 - A separate `scenario-lint` pass (run in Vitest and CI) checks **cross-references** the schema cannot: every `control` ID exists in the panel's control registry, every `action_id` referenced exists, no unreachable reactions, ordered groups reference real actions. Implement with `superRefine` where context is local, otherwise a plain function.
 
-### YAML + validation: `yaml` 2.9.1 + Zod 4.6.7 (not js-yaml, not Ajv)
+### TOON + validation: `@toon-format/toon` 4.4.0 + Zod 4.6.7 (not Ajv)
 
-- `yaml` over js-yaml (5.5.0): `yaml` exposes source positions, so validation errors can say "line 9, col 5". For non-developer authors this is the difference between usable and not. Verified in the probe with `parseDocument` + `LineCounter` + `doc.getIn(path, true)`. js-yaml is fine for parsing but its error mapping from schema paths to lines is not built in.
+- `@toon-format/toon` 4.4.0, pinned exactly: `decode` in strict mode throws `ToonDecodeError` with a 1-based line for syntax errors; schema errors (Zod issue paths) get line and column from the project's own path-to-line index (`src/scenario/toon-index.ts`), so validation errors can say "line 9, col 5". For non-developer authors this is the difference between usable and not.
+- TOON pitfalls: pin the version exactly and run the conformance test before any upgrade (Working Draft spec); strict decoding means array counts `[N]` must match the rows; quote numeric-looking strings (`issue: "018"`); comments are full lines starting with `#` only; no tabular rows and no root arrays in scenario files; never auto-format scenario files with the library encoder (it drops comments).
 - Zod over Ajv (8.20.0): schema, TS types and JSON Schema from one definition. Ajv makes JSON Schema the source of truth and then needs `json-schema-to-ts` or hand-written types. Choose Ajv only if authors are expected to maintain the JSON Schema by hand.
 - Use `z.strictObject` everywhere in scenario schemas so typos fail loudly.
-- **Authoring DX:** a script emits `public/schema/scenario.schema.json` from `z.toJSONSchema(Scenario)`. Scenario files start with `# yaml-language-server: $schema=<relative path or published URL>`; the Red Hat YAML VS Code extension then provides autocomplete and inline errors while authors type. (`toJSONSchema` is exported by zod 4.6.7 and type-checks/bundles in the probe; the VS Code extension behaviour is well-known but was not exercised here.)
-- **Loading strategy:** `import.meta.glob('/scenarios/**/*.yaml', { query: '?raw', import: 'default' })` (lazy) so each pack is a separate chunk, then parse+validate at runtime. Runtime parsing is required anyway once packs can be encrypted (decrypt to text, then parse). Back it with a CI/Vitest test that loads and validates **every** scenario file so a bad YAML fails the build, not the user.
-- Do not add a Vite YAML plugin (e.g. `@rollup/plugin-yaml`). It would parse at build time, skip your line-number error reporting, and fights the encrypted-pack path.
+- **Authoring feedback:** there is no editor schema support for TOON. Authors get `npm run validate` (reports file:line:col) and the Vitest check that validates every shipped scenario file. `z.toJSONSchema(Scenario)` stays an optional documentation artifact for the Phase 4 authoring guide.
+- **Loading strategy:** Pack manifests `/scenarios/*/pack.toon` are globbed eagerly and scenario files `/scenarios/*/*.toon` lazily with `{ query: '?raw', import: 'default' }`, grouped into one chunk per pack (Vite 8 `build.rolldownOptions.output.codeSplitting`), then parse+validate at runtime. Runtime parsing is required anyway once packs can be encrypted (decrypt to text, then parse). Back it with a CI/Vitest test that loads and validates **every** scenario file so a bad scenario file fails the build, not the user.
+- Do not add a build-time scenario plugin for TOON. It would parse at build time, skip your line-number error reporting, and fight the encrypted-pack path; the runtime parse keeps line-numbered errors.
 
 ### Testing: Vitest 5.0.5 + Playwright 1.64.1
 
@@ -116,7 +117,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ### License-key / gating options on static hosting (design now, implement later)
 
-- Define two interfaces: `EntitlementProvider { canAccess(packId): Promise<boolean>; … }` and `PackRepository { listPacks(); loadPack(packId): Promise<string /*yaml text*/> }`. UI asks the provider; only `PackRepository` knows where bytes come from. v1 implementation: `FreeEntitlements` (always true) + a repository over `import.meta.glob` lazy chunks (one chunk per pack folder).
+- Define two interfaces: `EntitlementProvider { canAccess(packId): Promise<boolean>; … }` and `PackRepository { listPacks(); loadPack(packId): Promise<string /*TOON text*/> }`. UI asks the provider; only `PackRepository` knows where bytes come from. v1 implementation: `FreeEntitlements` (always true) + a repository over `import.meta.glob` lazy chunks (one chunk per pack folder).
 - Store pack metadata (id, title, free/paid flag, scenario count) separately from pack content so a locked pack can be listed without loading its scenarios.
 
 ## Installation
@@ -139,8 +140,8 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 | Preact 11 + signals | Vanilla TS + tiny pub/sub | Panel proves to be the only UI and screens are trivial; maximal bundle minimalism |
 | Preact 11 + signals | React 19 | Hiring/ecosystem reasons only; none apply here |
 | Preact 11 | Preact 10.29.x | A library you need does not yet support Preact 11 |
-| Pure-TS reducer engine | XState 5.33.3 | Reactions evolve into hierarchical/parallel statecharts coded by developers, not authored in YAML |
-| `yaml` 2.9.1 | js-yaml 5.5.0 | Only need fast parse with no author-facing error positions |
+| Pure-TS reducer engine | XState 5.33.3 | Reactions evolve into hierarchical/parallel statecharts coded by developers, not authored in TOON |
+| `@toon-format/toon` 4.4.0 | A hand-written parser for the TOON subset | Only if the Working Draft spec churn makes the pinned library unmaintainable; the conformance corpus makes a swap safe |
 | Zod 4.6.7 | Ajv 8.20.0 | JSON Schema is the hand-maintained source of truth, or schema shared with non-TS tooling |
 | TypeScript 6.0.x | TypeScript 7.0.2 (native) | Optional faster `tsc` type-check only: install as an extra alias (`"@typescript/native": "npm:typescript@^7.0.2"`) while `typescript` stays 6.x for tooling. Not worth it for a project this size. |
 | Custom viewBox pan/zoom | @panzoom/panzoom 4.6.2 | Gesture arbitration turns out simple and you want to save time |
@@ -153,11 +154,11 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 |-------|-----|-------------|
 | TypeScript 7.x as the project's `typescript` | No programmatic API; typescript-eslint peer is `<6.1.0`; Svelte/Volar tooling also stays on 6.0 | `typescript@~6.0.3`; optionally alias 7 for `tsc` only |
 | `npx tsc` ambiguity with aliases | Probe finding: aliasing both `typescript` -> `@typescript/typescript6` and a second `typescript@^7` package leaves `.bin/tsc` pointing at a 6.x compat shim, so the "TS 7 check" silently ran 6.0.3 | Simply pin TS 6.0.x; if TS 7 is wanted, call its binary by explicit path |
-| XState for YAML-driven scenario grading | Needs a YAML-to-machine compiler; not an FSM-shaped problem | Pure-TS reducer + virtual clock |
-| `eval` / `new Function` / expression strings in YAML | Security and author-error surface; unreviewable by non-developers | Declarative condition DSL validated by Zod |
+| XState for TOON-driven scenario grading | Needs a TOON-to-machine compiler; not an FSM-shaped problem | Pure-TS reducer + virtual clock |
+| `eval` / `new Function` / expression strings in scenario files | Security and author-error surface; unreviewable by non-developers | Declarative condition DSL validated by Zod |
 | Real timers (`setTimeout`) inside the engine | Non-deterministic tests, impossible replay for debrief | Tick events with injected clock; UI drives ticks |
-| js-yaml / YAML 1.1 parsers | `no`, `off`, `on` coerced to booleans; poor error positions | `yaml` (1.2 core schema) |
-| Vite YAML plugins (`@rollup/plugin-yaml` etc.) | Build-time parse bypasses line-number errors and the encrypted-pack path | `?raw` glob + runtime `yaml` + Zod, with CI validation test |
+| Floating TOON versions, the library encoder on scenario files, tabular rows | The spec is a Working Draft; the encoder drops comments; tabular rows and root arrays are outside the supported subset | Exact pin `@toon-format/toon` 4.4.0 + conformance test; hand-written files |
+| Build-time scenario plugins for TOON | Build-time parse bypasses line-number errors and the encrypted-pack path | `?raw` glob + runtime `@toon-format/toon` + Zod, with CI validation test |
 | React Router / History-API routing | GitHub Pages 404s on refresh | State-based screens, or hash routing |
 | Canvas or WebGL for the panel | Not resolution-independent via CSS, no DOM hit-testing/a11y, more code | SVG |
 | Heavy SVG pan/zoom libs (`svg-pan-zoom`, `panzoom`) | Old; conflict with per-control drag | viewBox manipulation (or `@panzoom/panzoom` as fallback) |
@@ -172,7 +173,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 - Because Pages cannot enforce anything; everything else in the stack is unchanged.
 - Encrypted packs (AES-GCM via Web Crypto) + passphrase delivered post-purchase.
 - Because it is fully static and removes casual copying without infrastructure.
-- Add an in-app "load scenario file" (file input / drag-drop) running the same `yaml` + Zod pipeline and showing line-numbered errors.
+- Add an in-app "load scenario file" (file input / drag-drop) running the same `@toon-format/toon` + Zod pipeline and showing line-numbered errors.
 - Because the validator is already isomorphic; this is a very cheap, high-value authoring feature.
 - Add `vite-plugin-pwa` 2.0.0 and precache app shell + free packs.
 - Because the app is entirely static.
@@ -196,7 +197,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 ## Sources
 
 - npm registry (`npm view`, 2026-10-19) - all versions, `engines`, `peerDependencies`, dist-tags above. HIGH.
-- Probe project (Vite 8.3.4 + Preact 11.0.1 + preset-vite 2.10.6 + signals + Zod 4.6.7 + yaml 2.9.1 + Vitest 5.0.5 + ESLint 10.13 + typescript-eslint 8.71.2 + TS 6.0.3): build, type-check, type-aware lint and test passed; YAML/Zod error-with-line-number behaviour and YAML 1.2 `no` handling observed directly. HIGH.
+- Probe project (Vite 8.3.4 + Preact 11.0.1 + preset-vite 2.10.6 + signals + Zod 4.6.7 + Vitest 5.0.5 + ESLint 10.13 + typescript-eslint 8.71.2 + TS 6.0.3): build, type-check, type-aware lint and test passed. HIGH. The TOON parser (`@toon-format/toon` 4.4.0, strict decode with line-numbered errors) was adopted in phase 2 (decision D-19); see the phase 2 research.
 - Microsoft TypeScript 7.0 announcement - https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/ (no API in 7.0, API expected in 7.1, `@typescript/typescript6` alias, new defaults/hard errors). HIGH.
 - Vite static deploy guide - https://vite.dev/guide/static-deploy.html (GitHub Pages workflow, `base`, pinned action SHAs/versions). HIGH.
 - GitHub Releases API (checkout v7.0.1, setup-node v7.1.0, configure-pages v6.0.0, upload-pages-artifact v5.0.0, deploy-pages v5.0.1). HIGH.
@@ -204,7 +205,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 - Lemon Squeezy License API docs - https://docs.lemonsqueezy.com/api/license-api and live curl CORS probe (OPTIONS 204 + `access-control-allow-origin: *`; POST validate returns JSON). HIGH for API shape/CORS; LOW for post-Stripe-migration license-key future (vendor-competitor blog sources, e.g. https://fungies.io/lemon-squeezy-stripe-acquisition-saas-founders-2026/).
 - MDN SubtleCrypto.verify - https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/verify (Ed25519 listed; per-browser Ed25519 support not confirmed). MEDIUM.
 - Gumroad license verify: documented as POST without auth, browser CORS not confirmed (curl probe returned no response). LOW.
-- Cloudflare Worker / Red Hat YAML extension specifics: general knowledge, not exercised. LOW-MEDIUM.
+- Cloudflare Worker specifics: general knowledge, not exercised. LOW-MEDIUM.
 
 <!-- GSD:stack-end -->
 
