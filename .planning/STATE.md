@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Reactive Scenarios and Initial Pack
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-10-22T20:33:06.778Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-10-22T20:47:45.867Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 03 execution started
-state_head: 2f4cf005cdbd2da2f245c5713b8ce3541d253a52
+state_head: 2d45d7f235f2e68334e0aa4558daf14b1ea30589
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 84
-  completed_plans: 76
+  completed_plans: 77
   percent: 25
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 03 (Reactive Scenarios and Initial Pack) — EXECUTING
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 10
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
@@ -126,6 +126,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 02 P13 | 40 min | 3 tasks | 13 files |
 | Phase 03 P01 | 14 min | 3 tasks | 22 files |
 | Phase 03 P03 | 14 min | 3 tasks | 19 files |
+| Phase 03 P02 | 12min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,7 @@ Recent decisions affecting current work:
 - [Phase 02]: Plan 13: tests/blueprint.test.ts derives its forbidden literals from the parsed blueprint and the CAS table and scans src/engine, src/scenario and src/ui
 - [Phase 03]: Fixed-step simulation: STEP_MS 100, MAX_RUN_MS 1800000; oil temperature is a 60 s lag model in aircraft data, scenario sets oil_cooling (lint L12) — Live Run and simulate share one stepper and event timing rule so replays are bit-identical (D-01, D-02)
 - [Phase 03]: 03-03: the simplified transponder is one code-entry control (kp.squawk) whose state is the committed four-digit code; keys are momentary press targets, the partial entry stays in the widget, the readout is the one recorded G-0.1 exception (D-11)
+- [Phase 03]: 03-02: quantity base values are the cruise equilibrium of every anchored model; fuel quantities carry a finer rounding scale (100000) so the 0.1 gal/min burn survives the step rounding
 
 ### Pending Todos
 
@@ -226,6 +228,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T20:33:06.381Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-10-22T20:47:45.470Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
