@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DA50RG, VIEWBOX, VIEW_PROFILES } from '../src/aircraft/da50rg/panel';
 import type { ControlDef, Rect } from '../src/engine/registry';
+import { sessionFootprints } from '../src/ui/panel/session-area';
 import {
   DOUBLE_TAP_MS,
   DOUBLE_TAP_PX,
@@ -895,4 +896,56 @@ describe('HTML chrome type scale (UI-SPEC Typography)', () => {
     expect(sizes.length).toBeGreaterThan(0);
     for (const size of sizes) expect(['14px', '16px', '20px', '28px']).toContain(size);
   });
+});
+
+// Phase 02 plan 10 (U-05, U-07, SES-01): the session area at every zoom level. The region origin
+// and the local button rectangles (UI-SPEC "Session Control Area", Table Z1) are typed in by hand.
+describe('session area zoom (plan 02-10)', () => {
+  const REGION: Rect = { x: 1300, y: 780, w: 820, h: 480 };
+  /** New, choose, close and the four choose rows, as global rectangles. */
+  const SESSION_TARGETS: readonly Rect[] = [
+    { x: 1335, y: 800, w: 750, h: 120 },
+    { x: 1335, y: 940, w: 750, h: 120 },
+    { x: 1335, y: 800, w: 750, h: 80 },
+    { x: 1335, y: 890, w: 750, h: 80 },
+    { x: 1335, y: 980, w: 750, h: 80 },
+    { x: 1335, y: 1070, w: 750, h: 80 },
+    { x: 1335, y: 1160, w: 750, h: 80 },
+  ];
+  const profiles = [
+    ['phone', VIEW_PROFILES.phone],
+    ['tablet', VIEW_PROFILES.tablet],
+    ['desktop', VIEW_PROFILES.desktop],
+  ] as const;
+
+  it('sessionFootprints returns the reference rectangles of both views', () => {
+    expect(sessionFootprints(REGION)).toEqual(SESSION_TARGETS);
+  });
+
+  it('the registry region has the reference bounds', () => {
+    expect(DA50RG.regions.find((r) => r.id === 'scenario_area')?.bounds).toEqual(REGION);
+  });
+
+  for (const [name, screen] of profiles) {
+    it(`every session button and row reaches ${MIN_TAP_PX} px high when zoomed on the ${name} profile`, () => {
+      const view = zoomRect(REGION, VIEWBOX);
+      expect(view).toEqual({ x: 1290, y: 770, w: 840, h: 500 });
+      const scale = fitScale(view, screen);
+      for (const t of SESSION_TARGETS) {
+        expect(t.h * scale, `${t.y} on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+        expect(t.w * scale, `${t.y} wide on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+      }
+    });
+
+    it(`the Full panel corner covers no session button when zoomed into the area on the ${name} profile`, () => {
+      const view = zoomRect(REGION, VIEWBOX);
+      const corner = chooseButtonCorner({
+        view,
+        screen,
+        footprints: [...controlFootprints(DA50RG), ...SESSION_TARGETS],
+        current: 'tr',
+      });
+      expect(buttonOverlap(corner, view, screen, SESSION_TARGETS), `${name} ${corner}`).toBe(0);
+    });
+  }
 });

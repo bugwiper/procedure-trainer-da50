@@ -12,6 +12,15 @@ export interface LocalRect {
   readonly h: number;
 }
 
+/**
+ * Horizontal extent of every session button (region-local), centred at local x 410. The 35 unit
+ * margins keep the desktop Full panel button clear of the buttons whichever corner it takes: at
+ * the desktop profile the zoomed area leaves 58 px of letterbox and the 112 px button reaches
+ * 54 px into the content, which a 20 unit margin (28 px) cannot clear (U-07, plan 02-10).
+ */
+const BUTTON_X = 35;
+const BUTTON_W = 750;
+
 /** Row tops of the choose view; at most four situations are listed. */
 const CHOOSE_ROW_TOPS = [110, 200, 290, 380] as const;
 
@@ -20,15 +29,15 @@ export const SESSION_LAYOUT = {
   region: { w: 820, h: 480 },
   /** Main view: NEW SITUATION, CHOOSE SITUATION and a free slot reserved below them. */
   main: {
-    new: { x: 20, y: 20, w: 780, h: 120 },
-    choose: { x: 20, y: 160, w: 780, h: 120 },
+    new: { x: BUTTON_X, y: 20, w: BUTTON_W, h: 120 },
+    choose: { x: BUTTON_X, y: 160, w: BUTTON_W, h: 120 },
     /** Reserved, y 300 to 440. */
-    freeSlot: { x: 20, y: 300, w: 780, h: 140 },
+    freeSlot: { x: BUTTON_X, y: 300, w: BUTTON_W, h: 140 },
   },
   /** Choose view: a close button on top and at most four situation rows below it. */
   choose: {
-    close: { x: 20, y: 20, w: 780, h: 80 },
-    rows: CHOOSE_ROW_TOPS.map((y): LocalRect => ({ x: 20, y, w: 780, h: 80 })),
+    close: { x: BUTTON_X, y: 20, w: BUTTON_W, h: 80 },
+    rows: CHOOSE_ROW_TOPS.map((y): LocalRect => ({ x: BUTTON_X, y, w: BUTTON_W, h: 80 })),
     maxRows: CHOOSE_ROW_TOPS.length,
   },
   /** Button labels: size 14, weight 700, centred at local x 410, baseline top + h / 2 + 5. */

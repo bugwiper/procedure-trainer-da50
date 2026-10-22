@@ -1459,3 +1459,72 @@ describe('glareshield light placards (plan 30, R2-1.1)', () => {
     expect(PLACARDS.filter((p) => DA50RG.get(p.near)?.region === 'lights')).toHaveLength(4);
   });
 });
+
+// Phase 02 plan 10 (U-13, UI-SPEC "Session Control Area"): the session plate, its region and the
+// reserved pilot legroom. The rectangles are typed in by hand from Table Z1 of the plan, never read
+// from the data files under test.
+describe('session plate, region and pilot legroom (plan 02-10)', () => {
+  const rectOf = (p: { x: number; y: number; w: number; h: number }): Rect => ({
+    x: p.x,
+    y: p.y,
+    w: p.w,
+    h: p.h,
+  });
+  const SESSION_PLATE: Rect = { x: 1280, y: 760, w: 860, h: 520 };
+  const SESSION_REGION: Rect = { x: 1300, y: 780, w: 820, h: 480 };
+  const PILOT_LEGROOM: Rect = { x: 20, y: 760, w: 910, h: 530 };
+  /** The two under-panel regions that existed before phase 2 and reach into the top of the legroom. */
+  const LEGROOM_EXCEPTIONS = ['under_panel_left', 'under_panel_centre'];
+
+  it('the session-pad plate has the Table Z1 rectangle (rx 18) and carries scenario_area only', () => {
+    const plate = PLATES.find((p) => p.id === 'session-pad');
+    expect(plate).toBeDefined();
+    expect([plate?.x, plate?.y, plate?.w, plate?.h, plate?.rx]).toEqual([1280, 760, 860, 520, 18]);
+    expect([...(plate?.regions ?? [])]).toEqual(['scenario_area']);
+  });
+
+  it('the region scenario_area has the Table Z1 rectangle and holds no control', () => {
+    const region = DA50RG.regions.find((r) => r.id === 'scenario_area');
+    expect(region?.bounds).toEqual(SESSION_REGION);
+    expect(region?.controlIds).toEqual([]);
+  });
+
+  it('the region lies inside the plate with 20 units on every side', () => {
+    expect(SESSION_REGION.x - SESSION_PLATE.x).toBe(20);
+    expect(SESSION_REGION.y - SESSION_PLATE.y).toBe(20);
+    expect(SESSION_PLATE.x + SESSION_PLATE.w - (SESSION_REGION.x + SESSION_REGION.w)).toBe(20);
+    expect(SESSION_PLATE.y + SESSION_PLATE.h - (SESSION_REGION.y + SESSION_REGION.h)).toBe(20);
+    const region = regionBounds('scenario_area');
+    const plate = PLATES.find((p) => p.id === 'session-pad');
+    expect(plate).toBeDefined();
+    if (plate === undefined) return;
+    expect(region.x - plate.x).toBe(20);
+    expect(region.y - plate.y).toBe(20);
+    expect(plate.x + plate.w - (region.x + region.w)).toBe(20);
+    expect(plate.y + plate.h - (region.y + region.h)).toBe(20);
+  });
+
+  it('the region overlaps no other region and the plate overlaps no other plate', () => {
+    for (const r of DA50RG.regions) {
+      if (r.id === 'scenario_area') continue;
+      expect(overlaps(regionBounds('scenario_area'), r.bounds), `region ${r.id}`).toBe(false);
+    }
+    const pad = PLATES.find((p) => p.id === 'session-pad');
+    expect(pad).toBeDefined();
+    if (pad === undefined) return;
+    for (const p of PLATES) {
+      if (p.id === 'session-pad') continue;
+      expect(overlaps(rectOf(pad), rectOf(p)), `plate ${p.id}`).toBe(false);
+    }
+  });
+
+  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions', () => {
+    const plates = PLATES.filter((p) => overlaps(rectOf(p), PILOT_LEGROOM)).map((p) => p.id);
+    expect(plates).toEqual([]);
+    const regions = DA50RG.regions
+      .filter((r) => overlaps(r.bounds, PILOT_LEGROOM))
+      .map((r) => r.id)
+      .sort();
+    expect(regions).toEqual([...LEGROOM_EXCEPTIONS].sort());
+  });
+});
