@@ -93,6 +93,14 @@ describe('deploy workflow supply-chain gates', () => {
     expect(deploy).toMatch(/needs:\s*\[verify,\s*e2e\]/);
   });
 
+  it('runs npm run validate in the verify job after the tests and before the build', () => {
+    const verify = block('verify', 2);
+    const at = (needle: string): number => verify.findIndex((l) => l.includes(needle));
+    expect(at('npm run validate')).toBeGreaterThan(-1);
+    expect(at('npm run validate')).toBeGreaterThan(at('npm test'));
+    expect(at('npm run validate')).toBeLessThan(at('npm run build'));
+  });
+
   it('runs on push to main, pull_request and workflow_dispatch', () => {
     const on = block('on', 0).join('\n');
     expect(on).toMatch(/push:\s*\n\s+branches:\s*\[main\]/);

@@ -14,5 +14,24 @@ function resolveBase(): string {
 export default defineConfig({
   base: resolveBase(),
   plugins: [preact()],
+  build: {
+    rolldownOptions: {
+      output: {
+        // One lazy chunk per pack (D-20, PLT-03): scenario text of /scenarios/<pack>/<name>.toon
+        // lands in pack-<pack>; manifests (pack.toon) and everything else stay where they are.
+        codeSplitting: {
+          groups: [
+            {
+              name: (id: string): string | null => {
+                const m = /\/scenarios\/([^/]+)\/(?!pack\.toon)[^/]+\.toon/.exec(id);
+                return m ? `pack-${m[1]}` : null;
+              },
+              debugName: 'packs',
+            },
+          ],
+        },
+      },
+    },
+  },
   test: { environment: 'node', include: ['tests/**/*.test.ts'] },
 });

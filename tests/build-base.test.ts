@@ -1,6 +1,6 @@
 import { mkdtemp, readdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { build } from 'vite';
@@ -96,6 +96,22 @@ describe('host-agnostic base path and test-hook absence', () => {
       const files = await jsFiles(outDir);
       const contents = await Promise.all(files.map((f) => readFile(f, 'utf8')));
       expect(contents.some((c) => c.includes('__panel'))).toBe(true);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'the build emits one pack-engine chunk with the scenario text and no other chunk has it',
+    async () => {
+      const { outDir } = await buildTo('/procedure-trainer-da-50/', undefined);
+      const files = await jsFiles(outDir);
+      const packChunks = files.filter((f) => basename(f).startsWith('pack-engine'));
+      expect(packChunks).toHaveLength(1);
+      const STEP_ID = 'reduce_power';
+      expect(await readFile(packChunks[0] as string, 'utf8')).toContain(STEP_ID);
+      for (const f of files.filter((x) => !packChunks.includes(x))) {
+        expect(await readFile(f, 'utf8')).not.toContain(STEP_ID);
+      }
     },
     TIMEOUT,
   );
