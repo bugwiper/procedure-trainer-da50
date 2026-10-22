@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Reactive Scenarios and Initial Pack
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-10-22T21:17:52.813Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-10-22T21:32:21.408Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 03 execution started
-state_head: 8042721659be6276c57497ba1c3f5dbe39554b8b
+state_head: 899d5e0845e1250ee5557af99bd844f578877f50
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 84
-  completed_plans: 79
+  completed_plans: 80
   percent: 25
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 03 (Reactive Scenarios and Initial Pack) — EXECUTING
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 10
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
@@ -129,6 +129,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 03 P02 | 12min | 3 tasks | 19 files |
 | Phase 03 P10 | 16 min | 3 tasks | 20 files |
 | Phase 03 P04 | 12 min | 3 tasks | 15 files |
+| Phase 03 P05 | 20 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -205,6 +206,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-10: pull-ecs head prints ECS SHUTOFF in two lines at font size 6; stem dark red #8f0f16 (safety red stays reserved for pull-t and pull-tab)
 - [Phase 03]: 03-04: a reaction is in force for exactly its duration from the step that applied the arming event; SimState.flags holds only active flags
 - [Phase 03]: 03-04: a fired reaction consumes its arming event (markConsumed by the run); a clearing event is not consumed and a retract of an applied event rebuilds the run by replay
+- [Phase 03]: Named outcomes: a scenario outcome (id, text, closed predicate, hold_s) ends the run as FAIL when its predicate has held for its hold time; grade replays the same simulation and lists the outcome first (C-24 to C-27).
+- [Phase 03]: ENG OIL TEMP engine_failure outcome: oil_temp_c at or above 140 for 15 s, fires at 42.6 s when ignored; threshold and hold are instructor-review values (RESEARCH A4).
 
 ### Pending Todos
 
@@ -235,6 +238,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T21:17:52.399Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-10-22T21:32:20.984Z
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None
