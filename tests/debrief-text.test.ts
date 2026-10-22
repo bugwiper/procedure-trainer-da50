@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GradeResult, OrderViolation, Reason } from '../src/engine/grading';
 import type { Group } from '../src/scenario/schema';
-import { harmfulLine, orderLine, reasonLines } from '../src/ui/debrief-text';
+import { harmfulLine, orderLine, reasonLines, timingLine } from '../src/ui/debrief-text';
 
 // Table T1 of plan 02-13: the copy rules of the debrief, pure functions of the grade result.
 
@@ -15,6 +15,7 @@ function result(over: Partial<GradeResult>): GradeResult {
     orderViolations: [],
     harmful: [],
     outcome: null,
+    timing: { onsetAt: 0, firstActionMs: null },
     ...over,
   };
 }
@@ -164,5 +165,20 @@ describe('harmfulLine', () => {
       expect(line).toBe('Increase power');
       expect(line).not.toMatch(/\d:\d\d/);
     }
+  });
+});
+
+describe('timingLine (D-05, C-34)', () => {
+  it('says there was no action when nothing came after the onset', () => {
+    expect(timingLine(result({}))).toBe('No action after the onset.');
+  });
+
+  it('prints the reaction time with one decimal', () => {
+    const timed = (firstActionMs: number | null) =>
+      result({ timing: { onsetAt: 10000, firstActionMs } });
+    expect(timingLine(timed(3500))).toBe('First action 3.5 s after the onset.');
+    expect(timingLine(timed(0))).toBe('First action 0.0 s after the onset.');
+    expect(timingLine(timed(12000))).toBe('First action 12.0 s after the onset.');
+    expect(timingLine(timed(1234))).toBe('First action 1.2 s after the onset.');
   });
 });

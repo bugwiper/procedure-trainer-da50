@@ -98,6 +98,7 @@ describe('golden recordings (Table R1)', () => {
         orderViolations: [],
         harmful: [],
         outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 8000 },
       },
     },
     {
@@ -112,6 +113,7 @@ describe('golden recordings (Table R1)', () => {
         orderViolations: [],
         harmful: [],
         outcome: null,
+        timing: { onsetAt: 0, firstActionMs: null },
       },
     },
     {
@@ -126,6 +128,7 @@ describe('golden recordings (Table R1)', () => {
         orderViolations: [],
         harmful: [power_increased(5000, 0)],
         outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 5000 },
       },
     },
     {
@@ -140,6 +143,7 @@ describe('golden recordings (Table R1)', () => {
         orderViolations: [],
         harmful: [power_increased(4000, 0), power_increased(9000, 2)],
         outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 4000 },
       },
     },
     {
@@ -154,6 +158,7 @@ describe('golden recordings (Table R1)', () => {
         orderViolations: [],
         harmful: [],
         outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 6000 },
       },
     },
     {
@@ -175,6 +180,7 @@ describe('golden recordings (Table R1)', () => {
           text: declaredOutcome.text,
           t: simulatedOutcome(blueprint, 'do-nothing-long')?.t ?? Number.NaN,
         },
+        timing: { onsetAt: 0, firstActionMs: null },
       },
     },
     {
@@ -189,6 +195,7 @@ describe('golden recordings (Table R1)', () => {
         orderViolations: [],
         harmful: [],
         outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 8000 },
       },
     },
     {
@@ -210,6 +217,7 @@ describe('golden recordings (Table R1)', () => {
         ],
         harmful: [],
         outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 6000 },
       },
     },
   ];
@@ -456,5 +464,91 @@ describe('determinism (R9)', () => {
     expect(() => grade(blueprint, DA50RG_ENV, recording('wrong-order'))).toThrow(Error);
     expect(() => run(blueprint, [{ t: 1, id: 'lv.nope', value: 'x' }])).toThrow(Error);
     expect(() => run(blueprint, [{ t: 1, id: 'constructor', value: 'x' }])).toThrow(Error);
+  });
+});
+
+describe('reaction time from the onset (D-05, C-33, C-34)', () => {
+  const realistic = (
+    onsetAt: number,
+    events: Recording['events'],
+    completedAt = 20000,
+  ): Recording => ({
+    scenarioId: blueprint.id,
+    completedAt,
+    onset: { at: onsetAt, seed: 7 },
+    events,
+  });
+
+  it('measures the first action from the onset; the event before the onset is still graded', () => {
+    const result = grade(
+      blueprint,
+      DA50RG_ENV,
+      realistic(10000, [power(4000, 'p60'), cowl(13500, 'open')]),
+    );
+    expect(result.timing).toEqual({ onsetAt: 10000, firstActionMs: 3500 });
+    expect(result.steps.map((s) => s.credited)).toEqual([true, true]);
+    expect(result.result).toBe('pass');
+  });
+
+  it('is null when nothing happens after the onset', () => {
+    const early = grade(blueprint, DA50RG_ENV, realistic(10000, [power(4000, 'p60')]));
+    expect(early.timing).toEqual({ onsetAt: 10000, firstActionMs: null });
+    const none = grade(blueprint, DA50RG_ENV, realistic(10000, []));
+    expect(none.timing).toEqual({ onsetAt: 10000, firstActionMs: null });
+  });
+
+  it('counts an action exactly at the onset as zero', () => {
+    const result = grade(blueprint, DA50RG_ENV, realistic(10000, [power(10000, 'p60')]));
+    expect(result.timing.firstActionMs).toBe(0);
+  });
+
+  it('a recording without an onset has onsetAt 0 and the time of its first event', () => {
+    const plain = grade(blueprint, DA50RG_ENV, recording('golden'));
+    expect(plain.timing).toEqual({ onsetAt: 0, firstActionMs: 8000 });
+    const nulled = grade(blueprint, DA50RG_ENV, { ...recording('golden'), onset: null });
+    expect(nulled).toEqual(plain);
+  });
+
+  it('the same events with and without an onset differ in the timing only', () => {
+    const events = [power(4000, 'p60'), cowl(13500, 'open')];
+    const withOnset = grade(blueprint, DA50RG_ENV, realistic(10000, events));
+    const without = grade(blueprint, DA50RG_ENV, {
+      scenarioId: blueprint.id,
+      completedAt: 20000,
+      events,
+    });
+    expect({ ...withOnset, timing: null }).toEqual({ ...without, timing: null });
+    expect(withOnset.timing).not.toEqual(without.timing);
+  });
+
+  it('a late onset moves the escalation: grade equals the simulation with that onset', () => {
+    const onsetAt = 20000;
+    const ignored = grade(blueprint, DA50RG_ENV, realistic(onsetAt, [], 600000));
+    const sooner = grade(blueprint, DA50RG_ENV, recording('do-nothing-long'));
+    const simulated = simulate(simSetup(DA50RG_ENV, blueprint, { onsetAt }), {
+      events: [],
+      start: {},
+      untilMs: 600000,
+    }).state.outcome;
+    expect(ignored.outcome?.t).toBe(simulated?.t);
+    expect(ignored.outcome?.t).toBeGreaterThan(sooner.outcome?.t ?? Number.POSITIVE_INFINITY);
+    expect(ignored.result).toBe('fail');
+    expect(ignored.timing).toEqual({ onsetAt, firstActionMs: null });
+  });
+
+  it('actions after the outcome are not graded and do not set the reaction time', () => {
+    const outcome = grade(blueprint, DA50RG_ENV, realistic(20000, [], 600000)).outcome;
+    if (outcome === null) throw new Error('the ignored run did not escalate');
+    const late = grade(
+      blueprint,
+      DA50RG_ENV,
+      realistic(20000, [power(outcome.t + 1000, 'p60')], 600000),
+    );
+    expect(late.timing).toEqual({ onsetAt: 20000, firstActionMs: null });
+  });
+
+  it('the result never carries a level', () => {
+    const keys = Object.keys(grade(blueprint, DA50RG_ENV, realistic(10000, [])));
+    expect(keys).not.toContain('level');
   });
 });

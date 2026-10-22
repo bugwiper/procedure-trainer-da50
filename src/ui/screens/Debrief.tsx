@@ -1,6 +1,6 @@
 import type { GradeResult } from '../../engine/grading';
 import type { Scenario } from '../../scenario/schema';
-import { harmfulLine, reasonLines } from '../debrief-text';
+import { harmfulLine, reasonLines, timingLine } from '../debrief-text';
 import { buildOutline } from '../outline';
 import { ChecklistOutline } from './ChecklistOutline';
 import { LEVEL_NAMES } from '../session';
@@ -12,7 +12,7 @@ import { Modal } from './Modal';
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
  * apply muted, an order line under every ordered group and the harmful actions in log order
- * (no time). It names the level of the run ("Level: Easy") and, on a meta line before it, the scenario (D-05). No score, no timeline. It sits on the
+ * (no time). It names the level of the run ("Level: Easy") and, on a meta line before it, the scenario (D-05); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
@@ -64,6 +64,11 @@ export function Debrief({
       <p class="briefing-meta" data-testid="debrief-level">
         {`Level: ${LEVEL_NAMES[level]}`}
       </p>
+      {level === 'realistic' ? (
+        <p class="briefing-meta" data-testid="debrief-timing">
+          {timingLine(result)}
+        </p>
+      ) : null}
       <h3 class="debrief-heading">Steps</h3>
       <ChecklistOutline items={outline} />
       <h3 class="debrief-heading" data-testid="debrief-harmful-heading">

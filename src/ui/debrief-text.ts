@@ -1,6 +1,7 @@
 // The copy rules of the debrief (UI-SPEC "Debrief" and Copywriting Contract, D-10 to D-12, D-16):
-// reason lines, the order line of an ordered group and the harmful-action row.
-// Pure functions of the GradeResult and the scenario data; no score and no timeline anywhere.
+// reason lines, the order line of an ordered group, the harmful-action row and, for a realistic
+// run only, the one time line (the first action measured from the onset, D-05). Pure functions of
+// the GradeResult and the scenario data; no score and no timeline anywhere.
 // Pure TypeScript, no DOM, no framework, no clock.
 
 import type { GradeResult, HarmfulEntry, Reason } from '../engine/grading';
@@ -52,4 +53,14 @@ export function orderLine(group: Group, result: GradeResult): string[] {
  */
 export function harmfulLine(entry: HarmfulEntry): string {
   return entry.text;
+}
+
+/**
+ * The reaction-time line of a realistic debrief (D-05, C-34): the first action measured from the
+ * onset, with one decimal, or that there was none. Display only; no limit exists.
+ */
+export function timingLine(result: GradeResult): string {
+  const { firstActionMs } = result.timing;
+  if (firstActionMs === null) return 'No action after the onset.';
+  return `First action ${(firstActionMs / 1000).toFixed(1)} s after the onset.`;
 }

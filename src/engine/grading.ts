@@ -87,6 +87,17 @@ export type Reason =
   | { readonly kind: 'order'; readonly group: string }
   | { readonly kind: 'forbidden'; readonly id: string };
 
+/**
+ * The reaction time (D-05, C-34), for display only: no step has a time limit and no verdict reads
+ * it (SES-V2-02 stays v2). `onsetAt` is the onset of a realistic run in ms (0 without one);
+ * `firstActionMs` is the time of the first graded event at or after the onset, minus the onset, or
+ * null when there is none.
+ */
+export interface Timing {
+  readonly onsetAt: number;
+  readonly firstActionMs: number | null;
+}
+
 export interface GradeResult {
   readonly scenarioId: string;
   readonly result: 'pass' | 'fail';
@@ -97,6 +108,8 @@ export interface GradeResult {
   readonly harmful: readonly HarmfulEntry[];
   /** The named outcome that ended the run (R10), or null when none fired. */
   readonly outcome: OutcomeVerdict | null;
+  /** The reaction time from the onset; display only. */
+  readonly timing: Timing;
 }
 
 /** R1: the state of the run before the first event. */
@@ -298,6 +311,14 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
     }
   }
 
+  // C-34: the reaction time is measured over the graded events, from the onset (0 without one).
+  const onsetAt = recording.onset?.at ?? 0;
+  const first = events.find((event) => event.t >= onsetAt);
+  const timing: Timing = {
+    onsetAt,
+    firstActionMs: first === undefined ? null : first.t - onsetAt,
+  };
+
   return {
     scenarioId: scenario.id,
     result: reasons.length === 0 ? 'pass' : 'fail',
@@ -307,5 +328,6 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
     orderViolations,
     harmful,
     outcome,
+    timing,
   };
 }
