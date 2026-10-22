@@ -60,6 +60,8 @@ const ALT2_ESS_ON_AMPS = 35;
 /** Bus volts on the battery alone: this plus BATTERY_VOLTS_SPAN at a full battery. */
 const BATTERY_VOLTS_FLOOR = 22;
 const BATTERY_VOLTS_SPAN = 4;
+/** The target of a dead bus lies this far below the scale minimum. */
+const DEAD_BUS_UNDERSHOOT_V = 1;
 /** Battery charge per minute with an alternator supply, and the compressed discharge without one. */
 const BATTERY_CHARGE_PER_MIN = 10;
 const BATTERY_DISCHARGE_PER_MIN = 25;
@@ -231,7 +233,9 @@ function busVoltsTarget(inputs: PhysicsInputs): number {
   if (stateOf(inputs, 'sw.elect_master') !== 'on') {
     const def = DA50RG_QUANTITIES.get('bus_volts');
     if (def === undefined) throw new Error('physics needs the quantity "bus_volts"');
-    return def.min;
+    // One volt below the scale: the clamp then lands exactly on the scale minimum (a dead bus),
+    // where a lag toward the minimum itself would stop short at the 0.01 rounding.
+    return def.min - DEAD_BUS_UNDERSHOOT_V;
   }
   if (mainBusSupplied(inputs)) return baseOf('bus_volts');
   return BATTERY_VOLTS_FLOOR + (BATTERY_VOLTS_SPAN * quantityOf(inputs, 'battery_pct')) / 100;

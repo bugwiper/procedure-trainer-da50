@@ -95,7 +95,7 @@ describe('bridge reset', () => {
     expect(bridge.stateOf('lv.power').value).toBe('p75');
   });
 
-  it('a second reset without quantities returns them to idle', () => {
+  it('a second reset without quantities returns them to the base values', () => {
     const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
     bridge.reset(baseline, { oil_temp_c: 128 });
     bridge.reset({});
@@ -121,7 +121,7 @@ describe('bridge reset', () => {
 describe('bridge cas signal', () => {
   const baseline = { 'lv.power': 'p75', 'lv.cowl_flap': 'closed' };
 
-  it('follows a quantities reset and a return to idle', () => {
+  it('follows a quantities reset and a return to the base values', () => {
     const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
     expect(bridge.cas.value).toEqual([]);
     bridge.reset(baseline, { oil_temp_c: 128, oil_pressure_bar: 5 });

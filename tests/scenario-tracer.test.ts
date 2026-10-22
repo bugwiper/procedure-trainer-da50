@@ -279,6 +279,28 @@ describe('quantities', () => {
     } as const;
     expect(() => defineQuantities([def, def])).toThrow(QuantityError);
     expect(() => defineQuantities([{ ...def, base: 11 }])).toThrow(QuantityError);
+    expect(() => defineQuantities([{ ...def, base: -1 }])).toThrow(/base/);
+  });
+
+  it('accepts a none band for an unmarked range and rejects a scale that is not a positive integer', () => {
+    const def = {
+      id: 'q',
+      unit: 'u',
+      min: 0,
+      max: 10,
+      base: 5,
+      bands: [
+        { id: 'a', colour: 'green', to: 6 },
+        { id: 'unmarked', colour: 'none', to: 10 },
+      ],
+    } as const;
+    const set = defineQuantities([def]);
+    expect(set.bandOf('q', 8)).toBe('unmarked');
+    expect(set.get('q')?.bands[1]?.colour).toBe('none');
+    expect(defineQuantities([{ ...def, scale: 1000 }]).get('q')?.scale).toBe(1000);
+    for (const scale of [0, -10, 1.5, Number.NaN]) {
+      expect(() => defineQuantities([{ ...def, scale }]), String(scale)).toThrow(QuantityError);
+    }
   });
 
   it('is part of the DA50 RG environment next to the registry', () => {

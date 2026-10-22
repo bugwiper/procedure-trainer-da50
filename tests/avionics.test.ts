@@ -54,7 +54,7 @@ function region(id: string) {
   return found;
 }
 
-/** A bridge with only what the frames read: registry, MFD page signal, idle quantities, no CAS. */
+/** A bridge with only what the frames read: registry, MFD page signal, base quantities, no CAS. */
 function fakeBridge(page: 'map' | 'engine'): PanelBridge {
   return {
     registry: DA50RG,

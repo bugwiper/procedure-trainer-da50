@@ -521,7 +521,7 @@ describe('leave-run confirm (U-03, T-02-24)', () => {
     expect(r.session.scenario.value).toBeNull();
     expect(r.session.clock.value).toBeNull();
     expect(r.session.confirm.value).toBeNull();
-    // The panel is back at the registry defaults and the quantities at idle; the log is empty.
+    // The panel is back at the registry defaults and the quantities at their base values; the log is empty.
     expect(r.bridge.stateOf('lv.power').value).toBe('p70');
     expect(r.bridge.stateOf('lv.cowl_flap').value).toBe('closed');
     expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
