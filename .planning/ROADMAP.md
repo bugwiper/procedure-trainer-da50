@@ -243,7 +243,35 @@ Plans:
   4. The debrief shows PASS/FAIL (a missed critical step fails), a verdict per step (critical, standard, optional), order violations in ordered groups and harmful (forbidden) actions; replaying the same recorded run gives identical verdicts, and golden, do-nothing, wrong-order and forbidden-action replays each grade as expected.
   5. The scenario is a YAML file loaded only through the PackProvider/AccessPolicy seam (open in v1); the validate command reports a malformed file with line-numbered errors and rejects any control id not in the registry.
 
-**Plans**: TBD
+**Plans:** 13 plans
+
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Scenario format tracer: package legitimacy check, TOON blueprint ENG OIL TEMP decoded, validated by the format-1 schema and resolved against the registry and the quantity data
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-02-PLAN.md — Pack seam and grading: the blueprint listed and opened only through PackProvider/AccessPolicy, pure deterministic grade, golden replays, virtual clock, grading semantics document
+- [ ] 02-03-PLAN.md — Every living document says TOON (CLAUDE.md, STACK.md, PROJECT, ROADMAP, REQUIREMENTS, research, todos) with a Vitest gate
+- [ ] 02-04-PLAN.md — Store baseline and reset, bridge reset with quantities and time source, session plate and region in the co-pilot legroom
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-05-PLAN.md — `npm run validate` with file:line:col errors, path-to-line index, registry lint rules
+- [ ] 02-06-PLAN.md — Panel run tracer: NEW SITUATION in the co-pilot legroom, initial state without events, Procedure complete in the footer, PASS/FAIL debrief; session unit contract
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-07-PLAN.md — CI validate step, pack seam and per-pack chunk gates, decoder conformance corpus, Dependabot rule
+- [ ] 02-08-PLAN.md — Rule-derived ENG OIL TEMP chip on the PFD, MFD oil gauges bound to quantities, annunciation lint
+- [ ] 02-09-PLAN.md — First-run training-aid acknowledgment, shared modal shell, Playwright storage seed, virtual clock driver
+- [ ] 02-10-PLAN.md — Session area safe at every zoom level: Full panel corner, tap sizes, double-press rule, legroom guard
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 02-11-PLAN.md — Briefing with source, revision, disclaimer and the recursive checklist outline; debrief in outline form
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 02-12-PLAN.md — Choose situation, leave-run confirm, load error with retry, empty state, busy and double-press handling, 4-row guard
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 02-13-PLAN.md — Complete debrief (reasons, order lines, harmful actions with time), replay and exam-silence gates, blueprint gate, documents, final gates
 **UI hint**: yes
 
 ### Phase 3: Reactive Scenarios and Initial Pack
