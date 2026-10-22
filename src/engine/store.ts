@@ -140,9 +140,12 @@ export class PanelStore {
    * and the restored value of its control; dispatch listeners are not called. A seq is a position
    * in the current log, so the next accepted event reuses the retracted seq.
    *
-   * Rule for Phase 3: a time-driven reaction (timer, ramp or trigger) that consumes an event must
-   * call markConsumed up to that event, and retract then refuses it. The pair window (time, pixels,
-   * same control) is a UI rule; the engine has no clock and never sees time here.
+   * Rule for reactions (D-03): the run (src/engine/run.ts) raises the watermark with markConsumed
+   * when a reaction fires, and retract then refuses the event that started it and every older one.
+   * src/ui never calls markConsumed; the gesture layer only calls retract. An event that started
+   * no reaction can be retracted, and the run then rebuilds its state by replaying the remaining
+   * log (C-22), so a retracted tap leaves nothing armed. The pair window (time, pixels, same
+   * control) is a UI rule; the engine has no clock and never sees time here.
    */
   retract(seq: number): RetractResult {
     if (!Number.isInteger(seq) || seq < 0 || seq >= this.log.length) {
@@ -166,8 +169,8 @@ export class PanelStore {
 
   /**
    * Raises the consumed watermark to throughSeq: every event up to and including it has been used
-   * by a reaction and can no longer be retracted. Phase 3 seam: a time-driven reaction calls this
-   * for every event it consumes; nothing calls it in phase 01.1 because no reaction exists yet.
+   * by a reaction and can no longer be retracted. Only the run (src/engine/run.ts) calls this, in
+   * the step where a reaction fires (C-21); src/ui never does.
    * Throws RangeError unless throughSeq is an integer, not below the current watermark and below
    * the log length.
    */
