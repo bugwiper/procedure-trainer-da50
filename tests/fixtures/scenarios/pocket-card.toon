@@ -1,0 +1,110 @@
+# Test fixture, not a shipped scenario: a synthetic pocket card in own wording. It has a decision with two branches, a populated branch that does not apply, an open nested branch and a path of 3 branch levels, so the outline view model and view can be tested against the whole card (format 1).
+format: 1
+id: pocket-card
+title: POCKET CARD
+source:
+  document: "Test fixture"
+  issue: "none"
+  section: "Synthetic pocket card"
+  verified: "2026-10-22"
+disclaimer: training-aid
+briefing:
+  situation: "Synthetic test fixture. The oil temperature reading is high and the oil pressure is indicated in the green range."
+initial:
+  controls:
+    lv.power: p75
+    lv.cowl_flap: closed
+  quantities:
+    oil_temp_c: 128
+    oil_pressure_bar: 5
+annunciations[1]: eng_oil_temp
+procedure[1]:
+  - kind: decision
+    text: Check oil pressure
+    branches[2]:
+      - label: "If too low:"
+        when:
+          check: band
+          quantity: oil_pressure_bar
+          in[2]: low_red,low_yellow
+        nodes[2]:
+          - kind: group
+            id: low_pressure
+            ordered: false
+            steps[2]:
+              - id: reduce_power_low
+                severity: critical
+                text: Reduce power at once
+                done:
+                  check: travel_rel
+                  control: lv.power
+                  op: lte
+                  delta: -25
+              - id: open_cowl_flap_low
+                severity: critical
+                text: Open cowl flap fully
+                done:
+                  check: state
+                  control: lv.cowl_flap
+                  is: open
+          - kind: line
+            text: Prepare for an engine failure
+      - label: "If in green range:"
+        when:
+          check: band
+          quantity: oil_pressure_bar
+          in[1]: green
+        nodes[4]:
+          - kind: group
+            id: immediate
+            ordered: false
+            steps[2]:
+              - id: reduce_power
+                severity: critical
+                text: Reduce power
+                done:
+                  check: travel_rel
+                  control: lv.power
+                  op: lte
+                  delta: -10
+              - id: open_cowl_flap
+                severity: critical
+                text: Open cowl flap
+                done:
+                  check: state
+                  control: lv.cowl_flap
+                  is: open
+          - kind: line
+            text: Increase airspeed
+          - kind: line
+            text: Check oil temp in green range
+          - kind: branch
+            label: "If not returning to green range:"
+            decided_at: run
+            when:
+              check: band
+              quantity: oil_temp_c
+              in[3]: low_yellow,high_yellow,high_red
+            nodes[2]:
+              - kind: line
+                text: Land at nearest suitable airfield
+              - kind: decision
+                text: Check oil temp again
+                branches[1]:
+                  - label: "If still red:"
+                    decided_at: run
+                    when:
+                      check: band
+                      quantity: oil_temp_c
+                      in[1]: high_red
+                    nodes[1]:
+                      - kind: line
+                        text: Prepare for a precautionary landing
+forbidden[1]:
+  - id: power_increased
+    text: Increase power
+    trigger:
+      check: travel_rel
+      control: lv.power
+      op: gt
+      delta: 0

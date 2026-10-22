@@ -294,44 +294,6 @@ body,
   letter-spacing: 0.04em;
 }
 
-.debrief-steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.debrief-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 12px;
-  padding: 4px 0;
-}
-
-.debrief-tag,
-.debrief-verdict {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
-}
-
-.debrief-tag {
-  flex: 0 0 auto;
-  min-width: 88px;
-  color: #aab3bd;
-}
-
-.debrief-text {
-  flex: 1 1 160px;
-  letter-spacing: 0.02em;
-}
-
-.debrief-verdict {
-  flex: 0 0 auto;
-  margin-left: auto;
-}
-
 /* Briefing card (UI-SPEC Briefing): title, situation, source block, disclaimer, the non-graded
    outline, the exam note. Meta is 14/400 in the muted grey; long lines wrap inside the card. */
 .briefing-meta {

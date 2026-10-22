@@ -1,0 +1,437 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
+import { branchStatuses, grade } from '../src/engine/grading';
+import type { GradeResult, StepVerdict } from '../src/engine/grading';
+import { MAX_BRANCH_LEVELS, checkScenario } from '../src/scenario/lint';
+import type { Scenario } from '../src/scenario/schema';
+import { buildOutline, verdictOf } from '../src/ui/outline';
+import type { OutlineBranch, OutlineItem, OutlineStep } from '../src/ui/outline';
+import { ChecklistOutline } from '../src/ui/screens/ChecklistOutline';
+import { expand, findElements, textOf } from './vnode-walk';
+import type { El, Tree } from './vnode-walk';
+
+// The outline contract (plan 02-11, Table O1, UI-SPEC "Checklist outline" test contract): a pure
+// view-model test over the pocket-card fixture (a decision with two branches, a populated branch
+// that does not apply, an open nested branch, 3 branch levels) and a DOM-shape test of the
+// hook-free renderer. Branch statuses are the engine's; the view never evaluates a condition.
+
+const root = fileURLToPath(new URL('../', import.meta.url));
+const POCKET = readFileSync(join(root, 'tests/fixtures/scenarios/pocket-card.toon'), 'utf8');
+const BLUEPRINT = readFileSync(join(root, 'scenarios/engine/eng-oil-temp-green.toon'), 'utf8');
+
+function load(text: string): Scenario {
+  const checked = checkScenario(text, DA50RG_ENV);
+  if (!checked.ok) throw new Error(JSON.stringify(checked.issues));
+  return checked.scenario;
+}
+
+/** A text with one place replaced; the place must exist exactly once. */
+function swap(text: string, from: string, to: string): string {
+  expect(text.split(from).length - 1, `"${from}" occurs once`).toBe(1);
+  return text.replace(from, () => to);
+}
+
+const pocket = load(POCKET);
+const blueprint = load(BLUEPRINT);
+
+function run(scenario: Scenario, events: { id: string; value: string }[]): GradeResult {
+  return grade(scenario, DA50RG_ENV, {
+    scenarioId: scenario.id,
+    completedAt: 60000,
+    events: events.map((e, i) => ({ t: i * 1000, ...e })),
+  });
+}
+
+const GOLDEN = [
+  { id: 'lv.power', value: 'p50' },
+  { id: 'lv.cowl_flap', value: 'open' },
+];
+
+const briefingOf = (scenario: Scenario) =>
+  buildOutline(scenario, branchStatuses(scenario, DA50RG_ENV), 'briefing');
+
+function debriefOf(scenario: Scenario, result: GradeResult) {
+  return buildOutline(scenario, result.branches, 'debrief', result);
+}
+
+// The independent walkers of the tests; none of them looks at a condition.
+function everyItem(items: readonly OutlineItem[]): OutlineItem[] {
+  return items.flatMap((item) => {
+    if (item.kind === 'decision') return [item, ...everyItem(item.branches)];
+    if (item.kind === 'branch') return [item, ...everyItem(item.children)];
+    return [item];
+  });
+}
+
+function branchByLabel(items: readonly OutlineItem[], label: string): OutlineBranch {
+  const found = everyItem(items).find(
+    (i): i is OutlineBranch => i.kind === 'branch' && i.label === label,
+  );
+  if (found === undefined) throw new Error(`no branch "${label}"`);
+  return found;
+}
+
+function textsOf(items: readonly OutlineItem[]): string[] {
+  return everyItem(items).map((i) => (i.kind === 'branch' ? i.label : i.text));
+}
+
+/** Most branches on one path through the model. */
+function branchLevels(items: readonly OutlineItem[]): number {
+  let best = 0;
+  for (const item of items) {
+    if (item.kind === 'decision') best = Math.max(best, branchLevels(item.branches));
+    else if (item.kind === 'branch') best = Math.max(best, 1 + branchLevels(item.children));
+  }
+  return best;
+}
+
+/** Most nested lists on one path through the model: a decision and a branch each open one. */
+function listLevels(items: readonly OutlineItem[]): number {
+  let best = 0;
+  for (const item of items) {
+    if (item.kind === 'decision') best = Math.max(best, listLevels(item.branches));
+    else if (item.kind === 'branch') best = Math.max(best, listLevels(item.children));
+  }
+  return 1 + best;
+}
+
+describe('the pocket-card fixture', () => {
+  it('passes the scenario check (schema and lint)', () => {
+    expect(checkScenario(POCKET, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('has a decision with two branches, a populated branch that does not apply and 3 branch levels', () => {
+    expect(pocket.procedure).toHaveLength(1);
+    const decision = pocket.procedure[0];
+    expect(decision?.kind).toBe('decision');
+    if (decision?.kind !== 'decision') return;
+    expect(decision.branches.map((b) => b.label)).toEqual(['If too low:', 'If in green range:']);
+    const tooLow = decision.branches[0];
+    expect(tooLow?.nodes.map((n) => n.kind)).toEqual(['group', 'line']);
+    // The engine, not the view, decides which branch applies.
+    expect(branchStatuses(pocket, DA50RG_ENV).map((b) => [b.path, b.status])).toEqual([
+      ['procedure.0.branches.0', 'not_applicable'],
+      ['procedure.0.branches.1', 'applies'],
+      ['procedure.0.branches.1.nodes.3', 'open'],
+      ['procedure.0.branches.1.nodes.3.nodes.1.branches.0', 'open'],
+    ]);
+    expect(branchLevels(briefingOf(pocket))).toBe(MAX_BRANCH_LEVELS);
+  });
+});
+
+describe('buildOutline, briefing form', () => {
+  const outline = briefingOf(pocket);
+
+  it('contains no step and no group anywhere', () => {
+    expect(everyItem(outline).filter((i) => i.kind === 'step')).toEqual([]);
+    const texts = textsOf(outline);
+    for (const hidden of [
+      'Reduce power',
+      'Open cowl flap',
+      'Reduce power at once',
+      'Open cowl flap fully',
+    ]) {
+      expect(texts).not.toContain(hidden);
+    }
+  });
+
+  it('lists the label of the branch that does not apply without any child', () => {
+    const tooLow = branchByLabel(outline, 'If too low:');
+    expect(tooLow.status).toBe('not_applicable');
+    expect(tooLow.children).toEqual([]);
+    expect(textsOf(outline)).not.toContain('Prepare for an engine failure');
+  });
+
+  it('lists the applying branch and the open nested content, in declared order', () => {
+    expect(branchByLabel(outline, 'If in green range:').status).toBe('applies');
+    expect(branchByLabel(outline, 'If not returning to green range:').status).toBe('open');
+    expect(textsOf(outline)).toEqual([
+      'Check oil pressure',
+      'If too low:',
+      'If in green range:',
+      'Increase airspeed',
+      'Check oil temp in green range',
+      'If not returning to green range:',
+      'Land at nearest suitable airfield',
+      'Check oil temp again',
+      'If still red:',
+      'Prepare for a precautionary landing',
+    ]);
+  });
+
+  it('prints no "Not graded" note and mutes nothing', () => {
+    for (const item of everyItem(outline)) {
+      if (item.kind === 'line' || item.kind === 'decision') {
+        expect(item.notGraded).toBe(false);
+        expect(item.muted).toBe(false);
+      }
+    }
+  });
+
+  it('shows the shipped blueprint as the pocket card of the first scenario', () => {
+    expect(textsOf(briefingOf(blueprint))).toEqual([
+      'Check oil pressure',
+      'If too low:',
+      'If in green range:',
+      'Increase airspeed',
+      'Check oil temp in green range',
+      'If not returning to green range:',
+      'Land at nearest suitable airfield',
+    ]);
+    expect(branchByLabel(briefingOf(blueprint), 'If too low:').status).toBe('not_applicable');
+  });
+
+  it('needs no grade result, and the debrief form refuses to build without one', () => {
+    expect(() => buildOutline(pocket, branchStatuses(pocket, DA50RG_ENV), 'debrief')).toThrow(
+      'grade result',
+    );
+  });
+
+  it('refuses a branch list that misses a path of the procedure', () => {
+    expect(() => buildOutline(pocket, [], 'briefing')).toThrow('no branch status');
+  });
+});
+
+describe('buildOutline, debrief form', () => {
+  const golden = run(pocket, GOLDEN);
+  const outline = debriefOf(pocket, golden);
+  const steps = everyItem(outline).filter((i): i is OutlineStep => i.kind === 'step');
+
+  it('gives the applying steps a severity tag and Done when credited', () => {
+    const graded = steps.filter((s) => !s.muted);
+    expect(graded.map((s) => [s.id, s.tag, s.verdict?.word])).toEqual([
+      ['reduce_power', 'CRITICAL', 'Done'],
+      ['open_cowl_flap', 'CRITICAL', 'Done'],
+    ]);
+    expect(graded.every((s) => s.verdict?.tone === 'done')).toBe(true);
+  });
+
+  it('maps a missed critical step to Missed', () => {
+    const doNothing = debriefOf(pocket, run(pocket, []));
+    const graded = everyItem(doNothing).filter(
+      (i): i is OutlineStep => i.kind === 'step' && !i.muted,
+    );
+    expect(graded.map((s) => [s.id, s.verdict?.word, s.verdict?.tone])).toEqual([
+      ['reduce_power', 'Missed', 'critical'],
+      ['open_cowl_flap', 'Missed', 'critical'],
+    ]);
+  });
+
+  it('maps standard and optional steps from the severity of the scenario', () => {
+    const standard = load(
+      swap(
+        POCKET,
+        'id: open_cowl_flap\n                severity: critical',
+        'id: open_cowl_flap\n                severity: standard',
+      ),
+    );
+    const optional = load(
+      swap(
+        POCKET,
+        'id: open_cowl_flap\n                severity: critical',
+        'id: open_cowl_flap\n                severity: optional',
+      ),
+    );
+    const rowOf = (scenario: Scenario) =>
+      everyItem(debriefOf(scenario, run(scenario, [])))
+        .filter((i): i is OutlineStep => i.kind === 'step')
+        .find((s) => s.id === 'open_cowl_flap');
+    expect(rowOf(standard)).toMatchObject({
+      tag: 'STANDARD',
+      verdict: { word: 'Missed', tone: 'standard' },
+    });
+    expect(rowOf(optional)).toMatchObject({
+      tag: 'OPTIONAL',
+      verdict: { word: 'Not done', tone: 'neutral' },
+    });
+  });
+
+  it('verdictOf follows credited and severity', () => {
+    const base: StepVerdict = {
+      id: 's',
+      group: 'g',
+      severity: 'critical',
+      credited: true,
+      enteredAt: 0,
+    };
+    expect(verdictOf(base)).toEqual({ word: 'Done', tone: 'done' });
+    expect(verdictOf({ ...base, severity: 'optional' })).toEqual({ word: 'Done', tone: 'done' });
+    expect(verdictOf({ ...base, credited: false, enteredAt: null })).toEqual({
+      word: 'Missed',
+      tone: 'critical',
+    });
+    expect(verdictOf({ ...base, severity: 'standard', credited: false, enteredAt: null })).toEqual({
+      word: 'Missed',
+      tone: 'standard',
+    });
+    expect(verdictOf({ ...base, severity: 'optional', credited: false, enteredAt: null })).toEqual({
+      word: 'Not done',
+      tone: 'neutral',
+    });
+  });
+
+  it('mutes the children of the branch that does not apply, without tag or verdict', () => {
+    const tooLow = branchByLabel(outline, 'If too low:');
+    expect(tooLow.status).toBe('not_applicable');
+    expect(tooLow.children.map((c) => c.kind)).toEqual(['step', 'step', 'line']);
+    for (const child of tooLow.children) {
+      if (child.kind === 'step') {
+        expect(child).toMatchObject({ muted: true, tag: null, verdict: null });
+      } else if (child.kind === 'line') {
+        expect(child).toMatchObject({ muted: true, notGraded: false });
+      }
+    }
+    // Those steps are not graded in this run: the result holds no verdict for them.
+    expect(golden.steps.map((s) => s.id)).toEqual(['reduce_power', 'open_cowl_flap']);
+  });
+
+  it('puts the steps of a group at the level of the group', () => {
+    const green = branchByLabel(outline, 'If in green range:');
+    expect(green.children.map((c) => (c.kind === 'step' ? c.id : c.kind))).toEqual([
+      'reduce_power',
+      'open_cowl_flap',
+      'line',
+      'line',
+      'branch',
+    ]);
+  });
+
+  it('marks the decision and the non-graded lines "Not graded", the open branch included', () => {
+    const open = branchByLabel(outline, 'If not returning to green range:');
+    expect(open.status).toBe('open');
+    const lines = everyItem(open.children).filter(
+      (i) => i.kind === 'line' || i.kind === 'decision',
+    );
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      if (line.kind === 'line' || line.kind === 'decision') {
+        expect(line).toMatchObject({ notGraded: true, muted: false });
+      }
+    }
+    const decision = outline[0];
+    expect(decision).toMatchObject({
+      kind: 'decision',
+      text: 'Check oil pressure',
+      notGraded: true,
+    });
+  });
+});
+
+// The renderer, expanded without a DOM.
+
+function ulDepth(tree: Tree): number {
+  if (typeof tree === 'string') return 0;
+  const inner = Math.max(0, ...tree.children.map(ulDepth));
+  return inner + (tree.tag === 'ul' ? 1 : 0);
+}
+
+/** The branch rows of the tree: `li` elements marked as branches. */
+function branchRows(tree: El): El[] {
+  return findElements(tree, (el) => el.tag === 'li' && el.props['data-kind'] === 'branch');
+}
+
+function rowFor(tree: El, label: string): El {
+  const found = branchRows(tree).find((li) => {
+    const row = li.children.find((c): c is El => typeof c !== 'string' && c.tag === 'div');
+    return row !== undefined && textOf(row).startsWith(label);
+  });
+  if (found === undefined) throw new Error(`no row for "${label}"`);
+  return found;
+}
+
+describe('ChecklistOutline', () => {
+  it('nests lists as deep as the model: a decision and a branch each open one', () => {
+    for (const items of [briefingOf(pocket), debriefOf(pocket, run(pocket, GOLDEN))]) {
+      const tree = expand(ChecklistOutline({ items }));
+      expect(ulDepth(tree)).toBe(listLevels(items));
+    }
+    // Pocket card: root, the branches of the decision, 3 branch levels and one more decision.
+    expect(listLevels(briefingOf(pocket))).toBe(6);
+    expect(listLevels(briefingOf(blueprint))).toBe(4);
+  });
+
+  it('prints "Not applicable" right after the label of the branch that does not apply', () => {
+    const tree = expand(ChecklistOutline({ items: briefingOf(pocket) }));
+    const tooLow = rowFor(tree, 'If too low:');
+    expect(textOf(tooLow)).toBe('If too low: Not applicable');
+    // No child list at all in the briefing.
+    expect(findElements(tooLow, (el) => el.tag === 'ul')).toHaveLength(0);
+    const green = rowFor(tree, 'If in green range:');
+    expect(textOf(findElements(green, (el) => el.tag === 'div')[0] ?? green)).toBe(
+      'If in green range:',
+    );
+  });
+
+  it('contains no step text and no verdict word in the briefing form', () => {
+    const text = textOf(expand(ChecklistOutline({ items: briefingOf(pocket) })));
+    for (const word of [
+      'Reduce power',
+      'Open cowl flap',
+      'CRITICAL',
+      'Done',
+      'Missed',
+      'Not graded',
+    ]) {
+      expect(text).not.toContain(word);
+    }
+    expect(text).toContain('Check oil pressure');
+    expect(text).toContain('Land at nearest suitable airfield');
+  });
+
+  it('renders the debrief form with tags, verdicts, the muted children and "Not graded"', () => {
+    const tree = expand(ChecklistOutline({ items: debriefOf(pocket, run(pocket, GOLDEN)) }));
+    const rows = findElements(tree, (el) => el.props['data-testid'] === 'debrief-row');
+    expect(rows.map((r) => [r.props['data-step-id'], r.props['data-verdict']])).toEqual([
+      ['reduce_power', 'Done'],
+      ['open_cowl_flap', 'Done'],
+    ]);
+    expect(rows.map((r) => r.props['aria-label'])).toEqual([
+      'CRITICAL, Reduce power, Done',
+      'CRITICAL, Open cowl flap, Done',
+    ]);
+    const tooLow = rowFor(tree, 'If too low:');
+    const muted = findElements(tooLow, (el) => el.props['data-muted'] === 'true');
+    expect(muted).toHaveLength(3);
+    const mutedText = textOf(tooLow);
+    expect(mutedText).toContain('Reduce power at once');
+    for (const word of ['CRITICAL', 'Done', 'Missed', 'Not graded']) {
+      expect(mutedText).not.toContain(word);
+    }
+    const all = textOf(tree);
+    expect(all.match(/Not graded/g)?.length).toBe(
+      // the decision, two lines, the nested line, the nested decision and the line in its branch
+      6,
+    );
+  });
+
+  it('wraps nothing but text: scenario strings are text children, never markup', () => {
+    const hostile = swap(POCKET, 'text: Increase airspeed', 'text: "<img src=x onerror=alert(1)>"');
+    const scenario = load(hostile);
+    const tree = expand(ChecklistOutline({ items: briefingOf(scenario) }));
+    expect(findElements(tree, (el) => el.tag === 'img')).toHaveLength(0);
+    expect(textOf(tree)).toContain('<img src=x onerror=alert(1)>');
+  });
+});
+
+describe('no flat step list', () => {
+  it('no view reads the flat list of step verdicts', () => {
+    for (const file of [
+      'src/ui/outline.ts',
+      'src/ui/screens/ChecklistOutline.tsx',
+      'src/ui/screens/Briefing.tsx',
+      'src/ui/screens/Debrief.tsx',
+    ]) {
+      const source = readFileSync(join(root, file), 'utf8');
+      expect(source, file).not.toMatch(/\.steps\.(map|forEach|filter|flatMap)\(/);
+    }
+  });
+
+  it('the debrief renders through the outline', () => {
+    const source = readFileSync(join(root, 'src/ui/screens/Debrief.tsx'), 'utf8');
+    expect(source).toContain('ChecklistOutline');
+    expect(source).toContain('buildOutline');
+  });
+});

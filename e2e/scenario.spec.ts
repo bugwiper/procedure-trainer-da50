@@ -165,6 +165,7 @@ test('@hooks Start run starts in the initial state on the full panel', async ({
 for (const how of ['button', 'escape'] as const) {
   test(`@hooks leaving the briefing by ${how} changes nothing`, async ({ page, hasTouch }) => {
     const before = await controlStates(page);
+    const idle = await page.locator('footer').boundingBox();
     await openBriefing(page, hasTouch);
     if (how === 'button') await activate(page.getByTestId('briefing-back'), hasTouch);
     else await page.keyboard.press('Escape');
@@ -177,7 +178,7 @@ for (const how of ['button', 'escape'] as const) {
     await expect(page.getByTestId('procedure-complete')).toHaveCount(0);
     // The footer is back to its idle height: the briefing was not a session.
     const footer = await page.locator('footer').boundingBox();
-    expect(footer?.height ?? 0).toBeLessThan(MIN_FOOTER_PX);
+    expect(footer?.height ?? 0).toBe(idle?.height ?? -1);
   });
 }
 
@@ -287,6 +288,50 @@ test('@hooks the golden run grades PASS and keeps the end state', async ({ page,
   await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p50');
   await expect(control(page, 'lv.cowl_flap')).toHaveAttribute('data-state', 'open');
   await expect(page.getByTestId('procedure-complete')).toHaveCount(0);
+});
+
+test('@hooks the debrief shows the outline with verdicts, Not graded and the branch that does not apply', async ({
+  page,
+  hasTouch,
+}) => {
+  await startRun(page, hasTouch);
+  await goldenTaps(page, hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+
+  const debrief = page.getByTestId('debrief');
+  await expect(debrief.getByRole('heading', { name: 'Steps' })).toBeVisible();
+  // The decision card, whole: the sibling that does not apply is shown as such.
+  const tooLow = debrief.locator('li[data-kind="branch"]', { hasText: 'If too low:' });
+  await expect(tooLow).toContainText('Not applicable');
+  await expect(
+    debrief.locator('li[data-kind="branch"]', { hasText: 'If in green range:' }),
+  ).toBeVisible();
+  // The two graded steps: severity tag, text, verdict word.
+  const rows = debrief.getByTestId('debrief-row');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('CRITICAL');
+  await expect(rows.nth(0)).toContainText('Reduce power');
+  await expect(rows.nth(0)).toContainText('Done');
+  await expect(rows.nth(1)).toContainText('CRITICAL');
+  await expect(rows.nth(1)).toContainText('Open cowl flap');
+  await expect(rows.nth(1)).toContainText('Done');
+  // Non-graded lines say so; the decision too.
+  const airspeed = debrief.locator('li[data-kind="line"]', { hasText: 'Increase airspeed' });
+  await expect(airspeed).toContainText('Not graded');
+  await expect(
+    debrief
+      .locator('li[data-kind="decision"]', { hasText: 'Check oil pressure' })
+      .first()
+      .locator(':scope > div'),
+  ).toContainText('Not graded');
+  await expect(
+    debrief.locator('li[data-kind="line"]', { hasText: 'Land at nearest suitable airfield' }),
+  ).toContainText('Not graded');
+  // Nesting is real list nesting, and long lines never scroll the card sideways.
+  await expect(debrief.locator('ul ul ul ul')).not.toHaveCount(0);
+  const overflow = await debrief.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
 });
 
 test('@hooks doing nothing grades FAIL', async ({ page, hasTouch }) => {
