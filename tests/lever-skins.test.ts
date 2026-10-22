@@ -4,9 +4,18 @@ import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { PLACARDS } from '../src/aircraft/da50rg/placards';
 import type { ControlDef, DetentLeverDef } from '../src/engine/registry';
 import type { DispatchResult } from '../src/engine/store';
+import { VIEW_PROFILES } from '../src/aircraft/da50rg/panel';
 import { createPanelBridge } from '../src/ui/bridge';
+import { fitScale, targetSide, zoomRect } from '../src/ui/panel/viewport';
 import { FLAP, FlapBody, flapPlate } from '../src/ui/panel/skins/Flap';
-import { ENV_ICONS, LEVER_ART } from '../src/ui/panel/skins/LeverHandles';
+import {
+  ECS_GROWTH,
+  ECS_HEAD_R,
+  ECS_TILT,
+  ENV_ICONS,
+  LEVER_ART,
+  pullFraction,
+} from '../src/ui/panel/skins/LeverHandles';
 import {
   LeverBody,
   makeHandlePress,
@@ -870,5 +879,148 @@ describe('lever sources', () => {
         expect(['6', '8', '10', '14'], `${path} ${size}`).toContain(size);
       }
     }
+  });
+});
+
+// ECS SHUTOFF (phase 03 plan 10, owner description 2026-10-22): a pull knob with a white head that
+// carries the text ECS SHUTOFF. Pushed in is the default; pulled it is drawn lower, a few units to
+// the left and slightly larger, on a stem that slants down-left. The text never changes (G-0.1).
+describe('ECS SHUTOFF, the pull-ecs skin (plan 03-10, C-54, C-56)', () => {
+  const ecs = lever('lv.ecs_shutoff');
+
+  /** Sum of the translate() transforms from the root to the first element that matches. */
+  function centreOf(tree: El, match: (el: El) => boolean): { x: number; y: number } {
+    const find = (el: El, x: number, y: number): { x: number; y: number } | null => {
+      const transform = el.props['transform'];
+      const m = /^translate\((-?[\d.]+) (-?[\d.]+)\)$/.exec(
+        typeof transform === 'string' ? transform : '',
+      );
+      const nx = x + (m === null ? 0 : Number(m[1]));
+      const ny = y + (m === null ? 0 : Number(m[2]));
+      if (match(el)) return { x: nx, y: ny };
+      for (const child of el.children) {
+        if (typeof child === 'string') continue;
+        const found = find(child, nx, ny);
+        if (found !== null) return found;
+      }
+      return null;
+    };
+    // The root carries the control's own translate to its region; leave it out.
+    for (const child of tree.children) {
+      if (typeof child === 'string') continue;
+      const found = find(child, 0, 0);
+      if (found !== null) return found;
+    }
+    throw new Error('no matching element');
+  }
+
+  const headOf = (tree: El) =>
+    centreOf(tree, (el) => el.tag === 'circle' && el.props['r'] === ECS_HEAD_R);
+
+  it('is a two-detent lever: PULLED at the bottom, IN at the top, default IN, tap marker on both', () => {
+    expect(ecs.kind).toBe('detent-lever');
+    expect(ecs.skin).toBe('pull-ecs');
+    expect(ecs.detents.map((d) => d.id)).toEqual(['pulled', 'in']);
+    expect(ecs.detents.map((d) => d.pos)).toEqual([0, 1]);
+    expect(ecs.default).toBe('in');
+    expect(ecs.dragOnly).not.toBe(true);
+    expect(ecs.markers).toBeUndefined();
+    expect(ecs.tapToggle).toBeUndefined();
+    expect(ecs.track.axis).toBe('v');
+  });
+
+  it('is nameless with no legends: its body prints exactly ECS SHUTOFF in both states', () => {
+    expect(ecs.nameless).toBe(true);
+    expect(ecs.legends).toEqual([]);
+    for (const d of ecs.detents) {
+      const printed = texts(body(ecs, d.id)).map((t) => t.replace(/\s+/g, ' ').trim());
+      expect(printed, d.id).toEqual(['ECS SHUTOFF']);
+      expect(stateTexts(body(ecs, d.id)), d.id).toHaveLength(0);
+    }
+  });
+
+  it('draws the pulled head below and to the left of the stowed head, inside the hit footprint', () => {
+    const stowed = headOf(body(ecs, 'in'));
+    const pulled = headOf(body(ecs, 'pulled'));
+    expect(pulled.y).toBeGreaterThan(stowed.y);
+    expect(pulled.x).toBeLessThan(stowed.x);
+    expect(stowed.x - pulled.x).toBeCloseTo(ECS_TILT, 5);
+    const reach = ECS_HEAD_R * (1 + ECS_GROWTH);
+    for (const at of [stowed, pulled]) {
+      expect(Math.abs(at.x) + reach).toBeLessThanOrEqual(ecs.hit.w / 2);
+      expect(Math.abs(at.y) + reach).toBeLessThanOrEqual(ecs.hit.h / 2);
+    }
+  });
+
+  it('slants the stem down-left to the head when pulled and keeps it straight when stowed', () => {
+    const stemEnd = (state: string) => {
+      const stem = findElements(body(ecs, state), (el) => 'data-ecs-stem' in el.props)[0];
+      const numbers =
+        String(stem?.props['d'])
+          .match(/-?[\d.]+/g)
+          ?.map(Number) ?? [];
+      // M x0 y0 L x1 y1 L x2 y2 L x3 y3 Z: the entry edge, then the edge at the head.
+      return {
+        entry: (numbers[0] ?? 0) + (numbers[2] ?? 0),
+        head: (numbers[4] ?? 0) + (numbers[6] ?? 0),
+        y: numbers[5] ?? 0,
+        y0: numbers[1] ?? 0,
+      };
+    };
+    const stowed = stemEnd('in');
+    const pulled = stemEnd('pulled');
+    expect(stowed.head).toBeCloseTo(stowed.entry, 5);
+    expect(pulled.head).toBeLessThan(pulled.entry);
+    expect(pulled.y).toBeGreaterThan(stowed.y);
+    expect(pulled.y).toBeGreaterThan(pulled.y0);
+  });
+
+  it('draws the pull fraction by the drag position as well: halfway is halfway', () => {
+    const half = headOf(body(ecs, 'in', true, 0.5));
+    const stowed = headOf(body(ecs, 'in'));
+    const pulled = headOf(body(ecs, 'pulled'));
+    expect(half.x).toBeCloseTo((stowed.x + pulled.x) / 2, 5);
+    expect(half.y).toBeCloseTo((stowed.y + pulled.y) / 2, 5);
+  });
+
+  it('pullFraction is 0 at the stowed end, 1 at the pulled end and clamps beyond them', () => {
+    expect(pullFraction(60, -30)).toBe(0);
+    expect(pullFraction(60, 0)).toBe(0.5);
+    expect(pullFraction(60, 30)).toBe(1);
+    expect(pullFraction(60, -90)).toBe(0);
+    expect(pullFraction(60, 90)).toBe(1);
+    expect(pullFraction(0, 0)).toBe(0);
+  });
+
+  it('keeps the head white with dark lettering (not the safety red of the red pulls)', () => {
+    const props = JSON.stringify(findElements(body(ecs, 'pulled'), () => true).map((e) => e.props));
+    expect(props.toLowerCase()).not.toContain('#c4161f');
+    const head = findElements(
+      body(ecs, 'in'),
+      (el) => el.tag === 'circle' && el.props['r'] === ECS_HEAD_R,
+    )[0];
+    expect(head?.props['fill']).toBe('#f4f5f7');
+  });
+
+  it('marks a grab with the blue ring only while dragging', () => {
+    const calm = JSON.stringify(findElements(body(ecs, 'in'), () => true).map((e) => e.props));
+    const grab = JSON.stringify(
+      findElements(body(ecs, 'in', true), () => true).map((e) => e.props),
+    );
+    expect(calm).not.toContain('#8fb8e6');
+    expect(grab).toContain('#8fb8e6');
+  });
+
+  it('the shortened lv.cowl_flap keeps the cowl-slider skin and its handle square reaches 44 px on the phone', () => {
+    const cowl = lever('lv.cowl_flap');
+    expect(cowl.skin).toBe('cowl-slider');
+    expect(cowl.nameless).toBe(true);
+    expect(cowl.legends).toEqual([]);
+    for (const d of cowl.detents) expect(texts(body(cowl, d.id)), d.id).toEqual([]);
+    const region = DA50RG.regions.find((r) => r.id === cowl.region);
+    if (region === undefined) throw new Error('no region');
+    const px =
+      targetSide(cowl) * fitScale(zoomRect(region.bounds, DA50RG.viewBox), VIEW_PROFILES.phone);
+    expect(px).toBeGreaterThanOrEqual(43.5);
   });
 });

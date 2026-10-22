@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { KNOB_CONTROLS } from '../src/aircraft/da50rg/controls/knobs';
 import { DA50RG, VIEW_PROFILES } from '../src/aircraft/da50rg/panel';
-import { RegistryError, defineRegistry, legalStates } from '../src/engine/registry';
+import { ROTARY_SKINS, RegistryError, defineRegistry, legalStates } from '../src/engine/registry';
 import type { ControlSpec, RotaryDef } from '../src/engine/registry';
 import {
   MIN_RADIUS,
@@ -16,7 +16,7 @@ import {
 import { fitScale, targetSide, zoomRect } from '../src/ui/panel/viewport';
 import type { DispatchResult } from '../src/engine/store';
 import { createPanelBridge } from '../src/ui/bridge';
-import { RotaryBody, makeSpotPress } from '../src/ui/panel/widgets/Rotary';
+import { RotaryBody, makeSpotPress, selectorBarWidth } from '../src/ui/panel/widgets/Rotary';
 import { countElements, expand, findElements, textOf } from './vnode-walk';
 
 // Rotary kind (PNL-11, D-07, D-09, D-10): pure stop logic, the registry invariants, the tap-size
@@ -184,6 +184,12 @@ describe('DA50RG knobs (Table K1)', () => {
     expect(read('sw.instr_light')).toEqual(dimmerStops);
     expect(read('sw.flood_light')).toEqual(dimmerStops);
     expect(read('sw.env_fan')).toEqual(fanStops);
+    // The FUEL selector (owner decision 2026-10-22; the 225 degree OFF angle is owner-unverified).
+    expect(read('sw.fuel_valve')).toEqual([
+      ['normal', 'NORMAL', 0],
+      ['emergency', 'EMERGENCY', 90],
+      ['off', 'OFF', 225],
+    ]);
   });
 
   it('legal states are the stop ids', () => {
@@ -327,6 +333,20 @@ describe('rotary registry invariants', () => {
     expect(() =>
       define(build({ stops: stops(180, 300, 360, 420), scale: 'fan', nameless: true })),
     ).not.toThrow();
+  });
+
+  it('accepts every rotary skin of the vocabulary and none, and rejects an unknown one (C-52)', () => {
+    expect([...ROTARY_SKINS]).toEqual(['round', 'selector-bar']);
+    expect(() => define(build({ stops: stops(0, 90) }))).not.toThrow();
+    for (const skin of ROTARY_SKINS) {
+      expect(() => define(build({ stops: stops(0, 90), skin })), skin).not.toThrow();
+    }
+    expect(() =>
+      define(build({ stops: stops(0, 90), skin: 'bar' as unknown as RotaryDef['skin'] })),
+    ).toThrow(/unknown skin "bar"/);
+    expect(() =>
+      define(build({ stops: stops(0, 90), skin: 'bar' as unknown as RotaryDef['skin'] })),
+    ).toThrow(RegistryError);
   });
 
   it('rejects angles that do not strictly increase', () => {
@@ -704,5 +724,156 @@ describe('makeSpotPress (plan 38, R3-Z2): what a tap on a FAN spot does', () => 
     // Lines naming it: the definition and the body hit rectangle (the spots no longer use it).
     expect(src.split('\n').filter((l) => l.includes('onPointerDown'))).toHaveLength(2);
     expect(src).toContain('registerPressTarget');
+  });
+});
+
+describe('FUEL selector (plan 03-10, C-51, C-52)', () => {
+  const fuel = knob('sw.fuel_valve');
+  const R = fuel.r;
+
+  it('is a nameless rotary of the selector-bar look with the stops NORMAL, EMERGENCY, OFF clockwise', () => {
+    expect(fuel.kind).toBe('rotary');
+    expect(fuel.skin).toBe('selector-bar');
+    expect(fuel.nameless).toBe(true);
+    expect(fuel.label).toBe('FUEL VALVE');
+    expect(fuel.region).toBe('pedestal');
+    expect(fuel.default).toBe('normal');
+    expect(fuel.spots).toBeUndefined();
+    const angles = fuel.stops.map((s) => s.angle);
+    expect(angles).toEqual([...angles].sort((a, b) => a - b));
+    expect(new Set(angles).size).toBe(angles.length);
+    expect(fuel.stops.map((s) => s.id)).toEqual(['normal', 'emergency', 'off']);
+  });
+
+  it('every other knob keeps the round look: no skin, or round', () => {
+    for (const def of rotaries) {
+      if (def.id === 'sw.fuel_valve') continue;
+      expect(def.skin === undefined || def.skin === 'round', def.id).toBe(true);
+      const tree = expand(RotaryBody({ def, state: def.default, pressed: false }));
+      expect(
+        findElements(tree, (el) => 'data-selector-bar' in el.props),
+        def.id,
+      ).toHaveLength(0);
+      expect(findElements(tree, (el) => el.tag === 'circle').length, def.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('steps clockwise NORMAL, EMERGENCY, OFF, clamps at OFF and steps back', () => {
+    expect(stepStop(fuel, 'normal', 1)).toBe('emergency');
+    expect(stepStop(fuel, 'emergency', 1)).toBe('off');
+    expect(stepStop(fuel, 'off', 1)).toBe('off');
+    expect(stepStop(fuel, 'off', -1)).toBe('emergency');
+    expect(stepStop(fuel, 'emergency', -1)).toBe('normal');
+    expect(stepStop(fuel, 'normal', -1)).toBe('normal');
+  });
+
+  it('a drag commits the nearest stop: past 135 degrees it is OFF, below 45 it is NORMAL', () => {
+    const [normal, emergency, off] = fuel.stops;
+    if (normal === undefined || emergency === undefined || off === undefined)
+      throw new Error('stops');
+    expect(nearestStop(fuel, off.angle - 25)).toBe('off');
+    expect(nearestStop(fuel, emergency.angle - 10)).toBe('emergency');
+    expect(nearestStop(fuel, (normal.angle + emergency.angle) / 2 - 1)).toBe('normal');
+    expect(nearestStop(fuel, (normal.angle + emergency.angle) / 2 + 1)).toBe('emergency');
+    for (const stop of fuel.stops) expect(nearestStop(fuel, stop.angle)).toBe(stop.id);
+  });
+
+  it('each tap half reaches 44 px at the pedestal zoom of the phone', () => {
+    const region = DA50RG.regions.find((r) => r.id === fuel.region);
+    if (region === undefined) throw new Error('no region');
+    const view = zoomRect(region.bounds, DA50RG.viewBox);
+    expect(targetSide(fuel) * fitScale(view, VIEW_PROFILES.phone)).toBeGreaterThanOrEqual(43.5);
+  });
+
+  describe('selector-bar art', () => {
+    const render = (state: string, pressed = false, dragAngle?: number) =>
+      expand(RotaryBody({ def: fuel, state, pressed, dragAngle }));
+    const bar = (tree: ReturnType<typeof render>) =>
+      findElements(tree, (el) => 'data-selector-bar' in el.props)[0];
+    const knobGroup = (tree: ReturnType<typeof render>) =>
+      findElements(tree, (el) => 'data-selector-knob' in el.props)[0];
+
+    it('draws an elongated bar: its length is four times its width, both read from r', () => {
+      for (const stop of fuel.stops) {
+        const el = bar(render(stop.id));
+        expect(Number(el?.props['height']), stop.id).toBe(2 * R);
+        expect(Number(el?.props['width']), stop.id).toBe(selectorBarWidth(R));
+        expect(Number(el?.props['height']) / Number(el?.props['width']), stop.id).toBe(4);
+        // Centred on the knob: it spans -r to +r along its axis.
+        expect(Number(el?.props['y'])).toBe(-R);
+        expect(Number(el?.props['x'])).toBe(-selectorBarWidth(R) / 2);
+      }
+    });
+
+    it('turns the bar to the stop angle of each state, and to the drag angle while dragging', () => {
+      for (const stop of fuel.stops) {
+        expect(String(knobGroup(render(stop.id))?.props['transform']), stop.id).toBe(
+          `rotate(${stop.angle.toFixed(2)})`,
+        );
+      }
+      expect(String(knobGroup(render('normal', true, 137))?.props['transform'])).toBe(
+        'rotate(137.00)',
+      );
+    });
+
+    it('puts a short white line at the pointing end, inside the bar', () => {
+      for (const stop of fuel.stops) {
+        const tree = render(stop.id);
+        const line = findElements(tree, (el) => 'data-selector-line' in el.props)[0];
+        expect(line?.props['stroke']).toBe('#ffffff');
+        // Along the pointing axis (negative y of the turned frame), between the tip and the middle.
+        const y1 = Number(line?.props['y1']);
+        const y2 = Number(line?.props['y2']);
+        expect(Number(line?.props['x1'])).toBe(0);
+        expect(Number(line?.props['x2'])).toBe(0);
+        expect(Math.min(y1, y2)).toBeGreaterThanOrEqual(-R);
+        expect(Math.max(y1, y2)).toBeLessThan(0);
+        expect(Math.abs(y2 - y1)).toBeLessThan(R);
+        // The line is a child of the turned group, so it turns with the bar.
+        expect(findElements(knobGroup(tree) as never, (el) => el === line)).toHaveLength(1);
+      }
+    });
+
+    it('prints exactly NORMAL, EMERGENCY and OFF in every state, outside the sweep at their stop directions', () => {
+      for (const stop of fuel.stops) {
+        const tree = render(stop.id);
+        const words = findElements(tree, (el) => 'data-selector-word' in el.props);
+        expect(words.map((w) => textOf(w)).sort(), stop.id).toEqual(['EMERGENCY', 'NORMAL', 'OFF']);
+        expect(findElements(tree, (el) => el.tag === 'text')).toHaveLength(3);
+        for (const word of words) {
+          const def = fuel.stops.find((s) => s.id === word.props['data-selector-word']);
+          if (def === undefined) throw new Error('word of no stop');
+          const x = Number(word.props['x']);
+          const y = Number(word.props['y']);
+          // The anchor point lies outside the sweep of the knob, in the direction of its stop (the
+          // baseline shift of a word is at most 6 units, so the direction holds within 25 degrees).
+          expect(
+            Math.hypot(x, y),
+            word.props['data-selector-word'] as string,
+          ).toBeGreaterThanOrEqual(R);
+          const off = Math.abs(angleOf(x, y) - def.angle) % 360;
+          expect(Math.min(off, 360 - off), def.id).toBeLessThan(25);
+          // Each word reads away from the knob.
+          const side = Math.sin((def.angle * Math.PI) / 180);
+          expect(word.props['text-anchor']).toBe(
+            side > 0.3 ? 'start' : side < -0.3 ? 'end' : 'middle',
+          );
+        }
+      }
+    });
+
+    it('marks a press with the blue ring on the bar and nothing else', () => {
+      expect(bar(render('normal', false))?.props['stroke']).not.toBe('#8fb8e6');
+      expect(bar(render('normal', true))?.props['stroke']).toBe('#8fb8e6');
+    });
+
+    it('draws no scale, no dots and no round disc, and stays within 40 elements', () => {
+      for (const stop of fuel.stops) {
+        const tree = render(stop.id);
+        expect(findElements(tree, (el) => el.tag === 'circle')).toHaveLength(0);
+        expect(findElements(tree, (el) => el.tag === 'path')).toHaveLength(0);
+        expect(countElements(tree)).toBeLessThanOrEqual(40);
+      }
+    });
   });
 });
