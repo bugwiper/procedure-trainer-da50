@@ -37,6 +37,17 @@ if (DEGRADED === undefined) throw new Error('the blueprint sets no oil_cooling')
 const START_TEMP = scenario.initial.quantities[OIL_TEMP];
 if (START_TEMP === undefined) throw new Error('the blueprint sets no oil temperature');
 
+const checkedFire = checkScenario(
+  readFileSync(`${root}scenarios/engine/eng-fire-in-flight.toon`, 'utf8'),
+  DA50RG_ENV,
+);
+if (!checkedFire.ok) throw new Error('the Engine Fire scenario does not pass the scenario check');
+const fireScenario = checkedFire.scenario;
+const FIRE_OUTCOME = fireScenario.outcomes[0];
+if (FIRE_OUTCOME?.when.check !== 'quantity') throw new Error('the fire outcome reads no quantity');
+/** The intensity at which the outcome of the fire scenario counts, read from the scenario file. */
+const FIRE_THRESHOLD = FIRE_OUTCOME.when.value;
+
 const GOOD_MODEL: QuantityModel = {
   quantity: OIL_TEMP,
   mode: 'lag',
@@ -577,6 +588,138 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
     it('alt1_output is a parameter between 0 and 1 with the normal value 1', () => {
       const def = DA50RG_PHYSICS.parameter('alt1_output');
       expect(def).toEqual({ id: 'alt1_output', min: 0, max: 1, normal: 1 });
+    });
+  });
+
+  describe('engine fire (plan 03-08, C-44)', () => {
+    const FIRE = { engine_fire: 1 };
+    const PUMP = { 'sw.emerg_fuel_pump': 'on' };
+    const at = (values: Readonly<Record<string, number>>) => q(values, 'fire_intensity');
+    /** A fire that burned for a while, then the given controls are set at time 0 of the next run. */
+    const burning = (): Record<string, number> => ({ fire_intensity: 60 });
+
+    it('with no fire parameter the intensity stays 0 and the temperatures stay at their base', () => {
+      const after = settle({}, 5 * MINUTE);
+      expect(at(after)).toBe(0);
+      for (const id of ['oil_temp_c', 'coolant_temp_c', 'gearbox_temp_c']) {
+        expect(q(after, id), id).toBe(baseOf(id));
+      }
+    });
+
+    it('engine_fire is a parameter between 0 and 1 with the normal value 0', () => {
+      expect(DA50RG_PHYSICS.parameter('engine_fire')).toEqual({
+        id: 'engine_fire',
+        min: 0,
+        max: 1,
+        normal: 0,
+      });
+    });
+
+    it('fire_intensity is hidden and starts at 0 with one unmarked band', () => {
+      const def = DA50RG_QUANTITIES.get('fire_intensity');
+      expect(def?.base).toBe(0);
+      expect(def?.bands).toEqual([{ id: 'unmarked', colour: 'none', to: def?.max }]);
+    });
+
+    it('an ignored fire grows with the engine running and passes the outcome threshold', () => {
+      const early = settle({}, 10_000, { parameters: FIRE });
+      const late = settle({}, 5 * MINUTE, { parameters: FIRE });
+      expect(at(early)).toBeGreaterThan(0);
+      expect(at(late)).toBeGreaterThan(at(early));
+      expect(at(late)).toBeGreaterThan(FIRE_THRESHOLD);
+    });
+
+    it('the oil, coolant and gearbox temperatures rise above their values without fire', () => {
+      const plain = settle({}, 3 * MINUTE);
+      const fire = settle({}, 3 * MINUTE, { parameters: FIRE });
+      for (const id of ['oil_temp_c', 'coolant_temp_c', 'gearbox_temp_c']) {
+        expect(q(fire, id), id).toBeGreaterThan(q(plain, id) + 5);
+      }
+    });
+
+    it('the temperature rise is the only sign: no CAS rule fires from the fire alone', () => {
+      const { setup } = setupWith({}, FIRE);
+      const after = settle({}, 5 * MINUTE, { parameters: FIRE });
+      const ctx = { controls: setup.baseline, baseline: setup.baseline, quantities: after };
+      expect(DA50RG_CAS.active(ctx, DA50RG_ENV)).toEqual([]);
+    });
+
+    it('ENGINE MASTER OFF makes the fire decay below the outcome threshold and below its start', () => {
+      const after = settle({ 'sw.engine_master': 'off' }, 2 * MINUTE, {
+        parameters: FIRE,
+        start: burning(),
+      });
+      expect(at(after)).toBeLessThan(FIRE_THRESHOLD);
+      expect(at(after)).toBeLessThan(60);
+    });
+
+    it('the FUEL selector OFF alone makes the fire decay as well', () => {
+      const after = settle({ 'sw.fuel_valve': 'off' }, 2 * MINUTE, {
+        parameters: FIRE,
+        start: burning(),
+      });
+      expect(at(after)).toBeLessThan(FIRE_THRESHOLD);
+      expect(at(after)).toBeLessThan(60);
+    });
+
+    it('the EMERG FUEL PUMP raises the fire, unless the FUEL selector is OFF', () => {
+      const plain = settle({}, MINUTE, { parameters: FIRE });
+      const pumped = settle(PUMP, MINUTE, { parameters: FIRE });
+      expect(at(pumped)).toBeGreaterThan(at(plain));
+
+      const cut = settle({ 'sw.fuel_valve': 'off' }, MINUTE, {
+        parameters: FIRE,
+        start: burning(),
+      });
+      const cutPumped = settle({ 'sw.fuel_valve': 'off', ...PUMP }, MINUTE, {
+        parameters: FIRE,
+        start: burning(),
+      });
+      expect(at(cutPumped)).toBe(at(cut));
+    });
+
+    it('the pump keeps feeding a fire after ENGINE MASTER OFF, and the engine off alone is weaker', () => {
+      const off = settle({ 'sw.engine_master': 'off' }, 3 * MINUTE, {
+        parameters: FIRE,
+        start: burning(),
+      });
+      const offPumped = settle({ 'sw.engine_master': 'off', ...PUMP }, 3 * MINUTE, {
+        parameters: FIRE,
+        start: burning(),
+      });
+      expect(at(offPumped)).toBeGreaterThan(at(off));
+    });
+
+    it('the temperatures fall once the fire is out', () => {
+      const hot = settle({}, 3 * MINUTE, { parameters: FIRE });
+      const handled = settle({ 'sw.engine_master': 'off', 'sw.fuel_valve': 'off' }, 3 * MINUTE, {
+        parameters: FIRE,
+        start: hot,
+      });
+      expect(q(handled, 'oil_temp_c')).toBeLessThan(q(hot, 'oil_temp_c'));
+      expect(q(handled, 'coolant_temp_c')).toBeLessThan(q(hot, 'coolant_temp_c'));
+      expect(q(handled, 'gearbox_temp_c')).toBeLessThan(q(hot, 'gearbox_temp_c'));
+    });
+  });
+
+  describe('the fuel cut of the FUEL selector (plan 03-08, C-44)', () => {
+    it('OFF drops rpm, load, oil pressure, fuel pressure and Amps like ENGINE MASTER OFF', () => {
+      const cut = settle({ 'sw.fuel_valve': 'off' }, MINUTE);
+      const off = settle({ 'sw.engine_master': 'off' }, MINUTE);
+      for (const id of ['rpm', 'load_pct', 'oil_pressure_bar', 'fuel_pressure_bar', 'alt1_amps']) {
+        nearZero(q(cut, id), baseOf(id));
+        expect(q(cut, id), id).toBe(q(off, id));
+      }
+    });
+
+    it('OFF also cuts the pressure of the EMERG FUEL PUMP', () => {
+      const cutPumped = settle({ 'sw.fuel_valve': 'off', 'sw.emerg_fuel_pump': 'on' }, MINUTE);
+      const cut = settle({ 'sw.fuel_valve': 'off' }, MINUTE);
+      expect(q(cutPumped, 'fuel_pressure_bar')).toBe(q(cut, 'fuel_pressure_bar'));
+    });
+
+    it('EMERGENCY reads like NORMAL for every quantity', () => {
+      expect(settle({ 'sw.fuel_valve': 'emergency' }, MINUTE)).toEqual(settle({}, MINUTE));
     });
   });
 });

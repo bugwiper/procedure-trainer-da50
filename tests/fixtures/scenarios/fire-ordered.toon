@@ -1,0 +1,123 @@
+# Test fixture, not a shipped scenario: a synthetic copy of the Engine Fire scenario whose three shut-down steps (ENGINE MASTER, FUEL selector, ELECT. MASTER) sit in one ordered, order-critical group in the AFM order. It exercises the order rules of the grader on this scenario (format 1).
+format: 1
+id: fire-ordered
+title: ORDERED FIRE
+source:
+  document: "Test fixture"
+  issue: "none"
+  section: "Synthetic copy of the Engine Fire scenario"
+  verified: "2026-10-23"
+disclaimer: training-aid
+briefing:
+  situation: "You are in cruise flight when you see smoke and flames coming from the engine compartment. No message is shown on the primary flight display. The engine temperatures are rising and the fire is growing."
+initial:
+  controls:
+    lv.env_circ: recirc
+  quantities:
+    fire_intensity: 40
+    oil_temp_c: 103
+    coolant_temp_c: 97
+    gearbox_temp_c: 91
+parameters:
+  engine_fire: 1
+annunciations[0]:
+procedure[9]:
+  - kind: group
+    id: grp_circ_air
+    ordered: false
+    steps[1]:
+      - id: circ_air_fresh
+        severity: critical
+        text: "CIRCULATING AIR: OFF / FRESH AIR"
+        done:
+          check: state
+          control: lv.env_circ
+          is: fresh
+  - kind: group
+    id: grp_ecs_pull
+    ordered: false
+    steps[1]:
+      - id: ecs_pulled
+        severity: critical
+        text: "ECS shut-off: PULL"
+        done:
+          check: state
+          control: lv.ecs_shutoff
+          is: pulled
+  - kind: line
+    text: Select an emergency landing area
+  - kind: group
+    id: immediate
+    ordered: true
+    order_critical: true
+    steps[3]:
+      - id: engine_master_off
+        severity: critical
+        text: "ENGINE MASTER: OFF"
+        done:
+          check: state
+          control: sw.engine_master
+          is: off
+      - id: fuel_valve_off
+        severity: critical
+        text: "FUEL valve: OFF"
+        done:
+          check: state
+          control: sw.fuel_valve
+          is: off
+      - id: elect_master_off
+        severity: critical
+        text: "ELECT. MASTER: OFF"
+        done:
+          check: state
+          control: sw.elect_master
+          is: off
+  - kind: line
+    text: "Airspeed: as required"
+  - kind: line
+    text: "Emergency windows: open if required"
+  - kind: line
+    text: Emergency landing without engine power
+  - kind: line
+    text: "After the aircraft stops: doors open, evacuate"
+  - kind: group
+    id: grp_xpdr_code
+    ordered: false
+    steps[1]:
+      - id: squawk_7700
+        severity: optional
+        text: "Transponder: squawk 7700"
+        done:
+          check: state
+          control: kp.squawk
+          is: "7700"
+# The emergency fuel pump would feed the fire and fails the run; more power is reported only. Both are instructor-review items.
+forbidden[2]:
+  - id: emerg_fuel_pump_on
+    text: Switch on the emergency fuel pump
+    fails_run: true
+    trigger:
+      check: state
+      control: sw.emerg_fuel_pump
+      is: on
+  - id: power_increased
+    text: Increase power
+    fails_run: false
+    trigger:
+      check: travel_rel
+      control: lv.power
+      op: gt
+      delta: 0
+# The outcome ends the run as a fail when the fire stays at a high intensity; the intensity and the hold time are instructor-review values.
+outcomes[1]:
+  - id: fire_spreads
+    text: Fire spreads beyond the engine compartment
+    hold_s: 20
+    when:
+      check: quantity
+      quantity: fire_intensity
+      op: gte
+      value: 85
+# The fire of the level Realistic begins at a random second inside this window; the window is an instructor-review value.
+onset:
+  window_s[2]: 5,20

@@ -224,5 +224,221 @@
         "value": "off"
       }
     ]
+  },
+  "fire-golden": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 2000,
+        "id": "kp.squawk",
+        "value": "7700"
+      },
+      {
+        "t": 4000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      },
+      {
+        "t": 5500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 10000,
+        "id": "sw.elect_master",
+        "value": "off"
+      }
+    ]
+  },
+  "fire-golden-long": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 600000,
+    "events": [
+      {
+        "t": 2000,
+        "id": "kp.squawk",
+        "value": "7700"
+      },
+      {
+        "t": 4000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      },
+      {
+        "t": 5500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 10000,
+        "id": "sw.elect_master",
+        "value": "off"
+      }
+    ]
+  },
+  "fire-no-squawk": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 4000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      },
+      {
+        "t": 5500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 10000,
+        "id": "sw.elect_master",
+        "value": "off"
+      }
+    ]
+  },
+  "fire-do-nothing": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": []
+  },
+  "fire-do-nothing-long": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 600000,
+    "events": []
+  },
+  "fire-forbidden": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 2000,
+        "id": "kp.squawk",
+        "value": "7700"
+      },
+      {
+        "t": 3000,
+        "id": "sw.emerg_fuel_pump",
+        "value": "on"
+      },
+      {
+        "t": 4000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      },
+      {
+        "t": 5500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 10000,
+        "id": "sw.elect_master",
+        "value": "off"
+      }
+    ]
+  },
+  "fire-wrong-order": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 4000,
+        "id": "sw.elect_master",
+        "value": "off"
+      },
+      {
+        "t": 5500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 10000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      }
+    ]
+  },
+  "fire-wrong-order-ordered": {
+    "scenarioId": "fire-ordered",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 4000,
+        "id": "sw.elect_master",
+        "value": "off"
+      },
+      {
+        "t": 5500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 10000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      }
+    ]
   }
 }

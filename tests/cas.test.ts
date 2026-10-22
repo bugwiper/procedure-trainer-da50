@@ -150,6 +150,55 @@ describe('DA50 RG table: ALTN 1 FAIL (plan 03-07, C-38)', () => {
   });
 });
 
+describe('DA50 RG table: OIL PRES (plan 03-08, C-46)', () => {
+  const message = { id: 'oil_pres', text: 'OIL PRES', level: 'warning' };
+  const ENG_OIL_TEMP = { id: 'eng_oil_temp', text: 'ENG OIL TEMP', level: 'warning' };
+  const ALTN_1_FAIL = { id: 'altn_1_fail', text: 'ALTN 1 FAIL', level: 'caution' };
+  /** Band bounds from the quantity data: the low red range ends at the top of low_red. */
+  const bands = DA50RG_ENV.quantities.get('oil_pressure_bar')?.bands ?? [];
+  const top = (id: string): number => bands.find((b) => b.id === id)?.to ?? Number.NaN;
+  const BASE_TEMP = DA50RG_ENV.quantities.get('oil_temp_c')?.base ?? 0;
+
+  it('is a warning', () => {
+    expect(DA50RG_CAS.get('oil_pres')).toMatchObject({ text: 'OIL PRES', level: 'warning' });
+  });
+
+  it('is off at the base values', () => {
+    const base = DA50RG_ENV.quantities.get('oil_pressure_bar')?.base ?? Number.NaN;
+    expect(DA50RG_CAS.active(at(BASE_TEMP, base), DA50RG_ENV)).toEqual([]);
+  });
+
+  it('is on with no oil pressure (engine off)', () => {
+    expect(DA50RG_CAS.active(at(BASE_TEMP, 0), DA50RG_ENV)).toEqual([message]);
+  });
+
+  it('is on at the top of the low red band and off just above it', () => {
+    expect(DA50RG_CAS.active(at(BASE_TEMP, top('low_red')), DA50RG_ENV)).toEqual([message]);
+    expect(DA50RG_CAS.active(at(BASE_TEMP, top('low_red') + 0.1), DA50RG_ENV)).toEqual([]);
+  });
+
+  it('is on in the high red band and off at the top of the high yellow band', () => {
+    expect(DA50RG_CAS.active(at(BASE_TEMP, top('high_yellow') + 0.1), DA50RG_ENV)).toEqual([
+      message,
+    ]);
+    expect(DA50RG_CAS.active(at(BASE_TEMP, top('high_yellow')), DA50RG_ENV)).toEqual([]);
+  });
+
+  it('stays off in the yellow and green bands', () => {
+    for (const pressure of [top('low_red') + 0.5, top('low_yellow'), top('green')]) {
+      expect(DA50RG_CAS.active(at(BASE_TEMP, pressure), DA50RG_ENV), String(pressure)).toEqual([]);
+    }
+  });
+
+  it('comes after ENG OIL TEMP among the warnings and before the cautions', () => {
+    expect(DA50RG_CAS.active(at(126, 0, 0), DA50RG_ENV)).toEqual([
+      ENG_OIL_TEMP,
+      message,
+      ALTN_1_FAIL,
+    ]);
+  });
+});
+
 describe('casChipSlots', () => {
   it('stacks two per row from row 0 upward, right slot first', () => {
     expect(casChipSlots(6)).toEqual([

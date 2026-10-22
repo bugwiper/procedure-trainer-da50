@@ -18,6 +18,8 @@ const BLUEPRINT = readFileSync(join(root, 'scenarios/engine/eng-oil-temp-green.t
 const ORDERED = readFileSync(join(root, 'tests/fixtures/scenarios/ordered-critical.toon'), 'utf8');
 const ELECTRICAL = readFileSync(join(root, 'scenarios/electrical/elec-altn1-fail.toon'), 'utf8');
 const ELEC_ORDERED = readFileSync(join(root, 'tests/fixtures/scenarios/elec-ordered.toon'), 'utf8');
+const FIRE = readFileSync(join(root, 'scenarios/engine/eng-fire-in-flight.toon'), 'utf8');
+const FIRE_ORDERED = readFileSync(join(root, 'tests/fixtures/scenarios/fire-ordered.toon'), 'utf8');
 const RECORDINGS = JSON.parse(
   readFileSync(join(root, 'tests/fixtures/recordings.json'), 'utf8'),
 ) as Record<string, Recording>;
@@ -54,11 +56,13 @@ const blueprint = load(BLUEPRINT);
 const ordered = load(ORDERED);
 const electrical = load(ELECTRICAL);
 const elecOrdered = load(ELEC_ORDERED);
+const fire = load(FIRE);
+const fireOrdered = load(FIRE_ORDERED);
 
 /** The scenario a recording belongs to, by its scenario id. */
 function scenarioOf(name: string): Scenario {
   const id = recording(name).scenarioId;
-  const found = [blueprint, ordered, electrical, elecOrdered].find(
+  const found = [blueprint, ordered, electrical, elecOrdered, fire, fireOrdered].find(
     (scenario) => scenario.id === id,
   );
   if (found === undefined) throw new Error(`no scenario for the recording "${name}"`);
@@ -95,6 +99,40 @@ const electricalOutcome = electrical.outcomes[0];
 if (electricalOutcome === undefined) throw new Error('the electrical scenario declares no outcome');
 
 const ELEC_GROUP = 'immediate';
+
+const fireOutcome = fire.outcomes[0];
+if (fireOutcome === undefined) throw new Error('the Engine Fire scenario declares no outcome');
+
+/** The group of every graded step of the Engine Fire scenario (one group each), by step id. */
+const FIRE_GROUPS: Readonly<Record<string, string>> = {
+  circ_air_fresh: 'grp_circ_air',
+  ecs_pulled: 'grp_ecs_pull',
+  engine_master_off: 'grp_eng_master',
+  fuel_valve_off: 'grp_fuel_valve',
+  elect_master_off: 'grp_elect_master',
+  squawk_7700: 'grp_xpdr_code',
+};
+
+/** The six steps in checklist order; the squawk step is optional, the other five are critical. */
+const fireSteps = (
+  entered: Readonly<Record<string, number>>,
+  groups: Readonly<Record<string, string>> = FIRE_GROUPS,
+): GradeResult['steps'] =>
+  Object.keys(FIRE_GROUPS).map((id) => ({
+    id,
+    group: groups[id] ?? '',
+    severity: id === 'squawk_7700' ? 'optional' : 'critical',
+    credited: id in entered,
+    enteredAt: entered[id] ?? null,
+  }));
+
+/** The order the ordered copy puts the three shut-down steps in. */
+const FIRE_ORDERED_GROUPS = {
+  ...FIRE_GROUPS,
+  engine_master_off: ELEC_GROUP,
+  fuel_valve_off: ELEC_GROUP,
+  elect_master_off: ELEC_GROUP,
+};
 
 const power_increased = (t: number, seq: number, failsRun = true) => ({
   id: 'power_increased',
@@ -364,6 +402,207 @@ describe('golden recordings (Table R1)', () => {
         timing: { onsetAt: 0, firstActionMs: 6000 },
       },
     },
+    {
+      name: 'fire-golden',
+      scenario: fire,
+      expected: {
+        scenarioId: 'eng-fire-in-flight',
+        result: 'pass',
+        reasons: [],
+        steps: fireSteps({
+          squawk_7700: 0,
+          circ_air_fresh: 1,
+          ecs_pulled: 2,
+          engine_master_off: 3,
+          fuel_valve_off: 4,
+          elect_master_off: 5,
+        }),
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 2000 },
+      },
+    },
+    {
+      name: 'fire-golden-long',
+      scenario: fire,
+      expected: {
+        scenarioId: 'eng-fire-in-flight',
+        result: 'pass',
+        reasons: [],
+        steps: fireSteps({
+          squawk_7700: 0,
+          circ_air_fresh: 1,
+          ecs_pulled: 2,
+          engine_master_off: 3,
+          fuel_valve_off: 4,
+          elect_master_off: 5,
+        }),
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 2000 },
+      },
+    },
+    {
+      // The optional squawk never fails a run.
+      name: 'fire-no-squawk',
+      scenario: fire,
+      expected: {
+        scenarioId: 'eng-fire-in-flight',
+        result: 'pass',
+        reasons: [],
+        steps: fireSteps({
+          circ_air_fresh: 0,
+          ecs_pulled: 1,
+          engine_master_off: 2,
+          fuel_valve_off: 3,
+          elect_master_off: 4,
+        }),
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 4000 },
+      },
+    },
+    {
+      name: 'fire-do-nothing',
+      scenario: fire,
+      expected: {
+        scenarioId: 'eng-fire-in-flight',
+        result: 'fail',
+        reasons: [{ kind: 'critical_missed', count: 5 }],
+        steps: fireSteps({}),
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: null },
+      },
+    },
+    {
+      name: 'fire-do-nothing-long',
+      scenario: fire,
+      expected: {
+        scenarioId: 'eng-fire-in-flight',
+        result: 'fail',
+        reasons: [
+          { kind: 'outcome', id: fireOutcome.id },
+          { kind: 'critical_missed', count: 5 },
+        ],
+        steps: fireSteps({}),
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: {
+          id: fireOutcome.id,
+          text: fireOutcome.text,
+          t: simulatedOutcome(fire, 'fire-do-nothing-long')?.t ?? Number.NaN,
+        },
+        timing: { onsetAt: 0, firstActionMs: null },
+      },
+    },
+    {
+      // The pump is logged at its time between the squawk and the fresh air.
+      name: 'fire-forbidden',
+      scenario: fire,
+      expected: {
+        scenarioId: 'eng-fire-in-flight',
+        result: 'fail',
+        reasons: [{ kind: 'forbidden', id: 'emerg_fuel_pump_on' }],
+        steps: fireSteps({
+          squawk_7700: 0,
+          circ_air_fresh: 2,
+          ecs_pulled: 3,
+          engine_master_off: 4,
+          fuel_valve_off: 5,
+          elect_master_off: 6,
+        }),
+        branches: [],
+        orderViolations: [],
+        harmful: [
+          {
+            id: 'emerg_fuel_pump_on',
+            text: 'Switch on the emergency fuel pump',
+            t: 3000,
+            seq: 1,
+            failsRun: true,
+          },
+        ],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 2000 },
+      },
+    },
+    {
+      // The real groups are unordered (C-48): any order of the five steps passes.
+      name: 'fire-wrong-order',
+      scenario: fire,
+      expected: {
+        scenarioId: 'eng-fire-in-flight',
+        result: 'pass',
+        reasons: [],
+        steps: fireSteps({
+          elect_master_off: 0,
+          fuel_valve_off: 1,
+          engine_master_off: 2,
+          ecs_pulled: 3,
+          circ_air_fresh: 4,
+        }),
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 4000 },
+      },
+    },
+    {
+      // The synthetic copy with one ordered, order-critical shut-down group: the same events fail.
+      name: 'fire-wrong-order-ordered',
+      scenario: fireOrdered,
+      expected: {
+        scenarioId: 'fire-ordered',
+        result: 'fail',
+        reasons: [{ kind: 'order', group: ELEC_GROUP }],
+        steps: fireSteps(
+          {
+            elect_master_off: 0,
+            fuel_valve_off: 1,
+            engine_master_off: 2,
+            ecs_pulled: 3,
+            circ_air_fresh: 4,
+          },
+          FIRE_ORDERED_GROUPS,
+        ),
+        branches: [],
+        // Entered in the reverse order: each of the three later steps came before an earlier one.
+        orderViolations: [
+          {
+            group: ELEC_GROUP,
+            expected: 'engine_master_off',
+            before: 'fuel_valve_off',
+            critical: true,
+          },
+          {
+            group: ELEC_GROUP,
+            expected: 'engine_master_off',
+            before: 'elect_master_off',
+            critical: true,
+          },
+          {
+            group: ELEC_GROUP,
+            expected: 'fuel_valve_off',
+            before: 'elect_master_off',
+            critical: true,
+          },
+        ],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 4000 },
+      },
+    },
   ];
 
   it('covers every recording of the fixture file', () => {
@@ -481,6 +720,72 @@ describe('Electrical Failure replays (plan 03-07, D-08, D-06, C-39)', () => {
     const result = run(electrical, [{ t: 4000, id: 'sw.elect_master', value: 'off' }]);
     expect(result.result).toBe('fail');
     expect(result.reasons).toContainEqual({ kind: 'forbidden', id: 'elect_master_off' });
+  });
+});
+
+describe('Engine Fire replays (plan 03-08, D-08, D-06, C-48)', () => {
+  it('the scenario and its ordered copy pass the scenario check', () => {
+    expect(checkScenario(FIRE, DA50RG_ENV).ok).toBe(true);
+    expect(checkScenario(FIRE_ORDERED, DA50RG_ENV).ok).toBe(true);
+    // The copy merges the three shut-down groups into one.
+    expect(fireOrdered.procedure).toHaveLength(fire.procedure.length - 2);
+  });
+
+  it('grades every panel step of the checklist: five critical steps and the optional squawk', () => {
+    const steps = grade(fire, DA50RG_ENV, recording('fire-do-nothing')).steps;
+    expect(steps.map((s) => s.severity)).toEqual([
+      'critical',
+      'critical',
+      'critical',
+      'critical',
+      'critical',
+      'optional',
+    ]);
+  });
+
+  it('a handled fire recovers: the golden actions never escalate, however long the run lasts', () => {
+    expect(simulatedOutcome(fire, 'fire-golden-long')).toBeNull();
+    const result = grade(fire, DA50RG_ENV, recording('fire-golden-long'));
+    expect(result.outcome).toBeNull();
+    expect(result.result).toBe('pass');
+  });
+
+  it('an ignored fire escalates after the short run and before 600 s, on a step boundary', () => {
+    const outcome = grade(fire, DA50RG_ENV, recording('fire-do-nothing-long')).outcome;
+    if (outcome === null) throw new Error('the ignored fire did not escalate');
+    expect(outcome.id).toBe(fireOutcome.id);
+    expect(outcome.t % STEP_MS).toBe(0);
+    expect(outcome.t).toBeGreaterThan(recording('fire-do-nothing').completedAt);
+    expect(outcome.t).toBeLessThan(recording('fire-do-nothing-long').completedAt);
+    expect(outcome.t).toBe(simulatedOutcome(fire, 'fire-do-nothing-long')?.t);
+  });
+
+  it('the FUEL selector OFF alone ends the fire: no escalation, but the other steps stay missed', () => {
+    const events = [{ t: 4000, id: 'sw.fuel_valve', value: 'off' }];
+    const long = { scenarioId: fire.id, completedAt: 600000, events };
+    const result = grade(fire, DA50RG_ENV, long);
+    expect(result.outcome).toBeNull();
+    expect(result.result).toBe('fail');
+    expect(result.reasons).toEqual([{ kind: 'critical_missed', count: 4 }]);
+  });
+
+  it('more power is reported as harmful but does not fail a run that is otherwise right', () => {
+    const events = [
+      { t: 3000, id: 'lv.power', value: 'p100' },
+      ...recording('fire-golden').events.slice(1),
+    ];
+    const result = run(fire, events);
+    expect(result.result).toBe('pass');
+    expect(result.harmful).toEqual([
+      { id: 'power_increased', text: 'Increase power', t: 3000, seq: 0, failsRun: false },
+    ]);
+  });
+
+  it('squawk 7700 is credited only for that code', () => {
+    const other = run(fire, [{ t: 2000, id: 'kp.squawk', value: '7600' }]);
+    expect(other.steps.find((s) => s.id === 'squawk_7700')?.credited).toBe(false);
+    const right = run(fire, [{ t: 2000, id: 'kp.squawk', value: '7700' }]);
+    expect(right.steps.find((s) => s.id === 'squawk_7700')?.credited).toBe(true);
   });
 });
 
