@@ -305,11 +305,11 @@ Plans:
   3. The "New situation" flow offers Oil Temp High, Electrical Failure and Engine Fire, each with its own initial state, annunciations and procedure, and each passes golden, do-nothing, wrong-order and forbidden-action replay tests and registry validation.
   4. User can enter a squawk code (e.g. 7700) in a simplified transponder section, and the entered code counts as graded panel state.
 
-**Plans:** 10 plans
+**Plans:** 1/10 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 03-01-PLAN.md — Tracer: fixed-step simulation (physics, stepper, run), the DA50 oil temperature model, scenario `parameters` and lint L12, step-based clock driver; the oil temperature needle rises when ignored and falls after the correct actions
+- [x] 03-01-PLAN.md — Tracer: fixed-step simulation (physics, stepper, run), the DA50 oil temperature model, scenario `parameters` and lint L12, step-based clock driver; the oil temperature needle rises when ignored and falls after the correct actions
 - [ ] 03-03-PLAN.md — Simplified transponder in the pilot legroom: `code-entry` control `kp.squawk` (keys 0 to 7, CLR, readout), layout, label and gesture gates
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -333,6 +333,7 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 03-09-PLAN.md — GRADING.md, CLAUDE.md, README, owner review list, todos, instructor-review list; final gates with the owner check
+
 **UI hint**: yes
 
 ### Phase 4: Training Mode, Further Actions and Repeat Loop
@@ -373,6 +374,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Deployed Playable Panel | 9/9 | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario | 13/13 | Complete    | 2026-10-22 |
-| 3. Reactive Scenarios and Initial Pack | 0/9 | Planned | - |
+| 3. Reactive Scenarios and Initial Pack | 1/10 | In Progress | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
 | 5. Offline PWA and Real-Device Hardening | 0/TBD | Not started | - |

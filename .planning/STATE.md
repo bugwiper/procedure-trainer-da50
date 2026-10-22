@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Reactive Scenarios and Initial Pack
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-10-22T18:41:40.164Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-10-22T20:15:08.979Z"
 last_activity: 2026-10-22
-last_activity_desc: Phase 2.1 complete, transitioned to Phase 3
-state_head: ac2ed754eb6b07cc0c7e8d65104386039a533339
+last_activity_desc: Phase 03 execution started
+state_head: b67997cf135b0bd16386589dae563143dcf8255b
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 84
-  completed_plans: 74
+  completed_plans: 75
   percent: 25
 ---
 
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-19)
 
 **Core value:** The user can run an emergency scenario by actually operating the panel controls, and gets accurate, objective feedback on whether they performed the AFM procedure correctly.
-**Current focus:** Phase 2.1 — Briefing difficulty levels
+**Current focus:** Phase 03 — Reactive Scenarios and Initial Pack
 
 ## Current Position
 
-Phase: 03 (Reactive Scenarios and Initial Pack) — READY TO EXECUTE
-Current Plan: Not started
+Phase: 03 (Reactive Scenarios and Initial Pack) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 10
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
-Last activity: 2026-10-22 — Phase 2.1 complete, transitioned to Phase 3
+Last activity: 2026-10-22 — Phase 03 execution started
 
 Progress: [███░░░░░░░] 25%
 
@@ -124,6 +124,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 02 P11 | 25 min | 2 tasks | 12 files |
 | Phase 02 P12 | 20 min | 2 tasks | 11 files |
 | Phase 02 P13 | 40 min | 3 tasks | 13 files |
+| Phase 03 P01 | 14 min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -192,6 +193,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-12: an all-denied or empty listing sets the empty message for NEW SITUATION and CHOOSE SITUATION; a failed chosen row keeps the list under the error modal and Back to panel returns to free
 - [Phase 02]: Plan 13: order lines are a separate outline item after the steps of an ordered group; orderLine takes (group, result)
 - [Phase 02]: Plan 13: tests/blueprint.test.ts derives its forbidden literals from the parsed blueprint and the CAS table and scans src/engine, src/scenario and src/ui
+- [Phase 03]: Fixed-step simulation: STEP_MS 100, MAX_RUN_MS 1800000; oil temperature is a 60 s lag model in aircraft data, scenario sets oil_cooling (lint L12) — Live Run and simulate share one stepper and event timing rule so replays are bit-identical (D-01, D-02)
 
 ### Pending Todos
 
@@ -222,6 +224,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T16:48:57.596Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-reactive-scenarios-and-initial-pack/03-CONTEXT.md
+Last session: 2026-10-22T20:15:08.599Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: None
