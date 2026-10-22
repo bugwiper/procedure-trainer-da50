@@ -234,7 +234,8 @@ body,
 }
 
 .primary-button,
-.secondary-button {
+.secondary-button,
+.danger-button {
   appearance: none;
   box-sizing: border-box;
   min-height: 44px;
@@ -260,9 +261,21 @@ body,
   color: #e6e9ed;
 }
 
-.secondary-button:focus-visible {
+.secondary-button:focus-visible,
+.danger-button:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: 2px;
+}
+
+/* Leave run: an outline button in the fail colour (5.4:1 on the card). */
+.danger-button {
+  border: 1px solid #ff5a50;
+  background: transparent;
+  color: #ff5a50;
+}
+
+.modal-title-error {
+  color: #ff5a50;
 }
 
 .primary-button:active {

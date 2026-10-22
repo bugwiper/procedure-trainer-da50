@@ -15,6 +15,7 @@ import { isStrayFullPanelClick } from './panel/tap-intent';
 import { buttonCorner, isZoomed, viewChangedByTapAt, zoomOut } from './panel/zoom';
 import { Ack } from './screens/Ack';
 import { Briefing } from './screens/Briefing';
+import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
 import { Debrief } from './screens/Debrief';
 import { createSession } from './session';
 
@@ -184,6 +185,33 @@ export function App() {
       ) : null}
       {screen === 'debrief' && scenario !== null && result !== null ? (
         <Debrief scenario={scenario} result={result} onClose={closeDebrief} />
+      ) : null}
+      {session.confirm.value !== null ? (
+        <LeaveConfirm
+          onKeep={() => {
+            session.keepGoing();
+          }}
+          onLeave={() => {
+            void session.leaveRun();
+          }}
+        />
+      ) : null}
+      {session.loadFailure.value !== null ? (
+        <LoadError
+          onRetry={() => {
+            void session.retryLoad();
+          }}
+          onBack={() => {
+            session.dismissFailure();
+          }}
+        />
+      ) : null}
+      {session.empty.value ? (
+        <EmptyNotice
+          onBack={() => {
+            session.dismissEmpty();
+          }}
+        />
       ) : null}
       {ackRequired.value ? <Ack onAccept={acceptAck} /> : null}
     </div>

@@ -17,6 +17,9 @@ import type { PanelBridge } from './bridge';
 
 export type Screen = 'free' | 'choosing' | 'briefing' | 'running' | 'debrief';
 
+/** What a session button asked for while a run was live; the confirm holds it (U-03). */
+export type PendingAction = 'new' | 'choose';
+
 /** One row of the choose view: a scenario of an allowed pack, titled from the pack manifest. */
 export interface Choice extends ScenarioRef {
   readonly title: string;
@@ -66,6 +69,8 @@ export interface Session {
   /** True while a pack loads; presses on the session area are ignored meanwhile. */
   readonly busy: ReadonlySignal<boolean>;
   readonly loadFailure: ReadonlySignal<LoadFailure | null>;
+  /** The action waiting for the leave-run confirm; null when no confirm is open. */
+  readonly confirm: ReadonlySignal<PendingAction | null>;
   /** True when a listing found no allowed scenario (the "No situations available" message). */
   readonly empty: ReadonlySignal<boolean>;
   /** The entries the choose view lists, in manifest order; filled by openChooser. */
@@ -87,6 +92,17 @@ export interface Session {
   chooseScenario(ref: ScenarioRef, key?: string): Promise<void>;
   /** Dismisses the "No situations available" message. */
   dismissEmpty(): void;
+  /** Closes the leave-run confirm; the run continues unchanged. */
+  keepGoing(): void;
+  /**
+   * Running with a confirm only: ends the run without grading, resets the panel to the registry
+   * defaults and the quantities to idle, then performs the action that was asked for.
+   */
+  leaveRun(): Promise<void>;
+  /** Repeats the failed request (a random pick again, or the same chosen entry). */
+  retryLoad(): Promise<void>;
+  /** Closes the load-error message; the area returns to the free panel. */
+  dismissFailure(): void;
   /** Briefing only: the panel takes the scenario's initial state and the run begins. */
   startRun(): void;
   /** Briefing only: back to the free panel, nothing changed. */
@@ -132,6 +148,13 @@ export function createSession(deps: SessionDeps): Session {
   const empty = signal(false);
   const choices = signal<readonly Choice[]>([]);
   const busyKey = signal<string | null>(null);
+  const confirm = signal<PendingAction | null>(null);
+  /** The request that produced the current loadFailure, so retryLoad repeats exactly that. */
+  let lastRequest:
+    | { readonly kind: 'random' }
+    | { readonly kind: 'list' }
+    | { readonly kind: 'chosen'; readonly ref: ScenarioRef; readonly key: string }
+    | null = null;
   const clock = signal<VirtualClock | null>(null);
 
   /** Table N1 "start": baseline without an event, a fresh clock, then the screen. */
@@ -196,6 +219,55 @@ export function createSession(deps: SessionDeps): Session {
     screen.value = 'briefing';
   };
 
+  /** A random allowed scenario opens its briefing (NEW SITUATION). */
+  const runRandom = (): Promise<void> => {
+    lastRequest = { kind: 'random' };
+    return loading('session.new', async () => {
+      const listed = await listChoices();
+      if (!listed.ok) {
+        loadFailure.value = listed;
+        return;
+      }
+      if (listed.choices.length === 0) {
+        empty.value = true;
+        return;
+      }
+      const { pack, scenario: id } = pickRandom(listed.choices, rng);
+      await openBriefing({ pack, scenario: id });
+    });
+  };
+
+  /** The choose view lists the allowed scenarios (CHOOSE SITUATION). */
+  const runList = (): Promise<void> => {
+    lastRequest = { kind: 'list' };
+    return loading('session.choose', async () => {
+      const listed = await listChoices();
+      if (!listed.ok) {
+        loadFailure.value = listed;
+        return;
+      }
+      if (listed.choices.length === 0) {
+        empty.value = true;
+        return;
+      }
+      choices.value = listed.choices;
+      screen.value = 'choosing';
+    });
+  };
+
+  /** One chosen entry opens its briefing (a row of the choose view). */
+  const runChosen = (ref: ScenarioRef, key: string): Promise<void> => {
+    lastRequest = { kind: 'chosen', ref: { pack: ref.pack, scenario: ref.scenario }, key };
+    return loading(key, () => openBriefing(ref));
+  };
+
+  const dismissFailure = (): void => {
+    loadFailure.value = null;
+    lastRequest = null;
+    choices.value = [];
+    if (screen.peek() === 'choosing') screen.value = 'free';
+  };
+
   return {
     screen,
     scenario,
@@ -206,38 +278,26 @@ export function createSession(deps: SessionDeps): Session {
     empty,
     choices,
     busyKey,
+    confirm,
     clock,
     async newSituation() {
-      if (screen.peek() !== 'free' || busy.peek()) return;
-      await loading('session.new', async () => {
-        const listed = await listChoices();
-        if (!listed.ok) {
-          loadFailure.value = listed;
-          return;
-        }
-        if (listed.choices.length === 0) {
-          empty.value = true;
-          return;
-        }
-        const { pack, scenario: id } = pickRandom(listed.choices, rng);
-        await openBriefing({ pack, scenario: id });
-      });
+      if (busy.peek()) return;
+      // A live run asks first; the request waits in the confirm (U-03).
+      if (screen.peek() === 'running') {
+        confirm.value = 'new';
+        return;
+      }
+      if (screen.peek() !== 'free') return;
+      await runRandom();
     },
     async openChooser() {
-      if (screen.peek() !== 'free' || busy.peek()) return;
-      await loading('session.choose', async () => {
-        const listed = await listChoices();
-        if (!listed.ok) {
-          loadFailure.value = listed;
-          return;
-        }
-        if (listed.choices.length === 0) {
-          empty.value = true;
-          return;
-        }
-        choices.value = listed.choices;
-        screen.value = 'choosing';
-      });
+      if (busy.peek()) return;
+      if (screen.peek() === 'running') {
+        confirm.value = 'choose';
+        return;
+      }
+      if (screen.peek() !== 'free') return;
+      await runList();
     },
     closeChooser() {
       if (screen.peek() !== 'choosing' || busy.peek()) return;
@@ -246,11 +306,42 @@ export function createSession(deps: SessionDeps): Session {
     },
     async chooseScenario(ref, key = `session.row.${ref.pack}.${ref.scenario}`) {
       if (screen.peek() !== 'choosing' || busy.peek()) return;
-      await loading(key, () => openBriefing(ref));
+      await runChosen(ref, key);
     },
     dismissEmpty() {
       empty.value = false;
     },
+    keepGoing() {
+      confirm.value = null;
+    },
+    async leaveRun() {
+      const pending = confirm.peek();
+      if (pending === null || screen.peek() !== 'running') return;
+      confirm.value = null;
+      // The run is dropped, never graded: no result, no clock, the panel at its defaults (U-03).
+      bridge.reset({});
+      bridge.setTimeSource(null);
+      scenario.value = null;
+      briefing.value = null;
+      result.value = null;
+      clock.value = null;
+      lastRequest = null;
+      screen.value = 'free';
+      if (pending === 'new') await runRandom();
+      else await runList();
+    },
+    async retryLoad() {
+      const request = lastRequest;
+      if (busy.peek()) return;
+      if (loadFailure.peek() === null || request === null) {
+        dismissFailure();
+        return;
+      }
+      if (request.kind === 'random') await runRandom();
+      else if (request.kind === 'list') await runList();
+      else await runChosen(request.ref, request.key);
+    },
+    dismissFailure,
     startRun() {
       const briefed = briefing.peek();
       if (screen.peek() !== 'briefing' || briefed === null) return;
@@ -259,6 +350,7 @@ export function createSession(deps: SessionDeps): Session {
       } catch (error) {
         // An illegal baseline changes nothing (bridge.reset); lint should have caught it.
         briefing.value = null;
+        lastRequest = null;
         loadFailure.value = failure(
           'invalid',
           error instanceof Error ? error.message : 'the baseline could not be applied',

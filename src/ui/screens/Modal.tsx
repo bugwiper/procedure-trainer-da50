@@ -80,13 +80,15 @@ export function Modal({
     focusPrimary();
 
     // The shield: a capture listener on the container stops the event before it reaches the card.
+    // mousedown is shielded as well: after a touch release that opened the modal, the browser's
+    // compatibility mousedown would otherwise move the focus off the primary action.
     const shield = (e: Event) => {
       if (isShielded(openedAt, e.timeStamp)) {
         e.stopPropagation();
         e.preventDefault();
       }
     };
-    const shieldEvents = ['pointerdown', 'pointerup', 'click'] as const;
+    const shieldEvents = ['pointerdown', 'pointerup', 'mousedown', 'click'] as const;
     for (const type of shieldEvents) container?.addEventListener(type, shield, true);
     // A data attribute (not state) lets the e2e specs wait for the shield to end.
     container?.setAttribute('data-shield', 'on');

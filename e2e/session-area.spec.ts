@@ -5,6 +5,7 @@ import {
   afterPairWindow,
   backgroundPoint,
   buttonCoverage,
+  activate,
   doubleActivateAt,
   sessionButtonCoverage,
   zoomIntoRegion,
@@ -76,5 +77,54 @@ test('@hooks a double click or double tap on NEW SITUATION leaves the view at th
   await doubleActivateAt(page, await newSituationCentre(page), hasTouch);
   await afterPairWindow(page);
   await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  expect(await events(page)).toEqual([]);
+});
+
+// A double press must open exactly one overlay: the first press starts the load, the second lands
+// on a busy area or on the shield of the surface the first one opened (U-12, T-02-22).
+const dialogs = (page: Page) => page.locator('[role="dialog"], [role="alertdialog"]');
+
+test('@hooks a double tap or double click on NEW SITUATION opens exactly one briefing and records no event', async ({
+  page,
+  hasTouch,
+}) => {
+  await doubleActivateAt(page, await newSituationCentre(page), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await afterPairWindow(page);
+  await expect(page.getByTestId('briefing')).toHaveCount(1);
+  await expect(dialogs(page)).toHaveCount(1);
+  expect(await events(page)).toEqual([]);
+});
+
+test('@hooks a double tap or double click on the list row opens exactly one briefing and records no event', async ({
+  page,
+  hasTouch,
+}) => {
+  await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
+  const row = page.locator('[data-session-hit^="session.row."]').first();
+  await expect(row).toBeVisible();
+  // The rows ignore presses for 400 ms after the list appears; the double press comes after that.
+  await page.waitForTimeout(500);
+  const box = await row.boundingBox();
+  if (box === null) throw new Error('the row has no box');
+  await doubleActivateAt(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await afterPairWindow(page);
+  await expect(page.getByTestId('briefing')).toHaveCount(1);
+  await expect(dialogs(page)).toHaveCount(1);
+  expect(await events(page)).toEqual([]);
+});
+
+test('@hooks a double tap on CHOOSE SITUATION lists once and picks no row', async ({
+  page,
+  hasTouch,
+}) => {
+  const box = await page.locator('[data-session-hit="session.choose"]').boundingBox();
+  if (box === null) throw new Error('CHOOSE SITUATION has no box');
+  await doubleActivateAt(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, hasTouch);
+  await afterPairWindow(page);
+  // The second press fell on a row or CLOSE LIST of the fresh list and was shielded.
+  await expect(page.locator('[data-session-hit^="session.row."]')).toHaveCount(1);
+  await expect(dialogs(page)).toHaveCount(0);
   expect(await events(page)).toEqual([]);
 });

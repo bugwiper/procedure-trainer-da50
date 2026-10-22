@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import { FULL_VIEWBOX, activate } from './support/zoom';
 
 // SES-01, SES-03, SES-04, SCN-05, SCN-07, PLT-04 (phase 02): the pilot's path on the built panel.
@@ -150,6 +150,90 @@ test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its br
   expect(await screenOf(page)).toBe('free');
   expect(await controlStates(page)).toEqual(before);
   expect(await events(page)).toEqual([]);
+});
+
+test('@hooks NEW SITUATION during a run asks first; Keep going and Escape keep the run, Leave run drops it', async ({
+  page,
+  hasTouch,
+}) => {
+  await startRun(page, hasTouch);
+  await goldenTaps(page, hasTouch);
+  await expect(chips(page)).toHaveCount(1);
+  const logged = await events(page);
+
+  // NEW SITUATION during a run opens the confirm with Keep going focused; the run is untouched.
+  await activate(page.locator(NEW_SITUATION), hasTouch);
+  const confirm = page.getByRole('dialog', { name: 'Leave this run?' });
+  await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText('The current run ends without a result.');
+  await expect(page.getByTestId('leave-keep')).toBeFocused();
+  expect(await screenOf(page)).toBe('running');
+
+  // Escape is Keep going.
+  await page.keyboard.press('Escape');
+  await expect(confirm).toBeHidden();
+  expect(await screenOf(page)).toBe('running');
+  expect(await events(page)).toEqual(logged);
+  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p50');
+  await expect(chips(page)).toHaveCount(1);
+
+  // Keep going by button, after the shield of the dialog.
+  await activate(page.locator(CHOOSE_SITUATION), hasTouch);
+  await expect(confirm).toBeVisible();
+  await activate(page.getByTestId('leave-keep'), hasTouch);
+  await expect(confirm).toBeHidden();
+  expect(await screenOf(page)).toBe('running');
+  expect(await events(page)).toEqual(logged);
+
+  // Leave run: no result, the panel at its defaults, no chip, then the briefing of a new situation.
+  await activate(page.locator(NEW_SITUATION), hasTouch);
+  await expect(confirm).toBeVisible();
+  await activate(page.getByTestId('leave-leave'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  expect(await screenOf(page)).toBe('briefing');
+  expect(await resultOf(page)).toBeNull();
+  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p70');
+  await expect(control(page, 'lv.cowl_flap')).toHaveAttribute('data-state', 'closed');
+  await expect(chips(page)).toHaveCount(0);
+  expect(await events(page)).toEqual([]);
+  await expect(page.getByTestId('debrief')).toHaveCount(0);
+});
+
+test('@hooks a pack that cannot be loaded shows the error; Try again retries the same request', async ({
+  page,
+  hasTouch,
+}) => {
+  // Requests for the pack chunk fail (the lazy chunk is named pack-<pack>).
+  const abort = (route: Route) => route.abort();
+  await page.route('**/pack-engine*', abort);
+
+  await activate(page.locator(NEW_SITUATION), hasTouch);
+  const error = page.getByRole('alertdialog', { name: 'This situation could not be loaded.' });
+  await expect(error).toBeVisible();
+  await expect(error).toContainText('Check your connection, then try again.');
+  await expect(page.getByTestId('load-error-retry')).toBeFocused();
+  expect(await screenOf(page)).toBe('free');
+  await expect(page.getByTestId('briefing')).toHaveCount(0);
+
+  // Back to panel (and Escape) close the message without a retry.
+  await activate(page.getByTestId('load-error-back'), hasTouch);
+  await expect(error).toBeHidden();
+  expect(await screenOf(page)).toBe('free');
+
+  await activate(page.locator(NEW_SITUATION), hasTouch);
+  await expect(error).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(error).toBeHidden();
+  expect(await screenOf(page)).toBe('free');
+
+  // With the abort gone, Try again opens the briefing.
+  await activate(page.locator(NEW_SITUATION), hasTouch);
+  await expect(error).toBeVisible();
+  await page.unroute('**/pack-engine*', abort);
+  await activate(page.getByTestId('load-error-retry'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await expect(error).toBeHidden();
+  expect(await screenOf(page)).toBe('briefing');
 });
 
 const BRIEFING_STATE_CONTROLS = ['lv.power', 'lv.cowl_flap'];

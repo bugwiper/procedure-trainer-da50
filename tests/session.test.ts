@@ -11,6 +11,8 @@ import type { Recording } from '../src/engine/grading';
 import { OPEN_ACCESS, createPackProvider } from '../src/scenario/packs';
 import type { AccessPolicy } from '../src/scenario/packs';
 import { createPanelBridge } from '../src/ui/bridge';
+import { VITE_PACKS } from '../src/scenario/packs-vite';
+import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
 import { createSession, pickRandom } from '../src/ui/session';
 
 // The session machine (plan 02-06, Table N1; plan 02-11 adds the briefing; SES-01, SES-03, SES-04,
@@ -63,10 +65,14 @@ function rig(
   const files = options.files ?? { 'eng-oil-temp-green': BLUEPRINT };
   const loads: string[] = [];
   const loaders: Record<string, () => Promise<string>> = {};
-  for (const [name, text] of Object.entries(files)) {
+  for (const name of Object.keys(files)) {
     loaders[`/scenarios/engine/${name}.toon`] = () => {
       loads.push(name);
-      return text instanceof Error ? Promise.reject(text) : Promise.resolve(text);
+      // Read at call time, so a test can repair a file between a failure and the retry.
+      const text = files[name];
+      return text === undefined || text instanceof Error
+        ? Promise.reject(text ?? new Error('no file'))
+        : Promise.resolve(text);
     };
   }
   const provider = createPackProvider({
@@ -463,6 +469,193 @@ describe('openChooser, closeChooser and chooseScenario (SES-01, D-14, D-20, PLT-
     await r.session.openChooser();
     expect(r.session.screen.value).toBe('free');
     expect(r.session.loadFailure.value?.reason).toBe('load-failed');
+  });
+});
+
+describe('leave-run confirm (U-03, T-02-24)', () => {
+  it('NEW SITUATION and CHOOSE SITUATION during a run ask first and change nothing else', async () => {
+    const r = await started();
+    r.bridge.actuate('lv.power', 'p50');
+    const clock = r.session.clock.value;
+
+    await r.session.newSituation();
+    expect(r.session.confirm.value).toBe('new');
+    expect(r.session.screen.value).toBe('running');
+    r.session.keepGoing();
+    expect(r.session.confirm.value).toBeNull();
+
+    await r.session.openChooser();
+    expect(r.session.confirm.value).toBe('choose');
+    expect(r.session.screen.value).toBe('running');
+    expect(r.session.choices.value).toEqual([]);
+
+    expect(r.session.clock.value).toBe(clock);
+    expect(r.bridge.stateOf('lv.power').value).toBe('p50');
+    expect(r.bridge.store.events()).toHaveLength(1);
+    expect(r.session.busy.value).toBe(false);
+  });
+
+  it('keepGoing leaves the run unchanged', async () => {
+    const r = await started();
+    r.bridge.actuate('lv.power', 'p50');
+    await r.session.newSituation();
+    r.session.keepGoing();
+    expect(r.session.screen.value).toBe('running');
+    expect(r.session.scenario.value?.id).toBe('eng-oil-temp-green');
+    expect(r.bridge.store.events()).toHaveLength(1);
+    expect(r.session.confirm.value).toBeNull();
+  });
+
+  it('leaveRun ends the run without a result, resets the panel, then opens a new briefing', async () => {
+    const r = await started();
+    const clock = r.session.clock.value;
+    clock?.advance(1234);
+    r.bridge.actuate('lv.power', 'p50');
+    r.bridge.actuate('lv.cowl_flap', 'open');
+    await r.session.newSituation();
+
+    await r.session.leaveRun();
+
+    // Never graded: no result, no scenario of a run, no clock.
+    expect(r.session.result.value).toBeNull();
+    expect(r.session.scenario.value).toBeNull();
+    expect(r.session.clock.value).toBeNull();
+    expect(r.session.confirm.value).toBeNull();
+    // The panel is back at the registry defaults and the quantities at idle; the log is empty.
+    expect(r.bridge.stateOf('lv.power').value).toBe('p70');
+    expect(r.bridge.stateOf('lv.cowl_flap').value).toBe('closed');
+    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    expect(r.bridge.store.events()).toEqual([]);
+    // The pressed action ran: a briefing of a new situation.
+    expect(r.session.screen.value).toBe('briefing');
+    expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-green');
+    // The run's time source is gone: a later event is not stamped by the dropped virtual clock.
+    r.bridge.actuate('lv.flaps', 'to');
+    expect(r.bridge.store.events().at(-1)?.t).not.toBe(clock?.now());
+  });
+
+  it('leaveRun after CHOOSE SITUATION opens the list', async () => {
+    const r = await started();
+    await r.session.openChooser();
+    await r.session.leaveRun();
+    expect(r.session.screen.value).toBe('choosing');
+    expect(r.session.choices.value.map((c) => c.scenario)).toEqual(['eng-oil-temp-green']);
+    expect(r.session.result.value).toBeNull();
+  });
+
+  it('leaveRun does nothing without a pending confirm or outside a run', async () => {
+    const r = await started();
+    r.bridge.actuate('lv.power', 'p50');
+    await r.session.leaveRun();
+    expect(r.session.screen.value).toBe('running');
+    expect(r.bridge.store.events()).toHaveLength(1);
+
+    const free = rig();
+    await free.session.leaveRun();
+    expect(free.session.screen.value).toBe('free');
+  });
+
+  it('keepGoing and the confirm do nothing in the debrief', async () => {
+    const r = await started();
+    r.session.complete();
+    await r.session.newSituation();
+    expect(r.session.confirm.value).toBeNull();
+    expect(r.session.screen.value).toBe('debrief');
+  });
+});
+
+describe('load failure, retry and dismiss (U-16, U-18)', () => {
+  it('retryLoad repeats a random pick and succeeds once the loader works', async () => {
+    const files: Record<string, string | Error> = { 'eng-oil-temp-green': new Error('offline') };
+    const r = rig({ files });
+    await r.session.newSituation();
+    expect(r.session.loadFailure.value?.reason).toBe('load-failed');
+    expect(r.session.screen.value).toBe('free');
+
+    files['eng-oil-temp-green'] = BLUEPRINT;
+    await r.session.retryLoad();
+
+    expect(r.session.loadFailure.value).toBeNull();
+    expect(r.session.screen.value).toBe('briefing');
+    expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-green');
+  });
+
+  it('retryLoad repeats the same chosen entry, not a random one', async () => {
+    const files: Record<string, string | Error> = {
+      'eng-oil-temp-green': BLUEPRINT,
+      'eng-oil-temp-copy': new Error('offline'),
+    };
+    const r = rig({ manifest: MANIFEST_TWO, files, rng: () => 0 });
+    await r.session.openChooser();
+    await r.session.chooseScenario({ pack: 'engine', scenario: 'eng-oil-temp-copy' });
+    expect(r.session.loadFailure.value?.reason).toBe('load-failed');
+    expect(r.session.screen.value).toBe('choosing');
+
+    files['eng-oil-temp-copy'] = COPY;
+    await r.session.retryLoad();
+
+    expect(r.session.loadFailure.value).toBeNull();
+    expect(r.session.screen.value).toBe('briefing');
+    expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-copy');
+  });
+
+  it('retryLoad that fails again keeps the failure', async () => {
+    const r = rig({ files: { 'eng-oil-temp-green': new Error('offline') } });
+    await r.session.newSituation();
+    await r.session.retryLoad();
+    expect(r.session.loadFailure.value?.reason).toBe('load-failed');
+    expect(r.session.screen.value).toBe('free');
+    expect(r.session.busy.value).toBe(false);
+  });
+
+  it('dismissFailure returns to free, also from the list', async () => {
+    const files: Record<string, string | Error> = {
+      'eng-oil-temp-green': BLUEPRINT,
+      'eng-oil-temp-copy': new Error('offline'),
+    };
+    const r = rig({ manifest: MANIFEST_TWO, files });
+    await r.session.openChooser();
+    await r.session.chooseScenario({ pack: 'engine', scenario: 'eng-oil-temp-copy' });
+    r.session.dismissFailure();
+    expect(r.session.loadFailure.value).toBeNull();
+    expect(r.session.screen.value).toBe('free');
+    expect(r.session.choices.value).toEqual([]);
+    // Nothing to retry any more.
+    await r.session.retryLoad();
+    expect(r.session.screen.value).toBe('free');
+  });
+
+  it('an empty listing sets empty for NEW SITUATION and CHOOSE SITUATION, never an empty list', async () => {
+    const policy: AccessPolicy = { canAccess: () => false };
+    const a = rig({ policy });
+    await a.session.newSituation();
+    expect(a.session.empty.value).toBe(true);
+    expect(a.session.screen.value).toBe('free');
+    const b = rig({ policy });
+    await b.session.openChooser();
+    expect(b.session.empty.value).toBe(true);
+    expect(b.session.screen.value).toBe('free');
+    expect(b.session.choices.value).toEqual([]);
+  });
+
+  it('a second NEW SITUATION while busy is ignored and busyKey names the first button', async () => {
+    const r = rig();
+    const first = r.session.newSituation();
+    expect(r.session.busyKey.value).toBe('session.new');
+    await r.session.openChooser();
+    expect(r.session.busyKey.value).toBe('session.new');
+    await first;
+    expect(r.session.screen.value).toBe('briefing');
+    expect(r.session.busyKey.value).toBeNull();
+  });
+});
+
+describe('choose list guard (U-08)', () => {
+  it('the shipped manifests list at most as many scenarios as the choose view has rows', async () => {
+    const metas = await VITE_PACKS.listPacks();
+    const total = metas.reduce((sum, meta) => sum + meta.scenarios.length, 0);
+    expect(total).toBeGreaterThan(0);
+    expect(total).toBeLessThanOrEqual(SESSION_LAYOUT.choose.maxRows);
   });
 });
 
