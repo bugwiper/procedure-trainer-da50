@@ -19,6 +19,8 @@ import {
 import type { SimEvent, SimState } from '../src/engine/sim';
 import { PanelStore } from '../src/engine/store';
 import { checkScenario } from '../src/scenario/lint';
+import { parseScenario } from '../src/scenario/parse';
+import { MINIMAL } from './scenario-text';
 
 // The fixed-step simulation (plan 03-01; D-01, D-02, C-01 to C-03, C-06, C-07, T-03-01, T-03-03):
 // live stepping through Run and replaying through simulate give the identical state at every step,
@@ -492,5 +494,128 @@ describe('the de-ice MAX reaction (C-20)', () => {
     run.step();
     expect(store.consumedThrough).toBe(press.event.seq);
     run.dispose();
+  });
+});
+
+describe('outcomes and hold timers (C-25, D-06)', () => {
+  const COWL = 'lv.cowl_flap';
+  const outcomeText = (id: string, holdS: number): string =>
+    [
+      `  - id: ${id}`,
+      '    text: Engine failure from overheating',
+      `    hold_s: ${String(holdS)}`,
+      '    when:',
+      '      check: state',
+      `      control: ${COWL}`,
+      '      is: open',
+      '',
+    ].join('\n');
+
+  /** The small scenario of the case, with the given outcomes (hold times in seconds), declared in order. */
+  function setupWith(holds: readonly (readonly [string, number])[]) {
+    const text = `${MINIMAL}outcomes[${String(holds.length)}]:\n${holds
+      .map(([id, holdS]) => outcomeText(id, holdS))
+      .join('')}`;
+    const parsed = parseScenario(text);
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+    return {
+      setup: simSetup(DA50RG_ENV, parsed.value),
+      start: initialQuantities(parsed.value, DA50RG_ENV.quantities),
+    };
+  }
+
+  const open = (t: number): SimEvent => ({ t, id: COWL, value: 'open' });
+  const closed = (t: number): SimEvent => ({ t, id: COWL, value: 'closed' });
+  const stepsOf = (holdS: number): number => (holdS * 1000) / STEP_MS;
+
+  it('fires after exactly hold_s times 1000 over STEP_MS holding steps and not one step earlier', () => {
+    const holdS = 2;
+    const { setup: small, start: from } = setupWith([['slow_failure', holdS]]);
+    const events = [open(0)];
+    const fireAt = stepsOf(holdS) * STEP_MS;
+
+    const before = simulate(small, { events, start: from, untilMs: fireAt - STEP_MS }).state;
+    expect(before.outcome).toBeNull();
+    expect(before.holds['slow_failure']).toBe(fireAt - STEP_MS);
+
+    const at = simulate(small, { events, start: from, untilMs: fireAt }).state;
+    expect(at.outcome).toEqual({ id: 'slow_failure', t: fireAt });
+    expect(at.t).toBe(fireAt);
+  });
+
+  it('an interruption resets the held time', () => {
+    const holdS = 2;
+    const { setup: small, start: from } = setupWith([['slow_failure', holdS]]);
+    const closedAt = 1000;
+    const reopenedAt = 1500;
+    const events = [open(0), closed(closedAt), open(reopenedAt)];
+
+    const interrupted = simulate(small, { events, start: from, untilMs: closedAt + STEP_MS }).state;
+    expect(interrupted.holds).toEqual({});
+    expect(interrupted.outcome).toBeNull();
+
+    const fireAt = reopenedAt + holdS * 1000;
+    const before = simulate(small, { events, start: from, untilMs: fireAt - STEP_MS }).state;
+    expect(before.outcome).toBeNull();
+    const at = simulate(small, { events, start: from, untilMs: fireAt }).state;
+    expect(at.outcome).toEqual({ id: 'slow_failure', t: fireAt });
+  });
+
+  it('hold_s 0 fires in the first holding step; without a holding step nothing fires', () => {
+    const { setup: small, start: from } = setupWith([['at_once', 0]]);
+    const fired = simulate(small, { events: [open(0)], start: from, untilMs: 5000 }).state;
+    expect(fired.outcome).toEqual({ id: 'at_once', t: STEP_MS });
+    const idle = simulate(small, { events: [], start: from, untilMs: 5000 }).state;
+    expect(idle.outcome).toBeNull();
+    expect(idle.holds).toEqual({});
+  });
+
+  it('of two outcomes the first declared one that completes its hold wins', () => {
+    const slowFirst = setupWith([
+      ['slow_one', 2],
+      ['quick_one', 1],
+    ]);
+    const quick = simulate(slowFirst.setup, {
+      events: [open(0)],
+      start: slowFirst.start,
+      untilMs: 5000,
+    }).state;
+    expect(quick.outcome).toEqual({ id: 'quick_one', t: 1000 });
+
+    const tie = setupWith([
+      ['first_one', 1],
+      ['second_one', 1],
+    ]);
+    const tied = simulate(tie.setup, { events: [open(0)], start: tie.start, untilMs: 5000 }).state;
+    expect(tied.outcome).toEqual({ id: 'first_one', t: 1000 });
+  });
+
+  it('a state with an outcome is final: stepSim returns it unchanged and simulate stops there', () => {
+    const { setup: small, start: from } = setupWith([['at_once', 0]]);
+    const final = simulate(small, { events: [open(0)], start: from, untilMs: 5000 }).state;
+    expect(final.t).toBe(STEP_MS);
+    const again = stepSim(small, final, [closed(final.t)]);
+    expect(again.state).toBe(final);
+    expect(again.fired).toEqual([]);
+  });
+
+  it('the blueprint outcome: a Run over a store equals simulate until it ends, then stops', () => {
+    const live = simSetup(DA50RG_ENV, scenario);
+    const store = new PanelStore(DA50RG);
+    store.reset(scenario.initial.controls);
+    const run = new Run({ setup: live, store, start });
+    let steps = 0;
+    while (run.state.outcome === null && steps < MAX_RUN_MS / STEP_MS) {
+      run.step();
+      steps += 1;
+      const replay = simulate(live, { events: store.events(), start, untilMs: steps * STEP_MS });
+      expect(run.state, `step ${String(steps)}`).toEqual(replay.state);
+    }
+    expect(run.state.outcome).not.toBeNull();
+    expect(run.state.outcome?.t).toBe(run.clock.now());
+    const final = run.state;
+    run.step();
+    expect(run.state).toBe(final);
+    expect(run.clock.now()).toBe(final.t);
   });
 });

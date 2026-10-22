@@ -89,6 +89,25 @@ describe('reasonLines', () => {
     ]);
   });
 
+  it('an outcome reason reads "The failure escalated: TEXT." and comes first', () => {
+    const escalated = result({
+      result: 'fail',
+      reasons: [
+        { kind: 'outcome', id: 'engine_failure' },
+        { kind: 'critical_missed', count: 2 },
+      ],
+      outcome: { id: 'engine_failure', text: 'Engine failure from overheating', t: 43000 },
+    });
+    expect(reasonLines(escalated)).toEqual([
+      'The failure escalated: Engine failure from overheating.',
+      '2 critical steps were missed.',
+    ]);
+  });
+
+  it('the PASS line is unchanged by the outcome field', () => {
+    expect(reasonLines(result({ outcome: null }))).toEqual(['All critical steps done.']);
+  });
+
   it('keeps the reason order of the result', () => {
     expect(
       reasonLines(

@@ -3,8 +3,16 @@
     "scenarioId": "eng-oil-temp-green",
     "completedAt": 20000,
     "events": [
-      { "t": 8000, "id": "lv.power", "value": "p60" },
-      { "t": 15000, "id": "lv.cowl_flap", "value": "open" }
+      {
+        "t": 8000,
+        "id": "lv.power",
+        "value": "p60"
+      },
+      {
+        "t": 15000,
+        "id": "lv.cowl_flap",
+        "value": "open"
+      }
     ]
   },
   "do-nothing": {
@@ -16,37 +24,110 @@
     "scenarioId": "eng-oil-temp-green",
     "completedAt": 20000,
     "events": [
-      { "t": 5000, "id": "lv.power", "value": "p80" },
-      { "t": 9000, "id": "lv.power", "value": "p60" },
-      { "t": 14000, "id": "lv.cowl_flap", "value": "open" }
+      {
+        "t": 5000,
+        "id": "lv.power",
+        "value": "p80"
+      },
+      {
+        "t": 9000,
+        "id": "lv.power",
+        "value": "p60"
+      },
+      {
+        "t": 14000,
+        "id": "lv.cowl_flap",
+        "value": "open"
+      }
     ]
   },
   "forbidden-reverted": {
     "scenarioId": "eng-oil-temp-green",
     "completedAt": 20000,
     "events": [
-      { "t": 4000, "id": "lv.power", "value": "p80" },
-      { "t": 6000, "id": "lv.power", "value": "p75" },
-      { "t": 9000, "id": "lv.power", "value": "p85" },
-      { "t": 12000, "id": "lv.power", "value": "p60" },
-      { "t": 15000, "id": "lv.cowl_flap", "value": "open" }
+      {
+        "t": 4000,
+        "id": "lv.power",
+        "value": "p80"
+      },
+      {
+        "t": 6000,
+        "id": "lv.power",
+        "value": "p75"
+      },
+      {
+        "t": 9000,
+        "id": "lv.power",
+        "value": "p85"
+      },
+      {
+        "t": 12000,
+        "id": "lv.power",
+        "value": "p60"
+      },
+      {
+        "t": 15000,
+        "id": "lv.cowl_flap",
+        "value": "open"
+      }
     ]
   },
   "toggle-back": {
     "scenarioId": "eng-oil-temp-green",
     "completedAt": 20000,
     "events": [
-      { "t": 6000, "id": "lv.power", "value": "p60" },
-      { "t": 9000, "id": "lv.cowl_flap", "value": "open" },
-      { "t": 12000, "id": "lv.cowl_flap", "value": "closed" }
+      {
+        "t": 6000,
+        "id": "lv.power",
+        "value": "p60"
+      },
+      {
+        "t": 9000,
+        "id": "lv.cowl_flap",
+        "value": "open"
+      },
+      {
+        "t": 12000,
+        "id": "lv.cowl_flap",
+        "value": "closed"
+      }
     ]
   },
   "wrong-order": {
     "scenarioId": "ordered-critical",
     "completedAt": 20000,
     "events": [
-      { "t": 6000, "id": "lv.cowl_flap", "value": "open" },
-      { "t": 9000, "id": "lv.power", "value": "p60" }
+      {
+        "t": 6000,
+        "id": "lv.cowl_flap",
+        "value": "open"
+      },
+      {
+        "t": 9000,
+        "id": "lv.power",
+        "value": "p60"
+      }
+    ]
+  },
+  "do-nothing-long": {
+    "scenarioId": "eng-oil-temp-green",
+    "completedAt": 600000,
+    "events": []
+  },
+  "golden-long": {
+    "scenarioId": "eng-oil-temp-green",
+    "completedAt": 600000,
+    "events": [
+      {
+        "t": 8000,
+        "id": "lv.power",
+        "value": "p60"
+      },
+      {
+        "t": 15000,
+        "id": "lv.cowl_flap",
+        "value": "open"
+      }
     ]
   }
 }

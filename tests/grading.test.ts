@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { branchStatuses, grade } from '../src/engine/grading';
 import type { GradeResult, Recording } from '../src/engine/grading';
+import { initialQuantities } from '../src/engine/predicates';
+import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
 import { parseScenario } from '../src/scenario/parse';
 import type { Scenario } from '../src/scenario/schema';
 
@@ -60,6 +62,19 @@ const step = (
   enteredAt: number | null,
   group = 'immediate',
 ): GradeResult['steps'][number] => ({ id, group, severity: 'critical', credited, enteredAt });
+
+/** The outcome a simulation of the recording reaches: the definition the graded outcome must equal. */
+function simulatedOutcome(scenario: Scenario, name: string) {
+  const { completedAt, events } = recording(name);
+  return simulate(simSetup(DA50RG_ENV, scenario), {
+    events,
+    start: initialQuantities(scenario, DA50RG_ENV.quantities),
+    untilMs: completedAt,
+  }).state.outcome;
+}
+
+const declaredOutcome = blueprint.outcomes[0];
+if (declaredOutcome === undefined) throw new Error('the blueprint declares no outcome');
 
 const power_increased = (t: number, seq: number, failsRun = true) => ({
   id: 'power_increased',
@@ -142,6 +157,41 @@ describe('golden recordings (Table R1)', () => {
       },
     },
     {
+      name: 'do-nothing-long',
+      scenario: blueprint,
+      expected: {
+        scenarioId: 'eng-oil-temp-green',
+        result: 'fail',
+        reasons: [
+          { kind: 'outcome', id: declaredOutcome.id },
+          { kind: 'critical_missed', count: 2 },
+        ],
+        steps: [step('reduce_power', false, null), step('open_cowl_flap', false, null)],
+        branches: BLUEPRINT_BRANCHES,
+        orderViolations: [],
+        harmful: [],
+        outcome: {
+          id: declaredOutcome.id,
+          text: declaredOutcome.text,
+          t: simulatedOutcome(blueprint, 'do-nothing-long')?.t ?? Number.NaN,
+        },
+      },
+    },
+    {
+      name: 'golden-long',
+      scenario: blueprint,
+      expected: {
+        scenarioId: 'eng-oil-temp-green',
+        result: 'pass',
+        reasons: [],
+        steps: [step('reduce_power', true, 0), step('open_cowl_flap', true, 1)],
+        branches: BLUEPRINT_BRANCHES,
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+      },
+    },
+    {
       name: 'wrong-order',
       scenario: ordered,
       expected: {
@@ -172,6 +222,82 @@ describe('golden recordings (Table R1)', () => {
     it(`grades ${name} exactly`, () => {
       expect(grade(scenario, DA50RG_ENV, recording(name))).toEqual(expected);
     });
+  }
+});
+
+describe('named outcomes (R10, D-06, C-26)', () => {
+  const longIgnored = (): NonNullable<GradeResult['outcome']> => {
+    const outcome = grade(blueprint, DA50RG_ENV, recording('do-nothing-long')).outcome;
+    if (outcome === null) throw new Error('the ignored run did not escalate');
+    return outcome;
+  };
+
+  it('an ignored run escalates inside its 600 s: a step boundary after 20 s', () => {
+    const outcome = longIgnored();
+    expect(outcome.id).toBe(declaredOutcome.id);
+    expect(outcome.text).toBe(declaredOutcome.text);
+    expect(outcome.t % STEP_MS).toBe(0);
+    expect(outcome.t).toBeGreaterThan(recording('do-nothing').completedAt);
+    expect(outcome.t).toBeLessThan(recording('do-nothing-long').completedAt);
+    expect(outcome.t).toBe(simulatedOutcome(blueprint, 'do-nothing-long')?.t);
+  });
+
+  it('a handled failure recovers: the golden actions never escalate, however long the run lasts', () => {
+    expect(simulatedOutcome(blueprint, 'golden-long')).toBeNull();
+    const result = grade(blueprint, DA50RG_ENV, recording('golden-long'));
+    expect(result.outcome).toBeNull();
+    expect(result.result).toBe('pass');
+  });
+
+  it('the same ignored run is not an escalation before its hold time is over', () => {
+    const outcome = longIgnored();
+    const early = grade(blueprint, DA50RG_ENV, {
+      ...recording('do-nothing-long'),
+      completedAt: outcome.t - STEP_MS,
+    });
+    expect(early.outcome).toBeNull();
+    expect(early.reasons).toEqual([{ kind: 'critical_missed', count: 2 }]);
+    const exact = grade(blueprint, DA50RG_ENV, {
+      ...recording('do-nothing-long'),
+      completedAt: outcome.t,
+    });
+    expect(exact.outcome).toEqual(outcome);
+  });
+
+  it('does not credit an event recorded after the outcome time', () => {
+    const outcome = longIgnored();
+    const base = recording('do-nothing-long');
+    const late = grade(blueprint, DA50RG_ENV, {
+      ...base,
+      events: [
+        { t: outcome.t + 1000, id: 'lv.power', value: 'p60' },
+        { t: outcome.t + 2000, id: 'lv.cowl_flap', value: 'open' },
+      ],
+    });
+    expect(late.steps.map((s) => s.credited)).toEqual([false, false]);
+    expect(late.reasons).toEqual(longIgnoredReasons());
+    const harmfulLate = grade(blueprint, DA50RG_ENV, {
+      ...base,
+      events: [{ t: outcome.t + 1000, id: 'lv.power', value: 'p85' }],
+    });
+    expect(harmfulLate.harmful).toEqual([]);
+  });
+
+  it('credits an event recorded before the outcome time', () => {
+    const outcome = longIgnored();
+    const early = grade(blueprint, DA50RG_ENV, {
+      ...recording('do-nothing-long'),
+      events: [{ t: outcome.t - 1000, id: 'lv.cowl_flap', value: 'open' }],
+    });
+    expect(early.steps.map((s) => s.credited)).toEqual([false, true]);
+    expect(early.reasons).toEqual(longIgnoredReasons(1));
+  });
+
+  function longIgnoredReasons(missed = 2) {
+    return [
+      { kind: 'outcome', id: declaredOutcome?.id },
+      { kind: 'critical_missed', count: missed },
+    ];
   }
 });
 
