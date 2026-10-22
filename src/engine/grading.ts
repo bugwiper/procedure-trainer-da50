@@ -155,8 +155,14 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
       })),
     );
 
+  // R3: a forbidden item is watched only when its `when` is absent or holds at the start.
+  const watched = scenario.forbidden
+    .filter((item) => item.when === undefined || evaluatePredicate(item.when, ctx0, env))
+    .map((item) => ({ item, active: evaluatePredicate(item.trigger, ctx0, env) }));
+
   // R4 and R5: replay in log order, evaluating after every event.
   const state: Record<string, string> = { ...ctx0.baseline };
+  const harmful: HarmfulEntry[] = [];
   recording.events.forEach((event, index) => {
     if (!Object.hasOwn(state, event.id)) {
       throw new Error(`recorded event ${String(index)} names unknown control "${event.id}"`);
@@ -167,8 +173,23 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
       if (!evaluatePredicate(entry.step.done, ctx, env)) entry.entered = null;
       else entry.entered ??= index;
     }
+    // A forbidden action counts when it is entered, even if it is reverted later (A5).
+    for (const entry of watched) {
+      const now = evaluatePredicate(entry.item.trigger, ctx, env);
+      if (now && !entry.active) {
+        harmful.push({
+          id: entry.item.id,
+          text: entry.item.text,
+          t: event.t,
+          seq: index,
+          failsRun: entry.item.fails_run,
+        });
+      }
+      entry.active = now;
+    }
   });
 
+  // R6: credited means the step holds after the last event.
   const steps: StepVerdict[] = tracked.map(({ group, step, entered }) => ({
     id: step.id,
     group: group.id,
@@ -177,9 +198,40 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
     enteredAt: entered,
   }));
 
-  // R8 (critical part): every graded critical step must be credited.
+  // R7: in an ordered group, every pair of credited steps entered against the declared order is
+  // one violation.
+  const orderViolations: OrderViolation[] = [];
+  for (const { group } of groups) {
+    if (!group.ordered) continue;
+    const credited = tracked.filter((entry) => entry.group === group && entry.entered !== null);
+    credited.forEach((first, i) => {
+      for (const second of credited.slice(i + 1)) {
+        if ((first.entered ?? 0) > (second.entered ?? 0)) {
+          orderViolations.push({
+            group: group.id,
+            expected: first.step.id,
+            before: second.step.id,
+            critical: group.order_critical,
+          });
+        }
+      }
+    });
+  }
+
+  // R8: reasons in the order critical_missed, order, forbidden.
+  const reasons: Reason[] = [];
   const missed = steps.filter((s) => s.severity === 'critical' && !s.credited).length;
-  const reasons: Reason[] = missed > 0 ? [{ kind: 'critical_missed', count: missed }] : [];
+  if (missed > 0) reasons.push({ kind: 'critical_missed', count: missed });
+  for (const { group } of groups) {
+    if (orderViolations.some((v) => v.group === group.id && v.critical)) {
+      reasons.push({ kind: 'order', group: group.id });
+    }
+  }
+  for (const item of scenario.forbidden) {
+    if (harmful.some((h) => h.id === item.id && h.failsRun)) {
+      reasons.push({ kind: 'forbidden', id: item.id });
+    }
+  }
 
   return {
     scenarioId: scenario.id,
@@ -187,7 +239,7 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
     reasons,
     steps,
     branches,
-    orderViolations: [],
-    harmful: [],
+    orderViolations,
+    harmful,
   };
 }

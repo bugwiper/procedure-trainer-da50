@@ -1,0 +1,60 @@
+# Test fixture, not a shipped scenario: a synthetic copy of the blueprint whose group is ordered and order-critical. It exercises the order rules of the grader (format 1).
+format: 1
+id: ordered-critical
+title: ORDERED FIXTURE
+source:
+  document: "Test fixture"
+  issue: "none"
+  section: "Synthetic copy of the ENG OIL TEMP blueprint"
+  verified: "2026-10-22"
+disclaimer: training-aid
+briefing:
+  situation: "Synthetic test fixture. The oil temperature reading is high and the oil pressure is indicated in the green range."
+initial:
+  controls:
+    lv.power: p75
+    lv.cowl_flap: closed
+  quantities:
+    oil_temp_c: 128
+    oil_pressure_bar: 5
+annunciations[1]: eng_oil_temp
+procedure[1]:
+  - kind: decision
+    text: Check oil pressure
+    branches[1]:
+      - label: "If in green range:"
+        when:
+          check: band
+          quantity: oil_pressure_bar
+          in[1]: green
+        nodes[2]:
+          - kind: group
+            id: immediate
+            ordered: true
+            order_critical: true
+            steps[2]:
+              - id: reduce_power
+                severity: critical
+                text: Reduce power
+                done:
+                  check: travel_rel
+                  control: lv.power
+                  op: lte
+                  delta: -10
+              - id: open_cowl_flap
+                severity: critical
+                text: Open cowl flap
+                done:
+                  check: state
+                  control: lv.cowl_flap
+                  is: open
+          - kind: line
+            text: Increase airspeed
+forbidden[1]:
+  - id: power_increased
+    text: Increase power
+    trigger:
+      check: travel_rel
+      control: lv.power
+      op: gt
+      delta: 0
