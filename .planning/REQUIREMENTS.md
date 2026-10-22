@@ -30,18 +30,18 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-01**: Scenarios are TOON files validated against a schema, with line-numbered errors
 - [x] **SCN-02**: A validate command checks every scenario file against the control registry
 - [x] **SCN-03**: A scenario defines initial panel state, annunciations and the displayed checklist
-- [ ] **SCN-04**: Actions can be critical-required, standard-required, optional or forbidden, placed in ordered or unordered groups
+- [x] **SCN-04**: Actions can be critical-required, standard-required, optional or forbidden, placed in ordered or unordered groups
 - [x] **SCN-05**: Actions are matched on resulting control/aircraft state, not on raw clicks
 - [ ] **SCN-06**: Scripted reactions: timers, ramps, triggers on user actions, and escalation to named outcomes (e.g. engine failure if oil temp exceeds red line)
 - [x] **SCN-07**: Each scenario carries source, revision and disclaimer metadata
-- [ ] **SCN-08**: Engine uses a virtual, pausable clock so grading and replay are deterministic
+- [x] **SCN-08**: Engine uses a virtual, pausable clock so grading and replay are deterministic
 
 ### Session & Debrief
 
 - [x] **SES-01**: User can start a "new situation" (random or selected) with a short briefing
 - [ ] **SES-02**: Training mode lets the user show/hide the checklist and get hints
-- [ ] **SES-03**: Exam mode is silent and the user ends it with "Procedure complete"
-- [ ] **SES-04**: Debrief shows PASS/FAIL (a missed critical step fails), per-step verdicts, order violations and harmful actions
+- [x] **SES-03**: Exam mode is silent and the user ends it with "Procedure complete"
+- [x] **SES-04**: Debrief shows PASS/FAIL (a missed critical step fails), per-step verdicts, order violations and harmful actions
 - [ ] **SES-05**: A "Further actions" section offers non-panel actions as a fixed list, e.g. monitor oil pressure, declare MAYDAY, brief passengers, plus a graded landing-decision ladder (continue flight / safety landing on suitable field / emergency landing on next field / outlanding if necessary)
 - [ ] **SES-06**: User can retry the scenario or move to the next situation
 
@@ -117,14 +117,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCN-01 | Phase 2 | Complete |
 | SCN-02 | Phase 2 | Complete |
 | SCN-03 | Phase 2 | Complete |
-| SCN-04 | Phase 2 | Pending |
+| SCN-04 | Phase 2 | Complete |
 | SCN-05 | Phase 2 | Complete |
 | SCN-07 | Phase 2 | Complete |
-| SCN-08 | Phase 2 | Pending |
+| SCN-08 | Phase 2 | Complete |
 | PNL-03 | Phase 2 | Complete |
 | SES-01 | Phase 2 | Complete |
-| SES-03 | Phase 2 | Pending |
-| SES-04 | Phase 2 | Pending |
+| SES-03 | Phase 2 | Complete |
+| SES-04 | Phase 2 | Complete |
 | PLT-03 | Phase 2 | Complete |
 | PLT-04 | Phase 2 | Complete |
 | SCN-06 | Phase 3 | Pending |

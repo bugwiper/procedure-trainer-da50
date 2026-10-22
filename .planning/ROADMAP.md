@@ -243,7 +243,7 @@ Plans:
   4. The debrief shows PASS/FAIL (a missed critical step fails), a verdict per step (critical, standard, optional), order violations in ordered groups and harmful (forbidden) actions; replaying the same recorded run gives identical verdicts, and golden, do-nothing, wrong-order and forbidden-action replays each grade as expected.
   5. The scenario is a TOON file loaded only through the PackProvider/AccessPolicy seam (open in v1); the validate command reports a malformed file with line-numbered errors and rejects any control id not in the registry.
 
-**Plans:** 12/13 plans executed
+**Plans:** 13/13 plans executed
 
 Plans:
 **Wave 1**
@@ -271,7 +271,7 @@ Plans:
 - [x] 02-12-PLAN.md — Choose situation, leave-run confirm, load error with retry, empty state, busy and double-press handling, 4-row guard
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 02-13-PLAN.md — Complete debrief (reasons, order lines, harmful actions with time), replay and exam-silence gates, blueprint gate, documents, final gates
+- [x] 02-13-PLAN.md — Complete debrief (reasons, order lines, harmful actions with time), replay and exam-silence gates, blueprint gate, documents, final gates
 
 **UI hint**: yes
 
@@ -327,7 +327,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Deployed Playable Panel | 9/9 | Complete    | 2026-10-20 |
-| 2. First Gradable Scenario | 12/13 | In Progress | - |
+| 2. First Gradable Scenario | 13/13 | In Progress | - |
 | 3. Reactive Scenarios and Initial Pack | 0/TBD | Not started | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
 | 5. Offline PWA and Real-Device Hardening | 0/TBD | Not started | - |
