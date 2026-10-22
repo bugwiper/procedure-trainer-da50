@@ -56,12 +56,12 @@ export class Run {
   }
 
   /**
-   * One STEP_MS step; does nothing while the clock is paused. Applies the log events whose time is
-   * at most the current simulated time, in order, advances the simulation and the clock, then calls
-   * the step listeners with the new state.
+   * One STEP_MS step; does nothing while the clock is paused or once an outcome ended the run
+   * (D-06). Applies the log events whose time is at most the current simulated time, in order,
+   * advances the simulation and the clock, then calls the step listeners with the new state.
    */
   step(): void {
-    if (this.clock.paused) return;
+    if (this.clock.paused || this.sim.outcome !== null) return;
     const events = this.store.events();
     let end = this.cursor;
     for (;;) {

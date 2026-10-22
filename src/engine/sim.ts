@@ -14,6 +14,12 @@
 // (4) every active timer counts down by STEP_MS and its flag goes off at 0. A reaction is thus in
 // force for exactly its duration, counted from the step that applied the arming event.
 //
+// Outcomes (D-06, C-25): after the physics of a step every outcome predicate is evaluated over the
+// controls, the scenario baseline and the quantities of the new state. Its held time grows by
+// STEP_MS while it holds and drops to 0 when it does not; the first outcome in declared order whose
+// held time reaches its hold time fires, with t the time of the new state. A state with an outcome
+// is final: no step follows it.
+//
 // Event timing rule (C-02): an event with time t is applied before the step that starts at the
 // first step boundary T with T at least t. Events apply one by one in log order and are never
 // sorted by t: a later event of the log waits behind an earlier one that is not yet due.
@@ -21,8 +27,8 @@
 
 import type { AircraftEnv } from './env';
 import type { PhysicsInputs } from './physics';
-import { baselineOf } from './predicates';
-import type { Scenario } from '../scenario/schema';
+import { baselineOf, evaluatePredicate } from './predicates';
+import type { Outcome, Scenario } from '../scenario/schema';
 
 /** Length of one simulation step in virtual milliseconds. */
 export const STEP_MS = 100;
@@ -57,6 +63,10 @@ export interface SimState {
   readonly flags: Readonly<Record<string, boolean>>;
   /** Remaining run time in ms of every active reaction, keyed by reaction id (C-20). */
   readonly timers: Readonly<Record<string, number>>;
+  /** Held time in ms of every outcome predicate that holds now, keyed by outcome id (C-25). */
+  readonly holds: Readonly<Record<string, number>>;
+  /** The outcome that ended the run (id and the run time it fired at), or null while none did. */
+  readonly outcome: { readonly id: string; readonly t: number } | null;
 }
 
 /** What a simulation is run against: the aircraft, the scenario's baseline and its parameters. */
@@ -70,6 +80,8 @@ export interface SimSetup {
   readonly faultedParameters: Readonly<Record<string, number>>;
   /** Before this time the normal parameters are in force; 0 means the failure is there from the start. */
   readonly onsetAt: number;
+  /** The scenario's named outcomes, in declared order (C-25). */
+  readonly outcomes: readonly Outcome[];
 }
 
 export interface SimOptions {
@@ -84,6 +96,7 @@ export function simSetup(env: AircraftEnv, scenario: Scenario, options: SimOptio
     normalParameters,
     faultedParameters: Object.freeze({ ...normalParameters, ...scenario.parameters }),
     onsetAt: options.onsetAt ?? 0,
+    outcomes: scenario.outcomes,
   });
 }
 
@@ -98,6 +111,8 @@ export function initSim(setup: SimSetup, start: Readonly<Record<string, number>>
     quantities: Object.freeze({ ...setup.env.quantities.baseValues(), ...start }),
     flags: Object.freeze({}),
     timers: Object.freeze({}),
+    holds: Object.freeze({}),
+    outcome: null,
   });
 }
 
@@ -123,9 +138,11 @@ function activeFlags(
  * Advances the state by one step in the order of C-20: applies the due events in order (starting
  * the reactions they arm), ends the reactions whose clear condition holds, evaluates every model
  * with the parameters and flags in force, clamps and quantises each result, counts the timers down
- * and moves t by STEP_MS. An event naming a control the state does not have throws Error naming it.
+ * evaluates the outcomes and moves t by STEP_MS. A state that already has an outcome is returned
+ * unchanged. An event naming a control the state does not have throws Error naming it.
  */
 export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent[]): StepResult {
+  if (state.outcome !== null) return { state, fired: Object.freeze([]) };
   const reactions = setup.env.physics.reactions;
   const controls: Record<string, string> = { ...state.controls };
   let timers: Record<string, number> = { ...state.timers };
@@ -194,13 +211,28 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
     }
   }
 
+  // (5) The outcomes, over the new controls and quantities: a held time grows while the predicate
+  // holds and drops to 0 when it does not; the first declared outcome whose hold is complete fires.
+  const t = state.t + STEP_MS;
+  const context = { controls, baseline: setup.baseline, quantities };
+  const holds: Record<string, number> = {};
+  let outcome: SimState['outcome'] = null;
+  for (const item of setup.outcomes) {
+    if (!evaluatePredicate(item.when, context, setup.env)) continue;
+    const held = (Object.hasOwn(state.holds, item.id) ? (state.holds[item.id] ?? 0) : 0) + STEP_MS;
+    holds[item.id] = held;
+    if (outcome === null && held >= item.hold_s * 1000) outcome = { id: item.id, t };
+  }
+
   return {
     state: Object.freeze({
-      t: state.t + STEP_MS,
+      t,
       controls: Object.freeze(controls),
       quantities: Object.freeze(quantities),
       flags: Object.freeze(activeFlags(setup, counted)),
       timers: Object.freeze(counted),
+      holds: Object.freeze(holds),
+      outcome,
     }),
     fired: Object.freeze(fired),
   };
@@ -216,14 +248,14 @@ export interface SimInput {
 
 /**
  * Replays a log from the setup's start state in whole steps until the smaller of untilMs and
- * MAX_RUN_MS. Each step is handed the events, in log order, from the first not yet applied up to
+ * MAX_RUN_MS, or until an outcome fires. Each step is handed the events, in log order, from the first not yet applied up to
  * the first whose time is after the step's start (C-02).
  */
 export function simulate(setup: SimSetup, input: SimInput): { readonly state: SimState } {
   let state = initSim(setup, input.start);
   const limit = Math.min(input.untilMs, MAX_RUN_MS);
   let next = 0;
-  while (state.t < limit) {
+  while (state.t < limit && state.outcome === null) {
     const from = next;
     for (;;) {
       const event = input.events[next];

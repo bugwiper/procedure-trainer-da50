@@ -3,7 +3,9 @@
 // key is an error. Predicates and procedure nodes are closed unions: nothing in a scenario file
 // is ever evaluated as a string. `parameters` names physics parameters of the aircraft (for
 // example a degraded cooling) with finite values. Cross-references (control, state, quantity,
-// band and parameter ids) are checked by lint.ts against the aircraft, not here.
+// band and parameter ids) are checked by lint.ts against the aircraft, not here. `outcomes` names
+// the failures an ignored emergency escalates to (D-06): each ends the run when its predicate has
+// held for its hold time; the list and the hold time are bounded (MAX_OUTCOMES, MAX_HOLD_S).
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { z } from 'zod';
@@ -131,6 +133,18 @@ export const Forbidden = z.strictObject({
   when: Predicate.optional(),
 });
 
+/** The most outcomes one scenario declares, and the longest hold time of one (T-03-11). */
+export const MAX_OUTCOMES = 4;
+export const MAX_HOLD_S = 600;
+
+/** A named outcome (D-06, C-24): the run ends as FAIL once `when` has held for `hold_s` seconds. */
+export const Outcome = z.strictObject({
+  id: nodeId,
+  text: wordsBetween(1, 12),
+  when: Predicate,
+  hold_s: z.number().min(0).max(MAX_HOLD_S),
+});
+
 /** Table F1: scenario file, top level. */
 export const Scenario = z.strictObject({
   format: z.literal(FORMAT_VERSION),
@@ -153,6 +167,7 @@ export const Scenario = z.strictObject({
   annunciations: z.array(z.string().min(1)),
   procedure: z.array(ProcedureNode).min(1),
   forbidden: z.array(Forbidden).default([]),
+  outcomes: z.array(Outcome).max(MAX_OUTCOMES).default([]),
 });
 
 /** Table F4: pack manifest. */
@@ -177,5 +192,6 @@ export type BranchObject = z.infer<typeof BranchObject>;
 export type Group = z.infer<typeof Group>;
 export type Step = z.infer<typeof Step>;
 export type Forbidden = z.infer<typeof Forbidden>;
+export type Outcome = z.infer<typeof Outcome>;
 export type Predicate = z.infer<typeof Predicate>;
 export type Manifest = z.infer<typeof Manifest>;

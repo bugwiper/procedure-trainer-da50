@@ -5,7 +5,8 @@
 // VirtualClock in whole steps); the engine never sees either. A run is a Run (D-01, D-02): the
 // simulation of the quantities over the store log, whose steps feed the bridge; it exists from
 // Start run until the debrief closes or the run is left. It also holds the difficulty level (Easy or Medium, phase 02.1): display
-// state chosen in the briefing; grade never receives it.
+// state chosen in the briefing; grade never receives it. A run whose simulation reaches a named
+// outcome (D-06) completes itself: the step listener calls the same completion as the debrief button.
 
 import { signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
@@ -194,6 +195,22 @@ export function createSession(deps: SessionDeps): Session {
   const level = signal<Level>('easy');
   const levelPicked = signal(false);
 
+  /** Running only: grades the recorded log at the run clock's time and shows the debrief. */
+  const completeRun = (): void => {
+    const current = scenario.peek();
+    const runClock = clock.peek();
+    if (screen.peek() !== 'running' || current === null || runClock === null) return;
+    const recording: Recording = {
+      scenarioId: current.id,
+      completedAt: runClock.now(),
+      events: bridge.store.events().map((e) => ({ t: e.t, id: e.id, value: e.value })),
+    };
+    result.value = grade(current, env, recording);
+    runClock.pause();
+    bridge.setTimeSource(null);
+    screen.value = 'debrief';
+  };
+
   /** Table N1 "start": baseline without an event, a fresh clock, then the screen. */
   const start = (opened: Scenario): void => {
     const setup = simSetup(env, opened);
@@ -204,6 +221,9 @@ export function createSession(deps: SessionDeps): Session {
     current.onStep((state) => {
       bridge.setQuantities(state.quantities);
       bridge.setFlags(state.flags);
+      // D-06: a run whose state carries a named outcome ends by itself, graded as FAIL. The run
+      // clock stands at the outcome time, which is what complete() records as completedAt.
+      if (state.outcome !== null && screen.peek() === 'running') completeRun();
     });
     bridge.setTimeSource(() => current.clock.now());
     scenario.value = opened;
@@ -418,20 +438,7 @@ export function createSession(deps: SessionDeps): Session {
       briefing.value = null;
       screen.value = 'free';
     },
-    complete() {
-      const current = scenario.peek();
-      const runClock = clock.peek();
-      if (screen.peek() !== 'running' || current === null || runClock === null) return;
-      const recording: Recording = {
-        scenarioId: current.id,
-        completedAt: runClock.now(),
-        events: bridge.store.events().map((e) => ({ t: e.t, id: e.id, value: e.value })),
-      };
-      result.value = grade(current, env, recording);
-      runClock.pause();
-      bridge.setTimeSource(null);
-      screen.value = 'debrief';
-    },
+    complete: completeRun,
     closeDebrief() {
       if (screen.peek() !== 'debrief') return;
       endRun();

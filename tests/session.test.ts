@@ -8,11 +8,14 @@ import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { grade } from '../src/engine/grading';
 import type { Recording } from '../src/engine/grading';
+import { MAX_RUN_MS, STEP_MS } from '../src/engine/sim';
+import { parseScenario } from '../src/scenario/parse';
 import { OPEN_ACCESS, createPackProvider } from '../src/scenario/packs';
 import type { AccessPolicy } from '../src/scenario/packs';
 import { createPanelBridge } from '../src/ui/bridge';
 import { VITE_PACKS } from '../src/scenario/packs-vite';
 import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
+import { reasonLines } from '../src/ui/debrief-text';
 import { createSession, pickRandom } from '../src/ui/session';
 
 // The session machine (plan 02-06, Table N1; plan 02-11 adds the briefing; SES-01, SES-03, SES-04,
@@ -1052,5 +1055,31 @@ describe('run (phase 03)', () => {
     r.session.startRun();
     expect(r.bridge.flags.value).toEqual({});
     expect(runOf(r).state.flags).toEqual({});
+  });
+
+  it('an ignored run escalates (phase 03): it ends by itself as FAIL with the outcome first', async () => {
+    const parsed = parseScenario(BLUEPRINT);
+    if (!parsed.ok) throw new Error('the blueprint does not parse');
+    const declared = parsed.value.outcomes[0];
+    if (declared === undefined) throw new Error('the blueprint declares no outcome');
+
+    const r = await started();
+    const run = runOf(r);
+    for (let i = 0; i < MAX_RUN_MS / STEP_MS && r.session.screen.value === 'running'; i++) {
+      run.step();
+    }
+
+    expect(r.session.screen.value).toBe('debrief');
+    const result = r.session.result.value;
+    expect(result?.result).toBe('fail');
+    expect(result?.reasons[0]).toEqual({ kind: 'outcome', id: declared.id });
+    expect(result?.outcome).toEqual({ id: declared.id, text: declared.text, t: run.clock.now() });
+    expect(run.state.outcome).toEqual({ id: declared.id, t: run.clock.now() });
+    if (result === null || result === undefined) throw new Error('no result');
+    expect(reasonLines(result)[0]).toContain(declared.text);
+    // The run is over: a further step changes nothing.
+    const frozen = run.state;
+    run.step();
+    expect(run.state).toBe(frozen);
   });
 });

@@ -124,7 +124,10 @@ describe('lintScenario on faulty copies', () => {
     },
     {
       name: 'an unknown quantity',
-      text: swap('quantity: oil_temp_c', 'quantity: oil_nope'),
+      text: swap(
+        'quantity: oil_temp_c\n              in[3]',
+        'quantity: oil_nope\n              in[3]',
+      ),
       path: `${retry}.when.quantity`,
     },
     {

@@ -1,6 +1,9 @@
 // Grading as a pure replay (D-09 to D-13, SCN-04, SCN-05): grade(scenario, env, recording) turns
 // the recorded action log into a PASS or FAIL verdict with step, branch, order and harmful-action
-// detail. The rules R1 to R9 are written down in docs/GRADING.md. Nothing here reads a clock, a
+// detail. The rules R1 to R9 are written down in docs/GRADING.md; rule R10 (D-06, C-26) adds the
+// escalation to a named outcome: grade replays the same simulation as the live run up to the end
+// of the recording, and when an outcome of the scenario fires the log is graded only up to the
+// outcome time and the outcome is the first FAIL reason. Nothing here reads a clock, a
 // random source or an unordered key set: events are applied in log order, every list follows the
 // declared scenario order (depth-first), and the result is plain JSON data, so the same inputs
 // always give a JSON-identical result (T-02-30).
@@ -10,6 +13,7 @@ import type { Forbidden, Group, Scenario } from '../scenario/schema';
 import type { AircraftEnv } from './env';
 import { baselineOf, evaluatePredicate, initialQuantities } from './predicates';
 import type { PredicateContext } from './predicates';
+import { simSetup, simulate } from './sim';
 
 export interface RecordedEvent {
   readonly t: number;
@@ -58,7 +62,15 @@ export interface HarmfulEntry {
   readonly failsRun: boolean;
 }
 
+/** The named outcome that ended a run: id and text from the scenario, t the run time it fired at. */
+export interface OutcomeVerdict {
+  readonly id: string;
+  readonly text: string;
+  readonly t: number;
+}
+
 export type Reason =
+  | { readonly kind: 'outcome'; readonly id: string }
   | { readonly kind: 'critical_missed'; readonly count: number }
   | { readonly kind: 'order'; readonly group: string }
   | { readonly kind: 'forbidden'; readonly id: string };
@@ -71,6 +83,8 @@ export interface GradeResult {
   readonly branches: readonly BranchVerdict[];
   readonly orderViolations: readonly OrderViolation[];
   readonly harmful: readonly HarmfulEntry[];
+  /** The named outcome that ended the run (R10), or null when none fired. */
+  readonly outcome: OutcomeVerdict | null;
 }
 
 /** R1: the state of the run before the first event. */
@@ -137,10 +151,45 @@ export function branchStatuses(scenario: Scenario, env: AircraftEnv): BranchVerd
   return walkProcedure(scenario, startContext(scenario, env), env).branches;
 }
 
+/**
+ * R10: the outcome the recording runs into. The simulation is the one of the live run, started from
+ * the scenario's start quantities and replayed to the end of the recording; a scenario without
+ * outcomes needs no simulation.
+ */
+function findOutcome(
+  scenario: Scenario,
+  env: AircraftEnv,
+  recording: Recording,
+): OutcomeVerdict | null {
+  if (scenario.outcomes.length === 0) return null;
+  const { state } = simulate(simSetup(env, scenario), {
+    events: recording.events,
+    start: initialQuantities(scenario, env.quantities),
+    untilMs: recording.completedAt,
+  });
+  if (state.outcome === null) return null;
+  const { id, t } = state.outcome;
+  const declared = scenario.outcomes.find((item) => item.id === id);
+  if (declared === undefined) throw new Error(`the simulation fired unknown outcome "${id}"`);
+  return { id, text: declared.text, t };
+}
+
+/** R10: the events up to the first one after the outcome time; all of them without an outcome. */
+function gradedEvents(
+  events: readonly RecordedEvent[],
+  outcome: OutcomeVerdict | null,
+): readonly RecordedEvent[] {
+  if (outcome === null) return events;
+  const end = events.findIndex((event) => event.t > outcome.t);
+  return end === -1 ? events : events.slice(0, end);
+}
+
 export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording): GradeResult {
   if (recording.scenarioId !== scenario.id) {
     throw new Error(`recording is for scenario "${recording.scenarioId}", not "${scenario.id}"`);
   }
+  const outcome = findOutcome(scenario, env, recording);
+  const events = gradedEvents(recording.events, outcome);
   const ctx0 = startContext(scenario, env);
   const { branches, groups } = walkProcedure(scenario, ctx0, env);
 
@@ -163,7 +212,7 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
   // R4 and R5: replay in log order, evaluating after every event.
   const state: Record<string, string> = { ...ctx0.baseline };
   const harmful: HarmfulEntry[] = [];
-  recording.events.forEach((event, index) => {
+  events.forEach((event, index) => {
     if (!Object.hasOwn(state, event.id)) {
       throw new Error(`recorded event ${String(index)} names unknown control "${event.id}"`);
     }
@@ -218,8 +267,9 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
     });
   }
 
-  // R8: reasons in the order critical_missed, order, forbidden.
+  // R8 and R10: reasons in the order outcome, critical_missed, order, forbidden.
   const reasons: Reason[] = [];
+  if (outcome !== null) reasons.push({ kind: 'outcome', id: outcome.id });
   const missed = steps.filter((s) => s.severity === 'critical' && !s.credited).length;
   if (missed > 0) reasons.push({ kind: 'critical_missed', count: missed });
   for (const { group } of groups) {
@@ -241,5 +291,6 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
     branches,
     orderViolations,
     harmful,
+    outcome,
   };
 }

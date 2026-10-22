@@ -6,8 +6,10 @@
 import type { GradeResult, HarmfulEntry, Reason } from '../engine/grading';
 import type { Group } from '../scenario/schema';
 
-function reasonLine(reason: Reason): string {
+function reasonLine(reason: Reason, result: GradeResult): string {
   switch (reason.kind) {
+    case 'outcome':
+      return `The failure escalated: ${result.outcome?.text ?? reason.id}.`;
     case 'critical_missed':
       return reason.count === 1
         ? '1 critical step was missed.'
@@ -24,7 +26,7 @@ export function reasonLines(result: GradeResult): string[] {
   if (result.result === 'pass') return ['All critical steps done.'];
   const lines: string[] = [];
   for (const reason of result.reasons) {
-    const line = reasonLine(reason);
+    const line = reasonLine(reason, result);
     if (!lines.includes(line)) lines.push(line);
   }
   return lines;

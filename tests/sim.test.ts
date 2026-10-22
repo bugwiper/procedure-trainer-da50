@@ -32,7 +32,9 @@ const checked = checkScenario(
 if (!checked.ok) throw new Error('the blueprint does not pass the scenario check');
 const scenario = checked.scenario;
 
-const setup = simSetup(DA50RG_ENV, scenario);
+// The physics and reaction cases below run on the blueprint without its outcome, so an ignored run
+// keeps simulating; the outcome rules have their own describe block.
+const setup = simSetup(DA50RG_ENV, { ...scenario, outcomes: [] });
 const start = initialQuantities(scenario, DA50RG_ENV.quantities);
 
 const OIL_TEMP = 'oil_temp_c';

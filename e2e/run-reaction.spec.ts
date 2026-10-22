@@ -1,13 +1,16 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { parseScenario } from '../src/scenario/parse';
 import { quantityOf, startScenario } from './support/session';
 import { activate, afterPairWindow } from './support/zoom';
 
 // SCN-06, PNL-04 (plan 03-01): the simulation reaches the built panel. While the pilot does nothing
 // the oil temperature of ENG OIL TEMP rises and the MFD gauge follows; after POWER is reduced and
 // the cowl flap opened it falls. Plan 03-04 adds the event-triggered reaction: MAX pressed with the
-// de-ice mode on HIGH lights the top amber lamp, leaving HIGH puts it out. Reads the e2e-only
-// window hook, so the title carries @hooks.
+// de-ice mode on HIGH lights the top amber lamp, leaving HIGH puts it out. Plan 03-05 adds the
+// named outcome: an ignored run ends by itself as FAIL and the debrief names the failure. Reads the
+// e2e-only window hook, so the title carries @hooks.
 
 /** Mirror of the indicators() read-only hook of the e2e build (src/ui/bridge.ts); no DOM lib here. */
 type LampHost = { __panel?: { indicators(): Record<string, 'lit' | 'off'> } };
@@ -120,4 +123,31 @@ test('@hooks MAX on HIGH lights the top lamp during a run, leaving HIGH puts it 
   await activate(page.locator('[data-hit="btn.deice_max"]'), hasTouch);
   await page.waitForTimeout(1_000);
   expect(await lampOf(page)).toBe('off');
+});
+
+/** The first outcome of the blueprint file, read in node (the text lives in the scenario only). */
+function blueprintOutcome(): { id: string; text: string } {
+  const parsed = parseScenario(
+    readFileSync(new URL('../scenarios/engine/eng-oil-temp-green.toon', import.meta.url), 'utf8'),
+  );
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+  const outcome = parsed.value.outcomes[0];
+  if (outcome === undefined) throw new Error('the blueprint declares no outcome');
+  return outcome;
+}
+
+test('@hooks an ignored run escalates: the debrief opens by itself as FAIL and names the outcome', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'the long escalation case runs once');
+  test.setTimeout(120_000);
+  const outcome = blueprintOutcome();
+
+  await startScenario(page, hasTouch, ROW);
+  // Nothing is touched: the oil temperature passes its red line and the hold time runs out.
+  await expect(page.getByTestId('debrief-result')).toBeVisible({ timeout: 110_000 });
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+  await expect(page.getByTestId('debrief-reason').first()).toContainText(outcome.text);
+  await expect(page.getByTestId('debrief-reason')).toHaveCount(2);
 });

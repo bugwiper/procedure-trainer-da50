@@ -77,3 +77,13 @@ forbidden[1]:
       control: lv.power
       op: gt
       delta: 0
+# The outcome ends the run as a fail when the oil temperature stays above the red line; the temperature and the hold time are instructor-review values.
+outcomes[1]:
+  - id: engine_failure
+    text: Engine failure from overheating
+    hold_s: 15
+    when:
+      check: quantity
+      quantity: oil_temp_c
+      op: gte
+      value: 140

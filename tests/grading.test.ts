@@ -42,7 +42,7 @@ function cowl(t: number, value: string) {
   return { t, id: 'lv.cowl_flap', value };
 }
 function run(scenario: Scenario, events: Recording['events']): GradeResult {
-  return grade(scenario, DA50RG_ENV, { scenarioId: scenario.id, completedAt: 99000, events });
+  return grade(scenario, DA50RG_ENV, { scenarioId: scenario.id, completedAt: 20000, events });
 }
 
 const blueprint = load(BLUEPRINT);
@@ -82,6 +82,7 @@ describe('golden recordings (Table R1)', () => {
         branches: BLUEPRINT_BRANCHES,
         orderViolations: [],
         harmful: [],
+        outcome: null,
       },
     },
     {
@@ -95,6 +96,7 @@ describe('golden recordings (Table R1)', () => {
         branches: BLUEPRINT_BRANCHES,
         orderViolations: [],
         harmful: [],
+        outcome: null,
       },
     },
     {
@@ -108,6 +110,7 @@ describe('golden recordings (Table R1)', () => {
         branches: BLUEPRINT_BRANCHES,
         orderViolations: [],
         harmful: [power_increased(5000, 0)],
+        outcome: null,
       },
     },
     {
@@ -121,6 +124,7 @@ describe('golden recordings (Table R1)', () => {
         branches: BLUEPRINT_BRANCHES,
         orderViolations: [],
         harmful: [power_increased(4000, 0), power_increased(9000, 2)],
+        outcome: null,
       },
     },
     {
@@ -134,6 +138,7 @@ describe('golden recordings (Table R1)', () => {
         branches: BLUEPRINT_BRANCHES,
         orderViolations: [],
         harmful: [],
+        outcome: null,
       },
     },
     {
@@ -154,6 +159,7 @@ describe('golden recordings (Table R1)', () => {
           },
         ],
         harmful: [],
+        outcome: null,
       },
     },
   ];

@@ -14,6 +14,7 @@ function result(over: Partial<GradeResult>): GradeResult {
     branches: [],
     orderViolations: [],
     harmful: [],
+    outcome: null,
     ...over,
   };
 }
