@@ -243,7 +243,7 @@ Plans:
   4. The debrief shows PASS/FAIL (a missed critical step fails), a verdict per step (critical, standard, optional), order violations in ordered groups and harmful (forbidden) actions; replaying the same recorded run gives identical verdicts, and golden, do-nothing, wrong-order and forbidden-action replays each grade as expected.
   5. The scenario is a TOON file loaded only through the PackProvider/AccessPolicy seam (open in v1); the validate command reports a malformed file with line-numbered errors and rejects any control id not in the registry.
 
-**Plans:** 2/13 plans executed
+**Plans:** 3/13 plans executed
 
 Plans:
 **Wave 1**
@@ -251,7 +251,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 02-02-PLAN.md — Pack seam and grading: the blueprint listed and opened only through PackProvider/AccessPolicy, pure deterministic grade, golden replays, virtual clock, grading semantics document
-- [ ] 02-03-PLAN.md — Every living document says TOON (CLAUDE.md, STACK.md, PROJECT, ROADMAP, REQUIREMENTS, research, todos) with a Vitest gate
+- [x] 02-03-PLAN.md — Every living document says TOON (CLAUDE.md, STACK.md, PROJECT, ROADMAP, REQUIREMENTS, research, todos) with a Vitest gate
 - [ ] 02-04-PLAN.md — Store baseline and reset, bridge reset with quantities and time source, session plate and region in the co-pilot legroom
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -327,7 +327,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Deployed Playable Panel | 9/9 | Complete    | 2026-10-20 |
-| 2. First Gradable Scenario | 2/13 | In Progress | - |
+| 2. First Gradable Scenario | 3/13 | In Progress | - |
 | 3. Reactive Scenarios and Initial Pack | 0/TBD | Not started | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
 | 5. Offline PWA and Real-Device Hardening | 0/TBD | Not started | - |

@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: First Gradable Scenario
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-10-22T07:09:08.110Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-10-22T07:14:01.368Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 02 execution started
-state_head: 8da4c1771107f4e25647f139729de9efc78bd36a
+state_head: 978ea439e4c4c7bed65dec99269be037329c3998
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 71
-  completed_plans: 60
+  completed_plans: 61
   percent: 29
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 02 (First Gradable Scenario) — EXECUTING
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 13
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
@@ -111,6 +111,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 01.1 P41 | 25min | 3 tasks | 7 files |
 | Phase 02 P01 | 12min | 2 tasks | 14 files |
 | Phase 02 P02 | 11 min | 2 tasks | 13 files |
+| Phase 02 P03 | 8 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -167,6 +168,7 @@ Recent decisions affecting current work:
 - [Phase 02]: Scenario format 1 is TOON decoded by @toon-format/toon 4.4.0 and validated by zod 4.6.7 (exact pins, no ranges)
 - [Phase 02]: Quantity band bounds are inclusive: a value on a bound belongs to the lower band (oil temp 125 high_yellow, 128 high_red)
 - [Phase 02]: A throwing or rejecting AccessPolicy denies (fail closed); steps under non-applicable or open branches are omitted from GradeResult.steps
+- [Phase 02]: Scenario files are TOON: @toon-format/toon 4.4.0 pinned exactly, own path-to-line index for schema errors, authoring feedback via npm run validate and the Vitest check (D-19, documented in 02-03)
 
 ### Pending Todos
 
@@ -196,6 +198,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T07:09:07.828Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-10-22T07:14:01.132Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
