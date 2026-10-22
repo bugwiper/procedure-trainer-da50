@@ -525,9 +525,11 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
     expect(headings).toContain('## Round 4: morning review');
   });
 
-  it('the opening paragraph sends the owner to Round 5', () => {
+  it('the opening is a dated status line that keeps Round 5 as a historical entry point', () => {
     const opening = review.split('\n')[2] ?? '';
-    expect(opening).toMatch(/Start the morning review at the section "Round 5: morning review"/);
+    expect(opening).toMatch(/^> Status \d{4}-\d{2}-\d{2}/);
+    expect(opening).toMatch(/"Round 5"/);
+    expect(opening).toMatch(/historical entry points/);
     expect(opening).not.toMatch(/Start the morning review at the section "Round 4/);
   });
 
