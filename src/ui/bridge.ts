@@ -19,6 +19,8 @@ export interface PanelTestHook {
   state(): Record<ControlId, StateId>;
   legal(): Record<ControlId, StateId[]>;
   indicators(): Record<string, 'lit' | 'off'>;
+  /** A plain copy of the current quantity values. */
+  quantities(): Record<QuantityId, number>;
 }
 
 declare global {
@@ -49,6 +51,11 @@ export interface PanelBridge {
   retract(seq: number): RetractResult;
   /** Named quantity values (D-08); idle values at start, empty without an aircraft. */
   readonly quantities: ReadonlySignal<Readonly<Record<QuantityId, number>>>;
+  /**
+   * Replaces the quantity values (the simulation's output, one call per step). The signal changes
+   * only when at least one value differs, so a step that moves nothing re-renders nothing.
+   */
+  setQuantities(values: Readonly<Record<QuantityId, number>>): void;
   /**
    * Starts a run from a scenario baseline (SCN-03) without an event: the log is emptied, every
    * control signal and lamp follows, the quantities are the idle values overlaid with the given
@@ -149,6 +156,7 @@ export function createPanelBridge(
         Object.fromEntries(
           [...lamps].map(([id, lamp]): [string, 'lit' | 'off'] => [id, lamp.value ? 'lit' : 'off']),
         ),
+      quantities: () => ({ ...quantities.peek() }),
     };
   }
 
@@ -173,6 +181,14 @@ export function createPanelBridge(
       return store.retract(seq);
     },
     quantities,
+    setQuantities(values) {
+      const current = quantities.peek();
+      const keys = Object.keys(values);
+      const same =
+        keys.length === Object.keys(current).length &&
+        keys.every((key) => Object.hasOwn(current, key) && current[key] === values[key]);
+      if (!same) quantities.value = { ...values };
+    },
     cas,
     reset(controls, given = {}) {
       store.reset(controls);

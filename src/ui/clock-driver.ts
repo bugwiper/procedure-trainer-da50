@@ -1,21 +1,29 @@
-// The clock driver (SCN-08, T-02-31): turns real frames into virtual run time. The engine never
-// reads a clock; this is the one module that is handed requestAnimationFrame and a real time
-// source (App injects them), so the run clock stays deterministic and testable with fakes. Time
-// moves only while the run is live, the tab is visible and no modal is open, and never by more
-// than MAX_FRAME_STEP_MS per frame; a pause adds nothing later because the last frame time is
-// updated on every frame.
+// The clock driver (SCN-08, D-02, T-02-31, T-03-01): turns real frames into whole simulation steps.
+// The engine never reads a clock; this is the one module that is handed requestAnimationFrame and
+// a real time source (App injects them), so the run stays deterministic and testable with fakes.
+// Elapsed real time (at most MAX_FRAME_STEP_MS per frame, so at most 10 steps) collects in a carry;
+// the driver calls run.step() once per whole STEP_MS of it and keeps the remainder, so the run
+// clock only ever moves in whole steps. Time moves only while the run is live, the tab is visible
+// and no modal is open; a pause adds nothing later because the last frame time is updated on every
+// frame, and a new run starts with an empty carry.
 
 import type { ReadonlySignal } from '@preact/signals';
-import type { VirtualClock } from '../engine/clock';
+import { STEP_MS } from '../engine/sim';
 import type { Screen } from './session';
 
-/** The largest step one frame may add to the run clock (a long frame or a returning tab). */
+/** The largest real time one frame may add (a long frame or a returning tab). */
 export const MAX_FRAME_STEP_MS = 1000;
+
+/** What the driver steps: the session's Run satisfies it. */
+export interface Steppable {
+  step(): void;
+}
 
 /** The part of the session the driver reads. */
 export interface ClockDriverSession {
   readonly screen: ReadonlySignal<Screen>;
-  readonly clock: ReadonlySignal<VirtualClock | null>;
+  /** The simulation of the current run; null outside a run. */
+  readonly run: ReadonlySignal<Steppable | null>;
 }
 
 export interface ClockDriverDeps {
@@ -37,14 +45,24 @@ export function attachClockDriver(deps: ClockDriverDeps): () => void {
   let last = now();
   let handle = 0;
   let detached = false;
+  let carry = 0;
+  let stepped: Steppable | null = null;
 
   const frame = (): void => {
     const at = now();
     const elapsed = at - last;
     last = at;
-    if (session.screen.peek() === 'running' && !hidden() && !blocked()) {
-      const clock = session.clock.peek();
-      if (clock !== null) clock.advance(Math.min(Math.max(elapsed, 0), MAX_FRAME_STEP_MS));
+    const run = session.run.peek();
+    if (run !== stepped) {
+      stepped = run;
+      carry = 0;
+    }
+    if (run !== null && session.screen.peek() === 'running' && !hidden() && !blocked()) {
+      carry += Math.min(Math.max(elapsed, 0), MAX_FRAME_STEP_MS);
+      while (carry >= STEP_MS) {
+        run.step();
+        carry -= STEP_MS;
+      }
     }
     if (!detached) handle = raf(frame);
   };

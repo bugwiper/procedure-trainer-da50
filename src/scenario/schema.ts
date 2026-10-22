@@ -1,8 +1,9 @@
 // Scenario file format 1 (D-19, D-22, D-23, D-25, SCN-01, SCN-07). One Zod schema is the single
 // source of the file contract and of the inferred types. Every object is strict, so a misspelled
 // key is an error. Predicates and procedure nodes are closed unions: nothing in a scenario file
-// is ever evaluated as a string. Cross-references (control, state, quantity and band ids) are
-// checked by lint.ts against the aircraft, not here.
+// is ever evaluated as a string. `parameters` names physics parameters of the aircraft (for
+// example a degraded cooling) with finite values. Cross-references (control, state, quantity,
+// band and parameter ids) are checked by lint.ts against the aircraft, not here.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { z } from 'zod';
@@ -147,6 +148,8 @@ export const Scenario = z.strictObject({
     controls: z.record(z.string(), z.string()).default({}),
     quantities: z.record(z.string(), z.number()).default({}),
   }),
+  /** Physics parameters this scenario sets (D-01); absent means the aircraft's normal values. */
+  parameters: z.record(nodeId, z.number()).default({}),
   annunciations: z.array(z.string().min(1)),
   procedure: z.array(ProcedureNode).min(1),
   forbidden: z.array(Forbidden).default([]),

@@ -1,16 +1,21 @@
 // The session machine (D-14, D-15, D-16, D-18, SES-01, SES-03, SES-04): which screen the app is on
 // (free, briefing, running, debrief), how a run starts from a scenario and how it ends in a grade. No router;
 // the screen is a signal. This module has no DOM access, so it is unit tested in node. The UI owns
-// randomness (rng) and real time (the frame driver of plan 09 advances the run's VirtualClock);
-// the engine never sees either. It also holds the difficulty level (Easy or Medium, phase 02.1): display
+// randomness (rng) and real time (the frame driver steps the run's simulation, which advances its
+// VirtualClock in whole steps); the engine never sees either. A run is a Run (D-01, D-02): the
+// simulation of the quantities over the store log, whose steps feed the bridge; it exists from
+// Start run until the debrief closes or the run is left. It also holds the difficulty level (Easy or Medium, phase 02.1): display
 // state chosen in the briefing; grade never receives it.
 
 import { signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
-import { VirtualClock } from '../engine/clock';
+import type { VirtualClock } from '../engine/clock';
 import type { AircraftEnv } from '../engine/env';
 import { branchStatuses, grade } from '../engine/grading';
 import type { BranchVerdict, GradeResult, Recording } from '../engine/grading';
+import { initialQuantities } from '../engine/predicates';
+import { Run } from '../engine/run';
+import { simSetup } from '../engine/sim';
 import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
 import type { Scenario } from '../scenario/schema';
@@ -89,6 +94,8 @@ export interface Session {
   readonly busyKey: ReadonlySignal<string | null>;
   /** The virtual clock of the current run; null outside a run. */
   readonly clock: ReadonlySignal<VirtualClock | null>;
+  /** The simulation of the current run (its clock is `clock`); null outside a run. */
+  readonly run: ReadonlySignal<Run | null>;
   /**
    * The level of the briefing and of the current or last run; easy at creation and kept for the
    * page lifetime. grade never receives it.
@@ -178,18 +185,31 @@ export function createSession(deps: SessionDeps): Session {
     | { readonly kind: 'chosen'; readonly ref: ScenarioRef; readonly key: string }
     | null = null;
   const clock = signal<VirtualClock | null>(null);
+  const run = signal<Run | null>(null);
+  /** Drops the simulation of the run in hand; the bridge keeps the quantities as they are. */
+  const endRun = (): void => {
+    run.peek()?.dispose();
+    run.value = null;
+  };
   const level = signal<Level>('easy');
   const levelPicked = signal(false);
 
   /** Table N1 "start": baseline without an event, a fresh clock, then the screen. */
   const start = (opened: Scenario): void => {
+    const setup = simSetup(env, opened);
+    const startQuantities = initialQuantities(opened, env.quantities);
     bridge.reset(opened.initial.controls, opened.initial.quantities);
-    const runClock = new VirtualClock();
-    bridge.setTimeSource(() => runClock.now());
+    endRun();
+    const current = new Run({ setup, store: bridge.store, start: startQuantities });
+    current.onStep((state) => {
+      bridge.setQuantities(state.quantities);
+    });
+    bridge.setTimeSource(() => current.clock.now());
     scenario.value = opened;
     briefing.value = null;
     result.value = null;
-    clock.value = runClock;
+    run.value = current;
+    clock.value = current.clock;
     onRunStart();
     screen.value = 'running';
   };
@@ -305,6 +325,7 @@ export function createSession(deps: SessionDeps): Session {
     busyKey,
     confirm,
     clock,
+    run,
     level,
     levelPicked,
     async newSituation() {
@@ -348,6 +369,7 @@ export function createSession(deps: SessionDeps): Session {
       // The run is dropped, never graded: no result, no clock, the panel at its defaults (U-03).
       bridge.reset({});
       bridge.setTimeSource(null);
+      endRun();
       scenario.value = null;
       briefing.value = null;
       result.value = null;
@@ -411,6 +433,7 @@ export function createSession(deps: SessionDeps): Session {
     },
     closeDebrief() {
       if (screen.peek() !== 'debrief') return;
+      endRun();
       clock.value = null;
       screen.value = 'free';
     },

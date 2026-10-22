@@ -1,18 +1,30 @@
 import { signal } from '@preact/signals';
 import { describe, expect, it } from 'vitest';
-import { VirtualClock } from '../src/engine/clock';
+import { STEP_MS } from '../src/engine/sim';
 import { MAX_FRAME_STEP_MS, attachClockDriver } from '../src/ui/clock-driver';
-import type { ClockDriverSession } from '../src/ui/clock-driver';
+import type { ClockDriverSession, Steppable } from '../src/ui/clock-driver';
 import type { Screen } from '../src/ui/session';
 
-// The clock driver (plan 02-09, Table CD; SCN-08, T-02-31): a fake frame scheduler and a fake now,
-// no timers. The run's virtual clock moves by the real time between frames only while the run is
-// live, the tab is visible and no modal is open, at most 1000 ms per frame.
+// The clock driver (plan 02-09 Table CD, reworked by plan 03-01; SCN-08, D-02, T-02-31, T-03-01):
+// a fake frame scheduler, a fake now and a fake run that counts steps, no timers. Real time between
+// frames collects in a carry; the run is stepped once per whole STEP_MS, only while the run is live,
+// the tab is visible and no modal is open, at most MAX_FRAME_STEP_MS of real time per frame.
+
+function fakeRun() {
+  const run = {
+    steps: 0,
+    step() {
+      run.steps += 1;
+    },
+  };
+  return run;
+}
 
 function rig() {
   const screen = signal<Screen>('running');
-  const clock = signal<VirtualClock | null>(new VirtualClock());
-  const session: ClockDriverSession = { screen, clock };
+  const first = fakeRun();
+  const run = signal<Steppable | null>(first);
+  const session: ClockDriverSession = { screen, run };
   let time = 10_000;
   let nextId = 1;
   let pending: { id: number; run: () => void } | null = null;
@@ -20,8 +32,8 @@ function rig() {
   let blocked = false;
   const detach = attachClockDriver({
     session,
-    raf: (run) => {
-      pending = { id: nextId, run };
+    raf: (callback) => {
+      pending = { id: nextId, run: callback };
       return nextId++;
     },
     cancelRaf: (id) => {
@@ -33,7 +45,8 @@ function rig() {
   });
   return {
     screen,
-    clock,
+    run,
+    first,
     detach,
     /** Lets dt ms of real time pass and runs the pending frame, if any. */
     frame(dt: number) {
@@ -49,79 +62,98 @@ function rig() {
       blocked = value;
     },
     hasPendingFrame: () => pending !== null,
-    now: () => clock.value?.now() ?? null,
   };
 }
 
 describe('attachClockDriver', () => {
-  it('advances the clock by the time between frames while the run is live', () => {
+  it('steps the run once per whole STEP_MS and carries the remainder into the next frame', () => {
+    expect(STEP_MS).toBe(100);
     const r = rig();
-    r.frame(16);
-    r.frame(17);
-    r.frame(500);
-    expect(r.now()).toBe(533);
+    r.frame(250);
+    expect(r.first.steps).toBe(2);
+    r.frame(50);
+    expect(r.first.steps).toBe(3);
+    r.frame(99);
+    expect(r.first.steps).toBe(3);
+    r.frame(1);
+    expect(r.first.steps).toBe(4);
   });
 
-  it('caps one frame at MAX_FRAME_STEP_MS', () => {
+  it('takes no step from a frame shorter than one step', () => {
+    const r = rig();
+    for (let i = 0; i < 5; i++) r.frame(16);
+    expect(r.first.steps).toBe(0);
+    r.frame(20);
+    expect(r.first.steps).toBe(1);
+  });
+
+  it('caps one frame at MAX_FRAME_STEP_MS, so a 5000 ms frame gives 10 steps', () => {
     expect(MAX_FRAME_STEP_MS).toBe(1000);
     const r = rig();
     r.frame(5000);
-    expect(r.now()).toBe(1000);
+    expect(r.first.steps).toBe(10);
     r.frame(1000);
-    expect(r.now()).toBe(2000);
+    expect(r.first.steps).toBe(20);
   });
 
-  it('does not advance outside the running screen, and adds no paused time later', () => {
+  it('takes no step outside the running screen, and adds no paused time later', () => {
     const r = rig();
     r.frame(100);
+    expect(r.first.steps).toBe(1);
     r.screen.value = 'debrief';
     r.frame(400);
     r.frame(400);
-    expect(r.now()).toBe(100);
+    expect(r.first.steps).toBe(1);
     r.screen.value = 'running';
     r.frame(16);
-    expect(r.now()).toBe(116);
+    expect(r.first.steps).toBe(1);
   });
 
-  it('does not advance while hidden, and adds no hidden time later', () => {
+  it('takes no step while hidden, and adds no hidden time later', () => {
     const r = rig();
     r.frame(100);
     r.setHidden(true);
     r.frame(300);
     r.frame(300);
-    expect(r.now()).toBe(100);
+    expect(r.first.steps).toBe(1);
     r.setHidden(false);
     r.frame(16);
-    expect(r.now()).toBe(116);
+    expect(r.first.steps).toBe(1);
   });
 
-  it('does not advance while a modal blocks, and adds no blocked time later', () => {
+  it('takes no step while a modal blocks, and adds no blocked time later', () => {
     const r = rig();
     r.frame(100);
     r.setBlocked(true);
     r.frame(250);
     r.frame(250);
-    expect(r.now()).toBe(100);
+    expect(r.first.steps).toBe(1);
     r.setBlocked(false);
     r.frame(16);
-    expect(r.now()).toBe(116);
+    expect(r.first.steps).toBe(1);
   });
 
-  it('does nothing without a clock', () => {
+  it('does nothing without a run', () => {
     const r = rig();
-    r.clock.value = null;
+    r.run.value = null;
     expect(() => {
       r.frame(100);
     }).not.toThrow();
-    expect(r.now()).toBeNull();
+    expect(r.first.steps).toBe(0);
   });
 
-  it('follows a new clock of the next run', () => {
+  it('starts a new run with an empty carry', () => {
     const r = rig();
-    r.frame(100);
-    r.clock.value = new VirtualClock();
-    r.frame(50);
-    expect(r.now()).toBe(50);
+    r.frame(150);
+    expect(r.first.steps).toBe(1);
+    const second = fakeRun();
+    r.run.value = second;
+    // The 50 ms left over from the first run must not count for the second.
+    r.frame(60);
+    expect(second.steps).toBe(0);
+    r.frame(40);
+    expect(second.steps).toBe(1);
+    expect(r.first.steps).toBe(1);
   });
 
   it('keeps scheduling frames until detached, then stops', () => {
@@ -131,7 +163,7 @@ describe('attachClockDriver', () => {
     expect(r.hasPendingFrame()).toBe(true);
     r.detach();
     expect(r.hasPendingFrame()).toBe(false);
-    r.frame(16);
-    expect(r.now()).toBe(16);
+    r.frame(200);
+    expect(r.first.steps).toBe(0);
   });
 });

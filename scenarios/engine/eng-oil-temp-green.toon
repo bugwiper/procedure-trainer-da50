@@ -1,4 +1,4 @@
-# ENG OIL TEMP with oil pressure in the green range (format 1 blueprint). Step and checklist lines are short checklist wording; all other text is own wording.
+# ENG OIL TEMP with oil pressure in the green range (format 1 blueprint). Step and checklist lines are short checklist wording; all other text is own wording. The oil cooling is degraded under parameters; the oil temperature model itself is aircraft data.
 format: 1
 id: eng-oil-temp-green
 title: ENG OIL TEMP
@@ -17,6 +17,8 @@ initial:
   quantities:
     oil_temp_c: 128
     oil_pressure_bar: 5
+parameters:
+  oil_cooling: 0.55
 annunciations[1]: eng_oil_temp
 procedure[1]:
   - kind: decision
