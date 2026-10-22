@@ -33,7 +33,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **SCN-04**: Actions can be critical-required, standard-required, optional or forbidden, placed in ordered or unordered groups
 - [x] **SCN-05**: Actions are matched on resulting control/aircraft state, not on raw clicks
 - [ ] **SCN-06**: Scripted reactions: timers, ramps, triggers on user actions, and escalation to named outcomes (e.g. engine failure if oil temp exceeds red line)
-- [ ] **SCN-07**: Each scenario carries source, revision and disclaimer metadata
+- [x] **SCN-07**: Each scenario carries source, revision and disclaimer metadata
 - [ ] **SCN-08**: Engine uses a virtual, pausable clock so grading and replay are deterministic
 
 ### Session & Debrief
@@ -56,7 +56,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PLT-01**: GitHub Actions deploys to GitHub Pages; build is host-agnostic (base path from environment)
 - [ ] **PLT-02**: App installs as a PWA and works offline
 - [ ] **PLT-03**: Scenario packs load only through a PackProvider/AccessPolicy seam, open in v1
-- [ ] **PLT-04**: First-run training-aid acknowledgment is shown, and each scenario shows its source/disclaimer
+- [x] **PLT-04**: First-run training-aid acknowledgment is shown, and each scenario shows its source/disclaimer
 
 ## v2 Requirements
 
@@ -119,14 +119,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCN-03 | Phase 2 | Complete |
 | SCN-04 | Phase 2 | Pending |
 | SCN-05 | Phase 2 | Complete |
-| SCN-07 | Phase 2 | Pending |
+| SCN-07 | Phase 2 | Complete |
 | SCN-08 | Phase 2 | Pending |
 | PNL-03 | Phase 2 | Complete |
 | SES-01 | Phase 2 | Complete |
 | SES-03 | Phase 2 | Pending |
 | SES-04 | Phase 2 | Pending |
 | PLT-03 | Phase 2 | Pending |
-| PLT-04 | Phase 2 | Pending |
+| PLT-04 | Phase 2 | Complete |
 | SCN-06 | Phase 3 | Pending |
 | PNL-04 | Phase 3 | Pending |
 | PNL-07 | Phase 3 | Pending |
