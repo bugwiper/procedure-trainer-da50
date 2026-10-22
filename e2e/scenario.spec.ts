@@ -413,6 +413,9 @@ test('@hooks Realistic starts without a briefing, names nothing, the failure com
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-level')).toHaveText('Level: Realistic');
   await expect(page.getByTestId('debrief-scenario')).toHaveText(scenario.title);
+  // The reaction time is shown for display; the golden taps came before the onset (5 s at the earliest).
+  await expect(page.getByTestId('debrief-timing')).toBeVisible();
+  await expect(page.getByTestId('debrief-timing')).toHaveText(/ after the onset\.$/);
 });
 
 test('@hooks Start run starts in the initial state on the full panel', async ({

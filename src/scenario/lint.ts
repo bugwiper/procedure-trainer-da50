@@ -7,6 +7,9 @@
 // must fail) follow, L12 checks the physics parameters a scenario sets (known, inside range), and
 // L13 checks the named outcomes (D-06): every outcome predicate resolves, the outcome id shares the
 // L4 namespace, and no outcome already holds in the initial state, which would end the run at once.
+// L14 guards the level Realistic (D-05) for a scenario with an onset: simulated without any action
+// from the base values, with the onset at the upper end of its window, the run starts clean (no
+// message active, no outcome holding) and every listed annunciation shows before the run ends.
 // checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
 // the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
@@ -21,11 +24,16 @@ import {
 } from '../engine/predicates';
 import type { PredicateContext } from '../engine/predicates';
 import { legalStates } from '../engine/registry';
+import { STEP_MS, initSim, simSetup, stepSim } from '../engine/sim';
+import type { SimState } from '../engine/sim';
 import { joinPath, parseScenario } from './parse';
 import type { ScenarioIssue } from './parse';
 import type { ProcedureNode, Predicate, Scenario } from './schema';
 import { indexToon, locate } from './toon-index';
 import type { PathSegment } from './toon-index';
+
+/** How long past the onset the L14 simulation looks for the listed annunciations (T-03-16). */
+const REALISTIC_LOOKAHEAD_MS = 600_000;
 
 /** Most branch levels on one path through the procedure (UI-SPEC outline cap). */
 export const MAX_BRANCH_LEVELS = 3;
@@ -187,6 +195,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
 
   // L5 and L6 evaluate predicates, which needs every reference to resolve first.
   if (issues.length === 0) checkInitialState(scenario, env, add);
+  if (issues.length === 0) checkRealisticStart(scenario, env, add);
   return issues;
 }
 
@@ -295,6 +304,61 @@ function checkInitialState(
       add(
         ['outcomes', i, 'when'],
         `outcome "${item.id}" already holds in the initial state; the run would end at once`,
+      );
+    }
+  });
+}
+
+/**
+ * L14: the level Realistic of a scenario with an onset (D-05). The run starts at once in the base
+ * state and does nothing; the onset sits at the upper end of the window, the latest the failure can
+ * begin. No message may be active at the start and no outcome may hold there; every listed
+ * annunciation must become active before the run ends or the lookahead (the window cap plus 600 s,
+ * below MAX_RUN_MS) is over. The scenario's own initial.quantities do not apply: the level starts
+ * from the base values (C-31).
+ */
+function checkRealisticStart(
+  scenario: Scenario,
+  env: AircraftEnv,
+  add: (segments: Segments, message: string) => void,
+): void {
+  if (scenario.onset === undefined) return;
+  const onsetAt = STEP_MS * Math.round((scenario.onset.window_s[1] * 1000) / STEP_MS);
+  const setup = simSetup(env, scenario, { onsetAt });
+  const contextOf = (state: SimState): PredicateContext => ({
+    controls: state.controls,
+    baseline: setup.baseline,
+    quantities: state.quantities,
+  });
+
+  let state = initSim(setup, {});
+  const shown = new Set<string>();
+  for (const message of env.cas.active(contextOf(state), env)) {
+    shown.add(message.id);
+    add(
+      ['initial', 'controls'],
+      `"${message.id}" is already active at the realistic start; the level Realistic must begin without a message`,
+    );
+  }
+  scenario.outcomes.forEach((item, i) => {
+    if (evaluatePredicate(item.when, contextOf(state), env)) {
+      add(
+        ['outcomes', i, 'when'],
+        `outcome "${item.id}" already holds at the realistic start; the run would end at once`,
+      );
+    }
+  });
+
+  const limit = onsetAt + REALISTIC_LOOKAHEAD_MS;
+  while (state.t < limit && state.outcome === null) {
+    state = stepSim(setup, state, []).state;
+    for (const message of env.cas.active(contextOf(state), env)) shown.add(message.id);
+  }
+  scenario.annunciations.forEach((id, i) => {
+    if (!shown.has(id)) {
+      add(
+        ['annunciations', i],
+        `"${id}" is listed but never becomes active in a realistic run that does nothing; the level Realistic would not show it`,
       );
     }
   });

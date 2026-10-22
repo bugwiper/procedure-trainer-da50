@@ -11,6 +11,8 @@ import {
   MAX_RUN_MS,
   STEP_MS,
   initSim,
+  mulberry32,
+  onsetFromSeed,
   quantise,
   simSetup,
   simulate,
@@ -617,5 +619,69 @@ describe('outcomes and hold timers (C-25, D-06)', () => {
     run.step();
     expect(run.state).toBe(final);
     expect(run.clock.now()).toBe(final.t);
+  });
+});
+
+describe('seeded onset (D-05, C-32)', () => {
+  const WINDOW = [5, 20] as const;
+
+  it('mulberry32 is a pinned regression record and stays in [0, 1)', () => {
+    const take = (seed: number) => {
+      const next = mulberry32(seed);
+      return [next(), next(), next()];
+    };
+    expect(take(0)).toEqual([0.26642920868471265, 0.0003297457005828619, 0.2232720274478197]);
+    expect(take(1)).toEqual([0.6270739405881613, 0.002735721180215478, 0.5274470399599522]);
+    const next = mulberry32(123456789);
+    for (let i = 0; i < 1000; i++) {
+      const value = next();
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThan(1);
+    }
+  });
+
+  it('a seed repeats; a negative or large seed is read as an unsigned 32-bit integer', () => {
+    expect(mulberry32(42)()).toBe(mulberry32(42)());
+    expect(mulberry32(-1)()).toBe(mulberry32(4294967295)());
+  });
+
+  it('onsetFromSeed lies inside the window, on a step boundary, and varies with the seed', () => {
+    const seen = new Set<number>();
+    for (let seed = 0; seed < 100; seed++) {
+      const at = onsetFromSeed(seed, WINDOW);
+      expect(at).toBeGreaterThanOrEqual(WINDOW[0] * 1000);
+      expect(at).toBeLessThanOrEqual(WINDOW[1] * 1000);
+      expect(at % STEP_MS).toBe(0);
+      seen.add(at);
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('a one-second window gives that second; a degenerate window is not an error', () => {
+    expect(onsetFromSeed(3, [7, 7])).toBe(7000);
+  });
+
+  it('before the onset no faulted parameter acts; after it ENG OIL TEMP appears', () => {
+    const onsetAt = 10_000;
+    const realistic = simSetup(DA50RG_ENV, scenario, { onsetAt });
+    let state = initSim(realistic, {});
+    let shownAfter = false;
+    while (state.t < onsetAt + 300_000 && state.outcome === null) {
+      const ctx = {
+        controls: state.controls,
+        baseline: realistic.baseline,
+        quantities: state.quantities,
+      };
+      const ids = DA50RG_ENV.cas.active(ctx, DA50RG_ENV).map((m) => m.id);
+      if (state.t <= onsetAt) {
+        expect(ids, `t ${String(state.t)}`).toEqual([]);
+        // The normal aircraft drifts toward its equilibrium at the scenario's controls, in the green.
+        expect(quantity(state.quantities, OIL_TEMP)).toBeLessThan(115);
+      } else if (ids.includes('eng_oil_temp')) {
+        shownAfter = true;
+      }
+      state = stepSim(realistic, state, []).state;
+    }
+    expect(shownAfter).toBe(true);
   });
 });

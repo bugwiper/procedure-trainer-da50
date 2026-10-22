@@ -8,7 +8,7 @@ import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { grade } from '../src/engine/grading';
 import type { Recording } from '../src/engine/grading';
-import { MAX_RUN_MS, STEP_MS } from '../src/engine/sim';
+import { MAX_RUN_MS, STEP_MS, onsetFromSeed, simSetup, simulate } from '../src/engine/sim';
 import { parseScenario } from '../src/scenario/parse';
 import { OPEN_ACCESS, createPackProvider } from '../src/scenario/packs';
 import type { AccessPolicy } from '../src/scenario/packs';
@@ -1081,5 +1081,175 @@ describe('run (phase 03)', () => {
     const frozen = run.state;
     run.step();
     expect(run.state).toBe(frozen);
+  });
+});
+
+describe('realistic level (phase 03, D-05)', () => {
+  const parsed = parseScenario(BLUEPRINT);
+  if (!parsed.ok) throw new Error('the blueprint does not parse');
+  const blueprint = parsed.value;
+  const window = blueprint.onset?.window_s;
+  if (window === undefined) throw new Error('the blueprint declares no onset');
+  const NO_ONSET = BLUEPRINT.replace(/\n#[^\n]*\nonset:\n {2}window_s\[2\]: 5,20\n/, '\n');
+  if (NO_ONSET === BLUEPRINT) throw new Error('the onset block of the blueprint was not found');
+
+  /** An rng that returns the given values in turn, then 0; the first is consumed by the random pick. */
+  const sequence = (values: readonly number[]): (() => number) => {
+    let next = 0;
+    return () => values[next++] ?? 0;
+  };
+  const SEED_DRAW = 0.75;
+  const SEED = Math.floor(SEED_DRAW * 4_294_967_296);
+
+  async function realistic(rng: () => number = sequence([0.5, SEED_DRAW])): Promise<Rig> {
+    const r = rig({ rng });
+    await r.session.newSituation();
+    expect(r.session.screen.value).toBe('briefing');
+    r.session.setLevel('realistic');
+    return r;
+  }
+
+  const runOf = (r: Rig) => {
+    const run = r.session.run.value;
+    if (run === null) throw new Error('no run');
+    return run;
+  };
+
+  it('starts the run at once: running, no briefing, level Realistic', async () => {
+    const r = await realistic();
+    expect(r.session.screen.value).toBe('running');
+    expect(r.session.briefing.value).toBeNull();
+    expect(r.session.level.value).toBe('realistic');
+    expect(r.session.levelPicked.value).toBe(true);
+    expect(r.session.scenario.value?.id).toBe(blueprint.id);
+    expect(r.onRunStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws the seed from the injected rng and records the onset the seed gives', async () => {
+    const r = await realistic();
+    const onset = r.session.onset.value;
+    expect(onset).toEqual({ seed: SEED, at: onsetFromSeed(SEED, window) });
+    expect(onset?.at).toBeGreaterThanOrEqual(window[0] * 1000);
+    expect(onset?.at).toBeLessThanOrEqual(window[1] * 1000);
+    // The same draw gives the same onset; another draw usually another one.
+    const again = await realistic(sequence([0.5, SEED_DRAW]));
+    expect(again.session.onset.value).toEqual(onset);
+    const other = await realistic(sequence([0.5, 0.1]));
+    expect(other.session.onset.value?.seed).toBe(Math.floor(0.1 * 4_294_967_296));
+  });
+
+  it('starts in the base state: base quantities, initial controls, an empty log, no message', async () => {
+    const r = await realistic();
+    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
+    expect(r.bridge.cas.value).toEqual([]);
+    expect(r.bridge.store.events()).toEqual([]);
+    expect(r.bridge.stateOf('lv.power').value).toBe('p75');
+    expect(r.bridge.stateOf('lv.cowl_flap').value).toBe('closed');
+  });
+
+  it('the failure begins by itself after the onset and not before', async () => {
+    const r = await realistic();
+    const onset = r.session.onset.value;
+    if (onset === null) throw new Error('no onset');
+    const run = runOf(r);
+    while (run.clock.now() <= onset.at) {
+      expect(r.bridge.cas.value, `t ${String(run.clock.now())}`).toEqual([]);
+      run.step();
+    }
+    let shown = false;
+    for (let i = 0; i < 6000 && r.session.screen.value === 'running' && !shown; i++) {
+      run.step();
+      shown = r.bridge.cas.value.some((m) => m.text === 'ENG OIL TEMP');
+    }
+    expect(shown).toBe(true);
+  });
+
+  it('the result of complete equals grade of the kept recording, which carries the onset', async () => {
+    const r = await realistic();
+    const run = runOf(r);
+    for (let i = 0; i < 50; i++) run.step();
+    r.bridge.actuate('lv.power', 'p60');
+    r.session.complete();
+    const recording = r.session.recording.value;
+    if (recording === null) throw new Error('no recording');
+    expect(recording.onset).toEqual(r.session.onset.value);
+    expect(r.session.result.value).toEqual(grade(blueprint, DA50RG_ENV, recording));
+    expect(r.session.result.value?.timing.onsetAt).toBe(recording.onset?.at);
+  });
+
+  it('an ignored realistic run escalates later than the onset and replays identically', async () => {
+    const r = await realistic();
+    const onset = r.session.onset.value;
+    if (onset === null) throw new Error('no onset');
+    const run = runOf(r);
+    for (let i = 0; i < MAX_RUN_MS / STEP_MS && r.session.screen.value === 'running'; i++) {
+      run.step();
+    }
+    expect(r.session.screen.value).toBe('debrief');
+    const result = r.session.result.value;
+    expect(result?.result).toBe('fail');
+    expect(result?.timing).toEqual({ onsetAt: onset.at, firstActionMs: null });
+    const replayed = simulate(simSetup(DA50RG_ENV, blueprint, { onsetAt: onset.at }), {
+      events: [],
+      start: {},
+      untilMs: MAX_RUN_MS,
+    }).state;
+    expect(result?.outcome?.t).toBe(replayed.outcome?.t);
+    expect(run.state).toEqual(replayed);
+  });
+
+  it('Easy and Medium keep the failure from the start: no onset, the scenario quantities, no onset in the recording', async () => {
+    for (const level of ['easy', 'medium'] as const) {
+      const r = rig();
+      await r.session.newSituation();
+      r.session.setLevel(level);
+      expect(r.session.screen.value).toBe('briefing');
+      r.session.startRun();
+      expect(r.session.onset.value).toBeNull();
+      expect(r.bridge.quantities.value['oil_temp_c']).toBe(128);
+      r.session.complete();
+      expect(r.session.recording.value).not.toBeNull();
+      expect(r.session.recording.value).not.toHaveProperty('onset');
+      expect(r.session.result.value?.timing.onsetAt).toBe(0);
+    }
+  });
+
+  it('a scenario without an onset ignores Realistic', async () => {
+    const r = rig({ files: { 'eng-oil-temp-green': NO_ONSET } });
+    await r.session.newSituation();
+    expect(r.session.briefing.value?.scenario.onset).toBeUndefined();
+    r.session.setLevel('realistic');
+    expect(r.session.screen.value).toBe('briefing');
+    expect(r.session.level.value).toBe('easy');
+    expect(r.session.levelPicked.value).toBe(false);
+    expect(r.session.onset.value).toBeNull();
+  });
+
+  it('does nothing outside the briefing, and leaving the run clears the onset', async () => {
+    const r = rig();
+    r.session.setLevel('realistic');
+    expect(r.session.screen.value).toBe('free');
+    expect(r.session.level.value).toBe('easy');
+
+    const live = await realistic();
+    live.session.setLevel('realistic');
+    expect(live.session.onset.value).not.toBeNull();
+    await live.session.newSituation();
+    expect(live.session.confirm.value).toBe('new');
+    await live.session.leaveRun();
+    expect(live.session.onset.value).toBeNull();
+    expect(live.session.recording.value).toBeNull();
+  });
+
+  it('the next run clears the recording and the onset of the last one', async () => {
+    const r = await realistic();
+    r.session.complete();
+    expect(r.session.recording.value).not.toBeNull();
+    r.session.closeDebrief();
+    await r.session.newSituation();
+    r.session.setLevel('easy');
+    r.session.startRun();
+    expect(r.session.recording.value).toBeNull();
+    expect(r.session.onset.value).toBeNull();
   });
 });

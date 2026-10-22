@@ -6,7 +6,7 @@ import { defineCasRules } from '../src/engine/cas';
 import { checkScenario, lintScenario, MAX_BRANCH_LEVELS } from '../src/scenario/lint';
 import { colOf, lineOf, MINIMAL, nested, swap } from './scenario-text';
 
-// Lint rules L1 to L8 and L10 to L13 (SCN-02, Table L1) through checkScenario: one failing case per rule, each an
+// Lint rules L1 to L8 and L10 to L14 (SCN-02, Table L1) through checkScenario: one failing case per rule, each an
 // edit of the minimal valid scenario, with the exact line and column of the edit.
 const root = fileURLToPath(new URL('../', import.meta.url));
 const BLUEPRINT = readFileSync(`${root}scenarios/engine/eng-oil-temp-green.toon`, 'utf8');
@@ -578,5 +578,91 @@ describe('L13: outcomes', () => {
   it('passes the shipped blueprint with its outcome', () => {
     expect(lintScenario(parsedOf(BLUEPRINT), DA50RG_ENV)).toEqual([]);
     expect(parsedOf(BLUEPRINT).outcomes).toHaveLength(1);
+  });
+});
+
+describe('L14: the realistic level starts clean and shows what the scenario lists (D-05)', () => {
+  const WITH_ONSET = `${MINIMAL}onset:\n  window_s[2]: 5,20\n`;
+
+  /** An aircraft whose ENG OIL TEMP rule already fires at the cruise base value of the oil temperature. */
+  const earlyEnv = {
+    ...DA50RG_ENV,
+    cas: defineCasRules(
+      [
+        {
+          id: 'eng_oil_temp',
+          text: 'ENG OIL TEMP',
+          level: 'warning' as const,
+          when: {
+            check: 'quantity' as const,
+            quantity: 'oil_temp_c',
+            op: 'gt' as const,
+            value: 80,
+          },
+        },
+      ],
+      DA50RG_ENV,
+    ),
+  };
+
+  it('does not apply to a scenario without an onset', () => {
+    // MINIMAL sets no parameter, so the listed annunciation never shows; without an onset nobody asks.
+    expect(checkScenario(MINIMAL, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('passes the blueprint: it starts clean and ENG OIL TEMP shows after the onset', () => {
+    expect(parsedOf(BLUEPRINT).onset).toEqual({ window_s: [5, 20] });
+    expect(lintScenario(parsedOf(BLUEPRINT), DA50RG_ENV)).toEqual([]);
+  });
+
+  it('rejects a listed annunciation that a do-nothing realistic run never shows', () => {
+    const issues = issuesOf(WITH_ONSET);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'annunciations.0',
+      message: expect.stringContaining('"eng_oil_temp"') as string,
+      line: lineOf(WITH_ONSET, 'annunciations[1]'),
+    });
+    expect(issues[0]?.message).toContain('realistic');
+  });
+
+  it('rejects a message that is already active at the realistic start, at the initial controls', () => {
+    const found = lintScenario(parsedOf(BLUEPRINT), earlyEnv);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      path: 'initial.controls',
+      message: expect.stringContaining('"eng_oil_temp"') as string,
+    });
+    expect(found[0]?.message).toContain('realistic start');
+  });
+
+  it('rejects an outcome that holds at the realistic start, at the outcome', () => {
+    const text = swap(
+      BLUEPRINT,
+      '      op: gte\n      value: 140',
+      '      op: lte\n      value: 100',
+    );
+    const result = checkScenario(text, DA50RG_ENV);
+    expect(result.ok).toBe(false);
+    const issues = result.ok ? [] : result.issues;
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        path: 'outcomes.0.when',
+        message: expect.stringContaining('realistic start') as string,
+        // The `when:` of the outcome sits at the indent of the outcome item (four spaces).
+        line: text.split('\n').lastIndexOf('    when:') + 1,
+      }),
+    );
+  });
+
+  it('bounds the window in the schema: inside 1 to 120 s and the first at most the second', () => {
+    for (const bad of ['0,20', '5,121', '20,5']) {
+      const text = swap(BLUEPRINT, 'window_s[2]: 5,20', `window_s[2]: ${bad}`);
+      const result = checkScenario(text, DA50RG_ENV);
+      expect(result.ok, bad).toBe(false);
+      const first = result.ok ? undefined : result.issues[0];
+      expect(first?.path, bad).toMatch(/^onset\.window_s/);
+      expect(first?.line, bad).toBe(lineOf(text, 'window_s[2]'));
+    }
   });
 });
