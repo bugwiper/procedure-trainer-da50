@@ -57,9 +57,9 @@ How it behaves:
 The session pad sits in the lower right of the panel, in the co-pilot legroom; zoom in with a double tap to use its buttons at full size.
 
 - **NEW SITUATION** picks a situation at random and opens its briefing; **CHOOSE SITUATION** lists the situations and a row opens its briefing. The first scenario is ENG OIL TEMP with the oil pressure in the green range.
-- The **briefing** shows the situation, the source record, the training-aid disclaimer and the checklist outline. It runs in exam mode: the graded panel steps are not listed and nothing gives hints. **Start run** puts the panel into the initial state of the scenario and shows the annunciation on the PFD (the red ENG OIL TEMP message).
+- The **briefing** shows the situation, the training-aid disclaimer, a **Level** group and the source record at the bottom. The level is **Easy** (the situation and the checklist with the panel steps) or **Medium** (the situation only, no checklist). It is chosen before **Start run** and kept for the next briefing. The run is an exam: nothing gives hints. **Start run** puts the panel into the initial state of the scenario and shows the annunciation on the PFD (the red ENG OIL TEMP message).
 - During the run you operate the panel. Nothing says whether an action was right. When you are done, press **Procedure complete** in the footer.
-- The **debrief** shows PASS or FAIL first, one line per reason, the checklist outline with a verdict for every graded step, the order of ordered groups and the harmful actions with their time (for example "Increase power at 0:07"). There is no score. Back to panel keeps the end state of the panel. The grading rules are written down in [docs/GRADING.md](docs/GRADING.md); the same recorded run always gives the same verdicts.
+- The **debrief** shows PASS or FAIL first, one line per reason, the level of the run, the checklist outline with a verdict for every graded step (always, on every level), the order of ordered groups and the harmful actions by name, without a time (for example "Increase power"). In ENG OIL TEMP a power increase fails the run. The level never changes the grade. There is no score. Back to panel keeps the end state of the panel. The grading rules are written down in [docs/GRADING.md](docs/GRADING.md); the same recorded run always gives the same verdicts.
 
 ## Scenario files
 
