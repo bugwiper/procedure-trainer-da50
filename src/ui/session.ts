@@ -203,6 +203,7 @@ export function createSession(deps: SessionDeps): Session {
     const current = new Run({ setup, store: bridge.store, start: startQuantities });
     current.onStep((state) => {
       bridge.setQuantities(state.quantities);
+      bridge.setFlags(state.flags);
     });
     bridge.setTimeSource(() => current.clock.now());
     scenario.value = opened;
@@ -434,6 +435,8 @@ export function createSession(deps: SessionDeps): Session {
     closeDebrief() {
       if (screen.peek() !== 'debrief') return;
       endRun();
+      // A run timer cannot outlive its run (C-23): the lamps go dark, the quantities stay as left.
+      bridge.setFlags({});
       clock.value = null;
       screen.value = 'free';
     },

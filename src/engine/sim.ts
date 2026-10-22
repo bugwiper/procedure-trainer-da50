@@ -7,6 +7,13 @@
 // and quantised to 0.01 (or the quantity's own finer scale) after every step, so node and every
 // browser engine agree bit for bit.
 //
+// Reactions (C-20): a control entering a state may start a one-shot reaction with a timer. Step
+// order: (1) the due events apply one by one in log order and, after each, a reaction armed by it
+// whose condition holds starts unless it is already active; (2) an active reaction whose clear
+// condition holds ends at once; (3) the models run, reading the flags of the active reactions;
+// (4) every active timer counts down by STEP_MS and its flag goes off at 0. A reaction is thus in
+// force for exactly its duration, counted from the step that applied the arming event.
+//
 // Event timing rule (C-02): an event with time t is applied before the step that starts at the
 // first step boundary T with T at least t. Events apply one by one in log order and are never
 // sorted by t: a later event of the log waits behind an earlier one that is not yet due.
@@ -46,7 +53,10 @@ export interface SimState {
   readonly t: number;
   readonly controls: Readonly<Record<string, string>>;
   readonly quantities: Readonly<Record<string, number>>;
+  /** The flag of every active reaction, true; a flag of no active reaction is absent. */
   readonly flags: Readonly<Record<string, boolean>>;
+  /** Remaining run time in ms of every active reaction, keyed by reaction id (C-20). */
+  readonly timers: Readonly<Record<string, number>>;
 }
 
 /** What a simulation is run against: the aircraft, the scenario's baseline and its parameters. */
@@ -87,34 +97,70 @@ export function initSim(setup: SimSetup, start: Readonly<Record<string, number>>
     controls: setup.baseline,
     quantities: Object.freeze({ ...setup.env.quantities.baseValues(), ...start }),
     flags: Object.freeze({}),
+    timers: Object.freeze({}),
   });
 }
 
 export interface StepResult {
   readonly state: SimState;
-  /** Indexes into the due events that fired a one-shot reaction; empty until reactions exist. */
+  /** Indexes into the due events that started a reaction in this step, in event order. */
   readonly fired: readonly number[];
 }
 
+/** The flags of the reactions whose timer is running, each true. */
+function activeFlags(
+  setup: SimSetup,
+  timers: Readonly<Record<string, number>>,
+): Record<string, boolean> {
+  const flags: Record<string, boolean> = {};
+  for (const reaction of setup.env.physics.reactions) {
+    if (Object.hasOwn(timers, reaction.id)) flags[reaction.flag] = true;
+  }
+  return flags;
+}
+
 /**
- * Advances the state by one step: applies the due events in order, evaluates every model with the
- * parameters in force at state.t, clamps and quantises each result and moves t by STEP_MS. An
- * event naming a control the state does not have throws Error naming it.
+ * Advances the state by one step in the order of C-20: applies the due events in order (starting
+ * the reactions they arm), ends the reactions whose clear condition holds, evaluates every model
+ * with the parameters and flags in force, clamps and quantises each result, counts the timers down
+ * and moves t by STEP_MS. An event naming a control the state does not have throws Error naming it.
  */
 export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent[]): StepResult {
+  const reactions = setup.env.physics.reactions;
   const controls: Record<string, string> = { ...state.controls };
-  for (const event of due) {
+  let timers: Record<string, number> = { ...state.timers };
+  const fired: number[] = [];
+
+  // (1) The due events, one by one; a reaction armed by the event starts unless it is active.
+  due.forEach((event, index) => {
     if (!Object.hasOwn(controls, event.id)) {
       throw new Error(`event names unknown control "${event.id}"`);
     }
     controls[event.id] = event.value;
-  }
+    let started = false;
+    for (const reaction of reactions) {
+      if (reaction.on.control !== event.id || reaction.on.value !== event.value) continue;
+      if (Object.hasOwn(timers, reaction.id) || !reaction.when(controls)) continue;
+      timers[reaction.id] = reaction.durationMs;
+      started = true;
+    }
+    if (started) fired.push(index);
+  });
 
+  // (2) A reaction whose clear condition holds ends at once.
+  const kept: Record<string, number> = {};
+  for (const reaction of reactions) {
+    const remaining = Object.hasOwn(timers, reaction.id) ? timers[reaction.id] : undefined;
+    if (remaining !== undefined && !reaction.clearsWhen(controls)) kept[reaction.id] = remaining;
+  }
+  timers = kept;
+
+  // (3) The models, reading the flags of the active reactions.
   const inputs: PhysicsInputs = {
     controls,
     parameters: state.t >= setup.onsetAt ? setup.faultedParameters : setup.normalParameters,
     quantities: state.quantities,
-    flags: state.flags,
+    flags: activeFlags(setup, timers),
   };
 
   const quantities: Record<string, number> = { ...state.quantities };
@@ -139,14 +185,24 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
     );
   }
 
+  // (4) Every active timer counts down; a flag goes off when its timer reaches 0.
+  const counted: Record<string, number> = {};
+  for (const reaction of reactions) {
+    const remaining = Object.hasOwn(timers, reaction.id) ? timers[reaction.id] : undefined;
+    if (remaining !== undefined && remaining - STEP_MS > 0) {
+      counted[reaction.id] = remaining - STEP_MS;
+    }
+  }
+
   return {
     state: Object.freeze({
       t: state.t + STEP_MS,
       controls: Object.freeze(controls),
       quantities: Object.freeze(quantities),
-      flags: state.flags,
+      flags: Object.freeze(activeFlags(setup, counted)),
+      timers: Object.freeze(counted),
     }),
-    fired: Object.freeze([]),
+    fired: Object.freeze(fired),
   };
 }
 

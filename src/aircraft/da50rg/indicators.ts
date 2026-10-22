@@ -4,23 +4,20 @@ import type { StateId } from '../../engine/registry';
 import { DA50RG } from './panel';
 
 // Gear and flap lamps (PNL-14, D-11). Pure derive functions of lever state; no timers, no
-// transition timing (Phase 3 sets the in-transit flag). Provenance: lamp count and colours of
+// transition timing (the in-transit flag stays deferred). Provenance: lamp count and colours of
 // the gear cluster confirmed (P386, PED, SIM, owner D-11); lamp coordinates unconfirmed.
 
 /**
- * Flag the engine phase sets while a de-ice MAX run is active (owner finding G-1). Nothing sets it
- * in this phase, exactly like GEAR_IN_TRANSIT: the bridge's flag record is empty, so the top
- * de-ice lamp never lights here.
- *
- * Deferred to the engine phase, with the reason: the run lasts 120 s, and there is no engine clock
- * in phase 01.1 (no timer or clock may live in the engine or the UI; the engine's virtual clock
- * arrives with the scenario engine). Intended behaviour: pressing btn.deice_max while
- * sw.deice_mode is high sets the flag for 120 s on the virtual clock, then clears it and ignores
- * further MAX presses until MAX is pressed again; leaving the high mode clears it.
+ * Flag set while a de-ice MAX run is active (owner finding G-1). The reaction `deice_max` in
+ * physics.ts sets it: pressing btn.deice_max while sw.deice_mode is high starts a 120 s run on the
+ * run's virtual clock, and leaving the high mode ends it at once. It only exists during a run; on
+ * the free panel no simulation runs, so the top lamp stays dark there. The lamps read the flag and
+ * the mode, never the button (T-01.1-42). ANNUN-TEST, the WIND SHIELD spray, the ICE LIGHT effect
+ * and the ELT lamp in RESET / TEST stay deferred (D-04).
  */
 export const DEICE_MAX_ACTIVE = 'deice.max_active';
 
-/** Flag Phase 3 sets while the gear moves or disagrees with the lever; always false now. */
+/** Flag for the gear moving or disagreeing with the lever; nothing sets it yet (deferred). */
 export const GEAR_IN_TRANSIT = 'gear.in_transit';
 
 export interface GearLamps {

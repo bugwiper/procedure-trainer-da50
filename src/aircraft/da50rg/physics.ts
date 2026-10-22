@@ -2,6 +2,7 @@ import { definePhysics } from '../../engine/physics';
 import type { PhysicsInputs, QuantityModel } from '../../engine/physics';
 import { travelPercent } from '../../engine/predicates';
 import type { DetentLeverDef } from '../../engine/registry';
+import { DEICE_MAX_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
 import { DA50RG_QUANTITIES } from './quantities';
 
@@ -241,6 +242,9 @@ function busVoltsTarget(inputs: PhysicsInputs): number {
   return BATTERY_VOLTS_FLOOR + (BATTERY_VOLTS_SPAN * quantityOf(inputs, 'battery_pct')) / 100;
 }
 
+/** The de-ice MAX run lasts 120 s of run time (owner finding G-1). */
+const DEICE_MAX_RUN_MS = 120_000;
+
 const lag = (
   quantity: string,
   tauMs: number,
@@ -278,6 +282,21 @@ export const DA50RG_PHYSICS = definePhysics(
       lag('alt2_amps', AMPS_TAU_MS, alt2AmpsTarget),
       { quantity: 'battery_pct', mode: 'rate', perMinute: batteryPerMinute },
       lag('bus_volts', VOLTS_TAU_MS, busVoltsTarget),
+    ],
+    reactions: [
+      // D-04, SCN-06: pressing MAX with the de-ice mode on HIGH lights the top amber lamp for 120 s
+      // of run time; leaving HIGH puts it out at once. A press with the mode on NORM or OFF starts
+      // nothing, and a press during the run is ignored. The lamps read the flag, never the button.
+      // Still deferred (D-04): ANNUN-TEST, the WIND SHIELD spray, the ICE LIGHT effect and the ELT
+      // lamp in RESET / TEST.
+      {
+        id: 'deice_max',
+        on: { control: 'btn.deice_max', value: 'pressed' },
+        when: (controls) => controls['sw.deice_mode'] === 'high',
+        flag: DEICE_MAX_ACTIVE,
+        durationMs: DEICE_MAX_RUN_MS,
+        clearsWhen: (controls) => controls['sw.deice_mode'] !== 'high',
+      },
     ],
   },
   { registry: DA50RG, quantities: DA50RG_QUANTITIES },

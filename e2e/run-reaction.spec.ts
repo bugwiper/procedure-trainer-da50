@@ -1,10 +1,16 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { quantityOf, startScenario } from './support/session';
-import { activate } from './support/zoom';
+import { activate, afterPairWindow } from './support/zoom';
 
 // SCN-06, PNL-04 (plan 03-01): the simulation reaches the built panel. While the pilot does nothing
 // the oil temperature of ENG OIL TEMP rises and the MFD gauge follows; after POWER is reduced and
-// the cowl flap opened it falls. Reads the e2e-only window hook, so the title carries @hooks.
+// the cowl flap opened it falls. Plan 03-04 adds the event-triggered reaction: MAX pressed with the
+// de-ice mode on HIGH lights the top amber lamp, leaving HIGH puts it out. Reads the e2e-only
+// window hook, so the title carries @hooks.
+
+/** Mirror of the indicators() read-only hook of the e2e build (src/ui/bridge.ts); no DOM lib here. */
+type LampHost = { __panel?: { indicators(): Record<string, 'lit' | 'off'> } };
 
 const ROW = 'engine.eng-oil-temp-green';
 const OIL_TEMP = 'oil_temp_c';
@@ -71,4 +77,47 @@ test('@hooks switching ENGINE MASTER off drops RPM, oil and fuel pressure and Am
     .toBeLessThan(0.1);
   await expect.poll(() => quantityOf(page, 'alt1_amps'), { timeout: 8_000 }).toBeLessThan(1);
   await expect.poll(() => rpmGauge.textContent(), { timeout: 8_000 }).not.toBe(before);
+});
+
+/** Taps one third of the de-ice MODE toggle: 1/6 is HIGH, 1/2 is NORM, 5/6 is OFF. */
+async function tapMode(
+  page: Page,
+  hasTouch: boolean,
+  fraction: number,
+  state: string,
+): Promise<void> {
+  await afterPairWindow(page);
+  const hit = page.locator('[data-hit="sw.deice_mode"]');
+  const box = await hit.boundingBox();
+  if (box === null) throw new Error('no hit box for the de-ice mode toggle');
+  const position = { x: box.width / 2, y: box.height * fraction };
+  if (hasTouch) await hit.tap({ position });
+  else await hit.click({ position });
+  await expect(page.locator('[data-control-id="sw.deice_mode"]')).toHaveAttribute(
+    'data-state',
+    state,
+  );
+}
+
+const lampOf = (page: Page): Promise<string | undefined> =>
+  page.evaluate(() => (globalThis as LampHost).__panel?.indicators()['lt.deice_max']);
+
+test('@hooks MAX on HIGH lights the top lamp during a run, leaving HIGH puts it out, MAX on NORM lights nothing', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, ROW);
+  expect(await lampOf(page)).toBe('off');
+
+  await tapMode(page, hasTouch, 1 / 6, 'high');
+  await activate(page.locator('[data-hit="btn.deice_max"]'), hasTouch);
+  await expect.poll(() => lampOf(page), { timeout: 2_000 }).toBe('lit');
+
+  await tapMode(page, hasTouch, 1 / 2, 'norm');
+  await expect.poll(() => lampOf(page), { timeout: 2_000 }).toBe('off');
+
+  // MAX with the mode on NORM starts nothing.
+  await activate(page.locator('[data-hit="btn.deice_max"]'), hasTouch);
+  await page.waitForTimeout(1_000);
+  expect(await lampOf(page)).toBe('off');
 });

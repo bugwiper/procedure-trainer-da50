@@ -56,6 +56,13 @@ export interface PanelBridge {
    * only when at least one value differs, so a step that moves nothing re-renders nothing.
    */
   setQuantities(values: Readonly<Record<QuantityId, number>>): void;
+  /** Named flags of the active reactions (for example deice.max_active); empty outside a run. */
+  readonly flags: ReadonlySignal<Readonly<Record<string, boolean>>>;
+  /**
+   * Replaces the flags (the simulation's output, one call per step). The signal changes only when
+   * a flag name or value differs, so a step that changes no flag re-renders no lamp.
+   */
+  setFlags(values: Readonly<Record<string, boolean>>): void;
   /**
    * Starts a run from a scenario baseline (SCN-03) without an event: the log is emptied, every
    * control signal and lamp follows, the quantities are the base values overlaid with the given
@@ -129,8 +136,9 @@ export function createPanelBridge(
     return casRules.active(ctx, { registry, quantities: aircraft.quantities });
   });
 
-  // Flags (for example gear.in_transit) are an empty record in this phase; Phase 3 feeds them.
-  const flags: Readonly<Record<string, boolean>> = {};
+  // Flags (for example deice.max_active) are the simulation's output, set once per run step; they
+  // are empty at creation, after a reset and outside a run.
+  const flags = signal<Readonly<Record<string, boolean>>>({});
   const lamps = new Map<string, ReadonlySignal<boolean>>();
   for (const def of indicators?.indicators ?? []) {
     lamps.set(
@@ -141,7 +149,7 @@ export function createPanelBridge(
           const s = signals.get(id);
           if (s !== undefined) controls[id] = s.value;
         }
-        return evaluateIndicator(def, controls, flags);
+        return evaluateIndicator(def, controls, flags.value);
       }),
     );
   }
@@ -189,10 +197,20 @@ export function createPanelBridge(
         keys.every((key) => Object.hasOwn(current, key) && current[key] === values[key]);
       if (!same) quantities.value = { ...values };
     },
+    flags,
+    setFlags(values) {
+      const current = flags.peek();
+      const keys = Object.keys(values);
+      const same =
+        keys.length === Object.keys(current).length &&
+        keys.every((key) => Object.hasOwn(current, key) && current[key] === values[key]);
+      if (!same) flags.value = { ...values };
+    },
     cas,
     reset(controls, given = {}) {
       store.reset(controls);
       quantities.value = { ...baseQuantities(), ...given };
+      if (Object.keys(flags.peek()).length > 0) flags.value = {};
     },
     setTimeSource(now) {
       timeSource = now ?? (() => performance.now());

@@ -8,7 +8,8 @@
 
 import type { PredicateEnv } from './predicates';
 import { QUANTITY_ID_PATTERN } from './quantities';
-import { STEP_MS } from './sim';
+import { legalStates } from './registry';
+import { MAX_RUN_MS, STEP_MS } from './sim';
 
 export class PhysicsError extends Error {}
 
@@ -20,9 +21,12 @@ export interface PhysicsInputs {
   readonly parameters: Readonly<Record<string, number>>;
   /** Every quantity as it is at the start of the step. */
   readonly quantities: Readonly<Record<string, number>>;
-  /** Named boolean flags; an empty record until a later plan feeds them. */
+  /** Named boolean flags in force: the flag of every active reaction (C-20). */
   readonly flags: Readonly<Record<string, boolean>>;
 }
+
+/** A flag name: dotted lower-case ids such as "deice.max_active" (the indicator flag names). */
+export const FLAG_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/;
 
 /** A physics parameter a scenario may set: a finite range and the aircraft's normal value. */
 export interface ParameterDef {
@@ -49,14 +53,36 @@ export interface RateModel {
 
 export type QuantityModel = LagModel | RateModel;
 
+/**
+ * A one-shot reaction with a timer (D-03, D-04, C-20). A control entering a state (`on`) arms it
+ * when `when` holds for the controls at that moment; it then sets `flag` for `durationMs` of run
+ * time and ignores further events until it has ended. `clearsWhen` ends it at once. The event is
+ * the trigger, not a state poll: a press and release inside one step still start the reaction.
+ */
+export interface ReactionSpec {
+  readonly id: string;
+  /** The event that arms it: this control entering this state. */
+  readonly on: { readonly control: string; readonly value: string };
+  /** Checked right after the event is applied, over the controls at that moment. */
+  readonly when: (controls: Readonly<Record<string, string>>) => boolean;
+  /** The flag set while the reaction is active (read by lamps and models). */
+  readonly flag: string;
+  readonly durationMs: number;
+  /** When true for the controls after a step's events, the reaction ends at once. */
+  readonly clearsWhen: (controls: Readonly<Record<string, string>>) => boolean;
+}
+
 export interface PhysicsSpec {
   readonly parameters: readonly ParameterDef[];
   readonly models: readonly QuantityModel[];
+  /** One-shot reactions; none when absent. */
+  readonly reactions?: readonly ReactionSpec[];
 }
 
 export interface Physics {
   readonly parameters: readonly ParameterDef[];
   readonly models: readonly QuantityModel[];
+  readonly reactions: readonly ReactionSpec[];
   /** Map-backed, so a prototype key such as "constructor" never resolves. */
   parameter(id: string): ParameterDef | undefined;
   /** The normal value of every parameter, keyed by id. */
@@ -67,7 +93,10 @@ export interface Physics {
  * Validates a physics spec against the aircraft and freezes it. Throws PhysicsError naming the id
  * for a malformed or duplicate parameter id, a non-finite or inverted range, a normal value
  * outside its range, a model of an unknown quantity, two models of one quantity, and a lag whose
- * tauMs is not finite or is below STEP_MS. A quantity without a model keeps its value.
+ * tauMs is not finite or is below STEP_MS. A quantity without a model keeps its value. A reaction
+ * must have a unique id of the quantity-id pattern, name a registry control and one of its legal
+ * states as trigger, a dotted lower-case flag name and a finite durationMs from STEP_MS to
+ * MAX_RUN_MS.
  */
 export function definePhysics(spec: PhysicsSpec, env: PredicateEnv): Physics {
   const seen = new Set<string>();
@@ -105,6 +134,44 @@ export function definePhysics(spec: PhysicsSpec, env: PredicateEnv): Physics {
     }
   }
 
+  const reactionIds = new Set<string>();
+  for (const reaction of spec.reactions ?? []) {
+    if (!QUANTITY_ID_PATTERN.test(reaction.id)) {
+      throw new PhysicsError(
+        `reaction id "${reaction.id}" does not match ${QUANTITY_ID_PATTERN.source}`,
+      );
+    }
+    if (reactionIds.has(reaction.id)) {
+      throw new PhysicsError(`duplicate reaction id "${reaction.id}"`);
+    }
+    reactionIds.add(reaction.id);
+    const control = env.registry.get(reaction.on.control);
+    if (control === undefined) {
+      throw new PhysicsError(
+        `reaction "${reaction.id}" is armed by unknown control "${reaction.on.control}"`,
+      );
+    }
+    if (!legalStates(control).includes(reaction.on.value)) {
+      throw new PhysicsError(
+        `reaction "${reaction.id}" is armed by state "${reaction.on.value}" which is not legal for control "${reaction.on.control}"`,
+      );
+    }
+    if (!FLAG_PATTERN.test(reaction.flag)) {
+      throw new PhysicsError(
+        `reaction "${reaction.id}" has flag "${reaction.flag}" which does not match ${FLAG_PATTERN.source}`,
+      );
+    }
+    if (!(
+      Number.isFinite(reaction.durationMs) &&
+      reaction.durationMs >= STEP_MS &&
+      reaction.durationMs <= MAX_RUN_MS
+    )) {
+      throw new PhysicsError(
+        `reaction "${reaction.id}" needs a finite durationMs from ${String(STEP_MS)} to ${String(MAX_RUN_MS)} (got ${String(reaction.durationMs)})`,
+      );
+    }
+  }
+
   const parameters = Object.freeze(spec.parameters.map((d) => Object.freeze({ ...d })));
   const byId = new Map(parameters.map((d) => [d.id, d]));
   const normal: Record<string, number> = {};
@@ -114,6 +181,9 @@ export function definePhysics(spec: PhysicsSpec, env: PredicateEnv): Physics {
   return Object.freeze({
     parameters,
     models: Object.freeze(spec.models.map((m) => Object.freeze({ ...m }))),
+    reactions: Object.freeze(
+      (spec.reactions ?? []).map((r) => Object.freeze({ ...r, on: Object.freeze({ ...r.on }) })),
+    ),
     parameter: (id: string) => byId.get(id),
     normalParameters: () => normal,
   });
