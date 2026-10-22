@@ -6,7 +6,7 @@ import { defineCasRules } from '../src/engine/cas';
 import { checkScenario, lintScenario, MAX_BRANCH_LEVELS } from '../src/scenario/lint';
 import { colOf, lineOf, MINIMAL, nested, swap } from './scenario-text';
 
-// Lint rules L1 to L8, L10 and L11 (SCN-02, Table L1) through checkScenario: one failing case per rule, each an
+// Lint rules L1 to L8, L10, L11 and L12 (SCN-02, Table L1) through checkScenario: one failing case per rule, each an
 // edit of the minimal valid scenario, with the exact line and column of the edit.
 const root = fileURLToPath(new URL('../', import.meta.url));
 const BLUEPRINT = readFileSync(`${root}scenarios/engine/eng-oil-temp-green.toon`, 'utf8');
@@ -306,6 +306,62 @@ describe('L8: groups under a branch decided during the run', () => {
 
   it('accepts a run branch with lines only', () => {
     expect(checkScenario(nested(1, '- kind: line\n  text: Land', 1), DA50RG_ENV).ok).toBe(true);
+  });
+});
+
+describe('L12: physics parameters', () => {
+  const withParameters = (lines: string): string =>
+    swap(
+      MINIMAL,
+      'annunciations[1]: eng_oil_temp',
+      `parameters:\n${lines}\nannunciations[1]: eng_oil_temp`,
+    );
+
+  it('passes a parameter inside its range, also on the range bounds', () => {
+    for (const value of ['0.55', '1', '0.2']) {
+      expect(checkScenario(withParameters(`  oil_cooling: ${value}`), DA50RG_ENV).ok, value).toBe(
+        true,
+      );
+    }
+  });
+
+  it('rejects an unknown parameter at parameters.ID', () => {
+    const text = withParameters('  oil_nope: 0.5');
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'parameters.oil_nope',
+        message: 'unknown parameter "oil_nope"',
+        line: lineOf(text, 'oil_nope'),
+        col: colOf(text, 'oil_nope', 'oil_nope'),
+      },
+    ]);
+  });
+
+  it('rejects a value outside the range of the parameter', () => {
+    for (const value of ['1.5', '0.1', '-3']) {
+      const text = withParameters(`  oil_cooling: ${value}`);
+      expect(issuesOf(text), value).toEqual([
+        {
+          path: 'parameters.oil_cooling',
+          message: `${value} is outside 0.2..1 of parameter "oil_cooling"`,
+          line: lineOf(text, `oil_cooling: ${value}`),
+          col: colOf(text, `oil_cooling: ${value}`, 'oil_cooling'),
+        },
+      ]);
+    }
+  });
+
+  it('does not resolve a prototype key', () => {
+    const text = withParameters('  constructor: 0.5');
+    expect(issuesOf(text)[0]).toMatchObject({
+      path: 'parameters.constructor',
+      message: 'unknown parameter "constructor"',
+    });
+  });
+
+  it('the blueprint sets a parameter and passes', () => {
+    expect(BLUEPRINT).toContain('parameters:');
+    expect(checkScenario(BLUEPRINT, DA50RG_ENV).ok).toBe(true);
   });
 });
 

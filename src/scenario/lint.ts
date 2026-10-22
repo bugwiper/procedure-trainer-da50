@@ -4,7 +4,7 @@
 // quantities are looked up through Map-backed getters and the scenario-keyed records are only
 // iterated over their own keys, so a key such as "constructor" or "__proto__" never resolves
 // (T-02-02). Rules L4 to L8 (RESEARCH Pitfall 7 among them), L10 and L11 (a run that does nothing
-// must fail) follow, and checkScenario is the one check of the app and of `npm run validate`: it
+// must fail) follow, and L12 checks the physics parameters a scenario sets (known, inside range), and checkScenario is the one check of the app and of `npm run validate`: it
 // locates every issue in the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
@@ -91,6 +91,20 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
       add(
         path,
         `${String(value)} is outside ${String(def.min)}..${String(def.max)} of quantity "${id}"`,
+      );
+    }
+  }
+
+  // L12: every physics parameter names a parameter of the aircraft and lies inside its range.
+  // The lookup is Map-backed, so a prototype key such as "constructor" never resolves.
+  for (const [id, value] of Object.entries(scenario.parameters)) {
+    const def = env.physics.parameter(id);
+    const path = ['parameters', id];
+    if (def === undefined) add(path, `unknown parameter "${id}"`);
+    else if (value < def.min || value > def.max) {
+      add(
+        path,
+        `${String(value)} is outside ${String(def.min)}..${String(def.max)} of parameter "${id}"`,
       );
     }
   }
