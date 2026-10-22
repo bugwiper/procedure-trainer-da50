@@ -3,22 +3,23 @@ status: testing
 phase: 02-first-gradable-scenario
 source: [02-VERIFICATION.md]
 started: 2026-10-22T00:00:00Z
-updated: 2026-10-22T00:00:00Z
+updated: 2026-10-22T12:00:00Z
 ---
 
 ## Current Test
 
-number: 1
-name: Real phone and tablet run-through
+number: 2
+name: UI-SPEC wording and alert text
 expected: |
-  On real iOS Safari and Android: accept the notice, NEW SITUATION, Start run, operate power and cowl flap by touch, Procedure complete. All cards fit with the action row reachable, and the golden run grades PASS.
+  Dialogs, briefing, debrief, confirm and error text accepted against 02-UI-SPEC.md; the chip reads "ENG OIL TEMP" (the real CAS text) where the roadmap says "OIL TEMP HIGH".
 awaiting: user response
 
 ## Tests
 
 ### 1. Real phone and tablet run-through
 expected: All cards fit with the action row reachable; correct PASS for the golden run.
-result: [pending]
+result: pass
+note: Passed on macOS Safari and iPhone Safari (local preview). Android and tablet not tried.
 
 ### 2. UI-SPEC wording and alert text
 expected: Dialogs, briefing, debrief, confirm and error text accepted against 02-UI-SPEC.md; the chip reads "ENG OIL TEMP" (the real CAS text) where the roadmap says "OIL TEMP HIGH".
@@ -31,9 +32,9 @@ result: [pending]
 ## Summary
 
 total: 3
-passed: 0
+passed: 1
 issues: 0
-pending: 3
+pending: 2
 skipped: 0
 blocked: 0
 
