@@ -21,6 +21,7 @@ import {
 import type { ColumnText } from '../src/aircraft/da50rg/avionics';
 import { DA50RG, VIEWBOX } from '../src/aircraft/da50rg/panel';
 import { PLATES } from '../src/aircraft/da50rg/plates';
+import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import type { PanelBridge } from '../src/ui/bridge';
 import { AudioPanelFrame } from '../src/ui/panel/frames/AudioPanelFrame';
 import { AutopilotPanelFrame } from '../src/ui/panel/frames/AutopilotPanelFrame';
@@ -53,11 +54,13 @@ function region(id: string) {
   return found;
 }
 
-/** A bridge with only what the frames read: the registry and the MFD page signal. */
+/** A bridge with only what the frames read: registry, MFD page signal, idle quantities, no CAS. */
 function fakeBridge(page: 'map' | 'engine'): PanelBridge {
   return {
     registry: DA50RG,
     stateOf: () => ({ value: page }),
+    quantities: { value: DA50RG_QUANTITIES.idleValues() },
+    cas: { value: [] },
   } as unknown as PanelBridge;
 }
 
@@ -417,7 +420,13 @@ describe('glass header, content and legend zones', () => {
       findElements(tree, (e) => e.props['data-testid'] !== undefined).map(
         (e) => e.props['data-testid'],
       );
-    expect(ids(pfd)).toEqual(['pfd-attitude', 'pfd-airspeed', 'pfd-altitude', 'pfd-heading']);
+    expect(ids(pfd)).toEqual([
+      'pfd-attitude',
+      'cas-chips',
+      'pfd-airspeed',
+      'pfd-altitude',
+      'pfd-heading',
+    ]);
     expect(ids(mfdMap)).toEqual(['mfd-map-page', 'mfd-engine-strip', 'mfd-map']);
     expect(ids(mfdEngine)).toEqual(['mfd-engine-page']);
   });

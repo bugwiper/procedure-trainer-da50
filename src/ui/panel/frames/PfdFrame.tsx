@@ -1,4 +1,5 @@
 import { PFD_LEGENDS } from '../../../aircraft/da50rg/avionics';
+import { CasChips } from './CasChips';
 import { GlassHeader, LegendRow, SCREEN_FILL } from './MfdFrame';
 import type { FrameProps } from './MfdFrame';
 
@@ -34,9 +35,9 @@ function polar(cx: number, cy: number, r: number, deg: number): string {
 /**
  * PFD frame (D-04, D-11): original vector artwork with static idle values, no handlers. The glass
  * has a header strip, a content band and a 12-slot legend row (Table D4); live attitude, speed,
- * altitude and heading arrive with PNL-04 in Phase 3.
+ * altitude and heading arrive with PNL-04 in Phase 3. CAS chips follow the aircraft rules (PNL-03).
  */
-export function PfdFrame({ region }: FrameProps) {
+export function PfdFrame({ region, bridge }: FrameProps) {
   const { w, h } = region.bounds;
   const cx = ATT_X + ATT_W / 2;
   const pitchMarks = [-10, -5, 5, 10];
@@ -122,6 +123,9 @@ export function PfdFrame({ region }: FrameProps) {
             stroke-width={1.5}
           />
         </g>
+
+        {/* Annunciations: derived from the aircraft CAS rules, drawn over the attitude art. */}
+        <CasChips active={bridge.cas.value} />
 
         <g data-testid="pfd-airspeed">
           <rect x={10} y={ATT_Y} width={80} height={ATT_H} fill="#12181e" stroke="#3a424b" />

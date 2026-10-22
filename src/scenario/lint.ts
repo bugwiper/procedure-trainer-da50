@@ -8,7 +8,12 @@
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import type { AircraftEnv } from '../engine/env';
-import { baselineOf, evaluatePredicate, initialQuantities } from '../engine/predicates';
+import {
+  baselineOf,
+  evaluatePredicate,
+  initialQuantities,
+  predicateProblems,
+} from '../engine/predicates';
 import type { PredicateContext } from '../engine/predicates';
 import { legalStates } from '../engine/registry';
 import { joinPath, parseScenario } from './parse';
@@ -35,62 +40,9 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
     issues.push({ path: joinPath(segments), segments, message });
   };
 
-  const checkControl = (path: Segments, id: string) => {
-    const def = env.registry.get(id);
-    if (def === undefined) add(path, `unknown control "${id}"`);
-    return def;
-  };
-
   const checkPredicate = (path: Segments, predicate: Predicate): void => {
-    switch (predicate.check) {
-      case 'state': {
-        const def = checkControl([...path, 'control'], predicate.control);
-        if (def !== undefined && !legalStates(def).includes(predicate.is)) {
-          add([...path, 'is'], `"${predicate.is}" is not a state of control "${def.id}"`);
-        }
-        return;
-      }
-      case 'state_in': {
-        const def = checkControl([...path, 'control'], predicate.control);
-        if (def === undefined) return;
-        const legal = legalStates(def);
-        predicate.in.forEach((state, i) => {
-          if (!legal.includes(state)) {
-            add([...path, 'in', i], `"${state}" is not a state of control "${def.id}"`);
-          }
-        });
-        return;
-      }
-      case 'travel':
-      case 'travel_rel': {
-        const def = checkControl([...path, 'control'], predicate.control);
-        if (def !== undefined && def.kind !== 'detent-lever') {
-          add(
-            [...path, 'control'],
-            `a ${predicate.check} check needs a detent lever, "${def.id}" is a ${def.kind}`,
-          );
-        }
-        return;
-      }
-      case 'quantity': {
-        if (env.quantities.get(predicate.quantity) === undefined) {
-          add([...path, 'quantity'], `unknown quantity "${predicate.quantity}"`);
-        }
-        return;
-      }
-      case 'band': {
-        const def = env.quantities.get(predicate.quantity);
-        if (def === undefined) {
-          add([...path, 'quantity'], `unknown quantity "${predicate.quantity}"`);
-          return;
-        }
-        predicate.in.forEach((band, i) => {
-          if (!def.bands.some((b) => b.id === band)) {
-            add([...path, 'in', i], `"${band}" is not a band of quantity "${def.id}"`);
-          }
-        });
-        return;
-      }
+    for (const problem of predicateProblems(predicate, env)) {
+      add([...path, ...problem.at], problem.message);
     }
   };
 

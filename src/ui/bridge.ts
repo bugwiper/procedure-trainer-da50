@@ -3,8 +3,10 @@
 
 import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal, Signal } from '@preact/signals';
+import type { ActiveCas, CasRuleSet } from '../engine/cas';
 import { evaluateIndicator } from '../engine/indicators';
 import type { IndicatorSet } from '../engine/indicators';
+import type { PredicateContext } from '../engine/predicates';
 import type { QuantityId, QuantitySet } from '../engine/quantities';
 import { legalStates } from '../engine/registry';
 import type { ControlId, Registry, StateId } from '../engine/registry';
@@ -28,6 +30,8 @@ declare global {
 /** What the bridge needs of an aircraft beyond its registry; DA50RG_ENV satisfies it. */
 export interface BridgeAircraft {
   readonly quantities: QuantitySet;
+  /** The CAS rule table; without it no message is ever active. */
+  readonly cas?: CasRuleSet;
 }
 
 export interface PanelBridge {
@@ -54,6 +58,11 @@ export interface PanelBridge {
     controls: Readonly<Record<ControlId, StateId>>,
     quantities?: Readonly<Record<QuantityId, number>>,
   ): void;
+  /**
+   * Active CAS messages (D-06, D-08): the aircraft rules evaluated over the quantities and the
+   * control states, warnings first. Derived, never set; empty without an aircraft rule table.
+   */
+  readonly cas: ReadonlySignal<readonly ActiveCas[]>;
   /** Event times come from now() (a virtual clock); null restores performance.now. */
   setTimeSource(now: (() => number) | null): void;
 }
@@ -90,6 +99,28 @@ export function createPanelBridge(
     aircraft === undefined ? {} : aircraft.quantities.idleValues();
   const quantities = signal<Readonly<Record<QuantityId, number>>>(idleQuantities());
   let timeSource: () => number = () => performance.now();
+
+  // The rules may read the baseline (travel_rel), which changes on a reset without a control event.
+  const resets = signal(0);
+  store.onReset(() => {
+    resets.value += 1;
+  });
+  const casRules = aircraft?.cas;
+  const cas = computed<readonly ActiveCas[]>(() => {
+    if (aircraft === undefined || casRules === undefined) return [];
+    void resets.value;
+    const controls: Record<ControlId, StateId> = {};
+    const baseline: Record<ControlId, StateId> = {};
+    const given = store.baseline();
+    for (const id of casRules.controlsRead) {
+      const s = signals.get(id);
+      if (s !== undefined) controls[id] = s.value;
+      const start = given[id] ?? registry.get(id)?.default;
+      if (start !== undefined) baseline[id] = start;
+    }
+    const ctx: PredicateContext = { controls, baseline, quantities: quantities.value };
+    return casRules.active(ctx, { registry, quantities: aircraft.quantities });
+  });
 
   // Flags (for example gear.in_transit) are an empty record in this phase; Phase 3 feeds them.
   const flags: Readonly<Record<string, boolean>> = {};
@@ -142,6 +173,7 @@ export function createPanelBridge(
       return store.retract(seq);
     },
     quantities,
+    cas,
     reset(controls, given = {}) {
       store.reset(controls);
       quantities.value = { ...idleQuantities(), ...given };

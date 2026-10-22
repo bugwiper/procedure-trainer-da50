@@ -82,6 +82,50 @@ test('@hooks NEW SITUATION starts ENG OIL TEMP in its initial state', async ({
   expect(footer?.height ?? 0).toBeGreaterThanOrEqual(MIN_FOOTER_PX);
 });
 
+const chips = (page: Page) => page.locator('[data-testid="cas-chip"]');
+
+/** The chip lies inside the PFD region box and right of its centre. */
+async function expectChipInPfd(page: Page): Promise<void> {
+  const pfd = await page.locator('[data-region-id="pfd"]').boundingBox();
+  const chip = await chips(page).boundingBox();
+  expect(pfd).not.toBeNull();
+  expect(chip).not.toBeNull();
+  if (pfd === null || chip === null) return;
+  expect(chip.x).toBeGreaterThanOrEqual(pfd.x);
+  expect(chip.y).toBeGreaterThanOrEqual(pfd.y);
+  expect(chip.x + chip.width).toBeLessThanOrEqual(pfd.x + pfd.width);
+  expect(chip.y + chip.height).toBeLessThanOrEqual(pfd.y + pfd.height);
+  expect(chip.x).toBeGreaterThan(pfd.x + pfd.width / 2 - 1);
+}
+
+test('@hooks the ENG OIL TEMP chip shows during the run and stays after the debrief', async ({
+  page,
+  hasTouch,
+}) => {
+  // Free panel: no annunciation is drawn.
+  await expect(chips(page)).toHaveCount(0);
+
+  await startRun(page, hasTouch);
+  await expect(chips(page)).toHaveCount(1);
+  const chip = chips(page).first();
+  await expect(chip).toHaveAttribute('data-cas-id', 'eng_oil_temp');
+  await expect(chip).toHaveAttribute('data-level', 'warning');
+  await expect(chip).toHaveAttribute('aria-label', 'Warning: ENG OIL TEMP');
+  await expect(chip).toHaveText('ENG OIL TEMP');
+  await expectChipInPfd(page);
+  // The exam stays silent: no live region on the chip group.
+  await expect(page.locator('[data-testid="cas-chips"] [aria-live]')).toHaveCount(0);
+
+  await goldenTaps(page, hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await activate(page.getByTestId('debrief-back'), hasTouch);
+  await expect(page.getByRole('dialog')).toBeHidden();
+  // Closing the debrief keeps the end state, the annunciation included (U-10).
+  await expect(chips(page)).toHaveCount(1);
+  await expectChipInPfd(page);
+});
+
 test('@hooks the golden run grades PASS and keeps the end state', async ({ page, hasTouch }) => {
   await startRun(page, hasTouch);
   await goldenTaps(page, hasTouch);
