@@ -3,8 +3,9 @@
 // per reference that does not resolve, with the path of the offending field. Controls and
 // quantities are looked up through Map-backed getters and the scenario-keyed records are only
 // iterated over their own keys, so a key such as "constructor" or "__proto__" never resolves
-// (T-02-02). Rules L4 to L8 (RESEARCH Pitfall 7 among them) follow, and checkScenario is the one
-// check of the app and of `npm run validate`: it locates every issue in the text.
+// (T-02-02). Rules L4 to L8 (RESEARCH Pitfall 7 among them), L10 and L11 (a run that does nothing
+// must fail) follow, and checkScenario is the one check of the app and of `npm run validate`: it
+// locates every issue in the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { MAX_CAS_CHIPS } from '../engine/cas';
@@ -164,7 +165,10 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
   return issues;
 }
 
-/** L5, L6 and L10: what already holds before the first event (RESEARCH Pitfall 7, R3). */
+/**
+ * L5, L6, L10 and L11: what already holds before the first event (RESEARCH Pitfall 7, R3), and
+ * that at least one critical step is graded at the start, so a run that does nothing fails (WR-01).
+ */
 function checkInitialState(
   scenario: Scenario,
   env: AircraftEnv,
@@ -177,6 +181,7 @@ function checkInitialState(
     quantities: initialQuantities(scenario, env.quantities),
   };
 
+  let criticalAtStart = 0;
   const visit = (path: Segments, nodes: readonly ProcedureNode[], applies: boolean): void => {
     nodes.forEach((node, i) => {
       const here = [...path, i];
@@ -186,6 +191,7 @@ function checkInitialState(
         case 'group':
           if (!applies) return;
           node.steps.forEach((step, j) => {
+            if (step.severity === 'critical') criticalAtStart++;
             if (evaluatePredicate(step.done, ctx, env)) {
               add(
                 [...here, 'steps', j, 'done'],
@@ -214,6 +220,12 @@ function checkInitialState(
     });
   };
   visit(['procedure'], scenario.procedure, true);
+  if (criticalAtStart === 0) {
+    add(
+      ['procedure'],
+      'no critical step is graded at the start; a run that does nothing would pass',
+    );
+  }
 
   // L10: the annunciations list equals, as a set, the rules that fire in the initial state, and
   // the PFD shows at most MAX_CAS_CHIPS of them (SCN-03, T-02-14: a scenario cannot claim a message

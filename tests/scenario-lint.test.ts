@@ -6,7 +6,7 @@ import { defineCasRules } from '../src/engine/cas';
 import { checkScenario, lintScenario, MAX_BRANCH_LEVELS } from '../src/scenario/lint';
 import { colOf, lineOf, MINIMAL, nested, swap } from './scenario-text';
 
-// Lint rules L1 to L8 (SCN-02, Table L1) through checkScenario: one failing case per rule, each an
+// Lint rules L1 to L8, L10 and L11 (SCN-02, Table L1) through checkScenario: one failing case per rule, each an
 // edit of the minimal valid scenario, with the exact line and column of the edit.
 const root = fileURLToPath(new URL('../', import.meta.url));
 const BLUEPRINT = readFileSync(`${root}scenarios/engine/eng-oil-temp-green.toon`, 'utf8');
@@ -306,6 +306,33 @@ describe('L8: groups under a branch decided during the run', () => {
 
   it('accepts a run branch with lines only', () => {
     expect(checkScenario(nested(1, '- kind: line\n  text: Land', 1), DA50RG_ENV).ok).toBe(true);
+  });
+});
+
+describe('L11: a run that does nothing must fail', () => {
+  it('rejects a blueprint whose applying branch holds no step', () => {
+    // 2.5 bar is in the low band: "If too low:" applies and has no nodes, the green branch does not.
+    const text = swap(BLUEPRINT, 'oil_pressure_bar: 5', 'oil_pressure_bar: 2.5');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'procedure',
+      line: lineOf(text, 'procedure[1]:'),
+      col: 1,
+    });
+    expect(issues[0]?.message).toContain('a run that does nothing would pass');
+  });
+
+  it('rejects a scenario without a critical step', () => {
+    const text = MINIMAL.replaceAll('severity: critical', 'severity: standard');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ path: 'procedure', line: lineOf(text, 'procedure[2]:') });
+  });
+
+  it('passes the minimal scenario and the blueprint', () => {
+    expect(checkScenario(MINIMAL, DA50RG_ENV).ok).toBe(true);
+    expect(checkScenario(BLUEPRINT, DA50RG_ENV).ok).toBe(true);
   });
 });
 

@@ -76,11 +76,12 @@ export function colOf(text: string, needle: string, key: string): number {
 /**
  * A scenario whose procedure is `levels` nested standalone branches (each applies at the start)
  * around `innerBody`; `runAt` marks that level (1-based) as decided during the run, and `when`
- * replaces the condition of every branch.
+ * replaces the condition of every branch. The nested branch is procedure node 0; node 1 is the
+ * critical group of MINIMAL, so the scenario always grades a critical step at the start (L11).
  */
 export function nested(levels: number, innerBody: string, runAt?: number, when = 'closed'): string {
   const head = MINIMAL.slice(0, MINIMAL.indexOf('procedure[2]:'));
-  const lines = ['procedure[1]:'];
+  const lines = ['procedure[2]:'];
   let pad = '  ';
   for (let level = 1; level <= levels; level++) {
     lines.push(
@@ -96,5 +97,8 @@ export function nested(levels: number, innerBody: string, runAt?: number, when =
     pad += '    ';
   }
   lines.push(...innerBody.split('\n').map((l) => `${pad}${l}`));
+  const groupStart = MINIMAL.indexOf('  - kind: group');
+  const groupEnd = MINIMAL.indexOf('  - kind: line');
+  lines.push(MINIMAL.slice(groupStart, groupEnd).trimEnd());
   return `${head}${lines.join('\n')}\n`;
 }
