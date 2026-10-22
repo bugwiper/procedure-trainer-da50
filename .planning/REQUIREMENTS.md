@@ -47,7 +47,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Content
 
-- [ ] **CNT-01**: Initial pack contains Oil Temp High, Electrical Failure and Engine Fire scenarios
+- [x] **CNT-01**: Initial pack contains Oil Temp High, Electrical Failure and Engine Fire scenarios
 - [ ] **CNT-02**: An authoring guide explains how to add scenarios and validate them
 - [x] **CNT-03**: A content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is decided before any procedure text is committed
 
@@ -130,7 +130,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCN-06 | Phase 3 | Pending |
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
-| CNT-01 | Phase 3 | Pending |
+| CNT-01 | Phase 3 | Complete |
 | SES-02 | Phase 4 | Pending |
 | SES-05 | Phase 4 | Pending |
 | SES-06 | Phase 4 | Pending |
