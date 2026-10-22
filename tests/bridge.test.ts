@@ -165,3 +165,27 @@ describe('bridge time source', () => {
     expect(t).toBeGreaterThan(0);
   });
 });
+
+describe('bridge setQuantities (plan 03-01)', () => {
+  const aircraft = { quantities: DA50RG_QUANTITIES };
+
+  it('replaces the values, and the same values again keep the very same object', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    const next = { ...DA50RG_QUANTITIES.idleValues(), oil_temp_c: 100 };
+    bridge.setQuantities(next);
+    expect(bridge.quantities.value).toEqual(next);
+    const held = bridge.quantities.value;
+    bridge.setQuantities({ ...next });
+    expect(bridge.quantities.value).toBe(held);
+    bridge.setQuantities({ ...next, oil_temp_c: 100.01 });
+    expect(bridge.quantities.value).not.toBe(held);
+    expect(bridge.quantities.value['oil_temp_c']).toBe(100.01);
+  });
+
+  it('feeds the derived CAS chips', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
+    expect(bridge.cas.value).toEqual([]);
+    bridge.setQuantities({ ...DA50RG_QUANTITIES.idleValues(), oil_temp_c: 130 });
+    expect(bridge.cas.value.map((m) => m.id)).toEqual(['eng_oil_temp']);
+  });
+});

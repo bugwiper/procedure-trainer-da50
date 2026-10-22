@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page, Route } from '@playwright/test';
+import { quantityOf } from './support/session';
 import { FULL_VIEWBOX, activate } from './support/zoom';
 
 // SES-01, SES-03, SES-04, SCN-05, SCN-07, PLT-04 (phase 02): the pilot's path on the built panel.
@@ -463,15 +464,19 @@ test('@hooks the ENG OIL TEMP chip shows during the run and stays after the debr
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   await activate(page.getByTestId('debrief-back'), hasTouch);
   await expect(page.getByRole('dialog')).toBeHidden();
-  // Closing the debrief keeps the end state, the annunciation included (U-10).
-  await expect(chips(page)).toHaveCount(1);
-  await expectChipInPfd(page);
+  // Closing the debrief keeps the end state (U-10, C-04): the paused run no longer moves the oil
+  // temperature, and the annunciation is the one that value derives (above 125 the chip shows).
+  const settled = await quantityOf(page, 'oil_temp_c');
+  await page.waitForTimeout(1000);
+  expect(await quantityOf(page, 'oil_temp_c')).toBe(settled);
+  await expect(chips(page)).toHaveCount(settled > 125 ? 1 : 0);
+  if (settled > 125) await expectChipInPfd(page);
 });
 
 const mfdGauge = (page: Page, label: string) =>
   page.locator(`[data-region-id="mfd"] [data-gauge="${label}"]`);
 
-test('@hooks the MFD oil gauges read the scenario values and the idle values in the free panel', async ({
+test('@hooks the MFD oil gauges read the idle values in the free panel and the live values in a run', async ({
   page,
   hasTouch,
 }) => {
@@ -479,14 +484,18 @@ test('@hooks the MFD oil gauges read the scenario values and the idle values in 
   await expect(mfdGauge(page, 'Oil pres')).toContainText('0 BAR');
 
   await startRun(page, hasTouch);
-  // Map page: the engine strip shows 128 degrees C (red band) and 5 bar (green band).
-  await expect(mfdGauge(page, 'Oil temp')).toContainText('128 °C');
-  await expect(mfdGauge(page, 'Oil pres')).toContainText('5 BAR');
+  // The oil temperature moves during a run (D-01), so the start values 128 degrees C and 5 bar are
+  // read with a tolerance right after Start run; the pressure has no model and stays at 5.
+  expect(Math.abs((await quantityOf(page, 'oil_temp_c')) - 128)).toBeLessThanOrEqual(3);
+  expect(Math.abs((await quantityOf(page, 'oil_pressure_bar')) - 5)).toBeLessThanOrEqual(3);
+  // Map page: the engine strip shows a number with its unit for each.
+  await expect(mfdGauge(page, 'Oil temp')).toContainText(/\d+ °C/);
+  await expect(mfdGauge(page, 'Oil pres')).toContainText(/\d+ BAR/);
   // Engine page: the same values on the arc and the bar.
   await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
   await expect(page.getByTestId('mfd-engine-page')).toBeVisible();
-  await expect(mfdGauge(page, 'Oil temp')).toContainText('128 °C');
-  await expect(mfdGauge(page, 'Oil pres')).toContainText('5');
+  await expect(mfdGauge(page, 'Oil temp')).toContainText(/\d+ °C/);
+  await expect(mfdGauge(page, 'Oil pres')).toContainText(/\d/);
   await expect(mfdGauge(page, 'Oil pres')).toContainText('BAR');
 });
 

@@ -900,3 +900,95 @@ describe('level (phase 02.1)', () => {
     expect(results[0]).toEqual(results[1]);
   });
 });
+
+describe('run (phase 03)', () => {
+  const runOf = (r: Rig) => {
+    const run = r.session.run.value;
+    if (run === null) throw new Error('no run');
+    return run;
+  };
+
+  it('startRun creates a run at the scenario quantities, mirrored by the bridge', async () => {
+    const free = rig();
+    expect(free.session.run.value).toBeNull();
+
+    const r = await started();
+    const run = runOf(r);
+    const expected = { ...DA50RG_QUANTITIES.idleValues(), oil_temp_c: 128, oil_pressure_bar: 5 };
+    expect(run.state.t).toBe(0);
+    expect(run.state.quantities).toEqual(expected);
+    expect(r.bridge.quantities.value).toEqual(expected);
+    expect(run.clock).toBe(r.session.clock.value);
+  });
+
+  it('50 steps move the oil temperature, the bridge follows every step, the clock reads 5000', async () => {
+    const r = await started();
+    const run = runOf(r);
+    const first = r.bridge.quantities.value['oil_temp_c'];
+    for (let i = 0; i < 50; i++) {
+      run.step();
+      expect(r.bridge.quantities.value, `step ${String(i + 1)}`).toEqual(run.state.quantities);
+    }
+    expect(run.clock.now()).toBe(5000);
+    expect(r.session.clock.value?.now()).toBe(5000);
+    expect(run.state.quantities['oil_temp_c']).not.toBe(first);
+    expect(run.state.quantities['oil_pressure_bar']).toBe(5);
+  });
+
+  it('an actuation at clock time T is in the run controls only after the next step', async () => {
+    const r = await started();
+    const run = runOf(r);
+    run.step();
+    r.bridge.actuate('lv.power', 'p50');
+    expect(r.bridge.stateOf('lv.power').value).toBe('p50');
+    expect(run.state.controls['lv.power']).toBe('p75');
+    run.step();
+    expect(run.state.controls['lv.power']).toBe('p50');
+  });
+
+  it('after complete a further step changes nothing; closeDebrief sets run to null', async () => {
+    const r = await started();
+    const run = runOf(r);
+    run.step();
+    run.step();
+    r.session.complete();
+    const frozen = run.state;
+    const shown = r.bridge.quantities.value;
+    run.step();
+    expect(run.state).toBe(frozen);
+    expect(r.bridge.quantities.value).toBe(shown);
+    expect(run.clock.now()).toBe(200);
+    expect(r.session.run.value).toBe(run);
+
+    r.session.closeDebrief();
+    expect(r.session.run.value).toBeNull();
+    // The end state of the run stays on the panel (C-04).
+    expect(r.bridge.quantities.value).toBe(shown);
+  });
+
+  it('leaveRun sets run to null and a disposed run no longer feeds the bridge', async () => {
+    const r = await started();
+    const run = runOf(r);
+    run.step();
+    await r.session.newSituation();
+    await r.session.leaveRun();
+    expect(r.session.run.value).toBeNull();
+    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    run.step();
+    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+  });
+
+  it('the next run starts a fresh run from the scenario quantities', async () => {
+    const r = await started();
+    const old = runOf(r);
+    for (let i = 0; i < 20; i++) old.step();
+    r.session.complete();
+    r.session.closeDebrief();
+    await r.session.newSituation();
+    r.session.startRun();
+    const next = runOf(r);
+    expect(next).not.toBe(old);
+    expect(next.state.t).toBe(0);
+    expect(r.bridge.quantities.value['oil_temp_c']).toBe(128);
+  });
+});
