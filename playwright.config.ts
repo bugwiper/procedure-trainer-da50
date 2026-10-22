@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { ACK_STORAGE_KEY, ACK_VERSION } from './src/ui/ack';
 
 // PW_PORT lets parallel worktrees run their own preview server (Phase 1 plan 06 deviation:
 // a foreign server on 4173 was silently reused and tested another worktree's build).
@@ -7,6 +8,18 @@ export const LOCAL_BASE = `http://localhost:${port}/procedure-trainer-da-50/`;
 const liveBase = process.env['PW_BASE_URL'];
 const baseURL = liveBase ?? LOCAL_BASE;
 
+// Every project starts with the training-aid acknowledgment accepted, local and live; only
+// e2e/ack.spec.ts overrides this with an empty state (PLT-04, RESEARCH Pitfall 2).
+const ACCEPTED_STATE = {
+  cookies: [],
+  origins: [
+    {
+      origin: new URL(baseURL).origin,
+      localStorage: [{ name: ACK_STORAGE_KEY, value: String(ACK_VERSION) }],
+    },
+  ],
+};
+
 export default defineConfig({
   testDir: 'e2e',
   forbidOnly: !!process.env['CI'],
@@ -14,7 +27,7 @@ export default defineConfig({
   reporter: 'list',
   // @hooks specs read the test-only window hook that only the e2e build contains.
   grepInvert: liveBase ? /@hooks/ : undefined,
-  use: { baseURL, trace: 'on-first-retry' },
+  use: { baseURL, storageState: ACCEPTED_STATE, trace: 'on-first-retry' },
   ...(liveBase
     ? {}
     : {

@@ -5,10 +5,12 @@ import { DA50RG } from '../aircraft/da50rg/panel';
 import { OPEN_ACCESS } from '../scenario/packs';
 import { VITE_PACKS } from '../scenario/packs-vite';
 import { About } from './about/About';
+import { browserStorage, createAckStore } from './ack';
 import { createPanelBridge } from './bridge';
 import { Panel } from './panel/Panel';
 import { isStrayFullPanelClick } from './panel/tap-intent';
 import { buttonCorner, isZoomed, viewChangedByTapAt, zoomOut } from './panel/zoom';
+import { Ack } from './screens/Ack';
 import { Debrief } from './screens/Debrief';
 import { createSession } from './session';
 
@@ -37,10 +39,18 @@ if (import.meta.env.VITE_TEST_HOOKS === '1') {
 
 // UI-only state: neither signal touches the panel store.
 const aboutOpen = signal(false);
+// The first-run training-aid acknowledgment (PLT-04, D-17); blocked storage falls back to memory.
+const ackStore = createAckStore(browserStorage());
+const ackRequired = signal(ackStore.required());
 const rotateHintDismissed = signal(false);
 
 /** When a pointer last went down on the Full panel button (event.timeStamp); null until it does. */
 let fullPanelPressedAt: number | null = null;
+
+const acceptAck = () => {
+  ackStore.accept();
+  ackRequired.value = false;
+};
 
 const closeAbout = () => {
   aboutOpen.value = false;
@@ -131,6 +141,7 @@ export function App() {
       {screen === 'debrief' && scenario !== null && result !== null ? (
         <Debrief scenario={scenario} result={result} onClose={closeDebrief} />
       ) : null}
+      {ackRequired.value ? <Ack onAccept={acceptAck} /> : null}
     </div>
   );
 }

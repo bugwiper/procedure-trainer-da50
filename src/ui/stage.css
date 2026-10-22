@@ -162,10 +162,12 @@ body,
   display: inline;
 }
 
-/* Modal container (debrief; plan 09 moves the dialogs onto the shared shell). Full viewport above
+/* The shared modal shell (src/ui/screens/Modal.tsx; UI-SPEC Overlay mechanics). Full viewport above
    Full panel (30), About (20) and the rotate hint (10); the scrim covers the SVG hit area, so no
-   tap reaches a control behind it. A backdrop tap does nothing. No animation. */
+   tap reaches a control behind it. A backdrop tap does nothing. The first-run acknowledgment sits
+   one layer higher (60). No animation. */
 .modal {
+  --modal-pad: 24px;
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -179,6 +181,16 @@ body,
   color: #e6e9ed;
 }
 
+.modal-ack {
+  z-index: 60;
+}
+
+@media (max-height: 500px) {
+  .modal {
+    --modal-pad: 16px;
+  }
+}
+
 .modal-card {
   box-sizing: border-box;
   width: 100%;
@@ -186,7 +198,7 @@ body,
   max-height: calc(100dvh - 32px);
   overflow: auto;
   touch-action: pan-y;
-  padding: 16px;
+  padding: var(--modal-pad);
   border: 1px solid #3a424b;
   border-radius: 8px;
   background: #1b1f25;
@@ -195,30 +207,62 @@ body,
   line-height: 1.5;
 }
 
+.modal-title {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.modal-body {
+  margin: 0 0 12px;
+  letter-spacing: 0.02em;
+}
+
+/* Sticky action row on the card background; it reaches over the card padding so scrolled text
+   never shows below it. */
 .modal-actions {
   position: sticky;
-  bottom: 0;
+  bottom: calc(-1 * var(--modal-pad));
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  padding-top: 12px;
+  gap: 16px;
+  margin: 0 calc(-1 * var(--modal-pad)) calc(-1 * var(--modal-pad));
+  padding: 12px var(--modal-pad) var(--modal-pad);
   background: #1b1f25;
 }
 
-.primary-button {
+.primary-button,
+.secondary-button {
   appearance: none;
   box-sizing: border-box;
   min-height: 44px;
-  min-width: 160px;
+  min-width: 120px;
   padding: 0 16px;
-  border: 0;
   border-radius: 8px;
-  background: #8fb8e6;
-  color: #0b0d10;
   font-family: var(--font-placard);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
+}
+
+.primary-button {
+  border: 0;
+  background: #8fb8e6;
+  color: #0b0d10;
+}
+
+.secondary-button {
+  border: 1px solid #3a424b;
+  background: transparent;
+  color: #e6e9ed;
+}
+
+.secondary-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }
 
 .primary-button:active {

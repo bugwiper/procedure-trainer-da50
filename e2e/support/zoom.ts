@@ -96,6 +96,9 @@ export async function doubleActivateAt(page: Page, p: Point, hasTouch: boolean):
 
 /** Clicks or taps a locator (mouse projects click, touch projects tap). */
 export async function activate(target: Locator, hasTouch: boolean): Promise<void> {
+  // A modal swallows pointer and click events for its first 400 ms (data-shield, U-12): a target
+  // inside one is pressed only after the shield ends.
+  await expect(target.locator('xpath=ancestor-or-self::*[@data-shield]')).toHaveCount(0);
   if (hasTouch) await target.tap();
   else await target.click();
 }
