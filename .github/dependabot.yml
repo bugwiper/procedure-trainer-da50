@@ -8,6 +8,12 @@ updates:
       # typescript-eslint caps TypeScript below 6.1
       - dependency-name: typescript
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # TOON is a Working Draft: an upgrade is a deliberate task that runs the conformance corpus
+      # (tests/toon-conformance.test.ts) and migrates the scenario files if it fails
+      - dependency-name: "@toon-format/toon"
+      # zod majors change schema behaviour; take them deliberately
+      - dependency-name: zod
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
