@@ -1,7 +1,7 @@
 # Project Research Summary
 
 **Project:** DA50 RG Procedure Trainer
-**Domain:** Web-based 2D cockpit procedure / emergency part-task trainer (interactive SVG panel, YAML-authored scenarios, graded debrief, static hosting)
+**Domain:** Web-based 2D cockpit procedure / emergency part-task trainer (interactive SVG panel, TOON-authored scenarios, graded debrief, static hosting)
 **Researched:** 2026-10-19
 **Confidence:** MEDIUM-HIGH (toolchain HIGH; grading/DSL design and legal items MEDIUM)
 
@@ -9,7 +9,7 @@
 
 This is a narrow-gap product. The market splits into read-only checklists and full simulators. Only VRflow (DA40, subscription) sits near an operate-the-panel trainer with evaluation. No competitor publicly documents partial-order, forbidden-action or escalation grading, and none covers the DA50 RG. Experts build this class of product as a deterministic, headless simulation core with a thin rendering shell. The core holds flat aircraft state, a control registry, an event log, an injectable clock, a scenario rules engine and a pure-function grader. The UI emits control events and never decides correctness.
 
-The recommended approach is Vite 8, TypeScript 6.0.x (pinned, not 7) and Preact 11 with signals for the SVG panel. `yaml` and Zod 4 are the single source of truth for the scenario schema. The engine is plain TS, event-sourced, with a virtual clock (no XState). The panel is generated from a control registry plus layout data, not a hand-exported SVG. Scenarios are a small closed declarative DSL. It covers required/optional/forbidden actions, ordered groups and trigger/effect reactions. Scenarios are compiled and cross-checked against the registry. Training and Exam share one engine, and mode is a feedback policy only. Deploy via GitHub Actions to Pages, starting with a hello-world on day one.
+The recommended approach is Vite 8, TypeScript 6.0.x (pinned, not 7) and Preact 11 with signals for the SVG panel. `@toon-format/toon` (pinned exactly) and Zod 4 are the single source of truth for the scenario schema. The engine is plain TS, event-sourced, with a virtual clock (no XState). The panel is generated from a control registry plus layout data, not a hand-exported SVG. Scenarios are a small closed declarative DSL. It covers required/optional/forbidden actions, ordered groups and trigger/effect reactions. Scenarios are compiled and cross-checked against the registry. Training and Exam share one engine, and mode is a feedback policy only. Deploy via GitHub Actions to Pages, starting with a hello-world on day one.
 
 Key risks:
 1. Grading semantics (state predicates, partial order, harmful actions, critical-item fail) must be specified before any scenario is authored, because schema changes break content.
@@ -28,9 +28,9 @@ Versions were verified against npm on 2026-10-19 with a passing probe build. Do 
 - TypeScript `~6.0.3`: TS 7 has no programmatic API, and the typescript-eslint peer is `<6.1.0`. Pin it and ignore TS majors in Dependabot.
 - Vite 8.3.x: dev and build, `import.meta.glob` for lazy per-pack chunks, official Pages workflow.
 - Preact 11 + @preact/signals + @preact/preset-vite: about 3 KB, native SVG JSX, fine-grained attribute updates (fallback Preact 10.29.x).
-- `yaml` 2.9.x: YAML 1.2 (no Norway problem) and source positions for line/col errors.
+- `@toon-format/toon` 4.4.0, pinned exactly: strict decoding with 1-based line errors; schema errors get line and column from the project's own path-to-line index.
 - Zod 4.6.x: schema, TS types and JSON Schema (`z.toJSONSchema`) for VS Code authoring. Use `z.strictObject` everywhere.
-- Plain TS reducer engine + virtual clock: not XState, because scenarios are YAML data and not an FSM.
+- Plain TS reducer engine + virtual clock: not XState, because scenarios are TOON data and not an FSM.
 - Vitest 5, Playwright 1.64 (chromium, webkit, mobile emulation), ESLint 10, Prettier, self-hosted B612 font. vite-plugin-pwa comes later.
 
 ### Expected Features
@@ -47,7 +47,7 @@ Versions were verified against npm on 2026-10-19 with a passing probe build. Do 
 **Should have (competitive):**
 - Rich grading taxonomy: critical/standard required, optional, ordered/unordered, forbidden, conditional, time-bound
 - Scripted escalation with deterministic reactions and harmful-action consequences
-- Schema-validated YAML authoring with line-numbered errors and a validate CLI
+- Schema-validated TOON authoring with line-numbered errors and a validate CLI
 - Reference-solution replay tests per scenario (golden run passes, do-nothing run fails)
 - Debrief timeline, local progress history, outcome-based critical-item grading, PWA offline, scenario variants
 - Gate-ready pack seam (manifest plus allow-all access policy) in v1
@@ -60,13 +60,13 @@ Versions were verified against npm on 2026-10-19 with a passing probe build. Do 
 
 The domain core (`core/`) holds the state store and reducer, registry, clock, event log, matcher, engine and grader. It has no DOM, enforced by lint/tsconfig. A single control registry is the source of truth for rendering, scenario cross-reference validation and event normalization. A Session Controller is the only mediator between core and UI.
 
-Content flows YAML -> parse (line-aware) -> Zod -> compile (xref vs registry) -> CompiledScenario. It fails fast in CI and soft at load. Packs are reached only through `PackProvider` + `AccessPolicy` (decorator, `OpenPolicy` in v1). Lever and continuous controls emit commit events on release/detent, never per drag frame.
+Content flows TOON -> parse (line-aware) -> Zod -> compile (xref vs registry) -> CompiledScenario. It fails fast in CI and soft at load. Packs are reached only through `PackProvider` + `AccessPolicy` (decorator, `OpenPolicy` in v1). Lever and continuous controls emit commit events on release/detent, never per drag frame.
 
 **Major components:**
 1. Aircraft definition + Control Registry: control ids, legal values, layout, baseline state
 2. AircraftState store + EventLog + injectable Clock: deterministic, replayable session core
 3. Action Matcher + Scenario Engine + Grader: one shared matcher for live and post-hoc grading
-4. YAML Loader + Zod schema + Scenario Compiler + validate CLI: two-stage validation
+4. TOON Loader + Zod schema + Scenario Compiler + validate CLI: two-stage validation
 5. PackProvider + AccessPolicy: the gate seam
 6. Session Controller + feedback policy: Training/Exam as policy, not an engine branch
 7. PanelView (generated SVG, Pointer Events, viewBox region zoom) + HTML overlays: the UI shell
@@ -75,7 +75,7 @@ Content flows YAML -> parse (line-aware) -> Zod -> compile (xref vs registry) ->
 
 1. **Event-log grading instead of state-predicate grading.** Define actions as predicates on control state, with partial-order groups and forbidden actions recorded on entry. Use a pure `grade()` with golden fixtures. Write the grading spec before authoring scenarios.
 2. **Nondeterministic wall-clock reactions.** Use a single injected clock with no `setTimeout` in the engine. Pause on visibility change, define the queue order, detect cycles, and use replay tests.
-3. **Schema/YAML authoring failures and schema churn.** Use YAML 1.2, quoted enum states, strict Zod, registry cross-ref checks reporting file:line, and `schemaVersion` from day one. Include AFM idiom fields (step type, condition, any_of, source, criticality). Do not freeze the schema for external authors until three real scenarios are written.
+3. **Schema/TOON authoring failures and schema churn.** Use strict TOON decoding (array counts must match), quoted numeric-looking strings and enum states, strict Zod, registry cross-ref checks reporting file:line, and `schemaVersion` from day one. Include AFM idiom fields (step type, condition, any_of, source, criticality). Do not freeze the schema for external authors until three real scenarios are written.
 4. **Touch/mobile treated as mouse-plus.** Use Pointer Events, `touch-action`, oversized hit rects, an explicit region-zoom model, `getScreenCTM` math and `100dvh`. Run real-device QA at the panel-phase exit.
 5. **Legal/IP and gating reality.**
    - No verbatim AFM text or Garmin/Diamond artwork or marks. Use original generic art, an ASSETS register and neutral branding.
@@ -128,7 +128,7 @@ The pitfall research's P1-P6 maps onto the six phases below.
 - Matcher, engine (triggers, timers, ramps, outcomes) and grader with critical-fail logic
 - Replay tests: golden, do-nothing, wrong-order, forbidden
 
-**Uses:** `yaml`, Zod 4, Vitest.
+**Uses:** `@toon-format/toon`, Zod 4, Vitest.
 **Avoids:** Pitfalls 1, 2, 3, 13.
 
 ### Phase 5: Session Flows, Modes, Debrief and Initial Content Pack
@@ -224,7 +224,7 @@ Phases with standard patterns (skip research-phase):
 
 ### Tertiary (LOW confidence)
 - Cross-domain part-task-trainer grading literature, and the author synthesis of the grading taxonomy and escalation DSL (needs instructor validation)
-- Lemon Squeezy/Stripe migration (competitor blog), Gumroad CORS (unconfirmed), Cloudflare Worker and Red Hat YAML extension specifics (not exercised)
+- Lemon Squeezy/Stripe migration (competitor blog), Gumroad CORS (unconfirmed), Cloudflare Worker specifics (not exercised)
 - Legal points (AFM copyright, Impressum/GDPR, liability): not legal advice
 
 ---

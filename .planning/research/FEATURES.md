@@ -1,6 +1,6 @@
 # Feature Research
 
-**Domain:** Cockpit procedure / emergency part-task trainer (Diamond DA50 RG, 2D web panel, YAML-authored scenarios)
+**Domain:** Cockpit procedure / emergency part-task trainer (Diamond DA50 RG, 2D web panel, TOON-authored scenarios)
 **Researched:** 2026-10-19
 **Confidence:** MEDIUM. The competitor landscape is verified from app-store listings and trade press, which are marketing copy and silent on grading internals. The grading, escalation and debrief models are synthesized from part-task-trainer literature plus domain reasoning. Treat them as well-reasoned recommendations, not market-verified facts. Validate the grading taxonomy with one DA50 instructor before locking the schema.
 
@@ -21,7 +21,7 @@ Key takeaways:
 2. Training vs Exam (guided vs unguided) is universal, so it is table stakes. Nobody publicly documents partial-order, forbidden-action or escalation grading, so that is where this project can differentiate.
 3. Pricing norms are $20-25 one-time or about $12/mo. A free v1 with later one-time pack unlock is consistent with the market.
 4. Every listing carries a "not for operational use / study aid" disclaimer (matches the project's safety/legal constraint).
-5. Learrocket lets users create their own flows, so authorable content has precedent. The project's schema-validated YAML is a stronger version of it.
+5. Learrocket lets users create their own flows, so authorable content has precedent. The project's schema-validated TOON is a stronger version of it.
 
 ## Feature Landscape
 
@@ -52,10 +52,10 @@ Align with the core value: objective feedback on AFM-correct performance.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Rich action grading: required, optional, ordered, unordered, forbidden/harmful (see taxonomy below) | No competitor publicly documents this. It is what makes feedback objective rather than "you tapped the right things" | HIGH | The central engine feature. Declarative in YAML, evaluated against an event log |
+| Rich action grading: required, optional, ordered, unordered, forbidden/harmful (see taxonomy below) | No competitor publicly documents this. It is what makes feedback objective rather than "you tapped the right things" | HIGH | The central engine feature. Declarative in TOON, evaluated against an event log |
 | Scripted failure escalation (timers and action triggers) with outcomes | Turns a checklist quiz into an emergency drill. Ignoring or botching the procedure has consequences, such as oil temp climbing until engine failure | HIGH | Declarative reaction rules: `when` (action / state / elapsed) then `do` (set value, ramp, raise annunciation, end scenario with outcome). Must be deterministic and testable |
 | Harmful actions with visible consequences, not only a penalty (e.g. shutting down the wrong engine control triggers a worse failure) | Teaches why the error matters. Matches the Dutch Safety Board lesson that partial-failure handling needs realistic training | MEDIUM (once reactions exist) | Same reaction mechanism, triggered by a forbidden action |
-| YAML scenario authoring with JSON-Schema validation, readable error messages, and an authoring guide | Content extensibility is a stated core design driver. Competitors ship closed content, with Learrocket only offering simple custom flows | MEDIUM | Good errors (path + line + suggestion) matter more than schema cleverness. Ship a `validate` CLI and run it in CI |
+| TOON scenario authoring with schema validation, readable error messages, and an authoring guide | Content extensibility is a stated core design driver. Competitors ship closed content, with Learrocket only offering simple custom flows | MEDIUM | Good errors (path + line + suggestion) matter more than schema cleverness. Ship a `validate` CLI and run it in CI |
 | Reference-solution replay test for each scenario (author supplies the golden action sequence, CI verifies it grades 100% and a do-nothing run fails) | Catches authoring mistakes, which is the main risk when non-developers write scenarios | MEDIUM | Reuses the engine headless. Cheap once the engine is pure TS |
 | Debrief timeline: what you did vs what was expected, with timestamps, the state at the time, and the AFM reference text/step ID | Debrief is where learning happens. Most competitor listings show no detail | MEDIUM | Interleave user actions, scripted events and annunciations on one timeline. Show "why it matters" notes per item (author-supplied) |
 | Outcome-based grading in addition to step-based (recovered / degraded / engine failed / timeout) | Mirrors real consequences. Pass/fail on safety-critical items, not a percentage alone | MEDIUM | Scenario declares critical items. Missing any critical item or a harmful action means FAIL regardless of percentage |
@@ -76,13 +76,13 @@ Align with the core value: objective feedback on AFM-correct performance.
 | Single opaque numeric score or gamification (XP, streaks, leaderboards) | Engagement | A percentage hides critical errors (95% with a missed fire shutoff is a fail). Leaderboards need a backend and encourage gaming | Verdict list plus critical-item PASS/FAIL, with personal best history locally |
 | Penalizing every unrelated control touch | Seems strict | Exploring the panel is normal and the phone has stray taps. It produces noisy, unfair debriefs | Penalize only declared forbidden actions. Report neutral extra actions in a collapsed "other actions" list |
 | User accounts, cloud sync, leaderboards, payments in v1 | "Needed for monetization" | Needs a backend, and GitHub Pages is static. Deferred by decision | LocalStorage history, abstracted access layer for later |
-| Live AI/LLM-generated scenarios or procedure text | Novelty | Hallucinated procedures are dangerous in a safety-critical domain and unverifiable against the AFM | Human-authored, schema-validated YAML only |
+| Live AI/LLM-generated scenarios or procedure text | Novelty | Hallucinated procedures are dangerous in a safety-critical domain and unverifiable against the AFM | Human-authored, schema-validated TOON only |
 | Voice recognition for callouts and ATC radio simulation | Realism | Large effort, flaky on mobile, and off-topic for the procedure | Button-based "Actions" palette (declare MAYDAY, squawk 7700) |
 | Normal-procedure (full flight) coverage in v1 | VRflow includes normal flows | Dilutes the emergency-first value, multiplies content work | Leave to a later pack. The engine supports it, since it is just checklists without escalation |
 | Multi-language UI/content | Reach | Annunciations and AFM are English. Translation is a content-accuracy risk | English only, as decided |
 | Training-device certification claims (BATD/FSTD wording) | Credibility | Legally misleading, since it is not an approved device | Clear "study aid" wording, as the whole category does |
 | Time-pressure as a headline score (speed bonus) | Makes it feel like an emergency | Teaches rushing and skipping, which is the wrong habit for an emergency | Report time as information. Deadlines apply only to real memory items where the AFM implies urgency |
-| Visual editor / in-app scenario builder | Easier for non-developers | Large UI effort and a second source of truth | YAML plus validation CLI plus good error messages. Revisit if authors struggle |
+| Visual editor / in-app scenario builder | Easier for non-developers | Large UI effort and a second source of truth | TOON plus validation CLI plus good error messages. Revisit if authors struggle |
 
 ## How Grading, Escalation and Debrief Are Typically Done
 
@@ -158,7 +158,7 @@ Panel control state model (discrete controls, guards)
     └──requires──> Simulated aircraft state store (controls + gauge values + annunciations)
                        ├──requires──> Injectable clock / pausable scenario time
                        └──enables───> Scenario engine
-                                          ├──requires──> YAML schema + validator + loader
+                                          ├──requires──> TOON schema + validator + loader
                                           ├──requires──> Action matcher (state-based, event log)
                                           │                  └──enables──> Grading (required/optional/ordered/forbidden/time-bound)
                                           │                                    └──enables──> Debrief (verdicts, timeline)
@@ -168,7 +168,7 @@ Panel control state model (discrete controls, guards)
 Annunciator/alert area + aural alerts ──requires──> Aircraft state store
 Non-panel "Actions" palette ──enhances──> Action matcher (verbal/decision steps)
 Training/Exam modes ──requires──> Scenario engine + Debrief (same engine, different presentation)
-Checklist show/hide ──requires──> Checklist model derived from scenario YAML
+Checklist show/hide ──requires──> Checklist model derived from scenario TOON
 Progress history (localStorage) ──requires──> Debrief result record
 Reference-solution replay tests ──requires──> Headless scenario engine
 Scenario variants ──enhances──> Scenario engine (after base is stable)
@@ -179,7 +179,7 @@ PWA offline ──enhances──> Static hosting, scenario pack loader (cache st
 
 ### Dependency Notes
 
-- **Grading requires a state-based action matcher:** the matcher must exist before grading rules, and the YAML schema must be designed around it. Schema design is the highest-leverage early decision, and changing it later breaks authored content.
+- **Grading requires a state-based action matcher:** the matcher must exist before grading rules, and the TOON schema must be designed around it. Schema design is the highest-leverage early decision, and changing it later breaks authored content.
 - **Escalation requires reaction rules and an injectable clock:** a hard-coded wall clock makes escalation and golden tests untestable.
 - **Debrief requires the event log:** log everything (user actions, state changes, scripted events) from day one, since the debrief timeline and history depend on it.
 - **Training and Exam share one engine:** do not fork mode logic into two code paths.
@@ -194,7 +194,7 @@ PWA offline ──enhances──> Static hosting, scenario pack loader (cache st
 
 - [ ] Panel with discrete controls (switches, guarded switches, levers, buttons), annunciator area, key gauges, touch and mouse, responsive scaling
 - [ ] Aircraft state store and injectable pausable clock
-- [ ] YAML scenario schema, validator and loader, including source and disclaimer fields
+- [ ] TOON scenario schema, validator and loader, including source and disclaimer fields
 - [ ] Action grading: required (critical/standard), optional, ordered/unordered groups, forbidden
 - [ ] Reaction rules: timers, action/state triggers, set/ramp value, raise annunciation, terminal outcome
 - [ ] Non-panel actions palette (Mayday, squawk 7700, landing-site decision, etc.)
@@ -221,7 +221,7 @@ PWA offline ──enhances──> Static hosting, scenario pack loader (cache st
 - [ ] Additional scenario packs and the real unlock (license key or purchase), needing a minimal backend or a signed-key scheme
 - [ ] Partial engine failure / reduced power scenario (motivated by the Dutch Safety Board DA50 RG report recommending it in routine training)
 - [ ] Normal-procedure flows and checklists
-- [ ] Visual scenario editor (only if YAML authoring proves a barrier)
+- [ ] Visual scenario editor (only if TOON authoring proves a barrier)
 - [ ] Instructor features such as shareable result links (needs a backend)
 
 ## Feature Prioritization Matrix
@@ -230,7 +230,7 @@ PWA offline ──enhances──> Static hosting, scenario pack loader (cache st
 |---------|------------|---------------------|----------|
 | Interactive discrete-control panel and state store | HIGH | MEDIUM | P1 |
 | Annunciators and aural alerts | HIGH | MEDIUM | P1 |
-| Scenario YAML schema and validator | HIGH | MEDIUM | P1 |
+| Scenario TOON schema and validator | HIGH | MEDIUM | P1 |
 | Action grading (required/optional/ordered/forbidden) | HIGH | HIGH | P1 |
 | Scripted escalation and reaction rules | HIGH | HIGH | P1 |
 | Training and Exam modes | HIGH | MEDIUM | P1 |
@@ -262,7 +262,7 @@ PWA offline ──enhances──> Static hosting, scenario pack loader (cache st
 | Scripted escalation / consequences | Not documented | Not documented | Not documented | Declarative reaction rules (differentiator) |
 | Order and forbidden-action grading | Not documented | Not documented | n/a | Explicit taxonomy (differentiator) |
 | Debrief detail | Post-procedure evaluation, details unpublished | Not described | n/a | Verdicts, timeline, AFM references |
-| Custom / extendable content | "Customizable per operator" (B2B) | User-built flows | n/a | Schema-validated YAML, open authoring |
+| Custom / extendable content | "Customizable per operator" (B2B) | User-built flows | n/a | Schema-validated TOON, open authoring |
 | Platform | iPad / PC / VR | iOS | iPhone | Any browser (desktop, tablet, phone), offline |
 | Price | About $12/mo | $20-25 one-time | Free | Free v1, later one-time pack unlock |
 | DA50 RG coverage | None (DA40 only) | None | None | Yes |

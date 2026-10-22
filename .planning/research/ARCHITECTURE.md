@@ -1,6 +1,6 @@
 # Architecture Research
 
-**Domain:** Web-based cockpit procedure trainer (interactive SVG panel, YAML-driven scenarios, graded debrief, static hosting)
+**Domain:** Web-based cockpit procedure trainer (interactive SVG panel, TOON-driven scenarios, graded debrief, static hosting)
 **Researched:** 2026-10-19
 **Confidence:** MEDIUM-HIGH. The component structure is derived from well-established patterns in procedure/part-task trainers (deterministic state + event log + rules engine) and from the project constraints. Tooling claims (Zod JSON Schema export, Vite base path, `import.meta.glob`) were verified against official docs. No public reference implementation of this exact product type was found, so the scenario DSL details are design recommendations, not copied standards.
 
@@ -46,7 +46,7 @@ The key discipline: the core (2-5) has **zero DOM dependency** so it can be unit
 ├──────────────────────────────────────────────────────────────────────┤
 │                    CONTENT & ACCESS LAYER                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐ ┌───────────┐ │
-│  │ YAML Loader +│  │ Scenario     │  │ PackProvider  │ │ Access    │ │
+│  │ TOON Loader +│  │ Scenario     │  │ PackProvider  │ │ Access    │ │
 │  │ Schema       │─▶│ Compiler     │◄─┤ (index, fetch)│◄┤ Policy    │ │
 │  │ Validation   │  │ (xref check) │  │               │ │ (v1: free)│ │
 │  └──────────────┘  └──────────────┘  └───────────────┘ └───────────┘ │
@@ -54,7 +54,7 @@ The key discipline: the core (2-5) has **zero DOM dependency** so it can be unit
 │                         PERSISTENCE (localStorage)                    │
 │   settings · attempt history/scores · (later) license token           │
 └──────────────────────────────────────────────────────────────────────┘
-        BUILD TIME:  content/*.yaml ──validate──▶ dist/packs/*.json (or .enc later)
+        BUILD TIME:  content/*.toon ──validate──▶ dist/packs/*.json (or .enc later)
 ```
 
 ### Component Responsibilities
@@ -69,7 +69,7 @@ The key discipline: the core (2-5) has **zero DOM dependency** so it can be unit
 | **Scenario Engine** | Runs a compiled scenario: applies initial state, evaluates triggers (timers, after-action, state-condition), applies effects (set, ramp, annunciate, end), tracks action matches live. | Class with `start()`, `onControlEvent(e)`, `tick(dtMs)`; emits `EngineEvent`s. |
 | **Action Matcher** | Decides whether a control event/state satisfies an action predicate (set-to-value, in-range, toggled) and tracks group ordering. | Pure functions used by both engine (live) and grader (post-hoc). |
 | **Grader** | Pure function `grade(compiledScenario, eventLog, finalState, outcome) -> Debrief`. Missed required, order violations, forbidden/harmful actions, optional done, timing, outcome. | Pure TS; shares Action Matcher with engine. |
-| **YAML Loader + Schema** | Parse YAML (retaining line numbers), validate structurally, produce typed `ScenarioDoc`. | `yaml` parser + Zod schema (Zod 4 exports JSON Schema for editor autocompletion). |
+| **TOON Loader + Schema** | Parse TOON (strict decode, line numbers from a path-to-line index), validate structurally, produce typed `ScenarioDoc`. | `@toon-format/toon` 4.4.0 (pinned exactly) + Zod schema (Zod 4 can export a JSON Schema as a documentation artifact; there is no editor support for TOON). |
 | **Scenario Compiler** | Cross-reference validation against registry (control ids, legal values, action/trigger ids, group membership) and normalization into `CompiledScenario`. | Pure function; runs at build time (CI) and at load time. |
 | **PackProvider** | Lists packs (manifest) and returns scenario docs for a pack. Only way UI/session obtain scenarios. | Interface; v1 impl `StaticPackProvider` fetching `packs/<id>.json`. |
 | **AccessPolicy** | Answers `canAccess(packId)`. v1: always true for all shipped packs. Wraps PackProvider in a decorator. | Interface; v1 `OpenPolicy`; later `LicensePolicy`. |
@@ -105,7 +105,7 @@ src/
 │       └── derived.ts         # (optional, minimal) invariant couplings only
 ├── content/                   # Schema + compile (no DOM)
 │   ├── schema.ts              # Zod schemas (ScenarioDoc, PackManifest)
-│   ├── parse.ts               # yaml -> ScenarioDoc with line-aware errors
+│   ├── parse.ts               # TOON -> ScenarioDoc with line-aware errors
 │   └── compile.ts             # xref validation vs registry -> CompiledScenario
 ├── packs/                     # Access layer (the "gate seam")
 │   ├── PackProvider.ts        # interface + StaticPackProvider
@@ -123,17 +123,17 @@ src/
 ├── persistence/storage.ts
 └── main.ts
 content/                       # AUTHORED CONTENT (outside src; not bundled as code)
-├── schema/scenario.schema.json  # generated from Zod; used for VS Code YAML autocomplete
+├── schema/scenario.schema.json  # generated from Zod; optional documentation artifact (no editor support for TOON)
 └── packs/
     ├── core-emergencies/
-    │   ├── pack.yaml          # manifest: id, title, version, access: free|licensed
-    │   ├── oil-temp-high.yaml
-    │   ├── electrical-failure.yaml
-    │   └── engine-fire.yaml
+    │   ├── pack.toon          # manifest: id, title, version, access: free|licensed
+    │   ├── oil-temp-high.toon
+    │   ├── electrical-failure.toon
+    │   └── engine-fire.toon
     └── README-AUTHORING.md
 scripts/
-├── validate-content.ts        # runs parse+compile on all YAML; CI gate
-└── build-packs.ts             # YAML -> dist/packs/<id>.json (later: encrypt)
+├── validate-content.ts        # runs parse+compile on all TOON files; CI gate
+└── build-packs.ts             # TOON -> dist/packs/<id>.json (later: encrypt)
 tests/
 ├── core/                      # unit tests: reducer, matcher, engine, grader
 └── scenarios/                 # golden-path / do-nothing / wrong-order replays per scenario
@@ -144,7 +144,7 @@ tests/
 - **`core/` has no browser dependency:** enforces the "UI never grades" rule structurally. Add a lint rule (or `tsconfig` project reference with `lib: []` no `dom`) so `core/` cannot import DOM types.
 - **`aircraft/` separate from `core/`:** aircraft is data; the engine is generic. Costs nothing now, makes a second aircraft/variant a data-only change.
 - **`content/` (authoring) separate from `src/content/` (compiler):** non-developers touch only `content/packs/**`; the compiler is code.
-- **`packs/` as its own module:** the gate seam is one folder. Nothing else may `fetch` or `import` scenario YAML directly.
+- **`packs/` as its own module:** the gate seam is one folder. Nothing else may `fetch` or `import` scenario TOON files directly.
 - **`session/` is the only mediator:** keeps `core` and `ui` mutually ignorant.
 
 ## Architectural Patterns
@@ -170,8 +170,8 @@ function onUserInput(controlId: ControlId, value: ControlValue) {
 
 ### Pattern 2: Single registry as source of truth
 
-**What:** Control definitions (id, kind, state key, legal values, label, layout position) exist once. PanelView renders from it; the scenario compiler validates YAML against it; the engine normalizes through it.
-**When to use:** Always. Prevents the classic drift where the SVG file, TS handlers, and YAML disagree on ids.
+**What:** Control definitions (id, kind, state key, legal values, label, layout position) exist once. PanelView renders from it; the scenario compiler validates TOON files against it; the engine normalizes through it.
+**When to use:** Always. Prevents the classic drift where the SVG file, TS handlers, and TOON files disagree on ids.
 **Trade-offs:** Panel is generated from layout data rather than hand-drawn in Inkscape. Recommended anyway: functional panel (not pixel-accurate) is a good fit, and it enables responsive re-layout per breakpoint.
 
 ```typescript
@@ -184,7 +184,7 @@ type ControlDef =
 
 Convention: state keys are namespaced strings (`sw.*`, `lv.*`, `btn.*`, `eng.*`, `an.*`). **Inputs** (user-settable) and **indicators** (scenario-set only) share one flat state but the registry marks which are user-writable; the reducer rejects user writes to indicators.
 
-### Pattern 3: Declarative trigger/effect rules (small closed DSL, no code in YAML)
+### Pattern 3: Declarative trigger/effect rules (small closed DSL, no code in TOON)
 
 **What:** Scripted reactions are `when -> then` rules with a fixed vocabulary. This is the "rules engine", but deliberately tiny.
 **When to use:** All scripted reactions: temperature falls after correct actions, escalation on timeout or redline.
@@ -192,7 +192,7 @@ Convention: state keys are namespaced strings (`sw.*`, `lv.*`, `btn.*`, `eng.*`,
 
 Vocabulary (recommended v1):
 
-```yaml
+```text
 # when: exactly one of
 #   at: 30s                      # absolute scenario time
 #   after: { action: reduce_power, delay: 10s }   # relative to a graded action
@@ -212,20 +212,22 @@ Vocabulary (recommended v1):
 **When to use:** All grading.
 **Trade-offs:** Must define semantics precisely up front (see below), otherwise grading disputes arise.
 
-```yaml
-actions:
+```toon
+actions[2]:
   - id: throttle_idle
     control: lv.throttle
-    match: { lte: 10 }          # in-range for levers
+    match:
+      lte: 10                   # in-range for levers
     kind: required              # required | optional | forbidden
     group: immediate            # optional group reference
   - id: master_off
     control: sw.master
-    match: { eq: off }
+    match:
+      eq: off
     kind: forbidden
     reason: "Loss of all electrics in this phase"
-    effects: [ { set: { key: ..., value: ... } } ]   # optional immediate consequence
-groups:
+    # an optional immediate consequence is a nested effects list (see the vocabulary above)
+groups[1]:
   - id: immediate
     mode: ordered               # ordered | unordered
 ```
@@ -247,10 +249,10 @@ Recommended grading semantics (decide once, document in AUTHORING README):
 
 ### Pattern 6: Compile-then-run scenarios (two-stage validation)
 
-**What:** Stage 1 structural (Zod schema on parsed YAML). Stage 2 semantic (compiler cross-checks every `control`, value, action id, trigger reference, group membership against the registry; checks reachability, e.g. no `unless` pointing at an unknown action; warns on required actions that no trigger or checklist references).
+**What:** Stage 1 structural (Zod schema on the decoded TOON). Stage 2 semantic (compiler cross-checks every `control`, value, action id, trigger reference, group membership against the registry; checks reachability, e.g. no `unless` pointing at an unknown action; warns on required actions that no trigger or checklist references).
 **When to use:** At build/CI (fail the deploy on any error) and at load (defense in depth).
 **Trade-offs:** Slightly more code; eliminates the most likely failure mode for a hand-edited content system (typo in a control id producing an ungradeable scenario).
-**Authoring UX:** Generate `scenario.schema.json` from Zod (`z.toJSONSchema`, Zod 4) and reference it via the `# yaml-language-server: $schema=...` comment so VS Code's YAML extension gives autocompletion and inline errors. Use line-aware YAML parsing so compile errors report `file:line`.
+**Authoring UX:** There is no editor schema support for TOON. Authors get `npm run validate` (reports `file:line:col`) and the Vitest check that validates every shipped scenario file; `z.toJSONSchema` (Zod 4) stays an optional documentation artifact. Strict decoding plus a path-to-line index make compile errors report `file:line`.
 
 ### Pattern 7: Displayed checklist is linked to, but separate from, graded actions
 
@@ -274,7 +276,7 @@ interface AccessPolicy { check(pack: PackManifest): Promise<AccessDecision>; } /
 
 - Build step encrypts licensed packs (Web Crypto AES-GCM) to `dist/packs/<id>.enc`; free packs stay plain JSON.
 - License = signed token (e.g. Ed25519 signature over `{packIds, issuedTo}`), verified offline with an embedded public key, and/or token carries or derives the pack key. Issued by a payment provider webhook/serverless function later (needs a tiny backend or a merchant that issues keys; deferred).
-- Paid scenario YAML must never be committed to the public repo in plaintext. If the repo is public, keep paid content in a private repo/submodule or CI secret and only the ciphertext in `dist`. Decide this before authoring any paid content.
+- Paid scenario TOON must never be committed to the public repo in plaintext. If the repo is public, keep paid content in a private repo/submodule or CI secret and only the ciphertext in `dist`. Decide this before authoring any paid content.
 - Because a leaked key unlocks content for everyone, treat this as friction against casual sharing, not DRM; one-time unlock for a niche pilot audience makes that acceptable.
 
 ## Data Flow
@@ -328,7 +330,7 @@ Debrief view (missed / order violations / harmful / optional / outcome / timelin
 ### Build / Content Flow
 
 ```
-content/packs/**/*.yaml ──▶ scripts/validate-content.ts (parse → schema → compile vs registry)
+content/packs/**/*.toon ──▶ scripts/validate-content.ts (parse → schema → compile vs registry)
         │ fail = CI red, no deploy
         ▼
 scripts/build-packs.ts ──▶ dist/packs/<id>.json   (later: .enc for licensed)
@@ -336,7 +338,7 @@ scripts/build-packs.ts ──▶ dist/packs/<id>.json   (later: .enc for license
 GitHub Actions (npm ci → validate → vite build → upload dist → deploy Pages)
 ```
 
-Note: Vite `base` must be `'/<REPO>/'` for project pages; fetch pack JSON using `import.meta.env.BASE_URL` (or import via `import.meta.glob(..., { query: '?url' })`) so URLs survive the sub-path. For v1 simplicity packs may alternatively be bundled with `import.meta.glob('/content/packs/**/*.yaml', { query: '?raw', import: 'default', eager: true })`, but still routed through `PackProvider` so the later switch to lazy/encrypted fetch is contained.
+Note: Vite `base` must be `'/<REPO>/'` for project pages; fetch pack JSON using `import.meta.env.BASE_URL` (or import via `import.meta.glob(..., { query: '?url' })`) so URLs survive the sub-path. For v1 simplicity packs may alternatively be bundled with `import.meta.glob('/content/packs/**/*.toon', { query: '?raw', import: 'default', eager: true })`, but still routed through `PackProvider` so the later switch to lazy/encrypted fetch is contained.
 
 ### State Management
 
@@ -407,7 +409,7 @@ Scale here is content volume and device performance, not users (static site, all
 **Why it's wrong:** untestable, mode-dependent behavior leaks, order tracking breaks with touch/mouse differences.
 **Do this instead:** widgets emit ControlEvents only; Session/engine/grader own meaning.
 
-### Anti-Pattern 2: Hand-drawn monolithic SVG with ids duplicated in code and YAML
+### Anti-Pattern 2: Hand-drawn monolithic SVG with ids duplicated in code and TOON
 
 **What people do:** Draw the panel in a vector editor; manually hook handlers by element id; write the same ids in scenarios.
 **Why it's wrong:** three sources of truth; renames silently break scenarios; responsive re-layout is hard.
@@ -419,7 +421,7 @@ Scale here is content volume and device performance, not users (static site, all
 **Why it's wrong:** cannot pause, cannot test, drifts when tab backgrounded, impossible to replay.
 **Do this instead:** one injectable Clock and engine `tick(dt)`; triggers are data evaluated by the engine.
 
-### Anti-Pattern 4: Growing the YAML into a programming language
+### Anti-Pattern 4: Growing the TOON into a programming language
 
 **What people do:** Add expressions, variables, `eval`, or JS snippets to scenarios "just for one case".
 **Why it's wrong:** breaks schema validation and non-developer authoring; security and maintenance cost.
@@ -433,7 +435,7 @@ Scale here is content volume and device performance, not users (static site, all
 
 ### Anti-Pattern 6: Treating the client-side gate as security
 
-**What people do:** `if (hasLicense)` around fetch of a plaintext paid YAML on a public host and public repo.
+**What people do:** `if (hasLicense)` around fetch of a plaintext paid TOON on a public host and public repo.
 **Why it's wrong:** paid content is trivially downloadable; the gate is decoration.
 **Do this instead:** keep the seam now (PackProvider/AccessPolicy), plan encrypted payloads and non-public paid-content storage for the gated phase (Pattern 8).
 
@@ -453,7 +455,7 @@ Scale here is content volume and device performance, not users (static site, all
 | GitHub Actions (CI) | Run unit tests, scenario replay tests and `validate-content` before deploy | Content errors must fail the build. |
 | Payment/license (deferred) | Merchant-issued key or signed token; verified client-side with embedded public key | Needs a webhook/serverless piece or merchant key delivery; keep out of v1. |
 | Web Crypto (deferred) | AES-GCM decrypt of licensed packs in browser | Available in all target browsers on HTTPS (GitHub Pages is HTTPS). |
-| VS Code YAML extension | `$schema` comment → generated `scenario.schema.json` | Authoring UX for non-developers. |
+| Authoring feedback | `npm run validate` (file:line:col) and the Vitest check of every shipped scenario | Authoring UX for non-developers; no editor support for TOON. |
 
 ### Internal Boundaries
 
@@ -464,7 +466,7 @@ Scale here is content volume and device performance, not users (static site, all
 | Engine ↔ Store | Engine emits Effects; reducer applies; engine reads via query | Engine never touches DOM; never calls Date.now. |
 | Engine ↔ Grader | Share `matcher.ts` | Prevents live-vs-final grading drift. |
 | Content ↔ Registry | Compiler imports registry for xref validation | One-way: registry never imports content. |
-| Session/UI ↔ Packs | `PackProvider` only | Lint-enforce: no other module imports scenario YAML or fetches `packs/`. |
+| Session/UI ↔ Packs | `PackProvider` only | Lint-enforce: no other module imports scenario TOON files or fetches `packs/`. |
 | Core ↔ Persistence | None; Session writes history via `persistence/` | Keeps core pure. |
 
 ## Open Design Decisions to Resolve in Phase Planning

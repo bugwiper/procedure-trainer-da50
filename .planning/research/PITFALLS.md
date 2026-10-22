@@ -1,6 +1,6 @@
 # Pitfalls Research
 
-**Domain:** Web-based cockpit procedure trainer (interactive SVG panel, YAML-authored scenarios, action-order grading, static hosting on GitHub Pages, later paid scenario packs)
+**Domain:** Web-based cockpit procedure trainer (interactive SVG panel, TOON-authored scenarios, action-order grading, static hosting on GitHub Pages, later paid scenario packs)
 **Researched:** 2026-10-19
 **Confidence:** MEDIUM overall. GitHub Pages terms/limits verified against official docs (HIGH). Garmin trademark position only partly verified (MEDIUM: Garmin manuals state marks may not be used without express permission; no simulator-specific policy found). Touch/SVG, grading, and schema pitfalls come from established engineering practice and domain reasoning (MEDIUM). Legal items are not legal advice and need a lawyer before monetization.
 
@@ -8,7 +8,7 @@ Phase labels below assume a roadmap shaped roughly as:
 - P1 Foundations (repo, Vite/TS, deploy pipeline, schema + engine core)
 - P2 Panel and interaction (SVG panel, controls, responsive/touch)
 - P3 Scenario engine and grading (state machine, reactions, debrief)
-- P4 Content and authoring (YAML pack, validation tooling, AFM sourcing)
+- P4 Content and authoring (TOON pack, validation tooling, AFM sourcing)
 - P5 Polish, legal, release (disclaimers, a11y, QA on devices)
 - P6 Gate and monetization (access layer, license keys, packs)
 Adjust names to the actual roadmap; the mapping is what matters.
@@ -73,15 +73,15 @@ Typical failures:
 1. Schema too loose: free-form strings for control IDs/state values. Typos (`oil_temp_hi` vs `oil_temp_high`) silently produce a scenario that can never be completed or never fails.
 2. Schema too tight: cannot express AFM idioms (memory items vs. checklist items, "if X then Y", multi-option branches, notes/warnings/cautions, conditional steps), forcing hacks and breaking changes.
 3. No `schemaVersion`; a later change invalidates all community/paid packs.
-4. YAML footguns for non-developers: the Norway problem (`NO`, `off`, `on`, `yes` parse as booleans under YAML 1.1; `OFF`/`ON` switch positions are extremely common in cockpits), unquoted numbers like `1.10`, indentation errors, duplicate keys, tabs. A switch state `on:` becoming `true` is a classic silent bug.
+4. TOON footguns for non-developers: numeric-looking strings (`issue: 018`, `1.10`) decode as numbers unless quoted, array counts `[N]` that do not match the rows, comments that are not full lines starting with `#`, indentation errors, duplicate keys. `OFF`/`ON` switch positions are extremely common in cockpits, so state values must stay enumerated strings. The format is a Working Draft spec, so an unpinned parser upgrade can silently change decoding.
 5. Authoring errors are reported as a stack trace or a bare schema error without file/line.
 
 **Why it happens:**
-Schema authored top-down from the demo content; no thought to author tooling; YAML library defaults not examined.
+Schema authored top-down from the demo content; no thought to author tooling; parser defaults not examined.
 
 **How to avoid:**
-- Use a YAML 1.2 parser in core-schema mode (e.g. `yaml` package: `version: '1.2'`, no implicit 1.1 booleans) and reject duplicate keys. Better: make panel state values enumerated strings (`state: "OFF"`) and require quoting by schema (string type), so an accidental boolean fails validation loudly.
-- Define the schema once in TypeScript (e.g. Zod or Valibot), generate JSON Schema from it for editor autocomplete in VS Code (`# yaml-language-server: $schema=...`). Single source of truth; avoid maintaining a hand-written JSON Schema and a separate TS type.
+- Pin `@toon-format/toon` exactly (4.4.0) and run the decoder conformance test before any upgrade; decode in strict mode so array counts must match; reject duplicate keys; quote numeric-looking strings (`issue: "018"`). Better: make panel state values enumerated strings (`state: "OFF"`) and require them by schema (string type), so an accidental number or boolean fails validation loudly. Never auto-format scenario files with the library encoder (it drops comments).
+- Define the schema once in TypeScript (e.g. Zod or Valibot); the TS type is inferred from it, and a JSON Schema can be emitted as a documentation artifact (there is no editor schema support for TOON). Single source of truth; avoid maintaining a hand-written JSON Schema and a separate TS type.
 - Cross-reference validation beyond the schema: every control/annunciator/gauge ID must exist in a **panel registry**; every action target state must be a legal state of that control; every `after`/`group` reference must resolve; every required action must be reachable (not blocked by a forbidden precondition). Produce errors with file, line/column, and a "did you mean" suggestion.
 - Ship a CLI/`npm run validate:scenarios` that runs in CI and as a pre-commit hook; run the same validator at load time in dev with a visible error overlay.
 - Include `schemaVersion` from day one plus a migration policy; keep scenario content separable from engine version.
@@ -91,8 +91,8 @@ Schema authored top-down from the demo content; no thought to author tooling; YA
 **Warning signs:**
 - A scenario loads without error but cannot be completed.
 - Authors keep asking "what are the valid control names?".
-- Schema changes touch every YAML file.
-- YAML containing bare `on`/`off`/`yes`/`no`.
+- Schema changes touch every scenario file.
+- TOON containing unquoted numeric-looking strings or state values that are not enumerated strings.
 
 **Phase to address:**
 P1 (schema design + parser choice), P4 (validation CLI, authoring guide, error UX). Panel registry must exist in P2 before cross-ref validation is complete.
@@ -205,7 +205,7 @@ Domain-expert content flow ("I copy from my AFM") is treated as the author's pri
 - Never imply endorsement: "not affiliated with or endorsed by Diamond Aircraft."
 
 **Warning signs:**
-- YAML files contain long verbatim AFM paragraphs.
+- TOON files contain long verbatim AFM paragraphs.
 - Source field is a free text "AFM".
 - No revision stated anywhere in the UI.
 - Repo is public while content is paid.
@@ -246,7 +246,7 @@ P2 (asset rules before art is created), P5 (attributions), P6 (naming/branding b
 ### Pitfall 9: Client-side "license enforcement" on static hosting is bypassable, and the design pretends otherwise
 
 **What goes wrong:**
-- Paid scenario packs are shipped as static files in the same deploy (`/packs/pro.yaml`) and "unlocked" by a client check (`if (hasKey) ...`). Anyone can fetch the file by URL, read it in DevTools, or view the repo (public Pages repos expose everything). A hardcoded key/validation algorithm in the JS bundle is reverse-engineered in minutes; key generators (HMAC with secret in the client) leak.
+- Paid scenario packs are shipped as static files in the same deploy (`/packs/pro.toon`) and "unlocked" by a client check (`if (hasKey) ...`). Anyone can fetch the file by URL, read it in DevTools, or view the repo (public Pages repos expose everything). A hardcoded key/validation algorithm in the JS bundle is reverse-engineered in minutes; key generators (HMAC with secret in the client) leak.
 - Locked content "hidden" via CSS/obfuscated JS is not locked.
 - Licence state in `localStorage` is trivially editable and also lost on cache clear/Safari ITP (7-day cap on script-writable storage for some contexts), annoying legitimate buyers who lose their unlock.
 - Free Pages plan requires a public repo: all content, including future paid packs, is public in git history. Once committed, it's in history permanently.
@@ -301,12 +301,12 @@ P1 (custom domain + host-agnostic build), P6 (migrate hosting before selling).
 
 **What goes wrong:**
 - Project sites are served from `https://user.github.io/<repo>/`. Vite defaults to `base: '/'`, so JS/CSS/asset URLs 404 after deploy (blank page). Conversely, setting `base: '/<repo>/'` breaks local dev links if not mirrored in the router, and breaks again when switching to a custom domain at root.
-- `fetch('/scenarios/oil-temp.yaml')` with a leading slash ignores the base path and 404s in production. Same for images referenced in CSS/inline SVG `<image href>`, `<use href="/sprite.svg#id">`, and service worker scope.
-- Dynamically computed asset URLs (e.g. scenarios discovered via string-built paths) are not rewritten by Vite and won't be included in `dist/`. YAML files placed in `public/` are not hashed or fingerprinted, so they are cached stale.
+- `fetch('/scenarios/oil-temp.toon')` with a leading slash ignores the base path and 404s in production. Same for images referenced in CSS/inline SVG `<image href>`, `<use href="/sprite.svg#id">`, and service worker scope.
+- Dynamically computed asset URLs (e.g. scenarios discovered via string-built paths) are not rewritten by Vite and won't be included in `dist/`. TOON files placed in `public/` are not hashed or fingerprinted, so they are cached stale.
 - SPA deep-links (`/scenario/engine-fire`) return GitHub's 404 page because Pages has no rewrite rules. Workarounds: hash routing (`#/scenario/...`), or a `404.html` that redirects to `index.html` (served with HTTP 404 status; bad for SEO and some crawlers, fine for an app). 404.html must be in `public/` to end up in `dist/`.
 - Case-sensitivity: macOS/Windows dev is case-insensitive; Pages (Linux) is not. `Panel.svg` vs `panel.svg` works locally, 404s in prod.
 - Jekyll processing: Pages runs Jekyll by default for branch-based deploys and ignores files/dirs starting with `_` (e.g. `_scenarios/`). Add `.nojekyll`, or deploy via the GitHub Actions workflow (recommended; `actions/upload-pages-artifact` + `actions/deploy-pages`), which also avoids the 10-builds/hour soft limit.
-- Browser/CDN caching: Pages sends `Cache-Control: max-age=600`; after a deploy, users get a mix of old HTML and new hashed chunks or old YAML. Lazy-loaded chunks of the previous build 404 for users with the old HTML open (white screen on navigation).
+- Browser/CDN caching: Pages sends `Cache-Control: max-age=600`; after a deploy, users get a mix of old HTML and new hashed chunks or old scenario files. Lazy-loaded chunks of the previous build 404 for users with the old HTML open (white screen on navigation).
 - Custom domain setup: the `CNAME` file must be in the deployed output (put it in `public/`) or the domain resets on each deploy; HTTPS enforcement takes time to provision.
 - Service worker/PWA (if added for offline): caches stale builds; broken updates on iOS.
 
@@ -315,7 +315,7 @@ It works at `localhost:5173/`; the first deploy is the first time base/path/cach
 
 **How to avoid:**
 - Decide on routing in P1: for a mostly single-screen trainer, use hash routing or no router (state-based views) to eliminate the 404 problem entirely. Only add the `404.html` redirect hack if pretty URLs are required.
-- Set `base` from an env var (`VITE_BASE`), use `import.meta.env.BASE_URL` for all runtime URLs, and import scenario YAML through Vite (`import.meta.glob('./scenarios/*.yaml', { query: '?raw', eager: false })` or a YAML plugin) so they get hashed and bundled instead of fetched from hard-coded paths.
+- Set `base` from an env var (`VITE_BASE`), use `import.meta.env.BASE_URL` for all runtime URLs, and import scenario TOON files through Vite (`import.meta.glob('./scenarios/*.toon', { query: '?raw', eager: false })`, parsed at runtime; no build-time scenario plugin) so they get hashed and bundled instead of fetched from hard-coded paths.
 - Deploy with GitHub Actions (not the `gh-pages` branch), include `.nojekyll` anyway, add `CNAME` to `public/`.
 - Add a CI smoke test that serves `dist/` under a subpath (e.g. `npx serve` with a rewrite or Playwright against a static server mounted at `/<repo>/`) and asserts the app boots and a scenario loads. Also run a lowercase/case-sensitivity check (lint the file references on Linux CI).
 - Include a build version/hash in the UI footer and a "new version available, reload" handler for chunk-load errors (`vite:preloadError` event).
@@ -324,7 +324,7 @@ It works at `localhost:5173/`; the first deploy is the first time base/path/cach
 **Warning signs:**
 - Blank page with 404s for `/assets/index-*.js` on first deploy.
 - `fetch('/...` anywhere in code.
-- Scenario YAML in `public/` loaded by hard-coded URL.
+- Scenario TOON in `public/` loaded by hard-coded URL.
 - Users report "need hard refresh".
 
 **Phase to address:**
@@ -335,7 +335,7 @@ P1 (deploy pipeline in the very first phase, deployed hello-world before feature
 ### Pitfall 12: Training mode vs Exam mode leak: hints, checklist visibility, and feedback revealing answers
 
 **What goes wrong:**
-- "Checklist can be shown/hidden" implemented in the DOM: in Exam mode the hidden checklist is still in the DOM/devtools or in the JS state/console logs; scenario YAML (including required actions) is plainly downloadable. Not a security issue for training value (self-assessment), but it undermines credibility for flight-school use of "Exam mode" as an assessment.
+- "Checklist can be shown/hidden" implemented in the DOM: in Exam mode the hidden checklist is still in the DOM/devtools or in the JS state/console logs; scenario TOON (including required actions) is plainly downloadable. Not a security issue for training value (self-assessment), but it undermines credibility for flight-school use of "Exam mode" as an assessment.
 - Subtle feedback leakage in Exam mode: annunciator/gauge reactions that only happen after the correct action (the panel itself gives the answer), button enabled/disabled states, sound cues, or a score counter; also the random scenario picker biasing repeats so users memorise the sequence rather than the procedure.
 - Rote memorisation of click order vs. understanding: training value reduces if users can repeat the same scenario with identical random seeds.
 - Training immediate-feedback that blocks natural slips: marking wrong action instantly and preventing continuation teaches a different procedure flow than the real world (where errors can compound).
@@ -470,8 +470,8 @@ P3 (timeline recording), P5 (progress UI), P6 (licence storage shares the wrappe
 | GitHub Pages | Branch-based deploy with Jekyll; `base` unset | Actions-based deploy, `.nojekyll`, `base` via env, test under subpath |
 | GitHub Pages custom domain | `CNAME` not in build output | Put `CNAME` in `public/` |
 | GitHub Pages + commerce | Embedding checkout/payment forms on the Pages site | Hosted checkout (merchant of record), host app elsewhere before selling (ToS) |
-| YAML parsing | Default YAML 1.1 behavior (`on/off/yes/no` -> booleans) | YAML 1.2 core schema, quoted enum strings, schema rejects booleans where state expected |
-| Vite + YAML | Fetching YAML at runtime from `public/` | Import via Vite (`?raw` + parser, or plugin) for hashing/bundling |
+| TOON parsing | Floating parser version, non-strict decode, unquoted numeric-looking strings, library encoder on authored files | Exact pin + conformance test, strict decode (`[N]` counts must match), quoted enum strings, comments only as full `#` lines |
+| Vite + TOON | Fetching TOON at runtime from `public/` | Import via Vite (`?raw` + runtime parser, no build-time plugin) for hashing/bundling |
 | Payment/licence provider | Trusting a client-side "paid" flag | Server-verified licence key (serverless function) returning a grant/decryption key |
 | Web Crypto (if encrypted packs) | Using ECB, static IV, key embedded in JS | AES-GCM with random IV, key derived from licence key; treat as deterrent only |
 | Fonts | System fonts for glass display text | Embedded OFL-licensed webfont subset |
@@ -486,7 +486,7 @@ P3 (timeline recording), P5 (progress UI), P6 (licence storage shares the wrappe
 | SVG filters/blur/masks on large areas | Scroll/zoom lag, Safari crash | Avoid filters; pre-flatten decorative layers | Phones, >1 filtered large group |
 | Large multi-MB SVG (design-tool export) | Slow load, high memory | Size budget; SVGO; split layers | First load on 3G/4G, low-RAM Android |
 | Timers per gauge (one rAF loop each) | CPU spin when idle | One shared loop; stop when nothing animates | Idle tabs, phones |
-| Runtime YAML parse of all packs at startup | Slow start | Lazy-load per scenario; parse on demand | When packs exceed tens of scenarios |
+| Runtime TOON parse of all packs at startup | Slow start | Lazy-load per scenario; parse on demand | When packs exceed tens of scenarios |
 | Recomputing grading on every action | Visible lag in Training immediate feedback | Incremental evaluation of the predicate set | Only large scenarios; unlikely |
 | Pages bandwidth soft limit (100 GB/month) | Site throttled/contacted | Lean assets; CDN in front when paid | Unlikely at v1 scale; relevant if viral/flight-school rollout |
 
@@ -494,12 +494,12 @@ P3 (timeline recording), P5 (progress UI), P6 (licence storage shares the wrappe
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Rendering scenario text (names, hints, source) as HTML via `innerHTML` | XSS from a malicious/imported YAML pack (community or customer-supplied packs) | Render as text; if rich text needed, sanitize (DOMPurify) with allowlist; CSP header via `<meta>` |
-| YAML parsing with unsafe/custom tags (`!!js/function` in old `js-yaml` <4 `load`) | Code execution | Use `yaml` or `js-yaml` >=4 safe schema only; never enable custom types |
+| Rendering scenario text (names, hints, source) as HTML via `innerHTML` | XSS from a malicious/imported TOON pack (community or customer-supplied packs) | Render as text; if rich text needed, sanitize (DOMPurify) with allowlist; CSP header via `<meta>` |
+| Evaluating scenario content as code | Code execution | TOON decodes to plain data only; never `eval` or `new Function` scenario text; validate with the strict Zod schema |
 | Licence key checked client-side with embedded secret | Free key generation | Asymmetric signatures; verification keys only in client |
 | Licence key in URL query string | Key leaks via referrer/history/shared links | Enter in form; clear from URL; `Referrer-Policy: no-referrer` meta |
 | Third-party scripts (analytics, fonts CDN) loaded from Pages with no SRI | Supply-chain/ privacy exposure, GDPR (Google Fonts) | Self-host fonts; minimal third parties; SRI where unavoidable |
-| User-imported scenario packs with huge/recursive YAML (anchors/aliases "billion laughs") | Tab freeze | Limit file size; set `maxAliasCount` in parser; validate with timeouts |
+| User-imported scenario packs with huge scenario files | Tab freeze | Limit file size and nesting depth; validate with timeouts (TOON has no anchors or aliases) |
 | Secrets committed to the public repo (API tokens for the payment provider) | Account compromise | Secrets only in provider/serverless env; secret scanning enabled |
 
 ## UX Pitfalls
@@ -522,7 +522,7 @@ P3 (timeline recording), P5 (progress UI), P6 (licence storage shares the wrappe
 - [ ] **Deployed site:** Often missing base path/case-sensitivity correctness — verify by loading the Pages URL fresh in a private window and deep-link refresh
 - [ ] **Touch support:** Often missing `touch-action`, pointercancel, hit areas — verify on a real iPhone and a real Android phone (portrait + landscape + rotation mid-scenario)
 - [ ] **Scenario validation:** Often missing cross-reference checks (control IDs, states, group refs) — verify by deliberately typoing an ID and confirming a file:line error
-- [ ] **YAML safety:** Often missing 1.2 parsing — verify a scenario with `state: off`/`on` is parsed as the string, or rejected with a clear message
+- [ ] **TOON safety:** Often missing the exact pin and strict decoding — verify a scenario with a numeric-looking string or a wrong array count is rejected with a clear file:line message
 - [ ] **Grading:** Often missing edge cases — verify golden tests exist for pre-satisfied, toggle-back, forbidden-then-revert, any-of, partial-order, repeated actions
 - [ ] **Reactions:** Often missing deterministic clock and pause — verify background the tab 2 minutes then return: no escalation jump
 - [ ] **Exam mode:** Often leaks hints — verify no checklist in DOM, no logging, no feedback cues
@@ -556,7 +556,7 @@ P3 (timeline recording), P5 (progress UI), P6 (licence storage shares the wrappe
 |---------|------------------|--------------|
 | 1 Event-log grading | P1 decision, P3 build | Golden grading fixtures pass for all edge cases |
 | 2 Nondeterministic reactions | P3 | Replay tests with fake clock; background-tab test |
-| 3 Schema/YAML authoring errors | P1 (schema), P4 (tooling) | Validator rejects typo/boolean/cycle fixtures with file:line; non-developer authors a scenario |
+| 3 Schema/TOON authoring errors | P1 (schema), P4 (tooling) | Validator rejects typo/boolean/cycle fixtures with file:line; non-developer authors a scenario |
 | 4 Coupling to SVG IDs | P1 layering, P2 registry | CI check registry<->SVG ID parity |
 | 5 Touch/mobile interaction | P2 | Real-device test matrix passes; no misactuation during pan |
 | 6 SVG performance | P2, P5 | Size budget in CI; profiling on mid-range Android |
@@ -578,7 +578,7 @@ P3 (timeline recording), P5 (progress UI), P6 (licence storage shares the wrappe
 | P1 Foundations | Deploying only at the end; base path surprises; deciding repo visibility late | Deploy hello-world to Pages with subpath smoke test on day one; choose content-repo separation and custom domain now |
 | P2 Panel/interaction | Mouse-first controls; tiny hit areas; ID coupling; tracing real avionics | Pointer Events, registry, hit-area standards, original artwork only |
 | P3 Engine/grading | Flat action log; wall-clock timers | State-predicate model, injected clock, golden tests |
-| P4 Content/authoring | YAML booleans, verbatim AFM, missing metadata | 1.2 parser, validator CLI, mandatory source/revision/criticality fields |
+| P4 Content/authoring | TOON number coercion, verbatim AFM, missing metadata | pinned strict parser, validator CLI, mandatory source/revision/criticality fields |
 | P5 Polish/legal | Disclaimers as afterthought; a11y; stale-deploy white screens | First-run ack, audit pass, preload-error handler |
 | P6 Gate/monetization | Believing the client gate protects content; Pages ToS; EU/VAT; AFM/trademark clearance | Server-verified grants, packs outside public output, migrate host, merchant of record, legal review |
 
@@ -594,8 +594,8 @@ P3 (timeline recording), P5 (progress UI), P6 (licence storage shares the wrappe
 - GitHub Docs, "GitHub Pages limits" (https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits): prohibited commercial/e-commerce/SaaS use; 1 GB site, 100 GB/month soft bandwidth, 10 builds/hour soft limit (not applied to Actions deploys), 10-minute deploy timeout. Confidence HIGH (official, fetched 2026-10-19).
 - Garmin product manual "Trademark Notices" pages (www8.garmin.com/manuals/webhelp/...): Garmin marks "may not be used without express permission of Garmin". No simulator-specific policy located. Confidence MEDIUM. Microsoft msfs-avionics-mirror README notes third-party trademark use is subject to the third parties' policies (LOW-MEDIUM, secondary).
 - Community/Vite guidance on GitHub Pages: `base` must match `/<repo>/` for project sites; Pages has no rewrite rules so SPA deep-links need hash routing or a 404.html redirect, and 404.html must be placed in `public/` to reach `dist/` (dev.to "Handling 404 error in SPA deployed on GitHub Pages", OpenReplay "fix cannot get SPA deployment"). Confidence MEDIUM (community sources; consistent with Vite docs on `base`).
-- Established engineering knowledge, not freshly verified in this session (MEDIUM/LOW; validate during the relevant phase): YAML 1.1 boolean coercion (Norway problem) and YAML 1.2 core schema behaviour; Pointer Events/`touch-action` behaviour on iOS Safari; browser timer throttling in background tabs; Safari ITP storage limits; `transform-box` behaviour for SVG rotation; Pages Jekyll underscore-directory handling and `.nojekyll`; GDPR/Impressum requirements; copyright treatment of procedural facts vs. expression (jurisdiction-dependent, needs legal advice).
+- Established engineering knowledge, not freshly verified in this session (MEDIUM/LOW; validate during the relevant phase): TOON Working Draft spec stability (hence the exact parser pin and conformance test); Pointer Events/`touch-action` behaviour on iOS Safari; browser timer throttling in background tabs; Safari ITP storage limits; `transform-box` behaviour for SVG rotation; Pages Jekyll underscore-directory handling and `.nojekyll`; GDPR/Impressum requirements; copyright treatment of procedural facts vs. expression (jurisdiction-dependent, needs legal advice).
 
 ---
-*Pitfalls research for: web-based cockpit procedure trainer (DA50 RG), static hosted, YAML scenarios, future paid packs*
+*Pitfalls research for: web-based cockpit procedure trainer (DA50 RG), static hosted, TOON scenarios, future paid packs*
 *Researched: 2026-10-19*

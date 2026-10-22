@@ -31,6 +31,10 @@ export const LIVING_DOCUMENTS: readonly string[] = [
   '.planning/REQUIREMENTS.md',
   '.planning/todos/pending/2026-10-21-review-warnings-hardening.md',
   '.planning/todos/pending/2026-10-21-breaker-effects-and-avionics-functions.md',
+  '.planning/research/ARCHITECTURE.md',
+  '.planning/research/PITFALLS.md',
+  '.planning/research/FEATURES.md',
+  '.planning/research/SUMMARY.md',
 ];
 
 describe('living documents name TOON as the scenario format', () => {
