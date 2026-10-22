@@ -189,7 +189,7 @@ describe('parseScenario on author errors', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]?.line).toBeUndefined();
+    expect(result.issues[0]).toMatchObject({ line: 1, col: 1 });
   });
 
   it('rejects a branch label without a colon and a title over 18 characters', () => {

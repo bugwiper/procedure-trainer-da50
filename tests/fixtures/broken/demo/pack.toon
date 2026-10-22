@@ -1,0 +1,14 @@
+# Deliberately invalid fixture: a manifest whose third entry names a file that does not exist.
+format: 1
+title: Broken demo
+free: true
+scenarios[3]:
+  - id: bad-key
+    title: BAD KEY
+    file: bad-key
+  - id: bad-control
+    title: BAD CONTROL
+    file: bad-control
+  - id: no-such-file
+    title: NO SUCH FILE
+    file: no-such-file

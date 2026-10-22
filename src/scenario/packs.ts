@@ -1,16 +1,17 @@
 // The pack seam (D-20, PLT-03): the app lists and opens scenarios only through a PackProvider
 // guarded by an AccessPolicy. listPacks reads the pack manifests and never calls a scenario
 // loader; openScenario asks the policy first, then finds the manifest entry, loads the pack,
-// parses and lints the file. Every failure comes back as a reason, nothing an author or a loader
+// checks the file (checkScenario, the same check as `npm run validate`). Every failure comes back as a reason, nothing an author or a loader
 // does makes openScenario throw. Later paid-pack gating plugs in as a different policy and
 // provider; the callers do not change.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import type { AircraftEnv } from '../engine/env';
-import { lintScenario } from './lint';
-import { parseManifest, parseScenario } from './parse';
+import { checkScenario } from './lint';
+import { parseManifest } from './parse';
 import type { ScenarioIssue } from './parse';
 import type { Scenario } from './schema';
+import { indexToon, locate } from './toon-index';
 
 export interface PackScenarioEntry {
   readonly id: string;
@@ -119,13 +120,15 @@ function failure(reason: OpenFailure, issues: readonly ScenarioIssue[]): OpenRes
   return { ok: false, reason, issues };
 }
 
-const note = (path: string, message: string): ScenarioIssue[] => [{ path, message }];
+const note = (path: string, message: string): ScenarioIssue[] => [
+  { path, message, line: 1, col: 1 },
+];
 
 const errorText = (error: unknown): string =>
   error instanceof Error ? error.message : 'unknown error';
 
 /**
- * Order: policy, manifest entry, loadPack, file by entry.file, parse, lint, id equals entry id.
+ * Order: policy, manifest entry, loadPack, file by entry.file, checkScenario, id equals entry id.
  * A policy that throws or rejects denies (fail closed).
  */
 export async function openScenario(
@@ -166,15 +169,16 @@ export async function openScenario(
     return failure('missing', note('(pack)', `pack "${ref.pack}" has no file "${entry.file}"`));
   }
 
-  const parsed = parseScenario(file.text);
-  if (!parsed.ok) return failure('invalid', parsed.issues);
-  const issues = lintScenario(parsed.value, env);
-  if (issues.length > 0) return failure('invalid', issues);
-  if (parsed.value.id !== entry.id) {
-    return failure(
-      'invalid',
-      note('id', `file id "${parsed.value.id}" differs from manifest id "${entry.id}"`),
-    );
+  const checked = checkScenario(file.text, env);
+  if (!checked.ok) return failure('invalid', checked.issues);
+  if (checked.scenario.id !== entry.id) {
+    return failure('invalid', [
+      {
+        path: 'id',
+        message: `file id "${checked.scenario.id}" differs from manifest id "${entry.id}"`,
+        ...locate(indexToon(file.text), ['id']),
+      },
+    ]);
   }
-  return { ok: true, scenario: parsed.value };
+  return { ok: true, scenario: checked.scenario };
 }

@@ -1,0 +1,76 @@
+# Deliberately invalid fixture: a step names a control id that the registry does not have.
+format: 1
+id: bad-control
+title: BAD CONTROL
+source:
+  document: "AFM DA 50 C, Doc 9.01.01-E"
+  issue: "018"
+  section: AFM 03-08 ENG OIL TEMP
+  verified: "2026-10-22"
+disclaimer: training-aid
+briefing:
+  situation: "You are in cruise flight when the red ENG OIL TEMP message appears on the primary flight display. The oil temperature reading is high. The oil pressure is indicated in the green range and the engine otherwise runs smoothly."
+initial:
+  controls:
+    lv.power: p75
+    lv.cowl_flap: closed
+  quantities:
+    oil_temp_c: 128
+    oil_pressure_bar: 5
+annunciations[1]: eng_oil_temp
+procedure[1]:
+  - kind: decision
+    text: Check oil pressure
+    branches[2]:
+      - label: "If too low:"
+        when:
+          check: band
+          quantity: oil_pressure_bar
+          in[2]: low_red,low_yellow
+      - label: "If in green range:"
+        when:
+          check: band
+          quantity: oil_pressure_bar
+          in[1]: green
+        nodes[4]:
+          - kind: group
+            id: immediate
+            ordered: false
+            steps[2]:
+              - id: reduce_power
+                severity: critical
+                text: Reduce power
+                done:
+                  check: travel_rel
+                  control: lv.power
+                  op: lte
+                  delta: -10
+              - id: open_cowl_flap
+                severity: critical
+                text: Open cowl flap
+                done:
+                  check: state
+                  control: lv.no_such_control
+                  is: open
+          - kind: line
+            text: Increase airspeed
+          - kind: line
+            text: Check oil temp in green range
+          - kind: branch
+            label: "If not returning to green range:"
+            decided_at: run
+            when:
+              check: band
+              quantity: oil_temp_c
+              in[3]: low_yellow,high_yellow,high_red
+            nodes[1]:
+              - kind: line
+                text: Land at nearest suitable airfield
+forbidden[1]:
+  - id: power_increased
+    text: Increase power
+    trigger:
+      check: travel_rel
+      control: lv.power
+      op: gt
+      delta: 0

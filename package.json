@@ -17,8 +17,9 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "test": "vitest run",
-    "format": "prettier --write src tests e2e",
-    "format:check": "prettier --check src tests e2e",
+    "validate": "node scripts/validate-scenarios.mjs",
+    "format": "prettier --write src tests e2e scripts",
+    "format:check": "prettier --check src tests e2e scripts",
     "build:e2e": "VITE_TEST_HOOKS=1 BASE_PATH=/procedure-trainer-da-50/ vite build --outDir dist-e2e",
     "preview:e2e": "BASE_PATH=/procedure-trainer-da-50/ vite preview --outDir dist-e2e --port 4173 --strictPort",
     "e2e": "playwright test"
