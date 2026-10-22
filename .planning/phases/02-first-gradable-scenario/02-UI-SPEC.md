@@ -460,7 +460,7 @@ Applicable state considerations resolved: 12 covered, 3 backstop, 2 unresolved.
 
 ## Unconfirmed Items (for the owner)
 
-Defaults are taken in the spec above; none is one-way.
+Owner review done 2026-10-22: see "Owner decisions on U-01 to U-18" below, which overrides the defaults in this list where they differ (U-10, U-18).
 
 1. **U-01 D-15 kept in the footer.** The legroom area holds begin/choose actions only; "Procedure complete" stays in the footer for reachability at every zoom level and pan safety (section "D-15 against the legroom area"). If the owner wants it in the legroom as well, add it to the free slot as a second, redundant button; the footer stays.
 2. **U-02 Footer 28 to 52 px.** Grows at the briefing, not at Start, to avoid a layout shift. Alternative: a permanent 44 px footer (costs 16 px of panel height in the free state on every device).
@@ -480,6 +480,16 @@ Defaults are taken in the spec above; none is one-way.
 16. **U-16 Error and empty copy** is mine; the empty state can only occur with a broken build.
 17. **U-17 Branches in briefing and debrief (D-25).** The first scenario file carries the decision "Check oil pressure" with the branch "If in green range:" (authored and graded) and the sibling "If too low:" as a **label-only** branch, so the outline shows it as "Not applicable" instead of hiding it. The briefing omits the children of any not-applicable branch (they can contain panel steps, which the exam never shows); the debrief lists them muted and ungraded once they exist (Phase 3 authors the "If too low:" content). Alternative: leave the sibling out of the Phase 2 file (the outline then shows only the green branch; the renderer is unchanged). Nested "If not returning to green range:" is an `open` branch: shown, ungraded, in Phase 2.
 18. **U-18 Button wording.** CTAs are verb plus noun: Start run, Back to panel (briefing, error and debrief), CLOSE LIST (area), Keep going, Leave run, I understand, Procedure complete. "OK" and the bare "Start" and "Back" are not used. The error button closes the message and returns to the free panel; it does not retry (the user presses NEW SITUATION again); "Try again" is the alternative if the owner wants a retry button.
+
+---
+
+## Owner decisions on U-01 to U-18 (2026-10-22)
+
+Accepted as recommended: U-01 footer only, U-02 footer grows at briefing, U-03 leave-run confirm, U-04 no confirm on Procedure complete, U-05/U-06 size 14 area label accepted for now, U-07, U-08 max 4 rows, U-09 (re-check against the reference image when it arrives), U-11 'AFM' prefix lives in the data (`source.section`), U-12, U-13, U-14 and U-17 (briefing lists non-panel lines; "If too low:" shown as Not applicable), U-15, U-16 (owner reviews wording before ship).
+
+Changed by the owner (these override the text above):
+- **U-10:** closing the debrief **keeps the end state**. The panel stays as the user left it, and the quantities (oil values, CAS chip) stay as in the run until the next situation starts. The scenario session ends; the panel then behaves as a free panel in that state.
+- **U-18:** the load-error modal gets a **"Try again"** button (retries the load) in addition to "Back to panel".
 
 ---
 
