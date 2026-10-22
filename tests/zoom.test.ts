@@ -887,10 +887,12 @@ describe('Full panel button corner (R2-T1, D-13)', () => {
 });
 
 describe('HTML chrome type scale (UI-SPEC Typography)', () => {
-  it('uses 14px as the only font size in stage.css', () => {
+  it('uses only the sizes 14, 16, 20 and 28 px in stage.css (phase 02 scale)', () => {
+    // Phase 02 UI-SPEC Typography: Meta and Label 14, Body 16, Heading 20, Display 28. The debrief
+    // adds 16 and 28 (Body, PASS or FAIL); 20 is reserved for the modal titles of later plans.
     const css = readFileSync(new URL('../src/ui/stage.css', import.meta.url), 'utf8');
     const sizes = [...css.matchAll(/font-size:\s*([^;]+);/g)].map((m) => m[1]?.trim());
     expect(sizes.length).toBeGreaterThan(0);
-    for (const size of sizes) expect(size).toBe('14px');
+    for (const size of sizes) expect(['14px', '16px', '20px', '28px']).toContain(size);
   });
 });

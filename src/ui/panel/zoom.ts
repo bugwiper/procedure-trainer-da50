@@ -24,8 +24,11 @@ import {
 } from './viewport';
 import type { ButtonCorner } from './viewport';
 
-/** A pointer that starts on one of these elements lands on a control (a registered or own target). */
-const TAP_TARGET_SELECTOR = '[data-hit], [data-detent]';
+/**
+ * A pointer that starts on one of these elements lands on a control (a registered or own target)
+ * or on a session button (data-session-hit, class action).
+ */
+const TAP_TARGET_SELECTOR = '[data-hit], [data-detent], [data-session-hit]';
 
 const fullView = signal<Rect>({ x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h });
 
@@ -278,6 +281,14 @@ export function attachZoomGestures(
           const record = records.get(effect.id);
           const info = record && { down: effect.down, up: effect.up, hit: record.hit };
           const act = () => (info === undefined ? null : (record?.target?.tap?.(info) ?? null));
+          if (record?.target?.cls === 'action') {
+            // A session button acts on the first release: no pair, no retract, no zoom, and it
+            // ends any pair in progress (UI-SPEC gesture contract).
+            act();
+            doubleTaps.reset();
+            lastTapView = null;
+            break;
+          }
           if (!effect.quick) {
             // A long press is an ordinary tap: it actuates and ends any pair.
             act();
@@ -385,7 +396,8 @@ export function attachZoomGestures(
         registered === undefined
           ? { cls: 'own', key, dragStartPx: 0 }
           : {
-              cls: registered.cls,
+              // The arbiter knows four classes; a session button is a latch press to it.
+              cls: registered.cls === 'action' ? 'latch' : registered.cls,
               key,
               dragStartPx: registered.dragStartPx ?? 0,
               ...(registered.cls === 'own' && registered.pairKey !== undefined

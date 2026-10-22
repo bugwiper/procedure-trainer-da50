@@ -6,8 +6,12 @@
 
 import type { DispatchResult } from '../../engine/store';
 
-/** What a pointerdown on a hit element is, to the arbiter (the class of Table A1). */
-export type PressClass = 'latch' | 'momentary' | 'own';
+/**
+ * What a pointerdown on a hit element is, to the arbiter (the class of Table A1). `action` is a
+ * session button (plan 02-06): the arbiter sees a latch press (same slop, pan and pinch rules), but
+ * the gesture layer calls its tap directly, never pairs it, never retracts and never zooms.
+ */
+export type PressClass = 'latch' | 'momentary' | 'own' | 'action';
 
 export interface ClientPoint {
   readonly x: number;
@@ -62,10 +66,17 @@ export function pressTargetOf(el: Element | null | undefined): PressTarget | und
   return el === null || el === undefined ? undefined : targets.get(el);
 }
 
-/** The data-detent value of a control element if present, else its data-hit value, else null. */
+/**
+ * The data-detent value of a control element if present, else its data-hit value, else the
+ * data-session-hit value of a session button, else null.
+ */
 export function pressKeyOf(el: Element | null | undefined): string | null {
   if (el === null || el === undefined) return null;
-  return el.getAttribute('data-detent') ?? el.getAttribute('data-hit');
+  return (
+    el.getAttribute('data-detent') ??
+    el.getAttribute('data-hit') ??
+    el.getAttribute('data-session-hit')
+  );
 }
 
 /** The sequence number of a successful dispatch result, null for a rejected one. */

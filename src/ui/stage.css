@@ -99,6 +99,195 @@ body,
   touch-action: manipulation;
 }
 
+/* Right group of the footer: [Procedure complete] [About and content policy], 16 px apart. On a
+   narrow portrait phone the footer wraps and the group takes its own right-aligned line. */
+.footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  column-gap: 16px;
+  margin-left: auto;
+}
+
+/* During a session (running or debrief) the footer holds the 44 px run button: 52 px minimum, so
+   the panel does not resize between Start and Procedure complete (D-15). */
+.footer[data-session='true'] {
+  min-height: 52px;
+  padding-top: 4px;
+  padding-bottom: calc(4px + env(safe-area-inset-bottom));
+  align-items: center;
+}
+
+/* Procedure complete: the one filled accent surface on screen during a run. */
+.run-button {
+  appearance: none;
+  box-sizing: border-box;
+  min-height: 44px;
+  min-width: 160px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #8fb8e6;
+  color: #0b0d10;
+  font-family: var(--font-placard);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.run-button:active {
+  background: #6f9fd1;
+}
+
+.run-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* Keyboard focus ring of a session button inside the SVG (width 4, 4 outside the rim). */
+.session-button {
+  outline: none;
+}
+
+.session-button .session-focus {
+  display: none;
+}
+
+.session-button:focus-visible .session-focus {
+  display: inline;
+}
+
+/* Modal container (debrief; plan 09 moves the dialogs onto the shared shell). Full viewport above
+   Full panel (30), About (20) and the rotate hint (10); the scrim covers the SVG hit area, so no
+   tap reaches a control behind it. A backdrop tap does nothing. No animation. */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(11, 13, 16, 0.88);
+  font-family: var(--font-placard);
+  color: #e6e9ed;
+}
+
+.modal-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  touch-action: pan-y;
+  padding: 16px;
+  border: 1px solid #3a424b;
+  border-radius: 8px;
+  background: #1b1f25;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  background: #1b1f25;
+}
+
+.primary-button {
+  appearance: none;
+  box-sizing: border-box;
+  min-height: 44px;
+  min-width: 160px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #8fb8e6;
+  color: #0b0d10;
+  font-family: var(--font-placard);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.primary-button:active {
+  background: #6f9fd1;
+}
+
+.primary-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.debrief-result {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.debrief-reason {
+  margin: 0 0 4px;
+  letter-spacing: 0.02em;
+}
+
+.debrief-heading {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+}
+
+.debrief-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.debrief-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 12px;
+  padding: 4px 0;
+}
+
+.debrief-tag,
+.debrief-verdict {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+}
+
+.debrief-tag {
+  flex: 0 0 auto;
+  min-width: 88px;
+  color: #aab3bd;
+}
+
+.debrief-text {
+  flex: 1 1 160px;
+  letter-spacing: 0.02em;
+}
+
+.debrief-verdict {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 /* About overlay over the whole stage (D-16); long policy text scrolls by finger. */
 .about {
   position: fixed;

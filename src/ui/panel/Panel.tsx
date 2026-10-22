@@ -1,6 +1,7 @@
 import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { PanelBridge } from '../bridge';
+import type { Session } from '../session';
 import { ControlWidget } from './ControlWidget';
 import { Defs } from './Defs';
 import { AudioPanelFrame } from './frames/AudioPanelFrame';
@@ -9,6 +10,7 @@ import { BezelColumnFrame } from './frames/BezelColumnFrame';
 import { MfdFrame } from './frames/MfdFrame';
 import type { FrameProps } from './frames/MfdFrame';
 import { PfdFrame } from './frames/PfdFrame';
+import { ScenarioAreaFrame } from './frames/ScenarioAreaFrame';
 import { SoftkeysFrame } from './frames/SoftkeysFrame';
 import { StandbyEfisFrame } from './frames/StandbyEfisFrame';
 import { PanelShell } from './PanelShell';
@@ -30,6 +32,8 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   audio_panel: AudioPanelFrame,
   standby_efis: StandbyEfisFrame,
   autopilot_panel: AutopilotPanelFrame,
+  // Trainer content, not aircraft: the session buttons of the co-pilot legroom (plan 02-06, D-14).
+  scenario_area: ScenarioAreaFrame,
 };
 
 /**
@@ -44,7 +48,7 @@ const SHOW_REGIONS =
  * (neutral areas emit nothing, D-09). Pointer handling lives on widget hit rects only; the
  * zoom gesture layer attaches its own listeners and only ever changes the viewBox (D-20).
  */
-export function Panel({ bridge }: { bridge: PanelBridge }) {
+export function Panel({ bridge, session }: { bridge: PanelBridge; session?: Session }) {
   const { registry } = bridge;
   const { w, h } = registry.viewBox;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -98,7 +102,9 @@ export function Panel({ bridge }: { bridge: PanelBridge }) {
           ) : null}
           {(() => {
             const Frame = FRAMES[region.id];
-            return Frame === undefined ? null : <Frame region={region} bridge={bridge} />;
+            return Frame === undefined ? null : (
+              <Frame region={region} bridge={bridge} session={session} />
+            );
           })()}
           {(bridge.indicators?.inRegion(region.id) ?? []).map((def) => (
             <IndicatorLight key={def.id} def={def} bridge={bridge} />

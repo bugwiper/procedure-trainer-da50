@@ -8,6 +8,7 @@ import {
 import type { DisplayId } from '../../../aircraft/da50rg/avionics';
 import type { Region } from '../../../engine/registry';
 import type { PanelBridge } from '../../bridge';
+import type { Session } from '../../session';
 import { ArcGauge } from './ArcGauge';
 import type { Band } from './ArcGauge';
 import { BarGauge } from './BarGauge';
@@ -15,6 +16,8 @@ import { BarGauge } from './BarGauge';
 export interface FrameProps {
   readonly region: Region;
   readonly bridge: PanelBridge;
+  /** Only the session area frame uses it (plan 02-06). */
+  readonly session?: Session;
 }
 
 const TAB_FILL = '#1b2127';

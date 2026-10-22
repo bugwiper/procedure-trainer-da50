@@ -38,17 +38,17 @@ test.beforeEach(async ({ page }) => {
 async function neutralPoints(page: Page): Promise<Point[]> {
   return page.evaluate(
     ({ inflate, perRegion }) => {
-      const targets = Array.from(document.querySelectorAll('[data-hit], [data-detent]')).map(
-        (el) => {
-          const r = el.getBoundingClientRect();
-          return {
-            left: r.left - inflate,
-            right: r.right + inflate,
-            top: r.top - inflate,
-            bottom: r.bottom + inflate,
-          };
-        },
-      );
+      const targets = Array.from(
+        document.querySelectorAll('[data-hit], [data-detent], [data-session-hit]'),
+      ).map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          left: r.left - inflate,
+          right: r.right + inflate,
+          top: r.top - inflate,
+          bottom: r.bottom + inflate,
+        };
+      });
       const clear = (x: number, y: number) =>
         targets.every((t) => x < t.left || x > t.right || y < t.top || y > t.bottom);
       const screenW = document.documentElement.clientWidth;

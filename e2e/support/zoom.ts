@@ -26,9 +26,9 @@ export async function backgroundPoint(page: Page, regionId: string): Promise<Poi
     const frame = region.querySelector('[data-region-frame]');
     if (frame === null) return null;
     const box = frame.getBoundingClientRect();
-    const targets = Array.from(document.querySelectorAll('[data-hit], [data-detent]')).map((el) =>
-      el.getBoundingClientRect(),
-    );
+    const targets = Array.from(
+      document.querySelectorAll('[data-hit], [data-detent], [data-session-hit]'),
+    ).map((el) => el.getBoundingClientRect());
     const button = document.querySelector('[data-testid="zoom-out"]')?.getBoundingClientRect();
     const screenW = document.documentElement.clientWidth;
     const screenH = document.documentElement.clientHeight - 28;
