@@ -4,10 +4,17 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
+import { branchStatuses, grade } from '../src/engine/grading';
+import type { Recording } from '../src/engine/grading';
+import { baselineOf, evaluatePredicate, initialQuantities } from '../src/engine/predicates';
+import type { PredicateContext } from '../src/engine/predicates';
 import { defineQuantities, QuantityError } from '../src/engine/quantities';
 import { DISCLAIMER_IDS, DISCLAIMERS } from '../src/scenario/disclaimers';
 import { lintScenario } from '../src/scenario/lint';
 import { MAX_TEXT_LENGTH, parseManifest, parseScenario } from '../src/scenario/parse';
+import { createPackProvider, OPEN_ACCESS, openScenario } from '../src/scenario/packs';
+import type { AccessPolicy } from '../src/scenario/packs';
+import { VITE_PACKS } from '../src/scenario/packs-vite';
 import type { Scenario } from '../src/scenario/schema';
 
 // Tracer of phase 02 (SCN-01, SCN-03, SCN-07): the real blueprint file is decoded with the
@@ -276,5 +283,210 @@ describe('quantities', () => {
   it('is part of the DA50 RG environment next to the registry', () => {
     expect(DA50RG_ENV.quantities).toBe(DA50RG_QUANTITIES);
     expect(DA50RG_ENV.registry.get('lv.power')?.kind).toBe('detent-lever');
+  });
+});
+
+// Tracer of plan 02 (D-20, PLT-03, D-09, D-10, D-13): the blueprint is listed and opened only
+// through the pack seam and graded PASS or FAIL by a pure function of the recorded log.
+describe('the pack seam', () => {
+  const REF = { pack: 'engine', scenario: 'eng-oil-temp-green' } as const;
+  const MANIFEST = readFileSync(join(root, 'scenarios/engine/pack.toon'), 'utf8');
+
+  /** A provider over fake modules; `calls` counts every loader call. */
+  function fake(files: Record<string, string | Error>) {
+    const calls = { count: 0 };
+    const loaders: Record<string, () => Promise<string>> = {};
+    for (const [name, text] of Object.entries(files)) {
+      loaders[`/scenarios/engine/${name}.toon`] = () => {
+        calls.count += 1;
+        return text instanceof Error ? Promise.reject(text) : Promise.resolve(text);
+      };
+    }
+    const provider = createPackProvider({
+      manifests: { '/scenarios/engine/pack.toon': MANIFEST },
+      loaders,
+    });
+    return { provider, calls };
+  }
+
+  it('lists the engine pack from its manifest', async () => {
+    const packs = await VITE_PACKS.listPacks();
+    expect(packs).toEqual([
+      {
+        id: 'engine',
+        title: 'Engine',
+        free: true,
+        scenarios: [
+          { id: 'eng-oil-temp-green', title: 'ENG OIL TEMP', file: 'eng-oil-temp-green' },
+        ],
+      },
+    ]);
+  });
+
+  it('lists packs without calling a scenario loader', async () => {
+    const { provider, calls } = fake({ 'eng-oil-temp-green': BLUEPRINT });
+    expect(await provider.listPacks()).toHaveLength(1);
+    expect(calls.count).toBe(0);
+  });
+
+  it('opens the blueprint through the real provider and the open policy', async () => {
+    const result = await openScenario(
+      { provider: VITE_PACKS, policy: OPEN_ACCESS },
+      DA50RG_ENV,
+      REF,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.scenario.title).toBe('ENG OIL TEMP');
+    expect(result.scenario.initial.controls['lv.power']).toBe('p75');
+  });
+
+  it('denies a pack the policy refuses and calls no loader', async () => {
+    const { provider, calls } = fake({ 'eng-oil-temp-green': BLUEPRINT });
+    const policy: AccessPolicy = { canAccess: () => false };
+    const result = await openScenario({ provider, policy }, DA50RG_ENV, REF);
+    expect(result).toMatchObject({ ok: false, reason: 'denied' });
+    expect(calls.count).toBe(0);
+  });
+
+  it('denies when the policy throws', async () => {
+    const { provider, calls } = fake({ 'eng-oil-temp-green': BLUEPRINT });
+    const policy: AccessPolicy = {
+      canAccess: () => Promise.reject(new Error('offline')),
+    };
+    const result = await openScenario({ provider, policy }, DA50RG_ENV, REF);
+    expect(result).toMatchObject({ ok: false, reason: 'denied' });
+    expect(calls.count).toBe(0);
+  });
+
+  it('reports an unknown scenario id or pack as missing', async () => {
+    const { provider } = fake({ 'eng-oil-temp-green': BLUEPRINT });
+    const source = { provider, policy: OPEN_ACCESS };
+    expect(
+      await openScenario(source, DA50RG_ENV, { pack: 'engine', scenario: 'nope' }),
+    ).toMatchObject({
+      ok: false,
+      reason: 'missing',
+    });
+    expect(await openScenario(source, DA50RG_ENV, { pack: 'nope', scenario: 'x' })).toMatchObject({
+      ok: false,
+      reason: 'missing',
+    });
+  });
+
+  it('reports a manifest entry without a file as missing', async () => {
+    const { provider } = fake({ other: BLUEPRINT });
+    const result = await openScenario({ provider, policy: OPEN_ACCESS }, DA50RG_ENV, REF);
+    expect(result).toMatchObject({ ok: false, reason: 'missing' });
+  });
+
+  it('reports a rejecting loader as load-failed instead of throwing', async () => {
+    const { provider } = fake({ 'eng-oil-temp-green': new Error('chunk 404') });
+    const result = await openScenario({ provider, policy: OPEN_ACCESS }, DA50RG_ENV, REF);
+    expect(result).toMatchObject({ ok: false, reason: 'load-failed' });
+    if (result.ok) return;
+    expect(result.issues[0]?.message).toBe('chunk 404');
+  });
+
+  it('reports a file that fails lint as invalid with its issues', async () => {
+    const { provider } = fake({
+      'eng-oil-temp-green': swap('control: lv.cowl_flap', 'control: lv.nope'),
+    });
+    const result = await openScenario({ provider, policy: OPEN_ACCESS }, DA50RG_ENV, REF);
+    expect(result).toMatchObject({ ok: false, reason: 'invalid' });
+    if (result.ok) return;
+    expect(result.issues.map((i) => i.path)).toEqual([
+      'procedure.0.branches.1.nodes.0.steps.1.done.control',
+    ]);
+  });
+
+  it('reports a file that does not parse, or has another id than its entry, as invalid', async () => {
+    const broken = fake({ 'eng-oil-temp-green': 'format: 1\nbogus: [' });
+    expect(
+      await openScenario({ provider: broken.provider, policy: OPEN_ACCESS }, DA50RG_ENV, REF),
+    ).toMatchObject({ ok: false, reason: 'invalid' });
+    const renamed = fake({ 'eng-oil-temp-green': swap('id: eng-oil-temp-green', 'id: other-id') });
+    expect(
+      await openScenario({ provider: renamed.provider, policy: OPEN_ACCESS }, DA50RG_ENV, REF),
+    ).toMatchObject({ ok: false, reason: 'invalid' });
+  });
+
+  it('throws an error naming the path for an invalid manifest', async () => {
+    const provider = createPackProvider({
+      manifests: { '/scenarios/engine/pack.toon': 'format: 1\nbogus: 1' },
+      loaders: {},
+    });
+    await expect(provider.listPacks()).rejects.toThrow('/scenarios/engine/pack.toon');
+  });
+});
+
+describe('grading the blueprint', () => {
+  const scenario = parsed(BLUEPRINT);
+  const recording = (events: Recording['events']): Recording => ({
+    scenarioId: scenario.id,
+    completedAt: 20000,
+    events,
+  });
+
+  it('grades the golden events pass with both steps credited', () => {
+    const result = grade(
+      scenario,
+      DA50RG_ENV,
+      recording([
+        { t: 8000, id: 'lv.power', value: 'p60' },
+        { t: 15000, id: 'lv.cowl_flap', value: 'open' },
+      ]),
+    );
+    expect(result.result).toBe('pass');
+    expect(result.reasons).toEqual([]);
+    expect(result.steps.map((s) => [s.id, s.credited, s.enteredAt])).toEqual([
+      ['reduce_power', true, 0],
+      ['open_cowl_flap', true, 1],
+    ]);
+  });
+
+  it('grades an empty recording fail with both critical steps missed', () => {
+    const result = grade(scenario, DA50RG_ENV, recording([]));
+    expect(result.result).toBe('fail');
+    expect(result.reasons).toEqual([{ kind: 'critical_missed', count: 2 }]);
+  });
+
+  it('takes the branch statuses from the engine', () => {
+    const expected = [
+      { path: 'procedure.0.branches.0', status: 'not_applicable' },
+      { path: 'procedure.0.branches.1', status: 'applies' },
+      { path: 'procedure.0.branches.1.nodes.3', status: 'open' },
+    ];
+    expect(branchStatuses(scenario, DA50RG_ENV)).toEqual(expected);
+    expect(grade(scenario, DA50RG_ENV, recording([])).branches).toEqual(expected);
+  });
+
+  it('refuses a recording of another scenario', () => {
+    expect(() => grade(scenario, DA50RG_ENV, { ...recording([]), scenarioId: 'other' })).toThrow(
+      Error,
+    );
+  });
+});
+
+describe('evaluatePredicate', () => {
+  const scenario = parsed(BLUEPRINT);
+  const baseline = baselineOf(scenario, DA50RG_ENV.registry);
+  const quantities = initialQuantities(scenario, DA50RG_QUANTITIES);
+  const at = (power: string): PredicateContext => ({
+    controls: { ...baseline, 'lv.power': power },
+    baseline,
+    quantities,
+  });
+  const reduced = {
+    check: 'travel_rel',
+    control: 'lv.power',
+    op: 'lte',
+    delta: -10,
+  } as const;
+
+  it('reads travel_rel relative to the baseline', () => {
+    expect(baseline['lv.power']).toBe('p75');
+    expect(evaluatePredicate(reduced, at('p65'), DA50RG_ENV)).toBe(true);
+    expect(evaluatePredicate(reduced, at('p70'), DA50RG_ENV)).toBe(false);
   });
 });
