@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: First Gradable Scenario
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-10-22T10:03:53.040Z"
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-10-22T10:12:50.819Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 02 execution started
-state_head: de5691ddfd6d44df5b03f12b415baf3aa070b55a
+state_head: 7bea76a4b895677cfbd082b26ce248c211049361
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 71
-  completed_plans: 63
+  completed_plans: 64
   percent: 29
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 02 (First Gradable Scenario) — EXECUTING
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 13
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
@@ -114,6 +114,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 02 P03 | 8 min | 3 tasks | 13 files |
 | Phase 02 P04 | 5 min | 2 tasks | 13 files |
 | Phase 02 P05 | 40 min | 2 tasks | 16 files |
+| Phase 02 P06 | 6 min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -173,6 +174,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Scenario files are TOON: @toon-format/toon 4.4.0 pinned exactly, own path-to-line index for schema errors, authoring feedback via npm run validate and the Vitest check (D-19, documented in 02-03)
 - [Phase 02]: 02-04: a scenario baseline lives beside the action log and is never dispatched; reset validates the whole baseline first and retract rebuilds from it
 - [Phase 02]: Lint issues carry path segments so dotted control ids locate exactly; checkScenario is the one check of app and validate command
+- [Phase 02]: Session buttons carry data-session-hit and press class action (arbiter sees a latch; zoom.ts calls the tap directly, no pair, retract or zoom)
+- [Phase 02]: complete() grades plain {t,id,value} copies of store.events(); closeDebrief keeps control state and quantities, clears the clock
 
 ### Pending Todos
 
@@ -202,6 +205,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T10:03:52.764Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-10-22T10:12:45.111Z
+Stopped at: Completed 02-06-PLAN.md
 Resume file: None
