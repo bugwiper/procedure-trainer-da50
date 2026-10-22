@@ -250,7 +250,7 @@ describe('DA50RG indicators', () => {
     }
   });
 
-  it('the MAX flag is never set in this phase and the MAX button lights nothing', () => {
+  it('the MAX button itself lights nothing: only the flag and the mode do', () => {
     const lit = litMap({ 'sw.deice_mode': 'high', 'btn.deice_max': 'pressed' });
     expect(lit['lt.deice_max']).toBe(false);
     expect(lit['lt.deice_high']).toBe(true);

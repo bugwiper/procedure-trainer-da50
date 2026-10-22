@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
-import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
+import { DA50RG_INDICATORS, DEICE_MAX_ACTIVE } from '../src/aircraft/da50rg/indicators';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { grade } from '../src/engine/grading';
@@ -990,5 +990,67 @@ describe('run (phase 03)', () => {
     expect(next).not.toBe(old);
     expect(next.state.t).toBe(0);
     expect(r.bridge.quantities.value['oil_temp_c']).toBe(128);
+  });
+
+  /** MAX pressed with the mode on HIGH, then two steps so the reaction has started. */
+  const startMaxRun = (r: Rig) => {
+    const run = runOf(r);
+    run.step();
+    r.bridge.actuate('sw.deice_mode', 'high');
+    run.step();
+    r.bridge.actuate('btn.deice_max', 'pressed');
+    run.step();
+    return run;
+  };
+
+  it('every run step pushes the flags to the bridge and the top de-ice lamp follows (C-23)', async () => {
+    const r = await started();
+    expect(r.bridge.flags.value).toEqual({});
+    const run = startMaxRun(r);
+    expect(run.state.flags[DEICE_MAX_ACTIVE]).toBe(true);
+    expect(r.bridge.flags.value).toEqual(run.state.flags);
+    expect(r.bridge.indicatorOf('lt.deice_max').value).toBe(true);
+
+    r.bridge.actuate('sw.deice_mode', 'norm');
+    run.step();
+    expect(r.bridge.flags.value).toEqual({});
+    expect(r.bridge.indicatorOf('lt.deice_max').value).toBe(false);
+  });
+
+  it('closeDebrief clears the flags and keeps the quantities as the run left them', async () => {
+    const r = await started();
+    const run = startMaxRun(r);
+    r.session.complete();
+    // A paused run keeps its lamp until the debrief closes.
+    expect(r.bridge.indicatorOf('lt.deice_max').value).toBe(true);
+    const quantities = r.bridge.quantities.value;
+
+    r.session.closeDebrief();
+
+    expect(r.bridge.flags.value).toEqual({});
+    expect(r.bridge.indicatorOf('lt.deice_max').value).toBe(false);
+    expect(r.bridge.quantities.value).toBe(quantities);
+    expect(run.state.flags[DEICE_MAX_ACTIVE]).toBe(true);
+  });
+
+  it('leaveRun empties the flags through the reset', async () => {
+    const r = await started();
+    startMaxRun(r);
+    expect(r.bridge.flags.value[DEICE_MAX_ACTIVE]).toBe(true);
+    await r.session.newSituation();
+    await r.session.leaveRun();
+    expect(r.bridge.flags.value).toEqual({});
+    expect(r.bridge.indicatorOf('lt.deice_max').value).toBe(false);
+  });
+
+  it('the next run starts with empty flags even when the last one ended mid reaction', async () => {
+    const r = await started();
+    startMaxRun(r);
+    r.session.complete();
+    r.session.closeDebrief();
+    await r.session.newSituation();
+    r.session.startRun();
+    expect(r.bridge.flags.value).toEqual({});
+    expect(runOf(r).state.flags).toEqual({});
   });
 });

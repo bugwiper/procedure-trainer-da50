@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
-import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
+import { DA50RG_INDICATORS, DEICE_MAX_ACTIVE } from '../src/aircraft/da50rg/indicators';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { createPanelBridge } from '../src/ui/bridge';
@@ -187,5 +187,70 @@ describe('bridge setQuantities (plan 03-01)', () => {
     expect(bridge.cas.value).toEqual([]);
     bridge.setQuantities({ ...DA50RG_QUANTITIES.baseValues(), oil_temp_c: 130 });
     expect(bridge.cas.value.map((m) => m.id)).toEqual(['eng_oil_temp']);
+  });
+});
+
+describe('bridge setFlags (plan 03-04, C-23)', () => {
+  const MAX_FLAG = DEICE_MAX_ACTIVE;
+  const aircraft = { quantities: DA50RG_QUANTITIES };
+
+  it('starts empty and keeps the very same object for equal flags', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    expect(bridge.flags.value).toEqual({});
+    bridge.setFlags({ [MAX_FLAG]: true });
+    const held = bridge.flags.value;
+    expect(held).toEqual({ [MAX_FLAG]: true });
+    bridge.setFlags({ [MAX_FLAG]: true });
+    expect(bridge.flags.value).toBe(held);
+    bridge.setFlags({ [MAX_FLAG]: false });
+    expect(bridge.flags.value).not.toBe(held);
+    bridge.setFlags({});
+    expect(bridge.flags.value).toEqual({});
+  });
+
+  it('the MAX flag with the mode on HIGH lights the top lamp, and leaving HIGH puts it out', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    const lamp = bridge.indicatorOf('lt.deice_max');
+    bridge.actuate('sw.deice_mode', 'high');
+    expect(lamp.value).toBe(false);
+    bridge.setFlags({ [MAX_FLAG]: true });
+    expect(lamp.value).toBe(true);
+    bridge.actuate('sw.deice_mode', 'norm');
+    expect(lamp.value).toBe(false);
+    bridge.setFlags({});
+    bridge.actuate('sw.deice_mode', 'high');
+    expect(lamp.value).toBe(false);
+  });
+
+  it('the MAX flag with the mode on NORM or OFF lights nothing at the top', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    const lamp = bridge.indicatorOf('lt.deice_max');
+    bridge.setFlags({ [MAX_FLAG]: true });
+    expect(lamp.value).toBe(false);
+    bridge.actuate('sw.deice_mode', 'norm');
+    expect(lamp.value).toBe(false);
+  });
+
+  it('the test hook style lamp read follows the flag', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    bridge.actuate('sw.deice_mode', 'high');
+    bridge.setFlags({ [MAX_FLAG]: true });
+    const lit = Object.fromEntries(
+      DA50RG_INDICATORS.indicators.map((def) => [def.id, bridge.indicatorOf(def.id).value]),
+    );
+    expect(lit['lt.deice_max']).toBe(true);
+    expect(lit['lt.deice_high']).toBe(true);
+    expect(lit['lt.deice_norm']).toBe(false);
+  });
+
+  it('reset empties the flags and the lamp goes dark', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    bridge.actuate('sw.deice_mode', 'high');
+    bridge.setFlags({ [MAX_FLAG]: true });
+    expect(bridge.indicatorOf('lt.deice_max').value).toBe(true);
+    bridge.reset({ 'sw.deice_mode': 'high' });
+    expect(bridge.flags.value).toEqual({});
+    expect(bridge.indicatorOf('lt.deice_max').value).toBe(false);
+    expect(bridge.indicatorOf('lt.deice_high').value).toBe(true);
   });
 });

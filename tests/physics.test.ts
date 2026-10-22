@@ -7,9 +7,14 @@ import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_PHYSICS } from '../src/aircraft/da50rg/physics';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { PhysicsError, definePhysics } from '../src/engine/physics';
-import type { PhysicsInputs, PhysicsSpec, QuantityModel } from '../src/engine/physics';
+import type {
+  PhysicsInputs,
+  PhysicsSpec,
+  QuantityModel,
+  ReactionSpec,
+} from '../src/engine/physics';
 import { baselineOf, initialQuantities } from '../src/engine/predicates';
-import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
+import { MAX_RUN_MS, STEP_MS, simSetup, simulate } from '../src/engine/sim';
 import type { SimEvent } from '../src/engine/sim';
 import { checkScenario } from '../src/scenario/lint';
 
@@ -98,6 +103,84 @@ describe('definePhysics', () => {
       expect(() => definePhysics(spec({ parameters: [{ ...one, id }] }), env), id).toThrow(
         PhysicsError,
       );
+    }
+  });
+});
+
+describe('definePhysics reactions (plan 03-04, C-20)', () => {
+  const GOOD_REACTION: ReactionSpec = {
+    id: 'deice_max',
+    on: { control: 'btn.deice_max', value: 'pressed' },
+    when: () => true,
+    flag: 'deice.max_active',
+    durationMs: 2 * STEP_MS,
+    clearsWhen: () => false,
+  };
+  const withReaction = (overrides: Partial<ReactionSpec>): PhysicsSpec =>
+    spec({ reactions: [{ ...GOOD_REACTION, ...overrides }] });
+
+  it('accepts a valid reaction, none at all, and freezes what it keeps', () => {
+    const physics = definePhysics(spec({ reactions: [GOOD_REACTION] }), env);
+    expect(physics.reactions).toHaveLength(1);
+    expect(Object.isFrozen(physics.reactions)).toBe(true);
+    expect(Object.isFrozen(physics.reactions[0])).toBe(true);
+    expect(definePhysics(spec(), env).reactions).toEqual([]);
+  });
+
+  it('accepts the shortest and the longest legal duration', () => {
+    expect(() => definePhysics(withReaction({ durationMs: STEP_MS }), env)).not.toThrow();
+    expect(() => definePhysics(withReaction({ durationMs: MAX_RUN_MS }), env)).not.toThrow();
+  });
+
+  it('throws for a reaction armed by an unknown control', () => {
+    const bad = withReaction({ on: { control: 'btn.nope', value: 'pressed' } });
+    expect(() => definePhysics(bad, env)).toThrow(PhysicsError);
+    expect(() => definePhysics(bad, env)).toThrow(/btn\.nope/);
+  });
+
+  it('throws for a reaction armed by an illegal state of a known control', () => {
+    const bad = withReaction({ on: { control: 'btn.deice_max', value: 'held' } });
+    expect(() => definePhysics(bad, env)).toThrow(PhysicsError);
+    expect(() => definePhysics(bad, env)).toThrow(/held/);
+  });
+
+  it('throws for a duration below STEP_MS, above MAX_RUN_MS or not finite', () => {
+    for (const durationMs of [
+      0,
+      STEP_MS - 1,
+      -STEP_MS,
+      MAX_RUN_MS + 1,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ]) {
+      expect(() => definePhysics(withReaction({ durationMs }), env), String(durationMs)).toThrow(
+        PhysicsError,
+      );
+    }
+  });
+
+  it('throws for a duplicate reaction id', () => {
+    expect(() => definePhysics(spec({ reactions: [GOOD_REACTION, GOOD_REACTION] }), env)).toThrow(
+      /duplicate reaction id "deice_max"/,
+    );
+  });
+
+  it('throws for a malformed reaction id or flag name', () => {
+    for (const id of ['Deice', '1deice', 'deice-max', 'deice.max', '']) {
+      expect(() => definePhysics(withReaction({ id }), env), id).toThrow(PhysicsError);
+    }
+    for (const flag of ['Deice.max', 'deice..max', '.deice', 'deice.', 'deice max', '', 'DEICE']) {
+      expect(() => definePhysics(withReaction({ flag }), env), flag).toThrow(PhysicsError);
+    }
+    expect(() => definePhysics(withReaction({ flag: 'gear' }), env)).not.toThrow();
+  });
+
+  it('the shipped reactions pass their own validation and name registry controls', () => {
+    expect(DA50RG_PHYSICS.reactions.map((r) => r.id)).toContain('deice_max');
+    for (const reaction of DA50RG_PHYSICS.reactions) {
+      expect(DA50RG.get(reaction.on.control), reaction.id).toBeDefined();
+      expect(reaction.durationMs, reaction.id).toBeGreaterThanOrEqual(STEP_MS);
+      expect(reaction.durationMs, reaction.id).toBeLessThanOrEqual(MAX_RUN_MS);
     }
   });
 });

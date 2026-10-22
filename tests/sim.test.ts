@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
+import { DA50RG_PHYSICS } from '../src/aircraft/da50rg/physics';
 import { definePhysics } from '../src/engine/physics';
 import { initialQuantities } from '../src/engine/predicates';
 import { Run } from '../src/engine/run';
@@ -15,7 +16,7 @@ import {
   simulate,
   stepSim,
 } from '../src/engine/sim';
-import type { SimEvent } from '../src/engine/sim';
+import type { SimEvent, SimState } from '../src/engine/sim';
 import { PanelStore } from '../src/engine/store';
 import { checkScenario } from '../src/scenario/lint';
 
@@ -282,7 +283,212 @@ describe('the run cap (T-03-01)', () => {
     expect(state.t).toBe(MAX_RUN_MS);
   });
 
-  it('stepSim reports no fired reactions in this plan', () => {
+  it('stepSim reports no fired reaction when no due event arms one', () => {
     expect(stepSim(setup, initSim(setup, start), []).fired).toEqual([]);
+    const power = [{ t: 0, id: 'lv.power', value: 'p50' }];
+    expect(stepSim(setup, initSim(setup, start), power).fired).toEqual([]);
+  });
+});
+
+// The de-ice MAX run (plan 03-04; D-04, SCN-06, C-20): an event-armed, timed, one-shot reaction.
+// Every duration is read from the reaction definition, never typed in here.
+describe('the de-ice MAX reaction (C-20)', () => {
+  const reaction = DA50RG_PHYSICS.reactions.find((r) => r.id === 'deice_max');
+  if (reaction === undefined) throw new Error('the aircraft has no deice_max reaction');
+  const FLAG = reaction.flag;
+  const MODE = 'sw.deice_mode';
+  const MAX = reaction.on.control;
+  const PRESSED = reaction.on.value;
+  /** Steps a reaction stays in force: the duration over the step length. */
+  const N = reaction.durationMs / STEP_MS;
+
+  /** Steps from a start state; `at` gives the events due in the step that starts at t. */
+  function walk(
+    steps: number,
+    at: (t: number) => SimEvent[],
+    from: SimState = initSim(setup, start),
+  ): { states: SimState[]; fired: (readonly number[])[] } {
+    const states: SimState[] = [];
+    const fired: (readonly number[])[] = [];
+    let state = from;
+    for (let i = 0; i < steps; i++) {
+      const result = stepSim(setup, state, at(state.t));
+      state = result.state;
+      states.push(state);
+      fired.push(result.fired);
+    }
+    return { states, fired };
+  }
+
+  const event = (id: string, value: string): SimEvent => ({ t: 0, id, value });
+  const flagOf = (state: SimState): boolean => state.flags[FLAG] === true;
+
+  it('the reaction is armed by the MAX button entering pressed and lasts a whole number of steps', () => {
+    expect(reaction.on).toEqual({ control: 'btn.deice_max', value: 'pressed' });
+    expect(Number.isInteger(N)).toBe(true);
+    expect(N).toBeGreaterThan(1);
+  });
+
+  it('a press at step k on HIGH: off before, on in every state for the duration, off afterwards', () => {
+    const k = 4;
+    const t0 = (k - 1) * STEP_MS;
+    const { states, fired } = walk(k + N + 5, (t) =>
+      t === 0
+        ? [event(MODE, 'high')]
+        : t === t0
+          ? [event(MAX, PRESSED), event(MAX, 'released')]
+          : [],
+    );
+    // State after step i (1-based) is states[i - 1]; j counts the steps from the press step.
+    states.forEach((state, index) => {
+      const j = index + 1 - k + 1;
+      const expected = j >= 1 && j <= N - 1;
+      expect(flagOf(state), `after step ${String(index + 1)}`).toBe(expected);
+      expect(
+        Object.hasOwn(state.timers, reaction.id),
+        `timer after step ${String(index + 1)}`,
+      ).toBe(expected);
+    });
+    expect(fired.map((list, index) => (list.length > 0 ? index + 1 : 0)).filter(Boolean)).toEqual([
+      k,
+    ]);
+    expect(fired[k - 1]).toEqual([0]);
+    // The press step leaves the full duration less one step; the run is over at t0 + duration.
+    expect(states[k - 1]?.timers[reaction.id]).toBe(reaction.durationMs - STEP_MS);
+    expect(states[k - 1 + N - 1]?.t).toBe(t0 + reaction.durationMs);
+    expect(flagOf(states[k - 1 + N - 1] as SimState)).toBe(false);
+    expect(flagOf(states[k - 1 + N - 2] as SimState)).toBe(true);
+  });
+
+  it('the models read the flag for exactly the duration of the reaction', () => {
+    const PER_STEP = 0.01;
+    const counting = definePhysics(
+      {
+        parameters: [],
+        models: [
+          {
+            quantity: 'battery_pct',
+            mode: 'rate',
+            perMinute: (inputs) => (inputs.flags[FLAG] === true ? -(PER_STEP * 600) : 0),
+          },
+        ],
+        reactions: DA50RG_PHYSICS.reactions,
+      },
+      DA50RG_ENV,
+    );
+    const counted = simSetup({ ...DA50RG_ENV, physics: counting }, scenario);
+    let state = initSim(counted, start);
+    const base = quantity(state.quantities, 'battery_pct');
+    for (let i = 0; i < N + 20; i++) {
+      const due = i === 0 ? [event(MODE, 'high')] : i === 1 ? [event(MAX, PRESSED)] : [];
+      state = stepSim(counted, state, due).state;
+    }
+    expect(quantity(state.quantities, 'battery_pct')).toBeCloseTo(base - N * PER_STEP, 6);
+  });
+
+  it('leaving HIGH clears the flag in the step that applies the change', () => {
+    const { states } = walk(30, (t) =>
+      t === 0
+        ? [event(MODE, 'high'), event(MAX, PRESSED)]
+        : t === 10 * STEP_MS
+          ? [event(MODE, 'norm')]
+          : [],
+    );
+    expect(flagOf(states[9] as SimState)).toBe(true);
+    expect(flagOf(states[10] as SimState)).toBe(false);
+    expect(states[10]?.timers).toEqual({});
+    expect(states[10]?.flags).toEqual({});
+    // And it stays out: NORM is not HIGH, and no new press was made.
+    expect(states.slice(10).every((state) => !flagOf(state))).toBe(true);
+  });
+
+  it('a press with the mode on NORM or OFF never sets the flag and fires nothing', () => {
+    for (const mode of ['norm', 'off']) {
+      const { states, fired } = walk(20, (t) =>
+        t === 0 ? [event(MODE, mode)] : t === STEP_MS ? [event(MAX, PRESSED)] : [],
+      );
+      expect(
+        states.every((state) => !flagOf(state)),
+        mode,
+      ).toBe(true);
+      expect(fired.every((list) => list.length === 0)).toBe(true);
+      expect(states.at(-1)?.timers).toEqual({});
+    }
+  });
+
+  it('the press is the trigger: the mode already on HIGH without a press never sets the flag', () => {
+    const { states } = walk(20, (t) => (t === 0 ? [event(MODE, 'high')] : []));
+    expect(states.every((state) => !flagOf(state))).toBe(true);
+  });
+
+  it('the condition is checked at the press in log order, not at the end of the step', () => {
+    const before = initSim(setup, start);
+    // The mode reaches HIGH first, then the press: the reaction starts.
+    const ordered = stepSim(setup, before, [event(MODE, 'high'), event(MAX, PRESSED)]);
+    expect(flagOf(ordered.state)).toBe(true);
+    expect(ordered.fired).toEqual([1]);
+    // The press comes first, then the mode: at the press the mode was not HIGH.
+    const reversed = stepSim(setup, before, [event(MAX, PRESSED), event(MODE, 'high')]);
+    expect(flagOf(reversed.state)).toBe(false);
+    expect(reversed.fired).toEqual([]);
+  });
+
+  it('a second press while active does not restart the timer', () => {
+    const second = 50;
+    const { states, fired } = walk(N + 10, (t) =>
+      t === 0
+        ? [event(MODE, 'high'), event(MAX, PRESSED)]
+        : t === second * STEP_MS
+          ? [event(MAX, 'released'), event(MAX, PRESSED)]
+          : [],
+    );
+    expect(fired[0]).toEqual([1]);
+    expect(fired[second]).toEqual([]);
+    expect(states[second]?.timers[reaction.id]).toBe(reaction.durationMs - (second + 1) * STEP_MS);
+    // The run still ends at the first press plus the duration.
+    expect(flagOf(states[N - 2] as SimState)).toBe(true);
+    expect(flagOf(states[N - 1] as SimState)).toBe(false);
+  });
+
+  it('a press after the run ended starts a new run', () => {
+    const again = N + 5;
+    const { states, fired } = walk(again + 10, (t) =>
+      t === 0
+        ? [event(MODE, 'high'), event(MAX, PRESSED)]
+        : t === (again - 1) * STEP_MS
+          ? [event(MAX, 'released'), event(MAX, PRESSED)]
+          : [],
+    );
+    expect(flagOf(states[N] as SimState)).toBe(false);
+    expect(fired[again - 1]).toEqual([1]);
+    expect(flagOf(states[again - 1] as SimState)).toBe(true);
+    expect(states[again - 1]?.timers[reaction.id]).toBe(reaction.durationMs - STEP_MS);
+  });
+
+  it('a press and its release inside one step still start the run, and replay agrees', () => {
+    const events: SimEvent[] = [
+      { t: 0, id: MODE, value: 'high' },
+      { t: 150, id: MAX, value: PRESSED },
+      { t: 160, id: MAX, value: 'released' },
+    ];
+    const replay = simulate(setup, { events, start, untilMs: 1000 });
+    expect(flagOf(replay.state)).toBe(true);
+    expect(replay.state.controls[MAX]).toBe('released');
+    const stop = simulate(setup, { events, start, untilMs: reaction.durationMs + 1000 });
+    expect(flagOf(stop.state)).toBe(false);
+  });
+
+  it('a Run raises the consumed watermark at the step that starts the run, never earlier', () => {
+    const store = new PanelStore(DA50RG);
+    store.reset(scenario.initial.controls);
+    const run = new Run({ setup, store, start });
+    store.dispatch(MODE, 'high', run.clock.now());
+    run.step();
+    const press = store.dispatch(MAX, PRESSED, run.clock.now());
+    if (!press.ok) throw new Error('press rejected');
+    expect(store.consumedThrough).toBe(-1);
+    run.step();
+    expect(store.consumedThrough).toBe(press.event.seq);
+    run.dispose();
   });
 });
