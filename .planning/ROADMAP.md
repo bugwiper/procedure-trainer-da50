@@ -277,13 +277,20 @@ Plans:
 
 ### Phase 02.1: Briefing difficulty levels easy and medium, source line at the bottom (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
+**Goal:** Users choose a difficulty level before a run (Easy: the situation and the checklist; Medium: the situation only), the briefing ends with its source line, the debrief always shows the checklist and names the level, and the ENG OIL TEMP grading follows the instructor's review (raising power fails the run, no times on harmful actions) with a lint rule that rejects a scenario a do-nothing run would pass.
 **Requirements**: TBD
 **Depends on:** Phase 2
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 02.1 to break down)
+**Wave 1**
+- [ ] 02.1-01-PLAN.md — Difficulty levels tracer: level chosen in the briefing, Easy checklist with the panel steps, Medium without, source block last, debrief names the level
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02.1-02-PLAN.md — Grading after the instructor review: power increase fails ENG OIL TEMP, harmful rows without time, lint rule L11 (WR-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02.1-03-PLAN.md — GRADING.md with the instructor's answers, pass-with-recommendation todo, README, CLAUDE.md and review list, final gates
 
 ### Phase 3: Reactive Scenarios and Initial Pack
 
