@@ -144,7 +144,7 @@ No external ADRs.
 *Context gathered: 2026-10-21*
 
 ### Documentation (owner, post-research)
-- **D-21:** The scenario format is TOON (D-19), so **all project docs must say TOON, not YAML**, and be clean (no stale YAML wording): `CLAUDE.md` (about 22 places), `.planning/PROJECT.md`, `ROADMAP.md`, `REQUIREMENTS.md` (SCN-01) and any other file found by grep. Delivered as an early plan task.
+- **D-26:** The scenario format is TOON (D-19), so **all project docs must say TOON, not YAML**, and be clean (no stale YAML wording): `CLAUDE.md` (about 22 places), `.planning/PROJECT.md`, `ROADMAP.md`, `REQUIREMENTS.md` (SCN-01) and any other file found by grep. Delivered as an early plan task.
 
 ### Blueprint note (owner, 2026-10-22)
 - **D-25:** Owner confirmed the first scenario content (two critical panel steps, POWER at least 10 points lower, unordered group, non-graded lines). It is a showcase and a **blueprint**: the format should already model checklist **branches** (decision step with conditions such as "if too low" / "if in green range", nested sub-conditions like "if not returning to green range"), consistent with D-23, even though only the green branch is authored and graded in Phase 2. The schema and the briefing/debrief rendering must not assume a flat list of steps.
