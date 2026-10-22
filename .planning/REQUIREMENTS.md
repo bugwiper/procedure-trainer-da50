@@ -11,7 +11,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **PNL-01**: User can operate switches, guarded switches, detented levers (e.g. power lever, flaps, gear, cowl flap) and buttons by mouse or touch
 - [x] **PNL-02**: Panel is generated from a control registry; every control has a stable id and defined legal states
-- [ ] **PNL-03**: Alert/annunciation area shows scenario-driven messages (e.g. "OIL TEMP HIGH")
+- [x] **PNL-03**: Alert/annunciation area shows scenario-driven messages (e.g. "OIL TEMP HIGH")
 - [ ] **PNL-04**: Engine gauges and displays respond to simulated aircraft state
 - [x] **PNL-05**: Panel scales to desktop, tablet and phone screens without horizontal page scroll; panel regions (e.g. PFD, engine page, switch bank, pedestal) are part of the data model so region zoom can be added later without a rewrite
 - [x] **PNL-06**: Controls with safety consequences are guarded or confirm-to-actuate, and stray touches on neutral areas are never graded as forbidden actions
@@ -121,7 +121,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCN-05 | Phase 2 | Complete |
 | SCN-07 | Phase 2 | Pending |
 | SCN-08 | Phase 2 | Pending |
-| PNL-03 | Phase 2 | Pending |
+| PNL-03 | Phase 2 | Complete |
 | SES-01 | Phase 2 | Complete |
 | SES-03 | Phase 2 | Pending |
 | SES-04 | Phase 2 | Pending |
