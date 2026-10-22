@@ -25,6 +25,8 @@ export interface ShippedScenario {
   readonly pack: string;
   readonly id: string;
   readonly title: string;
+  /** The scenario file under scenarios/<pack>/, without `.toon`. */
+  readonly file: string;
 }
 
 const SCENARIO_DIR = new URL('../../scenarios/', import.meta.url);
@@ -48,6 +50,7 @@ export function shippedScenarios(): readonly ShippedScenario[] {
       pack,
       id: entry.id,
       title: entry.title,
+      file: entry.file,
     }));
   });
 }

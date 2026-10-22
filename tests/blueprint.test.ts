@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { basename, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
@@ -12,11 +12,6 @@ import { checkScenario } from '../src/scenario/lint';
 // allowed homes; src/engine, src/scenario and src/ui must stay free of them (T-02-26).
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const BLUEPRINT = readFileSync(join(root, 'scenarios/engine/eng-oil-temp-green.toon'), 'utf8');
-
-const checked = checkScenario(BLUEPRINT, DA50RG_ENV);
-if (!checked.ok) throw new Error(`the blueprint does not pass the scenario check`);
-const scenario = checked.scenario;
 
 function walk(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -24,6 +19,19 @@ function walk(dir: string): string[] {
     return entry.isDirectory() ? walk(path) : [path];
   });
 }
+
+/** Every shipped scenario file: all .toon files under scenarios/ except the pack manifests. */
+const SCENARIO_FILES = walk(join(root, 'scenarios')).filter(
+  (path) => path.endsWith('.toon') && basename(path) !== 'pack.toon',
+);
+
+const scenarios = SCENARIO_FILES.map((path) => {
+  const checked = checkScenario(readFileSync(path, 'utf8'), DA50RG_ENV);
+  if (!checked.ok) {
+    throw new Error(`${relative(root, path)} does not pass the scenario check`);
+  }
+  return checked.scenario;
+});
 
 /** Every string stored under a key called `key`, anywhere in a decoded value. */
 function valuesOfKey(value: unknown, key: string): unknown[] {
@@ -38,39 +46,46 @@ function valuesOfKey(value: unknown, key: string): unknown[] {
 const strings = (values: readonly unknown[]): string[] =>
   values.filter((v): v is string => typeof v === 'string');
 
-const stepIds = scenario.procedure.length > 0 ? strings(valuesOfKey(scenario.procedure, 'id')) : [];
+const unique = <T>(values: readonly T[]): T[] => [...new Set(values)];
 
-/** Step, group, forbidden and scenario ids; the control ids the steps and triggers read. */
+/** The CAS ids every shipped scenario lists. */
+const CAS_IDS = unique(scenarios.flatMap((s) => s.annunciations));
+
+/** Scenario, step, group, forbidden and outcome ids; the control and parameter ids; CAS ids and texts. */
 const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {
-  'scenario id': [scenario.id],
-  'step and group ids': stepIds,
-  'forbidden ids': scenario.forbidden.map((f) => f.id),
-  'control ids of the steps and triggers': [
-    ...new Set(
+  'scenario id': scenarios.map((s) => s.id),
+  'step and group ids': unique(scenarios.flatMap((s) => strings(valuesOfKey(s.procedure, 'id')))),
+  'forbidden ids': unique(scenarios.flatMap((s) => s.forbidden.map((f) => f.id))),
+  'outcome ids': unique(scenarios.flatMap((s) => s.outcomes.map((o) => o.id))),
+  'control ids of the steps, triggers and outcomes': unique(
+    scenarios.flatMap((s) =>
       strings([
-        ...valuesOfKey(scenario.procedure, 'control'),
-        ...valuesOfKey(scenario.forbidden, 'control'),
+        ...valuesOfKey(s.procedure, 'control'),
+        ...valuesOfKey(s.forbidden, 'control'),
+        ...valuesOfKey(s.outcomes, 'control'),
       ]),
     ),
-  ],
-  'CAS id': scenario.annunciations,
-  'CAS message': scenario.annunciations.flatMap((id) => {
+  ),
+  'parameter id': unique(scenarios.flatMap((s) => Object.keys(s.parameters))),
+  'CAS id': CAS_IDS,
+  'CAS message': CAS_IDS.flatMap((id) => {
     const text = DA50RG_CAS.get(id)?.text;
     return text === undefined ? [] : [text];
   }),
 };
 
-/** The numbers of the CAS rules of the scenario's annunciations. */
-const THRESHOLDS = [
-  ...new Set(
-    scenario.annunciations.flatMap((id) => {
-      const rule = DA50RG_CAS.get(id);
-      return rule === undefined
-        ? []
-        : valuesOfKey(rule.when, 'value').filter((v): v is number => typeof v === 'number');
-    }),
-  ),
-];
+/**
+ * The numbers of the CAS rules of the listed annunciations and of the outcome predicates. Hold
+ * times and onset windows are not thresholds: they are small integers that also occur in
+ * unrelated code.
+ */
+const THRESHOLDS = unique([
+  ...CAS_IDS.flatMap((id) => {
+    const rule = DA50RG_CAS.get(id);
+    return rule === undefined ? [] : valuesOfKey(rule.when, 'value');
+  }),
+  ...scenarios.flatMap((s) => valuesOfKey(s.outcomes, 'value')),
+]).filter((v): v is number => typeof v === 'number');
 
 const files = (dir: string): string[] =>
   walk(join(root, dir)).filter((path) => /\.(ts|tsx|css)$/.test(path));
@@ -79,6 +94,13 @@ const APPLICATION = ['src/engine', 'src/scenario', 'src/ui'].flatMap(files);
 const NO_THRESHOLDS = ['src/engine', 'src/scenario'].flatMap(files);
 
 describe('the blueprint principle', () => {
+  it('derives the literals from every shipped scenario file', () => {
+    // The gate sees every file the walk finds, and there is more than one scenario to see.
+    expect(scenarios.length).toBe(SCENARIO_FILES.length);
+    expect(SCENARIO_FILES.length).toBeGreaterThan(1);
+    expect(SCENARIO_LITERALS['scenario id']?.length).toBe(SCENARIO_FILES.length);
+  });
+
   it('derives a non-empty literal list from the data', () => {
     for (const [name, list] of Object.entries(SCENARIO_LITERALS)) {
       expect(list.length, name).toBeGreaterThan(0);

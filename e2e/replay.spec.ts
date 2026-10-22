@@ -7,6 +7,7 @@ import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { grade } from '../src/engine/grading';
 import type { GradeResult, Recording } from '../src/engine/grading';
 import { checkScenario } from '../src/scenario/lint';
+import { startScenario } from './support/session';
 import {
   FULL_VIEWBOX,
   activate,
@@ -37,15 +38,9 @@ const BLUEPRINT_FILE = join(
 
 const control = (page: Page, id: string) => page.locator(`[data-control-id="${id}"]`);
 
+/** ENG OIL TEMP on Easy through CHOOSE SITUATION (NEW SITUATION picks at random, C-42). */
 async function startRun(page: Page, hasTouch: boolean): Promise<void> {
-  await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
-  await page.waitForTimeout(450);
-  await activate(page.getByTestId('level-pick-easy'), hasTouch);
-  await expect(page.getByTestId('briefing')).toBeVisible();
-  await activate(page.getByTestId('briefing-start'), hasTouch);
-  await expect(page.getByTestId('briefing')).toBeHidden();
-  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+  await startScenario(page, hasTouch, 'engine.eng-oil-temp-green');
 }
 
 async function goldenTaps(page: Page, hasTouch: boolean): Promise<void> {

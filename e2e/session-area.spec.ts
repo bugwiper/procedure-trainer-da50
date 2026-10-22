@@ -11,6 +11,7 @@ import {
   zoomIntoRegion,
 } from './support/zoom';
 import type { Point } from './support/zoom';
+import { shippedScenarios } from './support/session';
 
 // SES-01 (phase 02, plan 10): the session area in the co-pilot legroom is as safe to use as every
 // other region. Zoomed into it, the Full panel button covers no session button (U-07); a double
@@ -124,7 +125,9 @@ test('@hooks a double tap on CHOOSE SITUATION lists once and picks no row', asyn
   await doubleActivateAt(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, hasTouch);
   await afterPairWindow(page);
   // The second press fell on a row or CLOSE LIST of the fresh list and was shielded.
-  await expect(page.locator('[data-session-hit^="session.row."]')).toHaveCount(1);
+  await expect(page.locator('[data-session-hit^="session.row."]')).toHaveCount(
+    shippedScenarios().length,
+  );
   await expect(dialogs(page)).toHaveCount(0);
   expect(await events(page)).toEqual([]);
 });

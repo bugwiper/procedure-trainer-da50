@@ -3,7 +3,13 @@ import { expect, test } from '@playwright/test';
 import type { Page, Route } from '@playwright/test';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { parseScenario } from '../src/scenario/parse';
-import { quantityOf, startRealistic } from './support/session';
+import {
+  chooseScenario,
+  quantityOf,
+  shippedScenarios,
+  startRealistic,
+  startScenario,
+} from './support/session';
 import { FULL_VIEWBOX, activate } from './support/zoom';
 
 // SES-01, SES-03, SES-04, SCN-05, SCN-07, PLT-04 (phase 02): the pilot's path on the built panel.
@@ -11,6 +17,8 @@ import { FULL_VIEWBOX, activate } from './support/zoom';
 // starts ENG OIL TEMP in its initial state, the user operates the panel, "Procedure complete" in
 // the footer grades the recorded log and the debrief shows PASS or FAIL.
 // Every case reads an e2e-only window hook, so all titles carry @hooks.
+// NEW SITUATION picks at random among the shipped scenarios (phase 03), so every case that needs
+// ENG OIL TEMP opens it through CHOOSE SITUATION (C-42).
 
 // Mirrors of the read-only window hooks of the e2e build (src/ui/bridge.ts, src/ui/session.ts).
 // Declared here because the e2e project has no DOM lib.
@@ -29,6 +37,8 @@ const NEW_SITUATION = '[data-session-hit="session.new"]';
 const CHOOSE_SITUATION = '[data-session-hit="session.choose"]';
 const MIN_BUTTON_PX = 44;
 const MIN_FOOTER_PX = 52;
+/** The CHOOSE SITUATION row of ENG OIL TEMP: "pack.scenario". */
+const ENGINE_ROW = 'engine.eng-oil-temp-green';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('./');
@@ -56,22 +66,19 @@ async function afterShield(page: Page): Promise<void> {
   await page.waitForTimeout(SHIELD_WAIT_MS);
 }
 
-/** Taps NEW SITUATION and waits until the briefing is open. */
+/** Opens ENG OIL TEMP through CHOOSE SITUATION, picks Easy and waits until the briefing is open. */
 async function openBriefing(page: Page, hasTouch: boolean): Promise<void> {
-  await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await chooseScenario(page, hasTouch, ENGINE_ROW);
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
   expect(await screenOf(page)).toBe('briefing');
 }
 
-/** NEW SITUATION, then Start run; waits until the run is on. The one start of every case. */
+/** ENG OIL TEMP on Easy through CHOOSE SITUATION; waits until the run is on. The start of every run. */
 async function startRun(page: Page, hasTouch: boolean): Promise<void> {
-  await openBriefing(page, hasTouch);
-  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await startScenario(page, hasTouch, ENGINE_ROW);
   await expect(page.getByTestId('briefing')).toBeHidden();
-  await expect(page.getByTestId('procedure-complete')).toBeVisible();
   expect(await screenOf(page)).toBe('running');
 }
 
@@ -83,7 +90,7 @@ async function goldenTaps(page: Page, hasTouch: boolean): Promise<void> {
   await expect(control(page, 'lv.cowl_flap')).toHaveAttribute('data-state', 'open');
 }
 
-test('@hooks NEW SITUATION starts ENG OIL TEMP in its initial state', async ({
+test('@hooks NEW SITUATION opens one of the shipped scenarios in its initial state', async ({
   page,
   hasTouch,
 }) => {
@@ -93,13 +100,31 @@ test('@hooks NEW SITUATION starts ENG OIL TEMP in its initial state', async ({
   const idle = await page.locator('footer').boundingBox();
   expect(idle?.height ?? 0).toBeLessThan(MIN_FOOTER_PX);
 
-  await startRun(page, hasTouch);
+  // NEW SITUATION picks at random among the shipped scenarios; Easy, then Start run.
+  await activate(page.locator(NEW_SITUATION), hasTouch);
+  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeHidden();
+  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+  expect(await screenOf(page)).toBe('running');
 
-  expect(await page.evaluate(() => (globalThis as HookHost).__panelSession?.scenarioId())).toBe(
-    'eng-oil-temp-green',
+  const id = await page.evaluate(() => (globalThis as HookHost).__panelSession?.scenarioId());
+  const picked = shippedScenarios().find((entry) => entry.id === id);
+  if (picked === undefined) throw new Error(`the run is not a shipped scenario: ${String(id)}`);
+  const parsed = parseScenario(
+    readFileSync(
+      new URL(`../scenarios/${picked.pack}/${picked.file}.toon`, import.meta.url),
+      'utf8',
+    ),
   );
-  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p75');
-  await expect(control(page, 'lv.cowl_flap')).toHaveAttribute('data-state', 'closed');
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+  // The controls the scenario names show their initial states.
+  for (const [controlId, state] of Object.entries(parsed.value.initial.controls)) {
+    await expect(control(page, controlId)).toHaveAttribute('data-state', state);
+  }
   // The baseline is applied without a single event in the action log.
   expect(await events(page)).toEqual([]);
 
@@ -122,9 +147,12 @@ test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its br
   await expect(page.locator(CHOOSE_SITUATION)).toHaveCount(0);
   await expect(page.locator(NEW_SITUATION)).toHaveCount(0);
   const rows = page.locator('[data-session-hit^="session.row."]');
-  await expect(rows).toHaveCount(1);
-  const row = page.getByRole('button', { name: 'Open briefing: ENG OIL TEMP' });
-  await expect(row).toHaveText('ENG OIL TEMP');
+  const shipped = shippedScenarios();
+  await expect(rows).toHaveCount(shipped.length);
+  for (const entry of shipped) {
+    const row = page.getByRole('button', { name: `Open briefing: ${entry.title}` });
+    await expect(row).toHaveText(entry.title);
+  }
   expect(await screenOf(page)).toBe('choosing');
   // Choosing is no session: the footer keeps its idle height and the run button is absent.
   await expect(page.getByTestId('procedure-complete')).toHaveCount(0);
@@ -146,7 +174,7 @@ test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its br
   // A row opens the briefing of exactly that scenario; Back to panel returns to the main view.
   await activate(page.locator(CHOOSE_SITUATION), hasTouch);
   await afterShield(page);
-  await activate(page.locator('[data-session-hit^="session.row."]').first(), hasTouch);
+  await activate(page.locator(`[data-session-hit="session.row.${ENGINE_ROW}"]`), hasTouch);
   await expect(page.getByTestId('level-pick')).toBeVisible();
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
@@ -217,9 +245,10 @@ test('@hooks a pack that cannot be loaded shows the error; Try again retries the
   page,
   hasTouch,
 }) => {
-  // Requests for the pack chunk fail (the lazy chunk is named pack-<pack>).
+  // Requests for any pack chunk fail (the lazy chunk is named pack-<pack>), so the random pick of
+  // NEW SITUATION cannot reach a scenario.
   const abort = (route: Route) => route.abort();
-  await page.route('**/pack-engine*', abort);
+  await page.route('**/pack-*', abort);
 
   await activate(page.locator(NEW_SITUATION), hasTouch);
   const error = page.getByRole('alertdialog', { name: 'This situation could not be loaded.' });
@@ -243,7 +272,7 @@ test('@hooks a pack that cannot be loaded shows the error; Try again retries the
   // With the abort gone, Try again opens the briefing.
   await activate(page.locator(NEW_SITUATION), hasTouch);
   await expect(error).toBeVisible();
-  await page.unroute('**/pack-engine*', abort);
+  await page.unroute('**/pack-*', abort);
   await activate(page.getByTestId('load-error-retry'), hasTouch);
   await expect(page.getByTestId('level-pick')).toBeVisible();
   await page.waitForTimeout(450);
@@ -332,8 +361,7 @@ test('@hooks Level question: Easy, Medium and Realistic come before any briefing
   page,
   hasTouch,
 }) => {
-  await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await chooseScenario(page, hasTouch, ENGINE_ROW);
   await expect(page.getByTestId('briefing')).toHaveCount(0);
   const easy = page.getByTestId('level-pick-easy');
   const medium = page.getByTestId('level-pick-medium');
