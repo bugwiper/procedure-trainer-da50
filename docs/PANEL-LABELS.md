@@ -122,13 +122,14 @@ The ELT rocker has three positions; the placards stand beside the rocker and nam
 
 ## Under panel
 
-The three pull handles below the face plate. PULL is printed on the handle; the position names stand beside it.
+The four pull handles below the face plate. PULL is printed on the handle of the first two; the position names stand beside it. The fourth, the ECS SHUTOFF, carries its name on its white head and prints no position words.
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
 | `lv.alt_static` | ALTERNATE STATIC; PULL on the knob | OPEN, CLOSED | existing | `controls/under-panel.ts` |
 | `lv.emerg_gear` | EMERGENCY GEAR EXTENSION; PULL on the tab | EMERGENCY, NORMAL | existing | `controls/under-panel.ts` |
 | `lv.alt_air` | ALTERNATE AIR (vertical on the pad) | OPEN, CLOSED | existing | `controls/under-panel.ts` |
+| `lv.ecs_shutoff` (new in plan 03-10) | ECS SHUTOFF on the white head of the knob (the lever prints no other name) | none (the states PULLED and IN are accessible names only) | owner description 2026-10-22 | `controls/under-panel.ts`, `src/ui/panel/skins/LeverHandles.tsx` |
 
 ## Transponder (trainer part, D-11)
 
@@ -152,13 +153,14 @@ The plate sits above the throttle. Its four controls carry a box title each and 
 
 ## Pedestal
 
-Parking brake (a hinged flap, a tap toggles it), throttle and cowl flap. The throttle plate says THROTTLE although the id stays `lv.power` (Q-04). The cowl-flap lamps are lit by the lever position, each in its own position (Q-12).
+Parking brake (a hinged flap, a tap toggles it), throttle, cowl flap and the FUEL selector. The throttle plate says THROTTLE although the id stays `lv.power` (Q-04). The cowl-flap lamps are lit by the lever position, each in its own position (Q-12).
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
 | `lv.parking_brake` | PARKING BRAKE (placard only, no state text); drawn as a hinged flap in side-view perspective, flat when released and standing up as a tilted plate hinged at the bottom when pulled | none; a tap toggles the flap, there is no dragging | owner finding (R2-4.2, plan 27) | `controls/pedestal.ts`, `src/ui/panel/skins/Flap.tsx` |
 | `lv.power` | THROTTLE (as on the plate in the owner photo; the id stays `lv.power`; replaces POWER); MAX at the forward end | the legends 0 %, 50 %, 100 % (Q-05) | existing, assumption | `controls/pedestal.ts` |
-| `lv.cowl_flap` | COWL FLAP | none (the lever legends CLOSED and OPEN move to the two lamps) | owner finding | `controls/pedestal.ts` |
+| `lv.cowl_flap` | COWL FLAP | none (the lever legends CLOSED and OPEN move to the two lamps); since plan 03-10 the lever is shorter (track 44, was 60) and sits higher (global y 1192, was 1218), and its two lamps and its placard moved with it | owner finding, owner decision 2026-10-22 | `controls/pedestal.ts` |
+| `sw.fuel_valve` (new in plan 03-10) | none beside the knob except its three position words NORMAL, EMERGENCY, OFF, printed in white outside the sweep in the direction of each stop (NORMAL above, EMERGENCY on the right, OFF at the lower left); the OFF stop is at 225 degrees clockwise, which is unverified | NORMAL, EMERGENCY, OFF (static, never change with the state) | owner description 2026-10-22; the 225 degree OFF angle is unverified | `controls/knobs.ts`, `src/ui/panel/widgets/Rotary.tsx` |
 | `lt.cowl_open` (new in plan 19) | OPEN beside a white lamp | none | owner finding | `indicators.ts` |
 | `lt.cowl_closed` (new in plan 19) | CLOSED beside a white lamp | none | owner finding | `indicators.ts` |
 
@@ -254,3 +256,7 @@ Each question states the default the plans take. The questions do not block anyt
 - **Q-12** Cowl-flap lamps: lit by the lever position, each lit in its own position? Default taken: yes.
 - **Q-13** Does GEAR TEST light all four gear lamps including the red UNSAFE lamp? Default taken: yes, all four.
 - **Q-14** The de-ice MAX top lamp stays unlit until the engine phase adds the 120 s timer (flag only). Accept? Default taken: yes, recorded as deferred.
+- **Q-15** FUEL selector (`sw.fuel_valve`, owner description 2026-10-22, plan 03-10): is OFF really 225 degrees clockwise from NORMAL (forward)? Default taken: 225 degrees (NORMAL 0, EMERGENCY 90, OFF 225); a different angle is a one-line data edit in `controls/knobs.ts`.
+- **Q-16** FUEL selector looks: the colours of the knob (red, with a small white line at its pointing end) and of the words (white), and its drawn size (an elongated knob, length 44 and width 11 units, the 4 to 1 shape of the real one, not to scale with the pedestal). Default taken: as drawn.
+- **Q-17** FUEL selector position: the real knob sits behind the throttle where the trim wheel is; the panel draws it at the bottom left of the pedestal by owner decision (schematic, global 1005, 1258). Default taken: as drawn.
+- **Q-18** ECS SHUTOFF (`lv.ecs_shutoff`, owner description 2026-10-22, plan 03-10): the colours of the head (white, dark lettering) and of the stem (dark red), and the tilt of the pulled look (a few units to the left, drawn slightly larger, with a shadow). Default taken: as drawn.
