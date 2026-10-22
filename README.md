@@ -10,7 +10,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ## Demo controls
 
-The panel has 92 controls and 13 indicator lamps in 31 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork and the session area is trainer content, both with no controls):
+The panel has 93 controls and 13 indicator lamps in 32 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork and the session area is trainer content, both with no controls; the transponder in the pilot's legroom is a temporary trainer part with one control, its position is not a fidelity item):
 
 - **LIGHTS**, glareshield: LANDING, TAXI, POSITION, STROBE (ON above OFF is printed once on each side of the four rockers, as on the aircraft)
 - **INSTRUMENT AND FLOOD LIGHT**, between the displays: INSTRUMENT LIGHT and FLOOD LIGHT knobs
@@ -33,6 +33,7 @@ The panel has 92 controls and 13 indicator lamps in 31 regions, placed where the
 - **ENVIRONMENTAL CONTROL**, top of the centre console: FAN (its four positions OFF and three fan stops are direct click spots: a tap on a position sets it at once), DIRECTION, TEMPERATURE and CIRCULATING AIR, each in its own box with pictograms instead of words
 - **PEDESTAL**: PARKING BRAKE (a hinged flap: a tap pulls it up to set and a second tap releases it, no dragging), THROTTLE (0 to 100 % in 5 % steps), COWL FLAP (CLOSED / OPEN) with its two position lamps
 - **UNDER PANEL R**: ALTERNATE AIR
+- **TRANSPONDER**, pilot's legroom (a temporary trainer part, replaced later by the transponder of the PFD): the keys 0 to 7 and CLR and a readout of the squawk code, 1200 at rest; typing four digits sets the code (for example 7700) as panel state, a key never zooms and a partial entry is dropped by CLR
 - **BUS PANEL FRAME**, far right: the ESSENTIAL, MAIN and AVIONICS bus outlines with their titles, three blank plugs, three pump boxes and the lower-row panel (art only)
 - **CIRCUIT BREAKERS**, bus panel at the far right: 51 breakers with their printed labels and ratings, 38 in the ESSENTIAL, MAIN and AVIONICS bus boxes (three blank plugs between them), 10 in the lower row and 3 on the flap strip under the MFD (STALL/AOA, PROP DE-ICE, DE-ICE); all start pushed in
 

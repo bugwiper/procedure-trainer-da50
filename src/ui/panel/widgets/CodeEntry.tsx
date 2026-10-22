@@ -1,6 +1,7 @@
 import { useSignal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
-import type { CodeEntryDef } from '../../../engine/registry';
+import { CODE_ENTRY_CLEAR_KEY } from '../../../engine/registry';
+import type { CodeEntryDef, CodeEntryKeyDef } from '../../../engine/registry';
 import { createEntryBuffer, makeCodeKeyPress } from '../code-entry';
 import type { WidgetProps } from '../ControlWidget';
 import { registerPressTarget } from '../press-targets';
@@ -40,7 +41,6 @@ export function CodeEntry({ def, bridge }: WidgetProps<CodeEntryDef>) {
   }, [bridge, typed]);
 
   const readout = typed.value === '' ? state : typed.value.padEnd(def.digits, '-');
-  const { display } = def;
 
   return (
     <g
@@ -51,6 +51,43 @@ export function CodeEntry({ def, bridge }: WidgetProps<CodeEntryDef>) {
       aria-label={`${def.label}: CODE`}
       transform={`translate(${def.x} ${def.y})`}
     >
+      <CodeEntryBody
+        def={def}
+        readout={readout}
+        keyRef={(k) => {
+          const press = makeCodeKeyPress({
+            def,
+            key: k.key,
+            buffer: buffer.current,
+            actuate: (id, value) => bridge.actuate(id, value),
+            onChange: () => {
+              typed.value = buffer.current.value;
+            },
+          });
+          return (el) => registerPressTarget(el, press);
+        }}
+      />
+    </g>
+  );
+}
+
+export interface CodeEntryBodyProps {
+  readonly def: CodeEntryDef;
+  /** The text of the readout: the typed digits padded with dashes, or the committed code. */
+  readonly readout: string;
+  /** Ref callback of the hit rectangle of a key; absent draws the art only (unit tests). */
+  readonly keyRef?: (key: CodeEntryKeyDef) => (el: SVGRectElement | null) => void;
+}
+
+/**
+ * The art and the key hit rectangles of the unit, pure and hook-free so a node test can read its
+ * text. Every printed text is static (the name, the key legends) except the readout, the one text
+ * of the panel that follows a control state (D-11, C-17).
+ */
+export function CodeEntryBody({ def, readout, keyRef }: CodeEntryBodyProps) {
+  const { display } = def;
+  return (
+    <g>
       <rect
         x={-HOUSING_HALF.w}
         y={-HOUSING_HALF.h}
@@ -96,51 +133,40 @@ export function CodeEntry({ def, bridge }: WidgetProps<CodeEntryDef>) {
       >
         {readout}
       </text>
-      {def.keys.map((k) => {
-        const press = makeCodeKeyPress({
-          def,
-          key: k.key,
-          buffer: buffer.current,
-          actuate: (id, value) => bridge.actuate(id, value),
-          onChange: () => {
-            typed.value = buffer.current.value;
-          },
-        });
-        return (
-          <g key={k.key} pointer-events="none">
-            <rect
-              x={k.x - k.w / 2}
-              y={k.y - k.h / 2}
-              width={k.w}
-              height={k.h}
-              rx={6}
-              fill={KEY_FACE.fill}
-              stroke={KEY_FACE.stroke}
-              stroke-width={1.5}
-            />
-            <text
-              x={k.x}
-              y={k.y + (k.key === 'clr' ? 3.5 : 6)}
-              text-anchor="middle"
-              font-family={FONT}
-              font-size={k.key === 'clr' ? 10 : 18}
-              fill={INK}
-            >
-              {k.label}
-            </text>
-            <rect
-              data-detent={`${def.id}:${k.key}`}
-              x={k.x - k.w / 2}
-              y={k.y - k.h / 2}
-              width={k.w}
-              height={k.h}
-              fill="transparent"
-              pointer-events="all"
-              ref={(el: SVGRectElement | null) => registerPressTarget(el, press)}
-            />
-          </g>
-        );
-      })}
+      {def.keys.map((k) => (
+        <g key={k.key} pointer-events="none">
+          <rect
+            x={k.x - k.w / 2}
+            y={k.y - k.h / 2}
+            width={k.w}
+            height={k.h}
+            rx={6}
+            fill={KEY_FACE.fill}
+            stroke={KEY_FACE.stroke}
+            stroke-width={1.5}
+          />
+          <text
+            x={k.x}
+            y={k.y + (k.key === CODE_ENTRY_CLEAR_KEY ? 3.5 : 6)}
+            text-anchor="middle"
+            font-family={FONT}
+            font-size={k.key === CODE_ENTRY_CLEAR_KEY ? 10 : 18}
+            fill={INK}
+          >
+            {k.label}
+          </text>
+          <rect
+            data-detent={`${def.id}:${k.key}`}
+            x={k.x - k.w / 2}
+            y={k.y - k.h / 2}
+            width={k.w}
+            height={k.h}
+            fill="transparent"
+            pointer-events="all"
+            ref={keyRef?.(k)}
+          />
+        </g>
+      ))}
     </g>
   );
 }

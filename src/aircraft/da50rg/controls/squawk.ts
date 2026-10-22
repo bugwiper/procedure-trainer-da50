@@ -12,7 +12,7 @@ const KEY = 44;
 const GAP = 8;
 const PITCH = KEY + GAP;
 /** Row centres, control-local; the readout sits above them. */
-const ROW_1 = 2;
+const ROW_1 = -4;
 const ROW_2 = ROW_1 + PITCH;
 
 function digitKey(digit: string, column: number, row: number): CodeEntryKeyDef {
@@ -28,7 +28,8 @@ export const SQUAWK_CONTROLS: readonly ControlSpec[] = [
     region: 'transponder',
     x: 180,
     y: 100,
-    hit: { w: 280, h: 170 },
+    // Tight around the readout and the keys: the rest of the region stays background for the zoom tap (PNL-09).
+    hit: { w: 252, h: 140 },
     digits: 4,
     alphabet: '01234567',
     default: '1200',
@@ -51,6 +52,6 @@ export const SQUAWK_CONTROLS: readonly ControlSpec[] = [
       },
     ],
     // Readout window above the keys; 240 wide holds four glass digits.
-    display: { x: 0, y: -46, w: 240, h: 36 },
+    display: { x: 0, y: -52, w: 240, h: 36 },
   },
 ];

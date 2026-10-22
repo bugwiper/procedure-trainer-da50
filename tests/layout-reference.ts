@@ -360,6 +360,12 @@ export const ORDERING: readonly OrderRow[] = [
     'region:mfd',
   ]),
   ...CB_STRIP_ROW.map((id): OrderRow => [id, 'below', 'region:mfd']),
+  // Simplified transponder (phase 03, D-11): in the pilot's legroom, below the switch row and left
+  // of the centre console and of the session area. A trainer part, so the rows only keep it out of
+  // the way of the real panel.
+  ['kp.squawk', 'below', 'region:switch_bank'],
+  ['kp.squawk', 'left-of', 'region:pedestal'],
+  ['kp.squawk', 'left-of', 'region:scenario_area'],
 ];
 
 /**
@@ -400,6 +406,8 @@ export const ALL_REGION_IDS: readonly string[] = [
   'mfd_bezel_right',
   // Session area of phase 02: trainer content in the co-pilot legroom, no registry controls.
   'scenario_area',
+  // Simplified transponder of phase 03 (D-11): trainer part in the pilot legroom, one control.
+  'transponder',
 ];
 
 export const FRONT_PANEL_REGIONS: readonly string[] = [
@@ -436,4 +444,6 @@ export const UNDER_PANEL_REGIONS: readonly string[] = [
   'env_circ',
   'pedestal',
   'under_panel_right',
+  // The simplified transponder (D-11) sits below the panel, in the pilot's legroom.
+  'transponder',
 ];

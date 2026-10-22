@@ -45,7 +45,8 @@ const REMOVED_IDS: readonly string[] = [
 /** Ids still to be documented; empty now that every area is written. */
 const NOT_YET_DOCUMENTED: readonly string[] = [];
 
-const ID_PATTERN = /^(sw|btn|lv|lt|cb)\.[a-z_0-9]+$/;
+// kp. is the keypad family of the simplified transponder (phase 03, D-11).
+const ID_PATTERN = /^(sw|btn|lv|lt|cb|kp)\.[a-z_0-9]+$/;
 
 /** Ids named in backticks in the first column of every table row of the document. */
 function documentedIds(): string[] {

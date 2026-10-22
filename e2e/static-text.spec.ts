@@ -17,11 +17,14 @@ async function activate(target: Locator, hasTouch: boolean): Promise<void> {
  * to a control: their content is instrument data, and the MFD page softkey legitimately switches
  * it between MAP and ENGINE. The session area's text follows the session state (main view or
  * choose list), never a control state (UI-SPEC U-06). Everything else on the panel is placard,
- * caption or scale text and must stay put.
+ * caption or scale text and must stay put. The one exception inside a control is the readout of the
+ * simplified transponder (data-glass="readout"): it shows the entered code, the recorded exception
+ * to G-0.1 (D-11, C-17); the name and the key legends of the transponder stay in the gate.
  */
 async function panelText(page: Page): Promise<string[]> {
   return page.locator('[data-testid="panel"]').evaluate((svg) =>
     Array.from(svg.querySelectorAll('text'))
+      .filter((el) => el.closest('[data-glass="readout"]') === null)
       .filter(
         (el) =>
           el.closest('[data-control-id]') !== null ||
@@ -102,6 +105,22 @@ test('the panel text is identical before and after operating a representative se
 
   const after = await panelText(page);
   expect(after).toEqual(before);
+});
+
+test('typing a code on the transponder changes no printed text but its readout (D-11)', async ({
+  page,
+  hasTouch,
+}) => {
+  const before = await panelText(page);
+  // The name and the key legends are in the gate; the readout is the recorded exception.
+  for (const legend of ['TRANSPONDER', 'CLR', '0', '7']) expect(before, legend).toContain(legend);
+  const readout = page.locator('[data-glass="readout"]');
+  await expect(readout).toHaveText('1200');
+  for (const key of ['7', '7', '0', '0']) {
+    await activate(page.locator(`[data-detent="kp.squawk:${key}"]`), hasTouch);
+  }
+  await expect(readout).toHaveText('7700');
+  expect(await panelText(page)).toEqual(before);
 });
 
 /**

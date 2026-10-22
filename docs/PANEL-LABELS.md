@@ -130,6 +130,14 @@ The three pull handles below the face plate. PULL is printed on the handle; the 
 | `lv.emerg_gear` | EMERGENCY GEAR EXTENSION; PULL on the tab | EMERGENCY, NORMAL | existing | `controls/under-panel.ts` |
 | `lv.alt_air` | ALTERNATE AIR (vertical on the pad) | OPEN, CLOSED | existing | `controls/under-panel.ts` |
 
+## Transponder (trainer part, D-11)
+
+A simplified transponder for the squawk code (phase 03, owner decision D-11). It is a temporary trainer part in the pilot's legroom, not an aircraft part; it is replaced later by the transponder of the PFD. The housing prints the name and the legends of its keys, all static. The readout window shows the code and is the one recorded exception to G-0.1: it follows the control state (the typed digits padded with dashes, else the committed code). `cb.xpdr` in the circuit-breaker table is the breaker of the real unit, not this part.
+
+| Id | Static label(s) | Position placards | Basis | File to edit |
+|----|-----------------|-------------------|-------|--------------|
+| `kp.squawk` (new in plan 03-03) | TRANSPONDER; the key legends 0 1 2 3 4 5 6 7 and CLR | none; the readout shows the code (the recorded exception to G-0.1) | owner decision D-11, temporary | `controls/squawk.ts` |
+
 ## Environmental control
 
 The plate sits above the throttle. Its four controls carry a box title each and pictograms instead of words (owner finding). Q-05 asks whether the remaining names are real.

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import type {
   CircuitBreakerDef,
+  CodeEntryDef,
   ControlDef,
   DetentLeverDef,
   GuardedToggleDef,
@@ -15,6 +16,7 @@ import { RockerBody } from '../src/ui/panel/skins/Rocker';
 import { PushButtonBody } from '../src/ui/panel/skins/PushButton';
 import type { PressedSide } from '../src/ui/panel/skins/PushButton';
 import { LeverBody } from '../src/ui/panel/widgets/DetentLever';
+import { CodeEntryBody } from '../src/ui/panel/widgets/CodeEntry';
 import { GuardCover } from '../src/ui/panel/widgets/GuardedToggle';
 import { RotaryBody } from '../src/ui/panel/widgets/Rotary';
 import { SoftkeyBody } from '../src/ui/panel/widgets/Toggle';
@@ -273,6 +275,51 @@ describe('circuit breaker family text is state-independent', () => {
           expect(countElements(tree), id).toBeLessThanOrEqual(12);
         }
       }
+    }
+  });
+});
+
+describe('code entry family text is state-independent except the readout (D-11, C-17)', () => {
+  const units = DA50RG.controls.filter((c): c is CodeEntryDef => c.kind === 'code-entry');
+
+  /** The text strings outside the readout element. */
+  function staticStrings(def: CodeEntryDef, readout: string): string[] {
+    const tree = expand(CodeEntryBody({ def, readout }));
+    return findElements(tree, (el) => el.tag === 'text' && el.props['data-glass'] === undefined)
+      .map((el) => textOf(el))
+      .sort();
+  }
+
+  it('the name and the key legends are identical for two different codes', () => {
+    expect(units.length).toBeGreaterThan(0);
+    for (const def of units) {
+      const a = staticStrings(def, '1200');
+      expect(a, def.id).toEqual(staticStrings(def, '7700'));
+      expect(a, def.id).toEqual(staticStrings(def, '7---'));
+      // The name and one legend per key; no state text.
+      expect(a, def.id).toEqual([def.label, ...def.keys.map((k) => k.label)].sort());
+      expect(
+        findElements(
+          expand(CodeEntryBody({ def, readout: '7700' })),
+          (el) => 'data-state-text' in el.props,
+        ),
+        def.id,
+      ).toHaveLength(0);
+    }
+  });
+
+  it('the only text that differs with the code is inside the element marked data-glass readout', () => {
+    for (const def of units) {
+      const render = (readout: string) => expand(CodeEntryBody({ def, readout }));
+      const readouts = (readout: string) =>
+        findElements(render(readout), (el) => el.props['data-glass'] === 'readout');
+      const marked = readouts('1200');
+      expect(marked, def.id).toHaveLength(1);
+      expect(textOf(marked[0]!), def.id).toBe('1200');
+      expect(textOf(readouts('7700')[0]!), def.id).toBe('7700');
+      // Every text element is either the readout or one of the static labels.
+      const texts = findElements(render('7700'), (el) => el.tag === 'text');
+      expect(texts.length, def.id).toBe(def.keys.length + 2);
     }
   });
 });

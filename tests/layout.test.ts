@@ -775,13 +775,14 @@ describe('avionics unit regions and plates (plan 06)', () => {
     ]);
   });
 
-  it('the three unit plates carry exactly their region and there are 14 plates', () => {
+  it('the three unit plates carry exactly their region and there are 15 plates', () => {
     const carried = (id: string) => [...(PLATES.find((p) => p.id === id)?.regions ?? [])];
     expect(carried('ap-unit')).toEqual(['autopilot_panel']);
     expect(carried('pfd-left-unit')).toEqual(['pfd_bezel_left']);
     expect(carried('mfd-right-unit')).toEqual(['mfd_bezel_right']);
     expect(carried('session-pad')).toEqual(['scenario_area']);
-    expect(PLATES).toHaveLength(14);
+    expect(carried('transponder-pad')).toEqual(['transponder']);
+    expect(PLATES).toHaveLength(15);
   });
 
   it('keeps its clearances to the neighbours (strip-flaps, gear plate, bezels, bus plate)', () => {
@@ -1475,6 +1476,13 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
   const PILOT_LEGROOM: Rect = { x: 20, y: 760, w: 910, h: 530 };
   /** The two under-panel regions that existed before phase 2 and reach into the top of the legroom. */
   const LEGROOM_EXCEPTIONS = ['under_panel_left', 'under_panel_centre'];
+  /**
+   * The simplified transponder (phase 03, D-11): the owner placed it in the pilot's footroom, a
+   * temporary trainer part whose position is not a fidelity item. Its region and its plate are the
+   * only new parts allowed in the reserved legroom.
+   */
+  const D11_TRANSPONDER_REGION = 'transponder';
+  const D11_TRANSPONDER_PLATE = 'transponder-pad';
 
   it('the session-pad plate has the Table Z1 rectangle (rx 18) and carries scenario_area only', () => {
     const plate = PLATES.find((p) => p.id === 'session-pad');
@@ -1518,13 +1526,27 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     }
   });
 
-  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions', () => {
+  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions and the D-11 transponder region and plate', () => {
     const plates = PLATES.filter((p) => overlaps(rectOf(p), PILOT_LEGROOM)).map((p) => p.id);
-    expect(plates).toEqual([]);
+    expect(plates).toEqual([D11_TRANSPONDER_PLATE]);
     const regions = DA50RG.regions
       .filter((r) => overlaps(r.bounds, PILOT_LEGROOM))
       .map((r) => r.id)
       .sort();
-    expect(regions).toEqual([...LEGROOM_EXCEPTIONS].sort());
+    expect(regions).toEqual([...LEGROOM_EXCEPTIONS, D11_TRANSPONDER_REGION].sort());
+  });
+
+  it('the transponder plate carries the transponder region and lies wholly inside the legroom (D-11)', () => {
+    const plate = PLATES.find((p) => p.id === D11_TRANSPONDER_PLATE);
+    expect(plate).toBeDefined();
+    if (plate === undefined) return;
+    expect([...plate.regions]).toEqual([D11_TRANSPONDER_REGION]);
+    expect(inside(rectOf(plate), PILOT_LEGROOM)).toBe(true);
+    const region = regionBounds(D11_TRANSPONDER_REGION);
+    // 20 units of plate on every side of the region, as for the session pad.
+    expect(region.x - plate.x).toBe(20);
+    expect(region.y - plate.y).toBe(20);
+    expect(plate.x + plate.w - (region.x + region.w)).toBe(20);
+    expect(plate.y + plate.h - (region.y + region.h)).toBe(20);
   });
 });
