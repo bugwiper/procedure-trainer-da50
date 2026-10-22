@@ -244,12 +244,13 @@ describe('quantities', () => {
     expect(DA50RG_QUANTITIES.bandOf('oil_temp_c', 500)).toBe('high_red');
   });
 
-  it('offers the idle values', () => {
-    expect(DA50RG_QUANTITIES.idleValues()).toEqual({ oil_temp_c: 15, oil_pressure_bar: 0 });
+  it('offers the base values', () => {
+    const derived = Object.fromEntries(DA50RG_QUANTITIES.all.map((d) => [d.id, d.base]));
+    expect(DA50RG_QUANTITIES.baseValues()).toEqual(derived);
   });
 
   it('rejects a band list with a gap or a wrong end', () => {
-    const base = { id: 'q', unit: 'u', min: 0, max: 10, idle: 0 } as const;
+    const base = { id: 'q', unit: 'u', min: 0, max: 10, base: 0 } as const;
     expect(() =>
       defineQuantities([{ ...base, bands: [{ id: 'a', colour: 'green', to: 6 }] }]),
     ).toThrow(QuantityError);
@@ -267,17 +268,17 @@ describe('quantities', () => {
     ).toThrow(QuantityError);
   });
 
-  it('rejects a duplicate id and an idle value outside the range', () => {
+  it('rejects a duplicate id and a base value outside the range', () => {
     const def = {
       id: 'q',
       unit: 'u',
       min: 0,
       max: 10,
-      idle: 0,
+      base: 0,
       bands: [{ id: 'a', colour: 'green', to: 10 }],
     } as const;
     expect(() => defineQuantities([def, def])).toThrow(QuantityError);
-    expect(() => defineQuantities([{ ...def, idle: 11 }])).toThrow(QuantityError);
+    expect(() => defineQuantities([{ ...def, base: 11 }])).toThrow(QuantityError);
   });
 
   it('is part of the DA50 RG environment next to the registry', () => {

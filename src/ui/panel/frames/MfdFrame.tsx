@@ -167,52 +167,29 @@ const RED = '#f0443c';
 interface GaugeSpec {
   readonly label: string;
   readonly unit: string;
-  /** Plausible engine-off idle reading (D-11); live values arrive with PNL-04. */
+  /** The quantity's base reading: shown when the bridge has no value for the quantity. */
   readonly value: number;
-  /** A gauge bound to a named quantity reads it instead of the fixed value (D-07, D-07a). */
-  readonly quantity?: QuantityId;
+  /** Every gauge reads a named quantity (D-07, D-12); range and bands come from its data. */
+  readonly quantity: QuantityId;
   readonly min: number;
   readonly max: number;
   readonly bands: readonly Band[];
 }
 
-// Limits and band colours are facts from the AFM engine instrument markings,
-// section 02-05 (page 02-7). Scale ends are display choices. Indications whose
-// markings are not in that table are left out rather than invented.
-const RPM: GaugeSpec = {
-  label: 'RPM',
-  unit: 'rpm',
-  value: 0,
-  min: 0,
-  max: 2500,
-  // AFM 02-05: green 0-2300, yellow 2300-2340, red above 2340.
-  bands: [
-    { from: 0, to: 2300, color: GREEN },
-    { from: 2300, to: 2340, color: YELLOW },
-    { from: 2340, to: 2500, color: RED },
-  ],
-};
-const LOAD: GaugeSpec = {
-  label: 'Load',
-  unit: '%',
-  value: 0,
-  min: 0,
-  max: 100,
-  // AFM 02-05: green up to 90 percent, yellow 90-100 percent.
-  bands: [
-    { from: 0, to: 90, color: GREEN },
-    { from: 90, to: 100, color: YELLOW },
-  ],
-};
+/** An unmarked scale range (colour 'none'): the dark scale colour of the frame. */
+const UNMARKED = '#3a424b';
+
 const BAND_COLOUR: Readonly<Record<BandColour, string>> = {
   green: GREEN,
   yellow: YELLOW,
   red: RED,
+  none: UNMARKED,
 };
 
 /**
- * A gauge whose range, idle value, unit and colour bands all come from the aircraft quantity data
- * (AFM 02-05 markings live there once), and whose reading is that quantity's current value.
+ * A gauge whose range, base value, unit and colour bands all come from the aircraft quantity data
+ * (the AFM 02-05 markings live there once, src/aircraft/da50rg/quantities.ts), and whose reading is
+ * that quantity's current value. The frame holds no gauge number of its own (T-03-04).
  */
 function quantityGauge(label: string, quantity: QuantityId): GaugeSpec {
   const def = DA50RG_QUANTITIES.get(quantity);
@@ -226,7 +203,7 @@ function quantityGauge(label: string, quantity: QuantityId): GaugeSpec {
   return {
     label,
     unit: def.unit,
-    value: def.idle,
+    value: def.base,
     quantity,
     min: def.min,
     max: def.max,
@@ -234,124 +211,24 @@ function quantityGauge(label: string, quantity: QuantityId): GaugeSpec {
   };
 }
 
+const RPM: GaugeSpec = quantityGauge('RPM', 'rpm');
+const LOAD: GaugeSpec = quantityGauge('Load', 'load_pct');
 const OIL_PRES: GaugeSpec = quantityGauge('Oil pres', 'oil_pressure_bar');
 const OIL_TEMP: GaugeSpec = quantityGauge('Oil temp', 'oil_temp_c');
-const COOLANT_TEMP: GaugeSpec = {
-  label: 'Coolant temp',
-  unit: '°C',
-  value: 15,
-  min: -25,
-  max: 125,
-  // AFM 02-05: yellow -25..60, green 60-101, yellow 101-105, red above 105.
-  bands: [
-    { from: -25, to: 60, color: YELLOW },
-    { from: 60, to: 101, color: GREEN },
-    { from: 101, to: 105, color: YELLOW },
-    { from: 105, to: 125, color: RED },
-  ],
-};
-const GEARBOX_TEMP: GaugeSpec = {
-  label: 'Gearbox temp',
-  unit: '°C',
-  value: 15,
-  min: -25,
-  max: 125,
-  // AFM 02-05: yellow -25..50, green 50-105, yellow 105-110, red above 110.
-  bands: [
-    { from: -25, to: 50, color: YELLOW },
-    { from: 50, to: 105, color: GREEN },
-    { from: 105, to: 110, color: YELLOW },
-    { from: 110, to: 125, color: RED },
-  ],
-};
-const FUEL_TEMP: GaugeSpec = {
-  label: 'Fuel temp',
-  unit: '°C',
-  value: 15,
-  min: -30,
-  max: 70,
-  // AFM 02-05: red below -25, yellow -25..-20, green -20..55, yellow 55-60, red above 60.
-  bands: [
-    { from: -30, to: -25, color: RED },
-    { from: -25, to: -20, color: YELLOW },
-    { from: -20, to: 55, color: GREEN },
-    { from: 55, to: 60, color: YELLOW },
-    { from: 60, to: 70, color: RED },
-  ],
-};
-const FUEL_PRES: GaugeSpec = {
-  label: 'Fuel pres',
-  unit: 'bar',
-  value: 0,
-  min: -0.5,
-  max: 1.5,
-  // AFM 02-05: red below -0.3, green -0.3..1.0, red above 1.0.
-  bands: [
-    { from: -0.5, to: -0.3, color: RED },
-    { from: -0.3, to: 1, color: GREEN },
-    { from: 1, to: 1.5, color: RED },
-  ],
-};
-const FUEL_QTY_LH: GaugeSpec = {
-  label: 'Fuel qty LH',
-  unit: 'gal',
-  value: 20,
-  min: 0,
-  max: 30,
-  // AFM 02-05: red below 1 US gal, green 1-25 (left tank).
-  bands: [
-    { from: 0, to: 1, color: RED },
-    { from: 1, to: 25, color: GREEN },
-    { from: 25, to: 30, color: '#3a424b' },
-  ],
-};
-const FUEL_QTY_RH: GaugeSpec = {
-  label: 'Fuel qty RH',
-  unit: 'gal',
-  value: 20,
-  min: 0,
-  max: 30,
-  // AFM 02-05: red below 1 US gal, green 1-24 (right tank).
-  bands: [
-    { from: 0, to: 1, color: RED },
-    { from: 1, to: 24, color: GREEN },
-    { from: 24, to: 30, color: '#3a424b' },
-  ],
-};
-const VOLTS: GaugeSpec = {
-  label: 'Volts',
-  unit: 'V',
-  value: 24.5,
-  min: 20,
-  max: 34,
-  // AFM 02-05: red below 24.1, yellow 24.1-25, green 25-30, yellow 30-32, red above 32.
-  bands: [
-    { from: 20, to: 24.1, color: RED },
-    { from: 24.1, to: 25, color: YELLOW },
-    { from: 25, to: 30, color: GREEN },
-    { from: 30, to: 32, color: YELLOW },
-    { from: 32, to: 34, color: RED },
-  ],
-};
-const AMPS: GaugeSpec = {
-  label: 'Amps',
-  unit: 'A',
-  value: 0,
-  min: 0,
-  max: 80,
-  // AFM 02-05: green below 60, yellow 60-70, red above 70.
-  bands: [
-    { from: 0, to: 60, color: GREEN },
-    { from: 60, to: 70, color: YELLOW },
-    { from: 70, to: 80, color: RED },
-  ],
-};
+const COOLANT_TEMP: GaugeSpec = quantityGauge('Coolant temp', 'coolant_temp_c');
+const GEARBOX_TEMP: GaugeSpec = quantityGauge('Gearbox temp', 'gearbox_temp_c');
+const FUEL_TEMP: GaugeSpec = quantityGauge('Fuel temp', 'fuel_temp_c');
+const FUEL_PRES: GaugeSpec = quantityGauge('Fuel pres', 'fuel_pressure_bar');
+const FUEL_QTY_LH: GaugeSpec = quantityGauge('Fuel qty LH', 'fuel_qty_lh_gal');
+const FUEL_QTY_RH: GaugeSpec = quantityGauge('Fuel qty RH', 'fuel_qty_rh_gal');
+const VOLTS: GaugeSpec = quantityGauge('Volts', 'bus_volts');
+const AMPS: GaugeSpec = quantityGauge('Amps', 'alt1_amps');
 
 type Quantities = Readonly<Record<QuantityId, number>>;
 
-/** The reading of a gauge: its bound quantity when the bridge has a value, else its fixed value. */
+/** The reading of a gauge: its quantity when the bridge has a value, else the quantity's base. */
 function readingOf(g: GaugeSpec, quantities: Quantities): number {
-  return g.quantity === undefined ? g.value : (quantities[g.quantity] ?? g.value);
+  return quantities[g.quantity] ?? g.value;
 }
 
 export const SCREEN_FILL = '#05080b';
@@ -377,7 +254,8 @@ const ENGINE_BARS_RIGHT: readonly GaugeSpec[] = [VOLTS, AMPS, FUEL_QTY_LH, FUEL_
 
 /**
  * MFD frame (D-04a): the Map page with a small engine strip, or the full Engine page,
- * selected by the page softkey state. Static idle values (D-11); no handlers (D-09).
+ * selected by the page softkey state. Every gauge reads a simulated quantity (D-12); no handlers
+ * (D-09).
  */
 export function MfdFrame({ region, bridge }: FrameProps) {
   const page = bridge.stateOf('sw.mfd_page').value;

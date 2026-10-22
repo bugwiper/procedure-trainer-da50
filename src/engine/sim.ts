@@ -4,7 +4,8 @@
 // stepped live and replayed gives the identical state at every step.
 //
 // Determinism (RESEARCH Pitfall 1): only + - * / and clamp; every quantity is clamped to its range
-// and quantised to 0.01 after every step, so node and every browser engine agree bit for bit.
+// and quantised to 0.01 (or the quantity's own finer scale) after every step, so node and every
+// browser engine agree bit for bit.
 //
 // Event timing rule (C-02): an event with time t is applied before the step that starts at the
 // first step boundary T with T at least t. Events apply one by one in log order and are never
@@ -24,9 +25,12 @@ export const MAX_RUN_MS = 1_800_000;
 
 const MS_PER_MINUTE = 60_000;
 
-/** Rounds to 0.01 (never -0, so records compare equal). */
-export function quantise(value: number): number {
-  const rounded = Math.round(value * 100) / 100;
+/** Readings are rounded to 1 / DEFAULT_SCALE (0.01) unless a quantity declares its own scale. */
+export const DEFAULT_SCALE = 100;
+
+/** Rounds to 1 / scale (default 0.01; never -0, so records compare equal). */
+export function quantise(value: number, scale: number = DEFAULT_SCALE): number {
+  const rounded = Math.round(value * scale) / scale;
   return rounded === 0 ? 0 : rounded;
 }
 
@@ -74,14 +78,14 @@ export function simSetup(env: AircraftEnv, scenario: Scenario, options: SimOptio
 }
 
 /**
- * The state at t 0: the baseline controls and the start quantities (the idle values overlaid with
+ * The state at t 0: the baseline controls and the start quantities (the base values overlaid with
  * the given ones, normally initialQuantities of the scenario).
  */
 export function initSim(setup: SimSetup, start: Readonly<Record<string, number>>): SimState {
   return Object.freeze({
     t: 0,
     controls: setup.baseline,
-    quantities: Object.freeze({ ...setup.env.quantities.idleValues(), ...start }),
+    quantities: Object.freeze({ ...setup.env.quantities.baseValues(), ...start }),
     flags: Object.freeze({}),
   });
 }
@@ -129,7 +133,10 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
     if (!Number.isFinite(next)) {
       throw new Error(`model of "${model.quantity}" produced ${String(next)}`);
     }
-    quantities[model.quantity] = quantise(Math.min(def.max, Math.max(def.min, next)));
+    quantities[model.quantity] = quantise(
+      Math.min(def.max, Math.max(def.min, next)),
+      def.scale ?? DEFAULT_SCALE,
+    );
   }
 
   return {

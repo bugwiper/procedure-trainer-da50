@@ -188,12 +188,12 @@ export function baselineOf(scenario: Scenario, registry: Registry): Record<strin
   return baseline;
 }
 
-/** The idle value of every quantity overlaid with the scenario's initial quantities. */
+/** The base value of every quantity overlaid with the scenario's initial quantities. */
 export function initialQuantities(
   scenario: Scenario,
   quantities: QuantitySet,
 ): Record<string, number> {
-  const values: Record<string, number> = { ...quantities.idleValues() };
+  const values: Record<string, number> = { ...quantities.baseValues() };
   for (const [id, value] of Object.entries(scenario.initial.quantities)) {
     if (quantities.get(id) === undefined) throw new PredicateError(`unknown quantity "${id}"`);
     values[id] = value;

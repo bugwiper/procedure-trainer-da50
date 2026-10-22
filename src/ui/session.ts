@@ -120,7 +120,7 @@ export interface Session {
   keepGoing(): void;
   /**
    * Running with a confirm only: ends the run without grading, resets the panel to the registry
-   * defaults and the quantities to idle, then performs the action that was asked for.
+   * defaults and the quantities to their base values, then performs the action that was asked for.
    */
   leaveRun(): Promise<void>;
   /** Repeats the failed request (a random pick again, or the same chosen entry). */

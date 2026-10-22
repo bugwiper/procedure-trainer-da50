@@ -60,13 +60,12 @@ describe('baselineOf and initialQuantities', () => {
     expect(Object.keys(baseline)).toHaveLength(DA50RG_ENV.registry.controls.length);
   });
 
-  it('overlays the initial quantities on the idle values', () => {
-    expect(quantities).toEqual({ oil_temp_c: 128, oil_pressure_bar: 5 });
+  it('overlays the initial quantities on the base values', () => {
+    const base = DA50RG_ENV.quantities.baseValues();
+    expect(quantities).toEqual({ ...base, ...scenario.initial.quantities });
+    expect(quantities['oil_temp_c']).not.toBe(base['oil_temp_c']);
     const bare = { ...scenario, initial: { controls: {}, quantities: { oil_temp_c: 90 } } };
-    expect(initialQuantities(bare, DA50RG_ENV.quantities)).toEqual({
-      oil_temp_c: 90,
-      oil_pressure_bar: 0,
-    });
+    expect(initialQuantities(bare, DA50RG_ENV.quantities)).toEqual({ ...base, oil_temp_c: 90 });
   });
 
   it('throws for an unknown or prototype key', () => {

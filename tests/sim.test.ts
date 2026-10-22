@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
+import { definePhysics } from '../src/engine/physics';
 import { initialQuantities } from '../src/engine/predicates';
 import { Run } from '../src/engine/run';
 import {
@@ -177,7 +178,7 @@ describe('event timing (C-02)', () => {
 });
 
 describe('quantities', () => {
-  it('stay multiples of 0.01 inside their range, and an unmodelled quantity never changes', () => {
+  it('stay multiples of their scale inside their range', () => {
     const events: SimEvent[] = [
       { t: 5000, id: 'lv.power', value: 'p100' },
       { t: 90_000, id: 'lv.power', value: 'p0' },
@@ -187,12 +188,35 @@ describe('quantities', () => {
       const { quantities } = simulate(setup, { events, start, untilMs: ms }).state;
       for (const def of DA50RG_ENV.quantities.all) {
         const value = quantity(quantities, def.id);
-        expect(quantise(value), `${def.id} at ${String(ms)}`).toBe(value);
+        expect(quantise(value, def.scale), `${def.id} at ${String(ms)}`).toBe(value);
         expect(value).toBeGreaterThanOrEqual(def.min);
         expect(value).toBeLessThanOrEqual(def.max);
       }
-      expect(quantity(quantities, OIL_PRESSURE)).toBe(quantity(start, OIL_PRESSURE));
     }
+  });
+
+  it('a quantity without a model never changes', () => {
+    const oilOnly = definePhysics(
+      {
+        parameters: [{ id: 'oil_cooling', min: 0.2, max: 1, normal: 1 }],
+        models: DA50RG_ENV.physics.models.filter((m) => m.quantity === OIL_TEMP),
+      },
+      { registry: DA50RG, quantities: DA50RG_ENV.quantities },
+    );
+    const partial = simSetup({ ...DA50RG_ENV, physics: oilOnly }, scenario);
+    const { quantities } = simulate(partial, { events: [], start, untilMs: 60_000 }).state;
+    expect(quantity(quantities, OIL_PRESSURE)).toBe(quantity(start, OIL_PRESSURE));
+  });
+
+  it('a quantity scale of its own keeps a burn that the default 0.01 would round away', () => {
+    const lh = DA50RG_ENV.quantities.get('fuel_qty_lh_gal');
+    expect(lh?.scale).toBeGreaterThan(100);
+    expect(quantise(0.001, 100)).toBe(0);
+    expect(quantise(0.001, lh?.scale)).toBe(0.001);
+    const { quantities } = simulate(setup, { events: [], start, untilMs: 60_000 }).state;
+    expect(quantity(quantities, 'fuel_qty_lh_gal')).toBeLessThan(
+      quantity(start, 'fuel_qty_lh_gal'),
+    );
   });
 
   it('clamp at the range: an ignored failure stops at the quantity maximum', () => {
@@ -207,11 +231,11 @@ describe('quantities', () => {
     expect(Object.is(quantise(-0.001), 0)).toBe(true);
   });
 
-  it('start quantities not named by the scenario take the idle value', () => {
+  it('start quantities not named by the scenario take the base value', () => {
     const state = initSim(setup, { [OIL_TEMP]: 100 });
     expect(quantity(state.quantities, OIL_TEMP)).toBe(100);
     expect(quantity(state.quantities, OIL_PRESSURE)).toBe(
-      DA50RG_ENV.quantities.idleValues()[OIL_PRESSURE],
+      DA50RG_ENV.quantities.baseValues()[OIL_PRESSURE],
     );
     expect(state.t).toBe(0);
   });
@@ -219,8 +243,11 @@ describe('quantities', () => {
 
 describe('parameters and onset (C-07)', () => {
   it('the faulted record is the normal record overlaid with the scenario parameters', () => {
-    expect(setup.normalParameters).toEqual({ oil_cooling: 1 });
-    expect(setup.faultedParameters).toEqual({ oil_cooling: scenario.parameters['oil_cooling'] });
+    expect(setup.normalParameters).toEqual(DA50RG_ENV.physics.normalParameters());
+    expect(setup.faultedParameters).toEqual({
+      ...DA50RG_ENV.physics.normalParameters(),
+      ...scenario.parameters,
+    });
     expect(setup.faultedParameters).not.toEqual(setup.normalParameters);
     expect(setup.onsetAt).toBe(0);
   });

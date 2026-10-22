@@ -1,10 +1,11 @@
 // Named aircraft quantities (D-07, D-08): numeric readings such as oil temperature that
 // scenarios set, predicates test and the MFD displays. A quantity is data: a unit, a range, an
-// idle value and colour bands. Pure TypeScript, no DOM, no framework, no clock (enforced by the
+// base value and colour bands. Pure TypeScript, no DOM, no framework, no clock (enforced by the
 // ESLint boundary).
 
 export type QuantityId = string;
-export type BandColour = 'green' | 'yellow' | 'red';
+/** 'none' marks an unmarked scale range (for example the fuel quantity above the usable capacity). */
+export type BandColour = 'green' | 'yellow' | 'red' | 'none';
 
 export const QUANTITY_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
 
@@ -20,8 +21,16 @@ export interface QuantityDef {
   readonly unit: string;
   readonly min: number;
   readonly max: number;
-  /** Value on the ground with nothing set (a scenario overlays its own initial values). */
-  readonly idle: number;
+  /**
+   * The reading at the registry defaults (in-flight cruise): shown on the free panel and the
+   * starting value of every quantity a scenario does not set (a scenario overlays its own values).
+   */
+  readonly base: number;
+  /**
+   * Readings are rounded to 1 / scale by the simulation; a positive integer, default 100 (0.01).
+   * A slow rate such as a fuel burn needs a finer scale, or each step would round it away.
+   */
+  readonly scale?: number;
   /** At least one; the last bound equals max. */
   readonly bands: readonly BandDef[];
 }
@@ -34,8 +43,8 @@ export interface QuantitySet {
    * first band, above max the last. Throws for an unknown quantity (a programmer error).
    */
   bandOf(id: QuantityId, value: number): string;
-  /** Idle value of every quantity, keyed by id. */
-  idleValues(): Readonly<Record<QuantityId, number>>;
+  /** Base value of every quantity, keyed by id. */
+  baseValues(): Readonly<Record<QuantityId, number>>;
 }
 
 export class QuantityError extends Error {}
@@ -47,12 +56,15 @@ function checkDef(def: QuantityDef): void {
   if (!QUANTITY_ID_PATTERN.test(def.id)) {
     throw new QuantityError(`quantity id "${def.id}" does not match ${QUANTITY_ID_PATTERN.source}`);
   }
-  if (![def.min, def.max, def.idle].every(Number.isFinite)) {
-    fail('needs finite min, max and idle');
+  if (![def.min, def.max, def.base].every(Number.isFinite)) {
+    fail('needs finite min, max and base');
   }
   if (!(def.min < def.max)) fail(`has min ${String(def.min)} not below max ${String(def.max)}`);
-  if (def.idle < def.min || def.idle > def.max) {
-    fail(`has idle ${String(def.idle)} outside ${String(def.min)}..${String(def.max)}`);
+  if (def.base < def.min || def.base > def.max) {
+    fail(`has base ${String(def.base)} outside ${String(def.min)}..${String(def.max)}`);
+  }
+  if (def.scale !== undefined && !(Number.isInteger(def.scale) && def.scale > 0)) {
+    fail(`has scale ${String(def.scale)}, which is not a positive integer`);
   }
   if (def.bands.length === 0) fail('has no bands');
   const seen = new Set<string>();
@@ -87,9 +99,9 @@ export function defineQuantities(defs: readonly QuantityDef[]): QuantitySet {
     );
   }
   const byId = new Map<QuantityId, QuantityDef>(all.map((d) => [d.id, d]));
-  const idle: Record<QuantityId, number> = {};
-  for (const d of all) idle[d.id] = d.idle;
-  Object.freeze(idle);
+  const base: Record<QuantityId, number> = {};
+  for (const d of all) base[d.id] = d.base;
+  Object.freeze(base);
 
   return Object.freeze({
     all: Object.freeze(all),
@@ -101,6 +113,6 @@ export function defineQuantities(defs: readonly QuantityDef[]): QuantitySet {
       // bands is never empty (checked above)
       return (band as BandDef).id;
     },
-    idleValues: () => idle,
+    baseValues: () => base,
   });
 }

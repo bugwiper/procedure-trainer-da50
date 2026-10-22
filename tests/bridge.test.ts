@@ -64,7 +64,7 @@ describe('bridge reset', () => {
 
   it('applies a baseline to the signals and lamps without an event and sets the quantities', () => {
     const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
-    expect(bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    expect(bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
     bridge.actuate('lv.cowl_flap', 'open');
     expect(bridge.indicatorOf('lt.cowl_open').value).toBe(true);
     bridge.reset(baseline, { oil_temp_c: 128, oil_pressure_bar: 5 });
@@ -74,7 +74,7 @@ describe('bridge reset', () => {
     expect(bridge.indicatorOf('lt.cowl_closed').value).toBe(true);
     expect(bridge.store.events()).toEqual([]);
     expect(bridge.quantities.value).toEqual({
-      ...DA50RG_QUANTITIES.idleValues(),
+      ...DA50RG_QUANTITIES.baseValues(),
       oil_temp_c: 128,
       oil_pressure_bar: 5,
     });
@@ -99,7 +99,7 @@ describe('bridge reset', () => {
     const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
     bridge.reset(baseline, { oil_temp_c: 128 });
     bridge.reset({});
-    expect(bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    expect(bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
     expect(bridge.stateOf('lv.power').value).toBe('p70');
   });
 
@@ -171,7 +171,7 @@ describe('bridge setQuantities (plan 03-01)', () => {
 
   it('replaces the values, and the same values again keep the very same object', () => {
     const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
-    const next = { ...DA50RG_QUANTITIES.idleValues(), oil_temp_c: 100 };
+    const next = { ...DA50RG_QUANTITIES.baseValues(), oil_temp_c: 100 };
     bridge.setQuantities(next);
     expect(bridge.quantities.value).toEqual(next);
     const held = bridge.quantities.value;
@@ -185,7 +185,7 @@ describe('bridge setQuantities (plan 03-01)', () => {
   it('feeds the derived CAS chips', () => {
     const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
     expect(bridge.cas.value).toEqual([]);
-    bridge.setQuantities({ ...DA50RG_QUANTITIES.idleValues(), oil_temp_c: 130 });
+    bridge.setQuantities({ ...DA50RG_QUANTITIES.baseValues(), oil_temp_c: 130 });
     expect(bridge.cas.value.map((m) => m.id)).toEqual(['eng_oil_temp']);
   });
 });

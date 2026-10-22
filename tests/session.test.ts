@@ -140,7 +140,7 @@ describe('newSituation', () => {
     expect(session.loadFailure.value).toBeNull();
     expect(session.busy.value).toBe(false);
     expect(bridge.stateOf('lv.power').value).toBe('p70');
-    expect(bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    expect(bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
     expect(bridge.store.events()).toEqual([]);
     expect(onRunStart).not.toHaveBeenCalled();
   });
@@ -159,7 +159,7 @@ describe('newSituation', () => {
     expect(bridge.stateOf('lv.power').value).toBe('p75');
     expect(bridge.stateOf('lv.cowl_flap').value).toBe('closed');
     expect(bridge.quantities.value).toEqual({
-      ...DA50RG_QUANTITIES.idleValues(),
+      ...DA50RG_QUANTITIES.baseValues(),
       oil_temp_c: 128,
       oil_pressure_bar: 5,
     });
@@ -524,7 +524,7 @@ describe('leave-run confirm (U-03, T-02-24)', () => {
     // The panel is back at the registry defaults and the quantities at idle; the log is empty.
     expect(r.bridge.stateOf('lv.power').value).toBe('p70');
     expect(r.bridge.stateOf('lv.cowl_flap').value).toBe('closed');
-    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
     expect(r.bridge.store.events()).toEqual([]);
     // The pressed action ran: a briefing of a new situation.
     expect(r.session.screen.value).toBe('briefing');
@@ -914,7 +914,7 @@ describe('run (phase 03)', () => {
 
     const r = await started();
     const run = runOf(r);
-    const expected = { ...DA50RG_QUANTITIES.idleValues(), oil_temp_c: 128, oil_pressure_bar: 5 };
+    const expected = { ...DA50RG_QUANTITIES.baseValues(), oil_temp_c: 128, oil_pressure_bar: 5 };
     expect(run.state.t).toBe(0);
     expect(run.state.quantities).toEqual(expected);
     expect(r.bridge.quantities.value).toEqual(expected);
@@ -973,9 +973,9 @@ describe('run (phase 03)', () => {
     await r.session.newSituation();
     await r.session.leaveRun();
     expect(r.session.run.value).toBeNull();
-    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
     run.step();
-    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
   });
 
   it('the next run starts a fresh run from the scenario quantities', async () => {

@@ -49,7 +49,7 @@ export interface PanelBridge {
   actuate(id: ControlId, value: StateId): DispatchResult;
   /** Removes the last event from the log (R3-Z3); the signals and lamps follow. See PanelStore.retract. */
   retract(seq: number): RetractResult;
-  /** Named quantity values (D-08); idle values at start, empty without an aircraft. */
+  /** Named quantity values (D-08); base values at start, empty without an aircraft. */
   readonly quantities: ReadonlySignal<Readonly<Record<QuantityId, number>>>;
   /**
    * Replaces the quantity values (the simulation's output, one call per step). The signal changes
@@ -58,7 +58,7 @@ export interface PanelBridge {
   setQuantities(values: Readonly<Record<QuantityId, number>>): void;
   /**
    * Starts a run from a scenario baseline (SCN-03) without an event: the log is emptied, every
-   * control signal and lamp follows, the quantities are the idle values overlaid with the given
+   * control signal and lamp follows, the quantities are the base values overlaid with the given
    * ones. Throws RangeError, changing nothing, for an illegal baseline. See PanelStore.reset.
    */
   reset(
@@ -102,9 +102,9 @@ export function createPanelBridge(
     }
   });
 
-  const idleQuantities = (): Readonly<Record<QuantityId, number>> =>
-    aircraft === undefined ? {} : aircraft.quantities.idleValues();
-  const quantities = signal<Readonly<Record<QuantityId, number>>>(idleQuantities());
+  const baseQuantities = (): Readonly<Record<QuantityId, number>> =>
+    aircraft === undefined ? {} : aircraft.quantities.baseValues();
+  const quantities = signal<Readonly<Record<QuantityId, number>>>(baseQuantities());
   let timeSource: () => number = () => performance.now();
 
   // The rules may read the baseline (travel_rel), which changes on a reset without a control event.
@@ -192,7 +192,7 @@ export function createPanelBridge(
     cas,
     reset(controls, given = {}) {
       store.reset(controls);
-      quantities.value = { ...idleQuantities(), ...given };
+      quantities.value = { ...baseQuantities(), ...given };
     },
     setTimeSource(now) {
       timeSource = now ?? (() => performance.now());

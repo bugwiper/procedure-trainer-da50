@@ -41,3 +41,34 @@ test('@hooks the oil temperature rises while ignored and falls after POWER down 
   const peak = await quantityOf(page, OIL_TEMP);
   await expect.poll(() => quantityOf(page, OIL_TEMP), { timeout: 15_000 }).toBeLessThan(peak - 1);
 });
+
+test('@hooks switching ENGINE MASTER off drops RPM, oil and fuel pressure and Amps on the engine page', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, ROW);
+  await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
+  await expect(page.getByTestId('mfd-engine-page')).toBeVisible();
+  const rpmGauge = page.locator('[data-region-id="mfd"] [data-gauge="RPM"]');
+  const before = await rpmGauge.textContent();
+
+  // The engine runs in cruise, so every engine quantity reads a running value.
+  expect(await quantityOf(page, 'rpm')).toBeGreaterThan(1000);
+  expect(await quantityOf(page, 'oil_pressure_bar')).toBeGreaterThan(2);
+  expect(await quantityOf(page, 'fuel_pressure_bar')).toBeGreaterThan(0.1);
+  expect(await quantityOf(page, 'alt1_amps')).toBeGreaterThan(1);
+
+  await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
+  await expect(page.locator('[data-control-id="sw.engine_master"]')).toHaveAttribute(
+    'data-state',
+    'off',
+  );
+
+  await expect.poll(() => quantityOf(page, 'rpm'), { timeout: 8_000 }).toBeLessThan(500);
+  await expect.poll(() => quantityOf(page, 'oil_pressure_bar'), { timeout: 8_000 }).toBeLessThan(2);
+  await expect
+    .poll(() => quantityOf(page, 'fuel_pressure_bar'), { timeout: 8_000 })
+    .toBeLessThan(0.1);
+  await expect.poll(() => quantityOf(page, 'alt1_amps'), { timeout: 8_000 }).toBeLessThan(1);
+  await expect.poll(() => rpmGauge.textContent(), { timeout: 8_000 }).not.toBe(before);
+});

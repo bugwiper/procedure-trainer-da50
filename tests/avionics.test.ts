@@ -59,7 +59,7 @@ function fakeBridge(page: 'map' | 'engine'): PanelBridge {
   return {
     registry: DA50RG,
     stateOf: () => ({ value: page }),
-    quantities: { value: DA50RG_QUANTITIES.idleValues() },
+    quantities: { value: DA50RG_QUANTITIES.baseValues() },
     cas: { value: [] },
   } as unknown as PanelBridge;
 }
