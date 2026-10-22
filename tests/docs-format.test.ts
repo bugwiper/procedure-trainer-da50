@@ -26,6 +26,11 @@ export const LIVING_DOCUMENTS: readonly string[] = [
   ...docsFiles,
   '.claude/CLAUDE.md',
   '.planning/research/STACK.md',
+  '.planning/PROJECT.md',
+  '.planning/ROADMAP.md',
+  '.planning/REQUIREMENTS.md',
+  '.planning/todos/pending/2026-10-21-review-warnings-hardening.md',
+  '.planning/todos/pending/2026-10-21-breaker-effects-and-avionics-functions.md',
 ];
 
 describe('living documents name TOON as the scenario format', () => {
@@ -46,4 +51,12 @@ describe('living documents name TOON as the scenario format', () => {
       expect(text).toContain('4.4.0');
     },
   );
+
+  it('REQUIREMENTS.md SCN-01 says TOON files', () => {
+    const line = read('.planning/REQUIREMENTS.md')
+      .split('\n')
+      .find((l) => l.includes('SCN-01'));
+    expect(line).toBeDefined();
+    expect(line).toContain('TOON files');
+  });
 });

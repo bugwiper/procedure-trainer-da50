@@ -29,7 +29,7 @@ The user can run an emergency scenario by actually operating the panel controls,
 
 - [ ] Engine gauges and the annunciator/alert area driven by scenario state (the panel itself, its controls and their input are validated above)
 - [ ] Scenarios start via "new situation" quiz flow; random or selected scenario
-- [ ] Scenario definitions in YAML config files, validated by schema, extendable manually without code changes
+- [ ] Scenario definitions in TOON files, validated by schema with line-numbered errors, extendable manually without code changes
 - [ ] Scenario defines initial panel state, annunciations/alerts, and action checklist: required actions, optional actions, order-constrained groups, unordered actions, forbidden/harmful actions
 - [ ] Scripted reactions: scenario-defined state changes triggered by user actions or timers (e.g. temperature falls after actions, escalates to engine failure if ignored or past redline)
 - [ ] Checklist can be shown/hidden
@@ -53,17 +53,17 @@ The user can run an emergency scenario by actually operating the panel controls,
 
 - Aircraft: Diamond DA50 RG (glass cockpit, single-engine piston). Emergency procedures per AFM.
 - User enters AFM-derived procedures; accuracy and licensing/copyright of AFM text is their responsibility, so scenario files should carry a source and disclaimer.
-- Content extensibility through YAML is a core design driver; non-developers should be able to author scenarios.
+- Content extensibility through TOON scenario files is a core design driver; non-developers should be able to author scenarios.
 - VS Code project, repo in /Users/pascalbetz/projects/procedure-trainer-da-50.
 - **Current state (2026-10-21):** Phases 1, 1.1 and 1.2 are built and deployed (live site on GitHub Pages; owner live review passed, see the UAT files of 01.1 and 01.2). The engine is a pure panel store with an action log and retract; there is no scenario layer, clock, grading or reaction layer yet. Open follow-ups are in `.planning/todos/pending/` (review warnings, deferred engine behaviours, real iPad check, label and bus-membership revisit).
-- **Next:** Phase 2, First Gradable Scenario (YAML scenario schema and validate command, virtual clock, matching on control state, briefing, Exam flow, PASS/FAIL debrief).
+- **Next:** Phase 2, First Gradable Scenario (TOON scenario schema and validate command, virtual clock, matching on control state, briefing, Exam flow, PASS/FAIL debrief).
 
 ## Constraints
 
 - **Tech stack**: TypeScript + Vite, SVG-rendered panel — static output suited to GitHub Pages, scalable graphics for all screen sizes
 - **Hosting**: GitHub Pages (static only) — no server-side enforcement in v1
 - **Devices**: desktop, tablet, phone — touch and mouse input, responsive scaling
-- **Content format**: YAML scenario files with schema validation — manual extensibility
+- **Content format**: TOON scenario files with schema validation and line-numbered errors — manual extensibility
 - **Safety/legal**: Clearly marked as training aid, not replacing AFM — liability
 
 ## Key Decisions
@@ -87,6 +87,7 @@ The user can run an emergency scenario by actually operating the panel controls,
 | Behaviours deferred out of the panel phases (MAX run, ANNUN-TEST, spray, breaker effects, avionics functions, glass menus) | No engine clock or reaction layer exists yet; real timers are forbidden in engine and UI; building them early would be guessed and thrown away | Tracked as pending todos |
 | Brand rule: GO-AROUND on the panel, no real maker names, no RUBIN mark, DA50RG kept | IP exposure; the airframe mark was removed on owner request | Good |
 | Reference photos and AFM stay private (`.input/`, git-ignored) | Copyright; documents describe layout facts only | Good |
+| Scenario files in TOON (phase 2, owner decision D-19) | Compact, readable by non-developers; `@toon-format/toon` pinned exactly because the spec is a Working Draft; schema errors carry file:line:col from an own path-to-line index | Pending |
 
 ## Evolution
 

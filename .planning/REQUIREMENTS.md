@@ -27,7 +27,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Scenario Engine
 
-- [ ] **SCN-01**: Scenarios are YAML files validated against a schema, with line-numbered errors
+- [ ] **SCN-01**: Scenarios are TOON files validated against a schema, with line-numbered errors
 - [ ] **SCN-02**: A validate command checks every scenario file against the control registry
 - [ ] **SCN-03**: A scenario defines initial panel state, annunciations and the displayed checklist
 - [ ] **SCN-04**: Actions can be critical-required, standard-required, optional or forbidden, placed in ordered or unordered groups

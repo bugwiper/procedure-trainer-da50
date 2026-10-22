@@ -12,7 +12,7 @@ CR-01 (right and middle mouse buttons operated knobs and lever handles) and WR-0
 - **WR-01** A throwing store listener leaves the event committed but skips later listeners and replaces the dispatch result (same in `retract`: the log is already shortened). Isolate each listener, collect errors, report after all ran. Caller to check: `src/ui/panel/tap-intent.ts` reads a thrown retract as a refusal and then actuates the second tap.
 - **WR-02** `retract` and `markConsumed` address an event by `seq`, a log position that the next event reuses. Give events a monotonic unique id (or compare event identity against the newest log entry). Related to the consumed-event rule in `2026-10-21-retract-consumed-events-phase3.md`.
 - **WR-07** `events()` and dispatch hand out the mutable event objects that sit in the log. Freeze events with the WR-02 change.
-- **WR-04** `defineRegistry` does not validate hit size (finite, positive), `guardOpenHit`, `track.length` against the hit along the track, region bounds inside the viewBox, a control footprint inside its region, and the arrays inside specs are not deep-frozen. Latent until YAML packs or scenario-driven control lists exist (Phase 2 or later).
+- **WR-04** `defineRegistry` does not validate hit size (finite, positive), `guardOpenHit`, `track.length` against the hit along the track, region bounds inside the viewBox, a control footprint inside its region, and the arrays inside specs are not deep-frozen. Latent until TOON packs or scenario-driven control lists exist (Phase 2 or later).
 
 ## UI
 

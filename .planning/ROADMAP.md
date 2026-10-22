@@ -241,7 +241,7 @@ Plans:
   2. User taps "New situation" (random or chosen), reads a short briefing, and the panel opens in the scenario's initial state with "OIL TEMP HIGH" showing in the alert area.
   3. User performs the procedure by operating controls, the app stays silent (Exam behaviour), and the user ends the run with "Procedure complete"; actions count by the resulting control state, not by raw clicks (toggling a switch back and forth does not change what is credited).
   4. The debrief shows PASS/FAIL (a missed critical step fails), a verdict per step (critical, standard, optional), order violations in ordered groups and harmful (forbidden) actions; replaying the same recorded run gives identical verdicts, and golden, do-nothing, wrong-order and forbidden-action replays each grade as expected.
-  5. The scenario is a YAML file loaded only through the PackProvider/AccessPolicy seam (open in v1); the validate command reports a malformed file with line-numbered errors and rejects any control id not in the registry.
+  5. The scenario is a TOON file loaded only through the PackProvider/AccessPolicy seam (open in v1); the validate command reports a malformed file with line-numbered errors and rejects any control id not in the registry.
 
 **Plans:** 2/13 plans executed
 
@@ -300,7 +300,7 @@ Plans:
   1. In Training mode the user can show or hide the scenario checklist and ask for a hint during the scenario, while Exam mode stays silent.
   2. A "Further actions" section lets the user pick from a fixed list of non-panel actions (e.g. monitor oil pressure, declare MAYDAY, brief passengers) and choose a landing decision from the ladder (continue flight, safety landing on a suitable field, emergency landing on the next field, outlanding if necessary); both are graded in the debrief.
   3. From the debrief the user can retry the same scenario from a clean initial state or move straight to the next situation.
-  4. Following only the authoring guide, a non-developer can add a new scenario YAML file, validate it and play it in the app without any code change.
+  4. Following only the authoring guide, a non-developer can add a new scenario TOON file, validate it and play it in the app without any code change.
 
 **Plans**: TBD
 **UI hint**: yes

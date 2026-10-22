@@ -177,7 +177,7 @@ Recent decisions affecting current work:
 
 - [Phase 1]: Run a real-device spike (iOS Safari pointer capture and touch-action on SVG). Region zoom is v2 (PNL-V2-01) but v1 phone use needs a layout that is still usable, so decide the v1 small-screen model during Phase 1.
 - [Phase 1]: Decide repo visibility, paraphrase-only vs verbatim policy, and a host-agnostic build. GitHub Pages terms bar commerce, so migrate hosting before any sale (BUS-V2-02).
-- [Phase 2]: Write the grading semantics spec (state predicates, partial order, forbidden-on-entry, critical-miss fail) with golden fixtures before authoring the first scenario YAML. Review it with a DA50 instructor; confirm the "holds at end" default and ordered-group strictness.
+- [Phase 2]: Write the grading semantics spec (state predicates, partial order, forbidden-on-entry, critical-miss fail) with golden fixtures before authoring the first scenario TOON file. Review it with a DA50 instructor; confirm the "holds at end" default and ordered-group strictness.
 - [Phase 2]: The user supplies DA50 RG AFM procedures, CAS texts and the control inventory. Derive the registry from them. Confirm memory-item deadlines (keep `within_s` optional).
 - [Phase 3]: Authoring all three real scenarios will likely force schema revisions. Do not freeze the schema for external authors (CNT-02) until all three are written.
 - [Setup]: REQUIREMENTS.md previously said 30 v1 requirements, but only 28 IDs are defined. Corrected to 28 during roadmap creation.
