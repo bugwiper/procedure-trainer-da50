@@ -7,6 +7,7 @@
 
 import type { BranchStatus, BranchVerdict, GradeResult, StepVerdict } from '../engine/grading';
 import type { ProcedureNode, Scenario } from '../scenario/schema';
+import { orderLine } from './debrief-text';
 
 /** The briefing hides every graded step; the debrief shows them with their verdicts. */
 export type OutlineMode = 'briefing' | 'debrief';
@@ -58,7 +59,18 @@ export interface OutlineStep {
   readonly verdict: OutlineVerdict | null;
 }
 
-export type OutlineItem = OutlineLine | OutlineDecision | OutlineBranch | OutlineStep;
+/**
+ * The order line under the steps of an ordered group (debrief only): "Order kept" or one
+ * "Order wrong: ..." line per violation. Unordered groups and muted groups carry none.
+ */
+export interface OutlineOrder {
+  readonly kind: 'order';
+  readonly text: string;
+  readonly kept: boolean;
+}
+
+export type OutlineItem =
+  OutlineLine | OutlineDecision | OutlineBranch | OutlineStep | OutlineOrder;
 
 const TAGS: Readonly<Record<StepVerdict['severity'], SeverityTag>> = {
   critical: 'CRITICAL',
@@ -138,6 +150,11 @@ export function buildOutline(
               tag: verdict === undefined ? null : TAGS[verdict.severity],
               verdict: verdict === undefined ? null : verdictOf(verdict),
             });
+          }
+          if (!muted && result !== undefined) {
+            for (const text of orderLine(node, result)) {
+              items.push({ kind: 'order', text, kept: text === 'Order kept' });
+            }
           }
           return;
         case 'branch':

@@ -58,6 +58,14 @@ function Item({ item }: { readonly item: OutlineItem }) {
         </li>
       );
     }
+    case 'order':
+      return (
+        <li class="outline-item" data-kind="order" data-kept={item.kept ? 'true' : 'false'}>
+          <div class="outline-row">
+            <span class="outline-meta">{item.text}</span>
+          </div>
+        </li>
+      );
     case 'decision':
       return (
         <li class="outline-item" data-kind="decision" data-muted={item.muted ? 'true' : undefined}>

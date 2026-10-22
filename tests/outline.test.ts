@@ -8,7 +8,7 @@ import type { GradeResult, StepVerdict } from '../src/engine/grading';
 import { MAX_BRANCH_LEVELS, checkScenario } from '../src/scenario/lint';
 import type { Scenario } from '../src/scenario/schema';
 import { buildOutline, verdictOf } from '../src/ui/outline';
-import type { OutlineBranch, OutlineItem, OutlineStep } from '../src/ui/outline';
+import type { OutlineBranch, OutlineItem, OutlineOrder, OutlineStep } from '../src/ui/outline';
 import { ChecklistOutline } from '../src/ui/screens/ChecklistOutline';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
@@ -34,7 +34,9 @@ function swap(text: string, from: string, to: string): string {
   return text.replace(from, () => to);
 }
 
+const ORDERED = readFileSync(join(root, 'tests/fixtures/scenarios/ordered-critical.toon'), 'utf8');
 const pocket = load(POCKET);
+const ordered = load(ORDERED);
 const blueprint = load(BLUEPRINT);
 
 function run(scenario: Scenario, events: { id: string; value: string }[]): GradeResult {
@@ -317,6 +319,68 @@ describe('buildOutline, debrief form', () => {
       text: 'Check oil pressure',
       notGraded: true,
     });
+  });
+});
+
+describe('buildOutline, order lines of an ordered group (D-16, SCN-04)', () => {
+  const orderLines = (items: readonly OutlineItem[]) =>
+    everyItem(items).filter((i): i is OutlineOrder => i.kind === 'order');
+
+  it('names both step texts when the order was wrong', () => {
+    // The cowl flap first, then power: the declared order was power first.
+    const wrong = run(ordered, [
+      { id: 'lv.cowl_flap', value: 'open' },
+      { id: 'lv.power', value: 'p60' },
+    ]);
+    const lines = orderLines(debriefOf(ordered, wrong));
+    expect(lines.map((l) => [l.text, l.kept])).toEqual([
+      ['Order wrong: Reduce power was expected before Open cowl flap', false],
+    ]);
+  });
+
+  it('sits right after the steps of its group', () => {
+    const wrong = run(ordered, [
+      { id: 'lv.cowl_flap', value: 'open' },
+      { id: 'lv.power', value: 'p60' },
+    ]);
+    const green = branchByLabel(debriefOf(ordered, wrong), 'If in green range:');
+    expect(green.children.map((c) => (c.kind === 'step' ? c.id : c.kind))).toEqual([
+      'reduce_power',
+      'open_cowl_flap',
+      'order',
+      'line',
+    ]);
+  });
+
+  it('says Order kept when the order was right', () => {
+    const right = run(ordered, [
+      { id: 'lv.power', value: 'p60' },
+      { id: 'lv.cowl_flap', value: 'open' },
+    ]);
+    expect(orderLines(debriefOf(ordered, right)).map((l) => [l.text, l.kept])).toEqual([
+      ['Order kept', true],
+    ]);
+  });
+
+  it('has none for an unordered group and none in the briefing', () => {
+    expect(orderLines(debriefOf(pocket, run(pocket, GOLDEN)))).toEqual([]);
+    expect(orderLines(debriefOf(blueprint, run(blueprint, GOLDEN)))).toEqual([]);
+    expect(orderLines(briefingOf(ordered))).toEqual([]);
+  });
+
+  it('renders as a meta line under the steps of the group', () => {
+    const wrong = run(ordered, [
+      { id: 'lv.cowl_flap', value: 'open' },
+      { id: 'lv.power', value: 'p60' },
+    ]);
+    const tree = expand(ChecklistOutline({ items: debriefOf(ordered, wrong) }));
+    const rows = findElements(tree, (el) => el.props['data-kind'] === 'order');
+    expect(rows).toHaveLength(1);
+    expect(textOf(rows[0] ?? tree)).toBe(
+      'Order wrong: Reduce power was expected before Open cowl flap',
+    );
+    // An order line is not a graded step row.
+    expect(findElements(tree, (el) => el.props['data-testid'] === 'debrief-row')).toHaveLength(2);
   });
 });
 

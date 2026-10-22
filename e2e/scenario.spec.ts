@@ -478,6 +478,53 @@ test('@hooks the debrief shows the outline with verdicts, Not graded and the bra
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
+test('@hooks a harmful action is reported with its time and the run still grades PASS', async ({
+  page,
+  hasTouch,
+}) => {
+  await startRun(page, hasTouch);
+  // POWER up to the 100 % marker is the harmful action (D-03); it is reverted by the golden taps.
+  await activate(page.locator('[data-detent="lv.power:p100"]'), hasTouch);
+  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p100');
+  await page.waitForTimeout(1500);
+  await goldenTaps(page, hasTouch);
+
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.getByTestId('debrief-reason')).toHaveText('All critical steps done.');
+  const debrief = page.getByTestId('debrief');
+  await expect(debrief.getByRole('heading', { name: 'Harmful actions (1)' })).toBeVisible();
+  const rows = page.getByTestId('debrief-harmful-row');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toHaveText(/^Increase power at 0:0\d$/);
+  await expect(page.getByTestId('debrief-harmful-none')).toHaveCount(0);
+  // The order of the sections: result, steps, harmful actions, action row.
+  const order = await debrief.evaluate((card) => {
+    const at = (selector: string) => {
+      const el = card.querySelector(selector);
+      return el === null ? -1 : [...card.querySelectorAll('*')].indexOf(el);
+    };
+    return [
+      at('[data-testid="debrief-result"]'),
+      at('[data-testid="debrief-reason"]'),
+      at('li[data-kind="step"]'),
+      at('[data-testid="debrief-harmful-heading"]'),
+      at('[data-testid="debrief-harmful-row"]'),
+    ];
+  });
+  expect(order).toEqual([...order].sort((a, b) => a - b));
+  expect(order.every((i) => i >= 0)).toBe(true);
+});
+
+test('@hooks a run without harmful actions says None.', async ({ page, hasTouch }) => {
+  await startRun(page, hasTouch);
+  await goldenTaps(page, hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.getByRole('heading', { name: 'Harmful actions (0)' })).toBeVisible();
+  await expect(page.getByTestId('debrief-harmful-none')).toHaveText('None.');
+});
+
 test('@hooks doing nothing grades FAIL', async ({ page, hasTouch }) => {
   await startRun(page, hasTouch);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
