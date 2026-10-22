@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Reactive Scenarios and Initial Pack
-current_plan: 8
+current_plan: 9
 status: executing
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-10-22T21:46:54.359Z"
+stopped_at: Completed 03-07-PLAN.md
+last_updated: "2026-10-22T22:01:12.074Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 03 execution started
-state_head: 2962bda16883d48ae06f3378dfb64d998cb62e0f
+state_head: d6459ddcd6b2980d77579ddd5e26a87e5c5823a1
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 84
-  completed_plans: 81
+  completed_plans: 82
   percent: 25
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 03 (Reactive Scenarios and Initial Pack) — EXECUTING
-Current Plan: 8
+Current Plan: 9
 Total Plans in Phase: 10
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
@@ -131,6 +131,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 03 P04 | 12 min | 3 tasks | 15 files |
 | Phase 03 P05 | 20 min | 3 tasks | 16 files |
 | Phase 03 P06 | 25 min | 3 tasks | 17 files |
+| Phase 03 P07 | 12 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,10 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-04: a fired reaction consumes its arming event (markConsumed by the run); a clearing event is not consumed and a retract of an applied event rebuilds the run by replay
 - [Phase 03]: Named outcomes: a scenario outcome (id, text, closed predicate, hold_s) ends the run as FAIL when its predicate has held for its hold time; grade replays the same simulation and lists the outcome first (C-24 to C-27).
 - [Phase 03]: ENG OIL TEMP engine_failure outcome: oil_temp_c at or above 140 for 15 s, fires at 42.6 s when ignored; threshold and hold are instructor-review values (RESEARCH A4).
+- [Phase 03]: Electrical Failure lives in its own pack electrical; ENG OIL TEMP stays in engine (C-37)
+- [Phase 03]: ALTN 1 FAIL is a caution rule on alt1_amps at most 2.5 and stays after ALTERNATOR 1 OFF (C-38)
+- [Phase 03]: The Electrical Failure group is unordered; order is pinned on a synthetic ordered copy (C-39)
+- [Phase 03]: Outcome main_bus_lost at bus_volts at most 22.5 for 10 s; forbidden ALTERNATOR 2 OFF and ELECT. MASTER OFF; all instructor-review values (C-40, C-41)
 
 ### Pending Todos
 
@@ -239,6 +244,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T21:46:53.917Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-10-22T22:01:11.636Z
+Stopped at: Completed 03-07-PLAN.md
 Resume file: None
