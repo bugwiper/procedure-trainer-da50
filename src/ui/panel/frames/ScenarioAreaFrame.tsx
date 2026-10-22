@@ -1,25 +1,100 @@
+import { useRef } from 'preact/hooks';
+import { INPUT_SHIELD_MS } from '../../screens/Modal';
 import { SESSION_LAYOUT } from '../session-area';
 import { SessionButton } from '../widgets/SessionButton';
 import type { FrameProps } from './MfdFrame';
 
 /**
- * The session area in the co-pilot legroom (D-14, region scenario_area): the NEW SITUATION button
- * at its SESSION_LAYOUT rectangle. CHOOSE SITUATION and the choose view arrive in plan 12. Trainer
+ * The session area in the co-pilot legroom (D-14, region scenario_area). Main view: NEW SITUATION
+ * and CHOOSE SITUATION at their SESSION_LAYOUT rectangles. Choose view (state choosing): CLOSE LIST
+ * and up to four rows, one per scenario of an allowed pack, titled from the pack manifest. Trainer
  * content, not an aircraft control: it is drawn only when a session is passed, and nothing here
- * touches the store.
+ * touches the store. The text follows the session state, never a control state (U-06).
+ *
+ * While a load runs, the button that started it keeps its pressed rim and every other press on the
+ * area is ignored. The rows and CLOSE LIST ignore presses for the first 400 ms after the view
+ * appears, so the second tap of a double tap on CHOOSE SITUATION cannot pick a row (U-12).
  */
 export function ScenarioAreaFrame({ session }: FrameProps) {
+  // The time the choose view last appeared; set while rendering the view change.
+  const view = useRef<'main' | 'choose'>('main');
+  const shownAt = useRef(0);
   if (session === undefined) return <g data-session-area />;
+
+  const choosing = session.screen.value === 'choosing';
+  const next = choosing ? 'choose' : 'main';
+  if (view.current !== next) {
+    view.current = next;
+    shownAt.current = performance.now();
+  }
+  const busyKey = session.busyKey.value;
+  // A press while a load runs is ignored (the session ignores it as well).
+  const idle = (act: () => void) => () => {
+    if (!session.busy.peek()) act();
+  };
+
+  if (choosing) {
+    const { close, rows, maxRows } = SESSION_LAYOUT.choose;
+    const ignoreUntil = shownAt.current + INPUT_SHIELD_MS;
+    return (
+      <g data-session-area data-session-view="choose">
+        <SessionButton
+          key="session.close"
+          id="session.close"
+          rect={close}
+          label="CLOSE LIST"
+          ariaLabel="Close list"
+          ignoreUntil={ignoreUntil}
+          onActivate={idle(() => {
+            session.closeChooser();
+          })}
+        />
+        {session.choices.value.slice(0, maxRows).map((choice, index) => {
+          const rect = rows[index];
+          if (rect === undefined) return null;
+          const id = `session.row.${choice.pack}.${choice.scenario}`;
+          return (
+            <SessionButton
+              key={id}
+              id={id}
+              rect={rect}
+              label={choice.title}
+              ariaLabel={`Open briefing: ${choice.title}`}
+              held={busyKey === id}
+              ignoreUntil={ignoreUntil}
+              onActivate={idle(() => {
+                void session.chooseScenario(choice, id);
+              })}
+            />
+          );
+        })}
+      </g>
+    );
+  }
+
   return (
-    <g data-session-area>
+    <g data-session-area data-session-view="main">
       <SessionButton
+        key="session.new"
         id="session.new"
         rect={SESSION_LAYOUT.main.new}
         label="NEW SITUATION"
         ariaLabel="New situation, random"
-        onActivate={() => {
+        held={busyKey === 'session.new'}
+        onActivate={idle(() => {
           void session.newSituation();
-        }}
+        })}
+      />
+      <SessionButton
+        key="session.choose"
+        id="session.choose"
+        rect={SESSION_LAYOUT.main.choose}
+        label="CHOOSE SITUATION"
+        ariaLabel="Choose situation"
+        held={busyKey === 'session.choose'}
+        onActivate={idle(() => {
+          void session.openChooser();
+        })}
       />
     </g>
   );

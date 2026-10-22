@@ -19,6 +19,10 @@ export interface SessionButtonProps {
   /** Stable key of the hit element (data-session-hit). */
   readonly id: string;
   readonly onActivate: () => void;
+  /** Keeps the pressed rim (a load started by this button is still running). */
+  readonly held?: boolean;
+  /** performance.now() time before which an activation is ignored (the 400 ms shield of a new view). */
+  readonly ignoreUntil?: number;
 }
 
 /**
@@ -46,24 +50,38 @@ export function makeSessionPress(
  * and by keyboard (Enter and Space). Static label: nothing on it changes with state, only the rim
  * while a press is pending.
  */
-export function SessionButton({ rect, label, ariaLabel, id, onActivate }: SessionButtonProps) {
+export function SessionButton({
+  rect,
+  label,
+  ariaLabel,
+  id,
+  onActivate,
+  held = false,
+  ignoreUntil,
+}: SessionButtonProps) {
   const pending = useSignal(false);
-  const press = makeSessionPress(onActivate, (on) => {
+  // Pointer release and keyboard share one rule: a press inside the shield of a new view is dropped.
+  const activate = () => {
+    if (ignoreUntil !== undefined && performance.now() < ignoreUntil) return;
+    onActivate();
+  };
+  const press = makeSessionPress(activate, (on) => {
     pending.value = on;
   });
+  const rimPressed = pending.value || held;
   const { x, y, w, h } = rect;
   return (
     <g
       class="session-button"
       data-session-button={id}
-      data-pressed={pending.value ? 'true' : undefined}
+      data-pressed={rimPressed ? 'true' : undefined}
       role="button"
       tabIndex={0}
       aria-label={ariaLabel}
       onKeyDown={(e: KeyboardEvent) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onActivate();
+          activate();
         }
       }}
     >
@@ -74,8 +92,8 @@ export function SessionButton({ rect, label, ariaLabel, id, onActivate }: Sessio
         height={h}
         rx={10}
         fill={FACE}
-        stroke={pending.value ? RIM_PRESSED : RIM}
-        stroke-width={pending.value ? 3 : 2}
+        stroke={rimPressed ? RIM_PRESSED : RIM}
+        stroke-width={rimPressed ? 3 : 2}
         pointer-events="none"
       />
       <text

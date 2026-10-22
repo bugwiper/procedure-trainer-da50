@@ -13,9 +13,11 @@ async function activate(target: Locator, hasTouch: boolean): Promise<void> {
 
 /**
  * All text strings of the panel svg (every svg text element): trimmed, non-empty, sorted. The
- * glass displays (PFD and MFD regions) are excluded unless the text belongs to a control: their
- * content is instrument data, and the MFD page softkey legitimately switches it between MAP and
- * ENGINE. Everything else on the panel is placard, caption or scale text and must stay put.
+ * glass displays (PFD and MFD regions) and the session area are excluded unless the text belongs
+ * to a control: their content is instrument data, and the MFD page softkey legitimately switches
+ * it between MAP and ENGINE. The session area's text follows the session state (main view or
+ * choose list), never a control state (UI-SPEC U-06). Everything else on the panel is placard,
+ * caption or scale text and must stay put.
  */
 async function panelText(page: Page): Promise<string[]> {
   return page.locator('[data-testid="panel"]').evaluate((svg) =>
@@ -23,7 +25,9 @@ async function panelText(page: Page): Promise<string[]> {
       .filter(
         (el) =>
           el.closest('[data-control-id]') !== null ||
-          el.closest('[data-region-id="pfd"], [data-region-id="mfd"]') === null,
+          el.closest(
+            '[data-region-id="pfd"], [data-region-id="mfd"], [data-region-id="scenario_area"]',
+          ) === null,
       )
       .map((el) => (el.textContent ?? '').trim())
       .filter((text) => text.length > 0)

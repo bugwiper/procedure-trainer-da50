@@ -20,6 +20,8 @@ interface SessionHook {
 }
 type HookHost = { __panel?: PanelHook; __panelSession?: SessionHook };
 
+const NEW_SITUATION = '[data-session-hit="session.new"]';
+const CHOOSE_SITUATION = '[data-session-hit="session.choose"]';
 const MIN_BUTTON_PX = 44;
 const MIN_FOOTER_PX = 52;
 
@@ -40,6 +42,13 @@ function screenOf(page: Page): Promise<string> {
 
 function resultOf(page: Page): Promise<{ result: string } | null> {
   return page.evaluate(() => (globalThis as HookHost).__panelSession?.result() ?? null);
+}
+
+/** The 400 ms input shield of a freshly shown list or overlay (U-12) plus 100 ms of margin. */
+const SHIELD_WAIT_MS = 500;
+
+async function afterShield(page: Page): Promise<void> {
+  await page.waitForTimeout(SHIELD_WAIT_MS);
 }
 
 /** Taps NEW SITUATION and waits until the briefing is open. */
@@ -90,6 +99,57 @@ test('@hooks NEW SITUATION starts ENG OIL TEMP in its initial state', async ({
   expect(button?.height ?? 0).toBeGreaterThanOrEqual(MIN_BUTTON_PX);
   const footer = await page.locator('footer').boundingBox();
   expect(footer?.height ?? 0).toBeGreaterThanOrEqual(MIN_FOOTER_PX);
+});
+
+test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its briefing', async ({
+  page,
+  hasTouch,
+}) => {
+  const before = await controlStates(page);
+  await activate(page.locator(CHOOSE_SITUATION), hasTouch);
+
+  // The choose view: CLOSE LIST and one row per scenario, titled from the manifest.
+  const close = page.locator('[data-session-hit="session.close"]');
+  await expect(close).toBeVisible();
+  await expect(page.locator(CHOOSE_SITUATION)).toHaveCount(0);
+  await expect(page.locator(NEW_SITUATION)).toHaveCount(0);
+  const rows = page.locator('[data-session-hit^="session.row."]');
+  await expect(rows).toHaveCount(1);
+  const row = page.getByRole('button', { name: 'Open briefing: ENG OIL TEMP' });
+  await expect(row).toHaveText('ENG OIL TEMP');
+  expect(await screenOf(page)).toBe('choosing');
+  // Choosing is no session: the footer keeps its idle height and the run button is absent.
+  await expect(page.getByTestId('procedure-complete')).toHaveCount(0);
+
+  // CLOSE LIST returns to the two buttons.
+  await afterShield(page);
+  await activate(close, hasTouch);
+  await expect(page.locator(NEW_SITUATION)).toBeVisible();
+  await expect(page.locator(CHOOSE_SITUATION)).toBeVisible();
+  expect(await screenOf(page)).toBe('free');
+
+  // Escape returns as well.
+  await activate(page.locator(CHOOSE_SITUATION), hasTouch);
+  await expect(close).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator(NEW_SITUATION)).toBeVisible();
+  expect(await screenOf(page)).toBe('free');
+
+  // A row opens the briefing of exactly that scenario; Back to panel returns to the main view.
+  await activate(page.locator(CHOOSE_SITUATION), hasTouch);
+  await afterShield(page);
+  await activate(page.locator('[data-session-hit^="session.row."]').first(), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await expect(
+    page.getByTestId('briefing').getByRole('heading', { name: 'ENG OIL TEMP' }),
+  ).toBeVisible();
+  expect(await screenOf(page)).toBe('briefing');
+  await activate(page.getByTestId('briefing-back'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeHidden();
+  await expect(page.locator(NEW_SITUATION)).toBeVisible();
+  expect(await screenOf(page)).toBe('free');
+  expect(await controlStates(page)).toEqual(before);
+  expect(await events(page)).toEqual([]);
 });
 
 const BRIEFING_STATE_CONTROLS = ['lv.power', 'lv.cowl_flap'];

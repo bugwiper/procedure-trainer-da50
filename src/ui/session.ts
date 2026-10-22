@@ -15,7 +15,12 @@ import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../sce
 import type { Scenario } from '../scenario/schema';
 import type { PanelBridge } from './bridge';
 
-export type Screen = 'free' | 'briefing' | 'running' | 'debrief';
+export type Screen = 'free' | 'choosing' | 'briefing' | 'running' | 'debrief';
+
+/** One row of the choose view: a scenario of an allowed pack, titled from the pack manifest. */
+export interface Choice extends ScenarioRef {
+  readonly title: string;
+}
 
 /** The scenario held by the briefing, with the branch statuses the engine computed for it. */
 export interface Briefed {
@@ -61,10 +66,27 @@ export interface Session {
   /** True while a pack loads; presses on the session area are ignored meanwhile. */
   readonly busy: ReadonlySignal<boolean>;
   readonly loadFailure: ReadonlySignal<LoadFailure | null>;
+  /** True when a listing found no allowed scenario (the "No situations available" message). */
+  readonly empty: ReadonlySignal<boolean>;
+  /** The entries the choose view lists, in manifest order; filled by openChooser. */
+  readonly choices: ReadonlySignal<readonly Choice[]>;
+  /** The session-hit id of the button that started the current load; null otherwise. */
+  readonly busyKey: ReadonlySignal<string | null>;
   /** The virtual clock of the current run; null outside a run. */
   readonly clock: ReadonlySignal<VirtualClock | null>;
   /** Free and not busy only: opens one random allowed scenario and shows its briefing. */
   newSituation(): Promise<void>;
+  /**
+   * Free and not busy only: lists the scenarios of every allowed pack from the manifests (no
+   * scenario text is loaded) and shows the choose view; no entry opens the empty message.
+   */
+  openChooser(): Promise<void>;
+  /** Choosing only: back to the free panel. */
+  closeChooser(): void;
+  /** Choosing and not busy only: opens the briefing of that entry (`key` names the pressed row). */
+  chooseScenario(ref: ScenarioRef, key?: string): Promise<void>;
+  /** Dismisses the "No situations available" message. */
+  dismissEmpty(): void;
   /** Briefing only: the panel takes the scenario's initial state and the run begins. */
   startRun(): void;
   /** Briefing only: back to the free panel, nothing changed. */
@@ -107,6 +129,9 @@ export function createSession(deps: SessionDeps): Session {
   const result = signal<GradeResult | null>(null);
   const busy = signal(false);
   const loadFailure = signal<LoadFailure | null>(null);
+  const empty = signal(false);
+  const choices = signal<readonly Choice[]>([]);
+  const busyKey = signal<string | null>(null);
   const clock = signal<VirtualClock | null>(null);
 
   /** Table N1 "start": baseline without an event, a fresh clock, then the screen. */
@@ -122,24 +147,53 @@ export function createSession(deps: SessionDeps): Session {
     screen.value = 'running';
   };
 
-  /** The scenario entries of every pack the policy allows, in manifest order. */
-  const allowedRefs = async (): Promise<
-    { readonly ok: true; readonly refs: ScenarioRef[] } | LoadFailure
+  /** The scenario entries of every pack the policy allows, in manifest order (titles from the manifests). */
+  const listChoices = async (): Promise<
+    { readonly ok: true; readonly choices: Choice[] } | LoadFailure
   > => {
-    const metas = await packs.provider.listPacks();
-    const refs: ScenarioRef[] = [];
-    let denied = false;
-    for (const meta of metas) {
-      if (!(await allowed(packs.policy, meta.id))) {
-        denied = true;
-        continue;
+    try {
+      const metas = await packs.provider.listPacks();
+      const listed: Choice[] = [];
+      for (const meta of metas) {
+        if (!(await allowed(packs.policy, meta.id))) continue;
+        for (const entry of meta.scenarios) {
+          listed.push({ pack: meta.id, scenario: entry.id, title: entry.title });
+        }
       }
-      for (const entry of meta.scenarios) refs.push({ pack: meta.id, scenario: entry.id });
+      return { ok: true, choices: listed };
+    } catch (error) {
+      return failure('load-failed', error instanceof Error ? error.message : 'unknown error');
     }
-    if (refs.length > 0) return { ok: true, refs };
-    return denied
-      ? failure('denied', 'no pack is open')
-      : failure('missing', 'no situations available');
+  };
+
+  /** Marks one load in flight for the button `key`; presses are ignored until it is done. */
+  const loading = async (key: string, work: () => Promise<void>): Promise<void> => {
+    busy.value = true;
+    busyKey.value = key;
+    loadFailure.value = null;
+    empty.value = false;
+    try {
+      await work();
+    } finally {
+      busy.value = false;
+      busyKey.value = null;
+    }
+  };
+
+  /** Opens a scenario through the seam and shows its briefing; a failure is kept for the screens. */
+  const openBriefing = async (ref: ScenarioRef): Promise<void> => {
+    const opened = await openScenario(packs, env, ref);
+    if (!opened.ok) {
+      loadFailure.value = opened;
+      return;
+    }
+    // The briefing leaves the panel, the log and the last run untouched (D-14).
+    briefing.value = {
+      scenario: opened.scenario,
+      branches: branchStatuses(opened.scenario, env),
+    };
+    choices.value = [];
+    screen.value = 'briefing';
   };
 
   return {
@@ -149,36 +203,53 @@ export function createSession(deps: SessionDeps): Session {
     result,
     busy,
     loadFailure,
+    empty,
+    choices,
+    busyKey,
     clock,
     async newSituation() {
       if (screen.peek() !== 'free' || busy.peek()) return;
-      busy.value = true;
-      loadFailure.value = null;
-      try {
-        let listed: Awaited<ReturnType<typeof allowedRefs>>;
-        try {
-          listed = await allowedRefs();
-        } catch (error) {
-          listed = failure('load-failed', error instanceof Error ? error.message : 'unknown error');
-        }
+      await loading('session.new', async () => {
+        const listed = await listChoices();
         if (!listed.ok) {
           loadFailure.value = listed;
           return;
         }
-        const opened = await openScenario(packs, env, pickRandom(listed.refs, rng));
-        if (!opened.ok) {
-          loadFailure.value = opened;
+        if (listed.choices.length === 0) {
+          empty.value = true;
           return;
         }
-        // The briefing leaves the panel, the log and the last run untouched (D-14).
-        briefing.value = {
-          scenario: opened.scenario,
-          branches: branchStatuses(opened.scenario, env),
-        };
-        screen.value = 'briefing';
-      } finally {
-        busy.value = false;
-      }
+        const { pack, scenario: id } = pickRandom(listed.choices, rng);
+        await openBriefing({ pack, scenario: id });
+      });
+    },
+    async openChooser() {
+      if (screen.peek() !== 'free' || busy.peek()) return;
+      await loading('session.choose', async () => {
+        const listed = await listChoices();
+        if (!listed.ok) {
+          loadFailure.value = listed;
+          return;
+        }
+        if (listed.choices.length === 0) {
+          empty.value = true;
+          return;
+        }
+        choices.value = listed.choices;
+        screen.value = 'choosing';
+      });
+    },
+    closeChooser() {
+      if (screen.peek() !== 'choosing' || busy.peek()) return;
+      choices.value = [];
+      screen.value = 'free';
+    },
+    async chooseScenario(ref, key = `session.row.${ref.pack}.${ref.scenario}`) {
+      if (screen.peek() !== 'choosing' || busy.peek()) return;
+      await loading(key, () => openBriefing(ref));
+    },
+    dismissEmpty() {
+      empty.value = false;
     },
     startRun() {
       const briefed = briefing.peek();

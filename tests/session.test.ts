@@ -272,12 +272,13 @@ describe('newSituation', () => {
     expect(r.session.screen.value).toBe('briefing');
   });
 
-  it('a denied pack is never opened: loadFailure, still free, panel untouched', async () => {
+  it('a denied pack is never opened: the empty message, still free, panel untouched', async () => {
     const policy: AccessPolicy = { canAccess: () => false };
     const r = rig({ policy });
     await r.session.newSituation();
     expect(r.session.screen.value).toBe('free');
-    expect(r.session.loadFailure.value?.reason).toBe('denied');
+    expect(r.session.empty.value).toBe(true);
+    expect(r.session.loadFailure.value).toBeNull();
     expect(r.loads).toEqual([]);
     expect(r.onRunStart).not.toHaveBeenCalled();
     expect(r.bridge.stateOf('lv.power').value).toBe('p70');
@@ -293,7 +294,7 @@ describe('newSituation', () => {
     const r = rig({ policy });
     await r.session.newSituation();
     expect(r.session.screen.value).toBe('free');
-    expect(r.session.loadFailure.value?.reason).toBe('denied');
+    expect(r.session.empty.value).toBe(true);
     expect(r.loads).toEqual([]);
   });
 
@@ -326,11 +327,142 @@ describe('newSituation', () => {
     const policy: AccessPolicy = { canAccess: () => open };
     const r = rig({ policy });
     await r.session.newSituation();
-    expect(r.session.loadFailure.value).not.toBeNull();
+    expect(r.session.empty.value).toBe(true);
     open = true;
     await r.session.newSituation();
+    expect(r.session.empty.value).toBe(false);
     expect(r.session.loadFailure.value).toBeNull();
     expect(r.session.screen.value).toBe('briefing');
+  });
+});
+
+const MANIFEST_TWO_PACKS = {
+  '/scenarios/engine/pack.toon': MANIFEST_TWO,
+  '/scenarios/locked/pack.toon': `format: 1
+title: Locked
+free: false
+scenarios[1]:
+  - id: eng-oil-temp-locked
+    title: LOCKED ONE
+    file: eng-oil-temp-locked
+`,
+};
+
+describe('openChooser, closeChooser and chooseScenario (SES-01, D-14, D-20, PLT-03)', () => {
+  /** A rig over two packs: engine (two scenarios) and locked (one), listing never loads text. */
+  function chooserRig(policy: AccessPolicy = OPEN_ACCESS) {
+    const loads: string[] = [];
+    const loaders: Record<string, () => Promise<string>> = {};
+    const files: Record<string, string> = {
+      '/scenarios/engine/eng-oil-temp-green.toon': BLUEPRINT,
+      '/scenarios/engine/eng-oil-temp-copy.toon': COPY,
+      '/scenarios/locked/eng-oil-temp-locked.toon': BLUEPRINT.replace(
+        'id: eng-oil-temp-green',
+        'id: eng-oil-temp-locked',
+      ),
+    };
+    for (const [key, text] of Object.entries(files)) {
+      loaders[key] = () => {
+        loads.push(key);
+        return Promise.resolve(text);
+      };
+    }
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
+    const session = createSession({
+      bridge,
+      packs: { provider: createPackProvider({ manifests: MANIFEST_TWO_PACKS, loaders }), policy },
+      env: DA50RG_ENV,
+      rng: () => 0,
+      onRunStart: () => undefined,
+    });
+    return { session, bridge, loads };
+  }
+
+  it('lists every scenario of every allowed pack in manifest order without loading any text', async () => {
+    const { session, loads } = chooserRig();
+    await session.openChooser();
+    expect(session.screen.value).toBe('choosing');
+    expect(session.choices.value.map((c) => [c.pack, c.scenario, c.title])).toEqual([
+      ['engine', 'eng-oil-temp-green', 'ENG OIL TEMP'],
+      ['engine', 'eng-oil-temp-copy', 'ENG OIL TEMP 2'],
+      ['locked', 'eng-oil-temp-locked', 'LOCKED ONE'],
+    ]);
+    expect(loads).toEqual([]);
+    expect(session.busy.value).toBe(false);
+    expect(session.busyKey.value).toBeNull();
+  });
+
+  it('hides a pack the policy denies (T-02-23)', async () => {
+    const { session } = chooserRig({ canAccess: (id) => id !== 'locked' });
+    await session.openChooser();
+    expect(session.choices.value.map((c) => c.pack)).toEqual(['engine', 'engine']);
+  });
+
+  it('closeChooser returns to free and empties the list', async () => {
+    const { session } = chooserRig();
+    await session.openChooser();
+    session.closeChooser();
+    expect(session.screen.value).toBe('free');
+    expect(session.choices.value).toEqual([]);
+    session.closeChooser();
+    expect(session.screen.value).toBe('free');
+  });
+
+  it('chooseScenario opens the briefing of exactly that entry, not a random one', async () => {
+    const { session, loads, bridge } = chooserRig();
+    await session.openChooser();
+    await session.chooseScenario({ pack: 'engine', scenario: 'eng-oil-temp-copy' });
+    expect(session.screen.value).toBe('briefing');
+    expect(session.briefing.value?.scenario.id).toBe('eng-oil-temp-copy');
+    // A pack loads as a whole (one chunk per pack); the other pack stays untouched.
+    expect(loads.every((key) => key.startsWith('/scenarios/engine/'))).toBe(true);
+    expect(loads.length).toBeGreaterThan(0);
+    expect(session.choices.value).toEqual([]);
+    expect(bridge.store.events()).toEqual([]);
+    expect(bridge.stateOf('lv.power').value).toBe('p70');
+  });
+
+  it('names the pressed row in busyKey while the pack loads and ignores a second press', async () => {
+    const { session, loads } = chooserRig();
+    await session.openChooser();
+    const first = session.chooseScenario({ pack: 'engine', scenario: 'eng-oil-temp-green' }, 'k1');
+    expect(session.busy.value).toBe(true);
+    expect(session.busyKey.value).toBe('k1');
+    await session.chooseScenario({ pack: 'engine', scenario: 'eng-oil-temp-copy' }, 'k2');
+    await first;
+    // The second press was ignored: the pack loaded once (both of its files, once each).
+    expect(loads).toHaveLength(2);
+    expect(session.briefing.value?.scenario.id).toBe('eng-oil-temp-green');
+    expect(session.busyKey.value).toBeNull();
+  });
+
+  it('chooseScenario, closeChooser and openChooser do nothing in the wrong state', async () => {
+    const { session } = chooserRig();
+    await session.chooseScenario({ pack: 'engine', scenario: 'eng-oil-temp-green' });
+    expect(session.screen.value).toBe('free');
+    await session.openChooser();
+    await session.openChooser();
+    expect(session.screen.value).toBe('choosing');
+    await session.chooseScenario({ pack: 'engine', scenario: 'eng-oil-temp-green' });
+    session.closeChooser();
+    await session.openChooser();
+    expect(session.screen.value).toBe('briefing');
+  });
+
+  it('a listing without an allowed scenario opens the empty message, never an empty list', async () => {
+    const { session } = chooserRig({ canAccess: () => false });
+    await session.openChooser();
+    expect(session.screen.value).toBe('free');
+    expect(session.empty.value).toBe(true);
+    session.dismissEmpty();
+    expect(session.empty.value).toBe(false);
+  });
+
+  it('an unreadable manifest sets load-failed and stays free', async () => {
+    const r = rig({ listFails: true });
+    await r.session.openChooser();
+    expect(r.session.screen.value).toBe('free');
+    expect(r.session.loadFailure.value?.reason).toBe('load-failed');
   });
 });
 

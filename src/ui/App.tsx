@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals';
+import { useLayoutEffect } from 'preact/hooks';
 import { DA50RG_ENV } from '../aircraft/da50rg/aircraft';
 import { DA50RG_INDICATORS } from '../aircraft/da50rg/indicators';
 import { DA50RG } from '../aircraft/da50rg/panel';
@@ -99,7 +100,21 @@ export function App() {
   const result = session.result.value;
   // The footer grows to hold the 44 px run button from the briefing until the debrief closes, so
   // the panel does not resize at Start run or at Procedure complete (UI-SPEC D-15, U-02).
-  const inSession = screen !== 'free';
+  const inSession = screen !== 'free' && screen !== 'choosing';
+  // Escape closes the choose list, unless a modal on top of it takes the key (its own Escape).
+  const choosing = screen === 'choosing';
+  useLayoutEffect(() => {
+    if (!choosing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || anyModalOpen.peek()) return;
+      e.preventDefault();
+      session.closeChooser();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [choosing]);
   return (
     <div class="stage">
       <div class="panel-area">
