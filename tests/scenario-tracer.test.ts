@@ -344,6 +344,7 @@ describe('the pack seam', () => {
         free: true,
         scenarios: [
           { id: 'eng-oil-temp-green', title: 'ENG OIL TEMP', file: 'eng-oil-temp-green' },
+          { id: 'eng-fire-in-flight', title: 'ENGINE FIRE', file: 'eng-fire-in-flight' },
         ],
       },
     ]);

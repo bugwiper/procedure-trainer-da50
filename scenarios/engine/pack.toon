@@ -2,7 +2,10 @@
 format: 1
 title: Engine
 free: true
-scenarios[1]:
+scenarios[2]:
   - id: eng-oil-temp-green
     title: ENG OIL TEMP
     file: eng-oil-temp-green
+  - id: eng-fire-in-flight
+    title: ENGINE FIRE
+    file: eng-fire-in-flight

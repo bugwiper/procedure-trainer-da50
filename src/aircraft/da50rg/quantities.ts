@@ -5,8 +5,8 @@ import { defineQuantities } from '../../engine/quantities';
 // A value on a bound belongs to the lower band, so 125 is high_yellow and 128 is high_red. The
 // colour 'none' marks an unmarked scale range. Every quantity has a base value: its reading at the
 // registry defaults (in-flight cruise), which is also the equilibrium of its model, so the free
-// panel shows cruise and no annunciation fires there. alt2_amps and battery_pct have no gauge
-// (hidden quantities); the Amps gauge shows alternator 1 (C-10).
+// panel shows cruise and no annunciation fires there. alt2_amps, battery_pct and fire_intensity
+// have no gauge (hidden quantities); the Amps gauge shows alternator 1 (C-10).
 // Data only: facts and numbers, no AFM wording.
 
 /** Fuel burns fractions of a gallon per step; the default scale of 0.01 would round that away. */
@@ -192,5 +192,16 @@ export const DA50RG_QUANTITIES = defineQuantities([
       { id: 'low_red', colour: 'red', to: 20 },
       { id: 'green', colour: 'green', to: 100 },
     ],
+  },
+  {
+    // Hidden: no gauge. The intensity of an engine fire, 0 when there is none (plan 03-08, C-44).
+    // It grows while fuel feeds the fire and decays once the fuel is cut; the engine temperatures
+    // rise with it, which is the only sign the pilot sees. One unmarked band: there is no mark.
+    id: 'fire_intensity',
+    unit: '%',
+    min: 0,
+    max: 100,
+    base: 0,
+    bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
   },
 ]);

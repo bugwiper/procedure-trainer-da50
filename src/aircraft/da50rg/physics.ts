@@ -67,6 +67,21 @@ const DEAD_BUS_UNDERSHOOT_V = 1;
 const BATTERY_CHARGE_PER_MIN = 10;
 const BATTERY_DISCHARGE_PER_MIN = 25;
 
+// Engine fire (plan 03-08, C-44): aircraft behaviour, compressed, an instructor-review item (RESEARCH
+// A1). The fire intensity (0 to 100) moves toward the product of the scenario's fire parameter,
+// the full scale and a fuel-feed factor. The feed is high while the engine runs, higher with the
+// EMERG FUEL PUMP on, lower with the pump alone, and zero once the fuel is cut (ENGINE MASTER off
+// or the FUEL selector OFF cuts the engine, so only the pump can still feed; the selector OFF cuts
+// that too). The fire adds heat to the oil, the coolant and the gearbox in proportion to its
+// intensity, at most these many degrees.
+const FIRE_TAU_MS = 30_000;
+const FIRE_FEED_RUNNING = 0.9;
+const FIRE_FEED_RUNNING_PUMP = 1;
+const FIRE_FEED_PUMP_ONLY = 0.6;
+const FIRE_OIL_RISE = 30;
+const FIRE_COOLANT_RISE = 30;
+const FIRE_GEARBOX_RISE = 40;
+
 function lever(id: string): DetentLeverDef {
   const def = DA50RG.get(id);
   if (def?.kind !== 'detent-lever') throw new Error(`physics needs the detent lever "${id}"`);
@@ -110,9 +125,14 @@ function bandTop(quantity: string, band: string): number {
 /** The POWER travel at the registry default: the cruise load every base value belongs to. */
 const CRUISE_PERCENT = travelPercent(POWER, POWER.default);
 
-/** Engine running: ENGINE MASTER on. */
+/** The FUEL selector OFF cuts the fuel to the engine and to the EMERG FUEL PUMP. */
+function fuelCut(inputs: PhysicsInputs): boolean {
+  return stateOf(inputs, 'sw.fuel_valve') === 'off';
+}
+
+/** Engine running: ENGINE MASTER on and the FUEL selector not OFF (NORMAL and EMERGENCY feed alike). */
 function running(inputs: PhysicsInputs): boolean {
-  return stateOf(inputs, 'sw.engine_master') === 'on';
+  return stateOf(inputs, 'sw.engine_master') === 'on' && !fuelCut(inputs);
 }
 
 /** POWER travel in percent while running, else 0. */
@@ -146,6 +166,26 @@ function mainBusSupplied(inputs: PhysicsInputs): boolean {
   return alt1Delivers(inputs) || (alt2Runs(inputs) && stateOf(inputs, 'sw.ess_bus') === 'on');
 }
 
+/** The full scale of the fire intensity: the top of its one band. */
+const FIRE_FULL = bandTop('fire_intensity', 'unmarked');
+
+/** The fire intensity as a share of its full scale, 0 to 1. */
+function fireShare(inputs: PhysicsInputs): number {
+  return quantityOf(inputs, 'fire_intensity') / FIRE_FULL;
+}
+
+/** How well fuel feeds the fire: see the constants above. */
+function fireFeed(inputs: PhysicsInputs): number {
+  if (fuelCut(inputs)) return 0;
+  const pump = stateOf(inputs, 'sw.emerg_fuel_pump') === 'on';
+  if (running(inputs)) return pump ? FIRE_FEED_RUNNING_PUMP : FIRE_FEED_RUNNING;
+  return pump ? FIRE_FEED_PUMP_ONLY : 0;
+}
+
+function fireTarget(inputs: PhysicsInputs): number {
+  return FIRE_FULL * parameterOf(inputs, 'engine_fire') * fireFeed(inputs);
+}
+
 /**
  * The temperature the oil settles at: the heat to shed (rising with the POWER load) divided by
  * the cooling (the parameter, raised by an open cowl flap). With the engine master off the oil
@@ -154,11 +194,12 @@ function mainBusSupplied(inputs: PhysicsInputs): boolean {
  * above the red range.
  */
 function oilTempTarget(inputs: PhysicsInputs): number {
-  if (!running(inputs)) return AMBIENT_C;
+  const fire = FIRE_OIL_RISE * fireShare(inputs);
+  if (!running(inputs)) return AMBIENT_C + fire;
   const load = travelPercent(POWER, stateOf(inputs, 'lv.power')) / 100;
   const flap = stateOf(inputs, 'lv.cowl_flap') === 'open' ? COWL_OPEN_COOLING : 1;
   const cooling = parameterOf(inputs, 'oil_cooling') * flap;
-  return AMBIENT_C + (HEAT_BASE + HEAT_PER_LOAD * load) / cooling;
+  return AMBIENT_C + (HEAT_BASE + HEAT_PER_LOAD * load) / cooling + fire;
 }
 
 /** Engine speed: rises with the load; 0 with the engine off. */
@@ -176,26 +217,37 @@ function oilPressureTarget(inputs: PhysicsInputs): number {
 
 /** Coolant: warmer with the load, cooler with the cowl flap open, toward ambient with the engine off. */
 function coolantTarget(inputs: PhysicsInputs): number {
-  if (!running(inputs)) return AMBIENT_C;
+  const fire = FIRE_COOLANT_RISE * fireShare(inputs);
+  if (!running(inputs)) return AMBIENT_C + fire;
   const cowl = stateOf(inputs, 'lv.cowl_flap') === 'open' ? COWL_OPEN_COOLANT_DROP : 0;
   return (
-    baseOf('coolant_temp_c') + (loadPercent(inputs) - CRUISE_PERCENT) * COOLANT_PER_PERCENT - cowl
+    baseOf('coolant_temp_c') +
+    (loadPercent(inputs) - CRUISE_PERCENT) * COOLANT_PER_PERCENT -
+    cowl +
+    fire
   );
 }
 
 function gearboxTarget(inputs: PhysicsInputs): number {
-  if (!running(inputs)) return AMBIENT_C;
-  return baseOf('gearbox_temp_c') + (loadPercent(inputs) - CRUISE_PERCENT) * GEARBOX_PER_PERCENT;
+  const fire = FIRE_GEARBOX_RISE * fireShare(inputs);
+  if (!running(inputs)) return AMBIENT_C + fire;
+  return (
+    baseOf('gearbox_temp_c') + (loadPercent(inputs) - CRUISE_PERCENT) * GEARBOX_PER_PERCENT + fire
+  );
 }
 
 function fuelTempTarget(inputs: PhysicsInputs): number {
   return baseOf('fuel_temp_c') + (loadPercent(inputs) - CRUISE_PERCENT) * FUEL_TEMP_PER_PERCENT;
 }
 
-/** Fuel pressure: the engine pump while running, plus the EMERG FUEL PUMP, which also works alone. */
+/**
+ * Fuel pressure: the engine pump while running, plus the EMERG FUEL PUMP, which also works alone
+ * but has no fuel to push with the FUEL selector OFF.
+ */
 function fuelPressureTarget(inputs: PhysicsInputs): number {
   const engine = running(inputs) ? baseOf('fuel_pressure_bar') : 0;
-  const pump = stateOf(inputs, 'sw.emerg_fuel_pump') === 'on' ? EMERG_PUMP_BAR : 0;
+  const pump =
+    stateOf(inputs, 'sw.emerg_fuel_pump') === 'on' && !fuelCut(inputs) ? EMERG_PUMP_BAR : 0;
   return engine + pump;
 }
 
@@ -258,6 +310,8 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'oil_cooling', min: 0.2, max: 1, normal: 1 },
       // 1 is the normal output of alternator 1; 0 is a failed alternator (the electrical scenario).
       { id: 'alt1_output', min: 0, max: 1, normal: 1 },
+      // 0 is no fire; 1 is a fire that burns while fuel feeds it (the Engine Fire scenario).
+      { id: 'engine_fire', min: 0, max: 1, normal: 0 },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),
@@ -282,6 +336,7 @@ export const DA50RG_PHYSICS = definePhysics(
       lag('alt2_amps', AMPS_TAU_MS, alt2AmpsTarget),
       { quantity: 'battery_pct', mode: 'rate', perMinute: batteryPerMinute },
       lag('bus_volts', VOLTS_TAU_MS, busVoltsTarget),
+      lag('fire_intensity', FIRE_TAU_MS, fireTarget),
     ],
     reactions: [
       // D-04, SCN-06: pressing MAX with the de-ice mode on HIGH lights the top amber lamp for 120 s

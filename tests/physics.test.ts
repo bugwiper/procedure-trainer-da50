@@ -195,7 +195,8 @@ describe('DA50 oil temperature model (Table P1)', () => {
     const inputs: PhysicsInputs = {
       controls: { ...base, ...controls },
       parameters: { oil_cooling: cooling },
-      quantities: {},
+      // The fire term of the model reads fire_intensity (plan 03-08): the base reading is 0.
+      quantities: DA50RG_QUANTITIES.baseValues(),
       flags: {},
     };
     return model.target(inputs);
