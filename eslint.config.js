@@ -3,7 +3,7 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 const PURITY_MESSAGE =
-  'src/engine and src/aircraft stay framework-free and deterministic: no Preact/UI imports, no browser globals, no timers, no wall-clock time.';
+  'src/engine, src/scenario and src/aircraft stay framework-free and deterministic: no Preact/UI imports, no browser globals, no timers, no wall-clock time.';
 
 export default defineConfig([
   globalIgnores([
@@ -32,7 +32,7 @@ export default defineConfig([
   },
   {
     // Purity boundary: deterministic grading engine and aircraft data (CLAUDE.md).
-    files: ['src/engine/**/*.ts', 'src/aircraft/**/*.ts'],
+    files: ['src/engine/**/*.ts', 'src/aircraft/**/*.ts', 'src/scenario/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
