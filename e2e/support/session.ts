@@ -1,5 +1,7 @@
+import { readFileSync, readdirSync } from 'node:fs';
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { parseManifest } from '../../src/scenario/parse';
 import { activate } from './zoom';
 
 // Shared e2e helpers for starting one named scenario through CHOOSE SITUATION (plan 03-01). Test
@@ -15,6 +17,40 @@ type HookHost = { __panel?: QuantityHook };
 const SHIELD_WAIT_MS = 500;
 
 export type Level = 'easy' | 'medium';
+
+/** One shipped scenario as CHOOSE SITUATION lists it. */
+export interface ShippedScenario {
+  /** The row key "pack.scenario" that chooseScenario and startScenario take. */
+  readonly row: string;
+  readonly pack: string;
+  readonly id: string;
+  readonly title: string;
+}
+
+const SCENARIO_DIR = new URL('../../scenarios/', import.meta.url);
+
+/**
+ * Every shipped scenario, read in node from the pack manifests of scenarios/ in the order the
+ * choose view lists them: pack folders by name, then the manifest order. Counts and titles of the
+ * specs come from here, never from literals.
+ */
+export function shippedScenarios(): readonly ShippedScenario[] {
+  const folders = readdirSync(SCENARIO_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b));
+  return folders.flatMap((pack) => {
+    const text = readFileSync(new URL(`${pack}/pack.toon`, SCENARIO_DIR), 'utf8');
+    const parsed = parseManifest(text);
+    if (!parsed.ok) throw new Error(`the manifest of the pack "${pack}" does not parse`);
+    return parsed.value.scenarios.map((entry) => ({
+      row: `${pack}.${entry.id}`,
+      pack,
+      id: entry.id,
+      title: entry.title,
+    }));
+  });
+}
 
 /** Opens CHOOSE SITUATION, taps the row "pack.scenario" and waits for the level card. */
 export async function chooseScenario(page: Page, hasTouch: boolean, row: string): Promise<void> {

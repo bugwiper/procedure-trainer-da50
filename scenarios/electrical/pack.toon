@@ -1,0 +1,8 @@
+# Manifest of the electrical pack (format 1). Lists the scenarios without loading them.
+format: 1
+title: Electrical
+free: true
+scenarios[1]:
+  - id: elec-altn1-fail
+    title: ALTN 1 FAIL
+    file: elec-altn1-fail

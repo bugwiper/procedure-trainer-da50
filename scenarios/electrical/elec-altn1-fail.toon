@@ -1,0 +1,74 @@
+# ALTN 1 FAIL: alternator 1 gives no current and the main bus runs on the battery (format 1). Step and checklist lines are short checklist wording; all other text is own wording. The threshold, hold time, onset window and forbidden items are instructor-review values.
+format: 1
+id: elec-altn1-fail
+title: ALTN 1 FAIL
+source:
+  document: "AFM DA 50 C, Doc 9.01.01-E"
+  issue: "018"
+  section: AFM 03A-02 ALTN 1 FAIL
+  verified: "2026-10-22"
+disclaimer: training-aid
+briefing:
+  situation: "You are in cruise flight when the yellow ALTN 1 FAIL message appears on the primary flight display. The Amps reading has dropped to zero. The engine runs normally and the main bus now draws on the battery."
+initial:
+  quantities:
+    alt1_amps: 0
+    bus_volts: 25.9
+    battery_pct: 98
+parameters:
+  alt1_output: 0
+annunciations[1]: altn_1_fail
+procedure[4]:
+  - kind: line
+    text: "Circuit breakers: check all pressed in"
+  - kind: group
+    id: immediate
+    ordered: false
+    steps[2]:
+      - id: alt1_off
+        severity: critical
+        text: "ALTERNATOR 1 switch: OFF"
+        done:
+          check: state
+          control: sw.alternator_1
+          is: off
+      - id: ess_bus_on
+        severity: critical
+        text: "ESSENTIAL BUS switch: ON"
+        done:
+          check: state
+          control: sw.ess_bus
+          is: on
+  - kind: line
+    text: "Bus voltage: monitor"
+  - kind: line
+    text: "NVFR or IFR flight: terminate, land at next suitable airfield"
+# Each of these removes the remaining supply of the bus; both are instructor-review items.
+forbidden[2]:
+  - id: alt2_off
+    text: Switch off alternator 2
+    fails_run: true
+    trigger:
+      check: state
+      control: sw.alternator_2
+      is: off
+  - id: elect_master_off
+    text: Switch off the electrical master
+    fails_run: true
+    trigger:
+      check: state
+      control: sw.elect_master
+      is: off
+# The outcome ends the run as a fail when the bus voltage stays at the battery floor; the voltage and the hold time are instructor-review values.
+outcomes[1]:
+  - id: main_bus_lost
+    text: Total loss of main bus power
+    hold_s: 10
+    when:
+      check: quantity
+      quantity: bus_volts
+      op: lte
+      value: 22.5
+# The failure of the level Realistic begins at a random second inside this window; the window is an instructor-review value.
+onset:
+  window_s[2]: 5,20

@@ -11,11 +11,14 @@ import { casChipSlots } from '../src/ui/panel/frames/CasChips';
 
 const env = { registry: DA50RG_ENV.registry, quantities: DA50RG_ENV.quantities };
 
-function at(oilTemp: number, oilPressure = 5): PredicateContext {
+/** The Amps reading of the cruise base state, read from the quantity data. */
+const BASE_AMPS = DA50RG_ENV.quantities.get('alt1_amps')?.base ?? Number.NaN;
+
+function at(oilTemp: number, oilPressure = 5, amps = BASE_AMPS): PredicateContext {
   return {
     controls: {},
     baseline: {},
-    quantities: { oil_temp_c: oilTemp, oil_pressure_bar: oilPressure },
+    quantities: { oil_temp_c: oilTemp, oil_pressure_bar: oilPressure, alt1_amps: amps },
   };
 }
 
