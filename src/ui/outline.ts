@@ -9,7 +9,10 @@ import type { BranchStatus, BranchVerdict, GradeResult, StepVerdict } from '../e
 import type { ProcedureNode, Scenario } from '../scenario/schema';
 import { orderLine } from './debrief-text';
 
-/** The briefing hides every graded step; the debrief shows them with their verdicts. */
+/**
+ * The briefing lists the steps of the groups that apply as plain checklist lines; the debrief adds
+ * severity tags, verdict words, muted lines and order lines.
+ */
 export type OutlineMode = 'briefing' | 'debrief';
 
 export type SeverityTag = 'CRITICAL' | 'STANDARD' | 'OPTIONAL';
@@ -49,7 +52,10 @@ export interface OutlineBranch {
   readonly children: readonly OutlineItem[];
 }
 
-/** A graded step (debrief only). Muted steps carry neither tag nor verdict. */
+/**
+ * A panel step. In the briefing it is a plain line (no tag, no verdict, not muted); in the debrief
+ * it carries its tag and verdict, and muted steps carry neither.
+ */
 export interface OutlineStep {
   readonly kind: 'step';
   readonly id: string;
@@ -116,8 +122,8 @@ export function buildOutline(
     nodes: readonly ProcedureNode[],
   ): OutlineBranch => {
     const status = statusOf(path);
-    // A branch that does not apply shows its label and the word only in the briefing (the children
-    // may hold panel steps); the debrief lists them muted.
+    // A branch that does not apply shows its label and the word only in the briefing; the debrief
+    // lists its children muted.
     const children =
       status === 'not_applicable' && !debrief ? [] : build(nodes, `${path}.nodes`, status);
     return { kind: 'branch', label, status, children };
@@ -137,10 +143,20 @@ export function buildOutline(
           items.push({ kind: 'line', text: node.text, muted, notGraded: debrief && !muted });
           return;
         case 'group':
-          // The briefing omits the group with all its steps (exam rule); the debrief lists the
-          // steps at the group's level.
-          if (!debrief) return;
+          // Both forms list the steps at the group's level. The briefing prints them as plain
+          // lines; the debrief adds tag and verdict and the order line of the group.
           for (const step of node.steps) {
+            if (!debrief) {
+              items.push({
+                kind: 'step',
+                id: step.id,
+                text: step.text,
+                muted: false,
+                tag: null,
+                verdict: null,
+              });
+              continue;
+            }
             const verdict = muted ? undefined : verdicts.get(step.id);
             items.push({
               kind: 'step',

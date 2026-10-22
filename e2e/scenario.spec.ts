@@ -244,7 +244,7 @@ async function controlStates(page: Page): Promise<(string | null)[]> {
   );
 }
 
-test('@hooks the briefing shows source, disclaimer and the outline over the unchanged panel', async ({
+test('@hooks the Easy briefing shows the checklist with the panel steps and the source at the bottom', async ({
   page,
   hasTouch,
 }) => {
@@ -261,24 +261,53 @@ test('@hooks the briefing shows source, disclaimer and the outline over the unch
   await expect(page.getByTestId('briefing-disclaimer')).toHaveText(
     'Training aid only. Not a replacement for the AFM or for instruction.',
   );
-  await expect(briefing).toContainText('Steps outside the panel (not graded in this version)');
+  await expect(briefing.getByRole('heading', { name: 'Checklist' })).toBeVisible();
   await expect(page.getByTestId('briefing-exam')).toHaveText(
     'Exam mode: no hints. When you are done, press Procedure complete.',
   );
 
-  // The decision card: the sibling that does not apply is shown as such, without children.
+  // The decision card, whole: the panel steps of the branch that applies are listed as plain lines,
+  // the sibling that does not apply is shown as such, without children.
   const outline = page.getByTestId('briefing-outline');
   await expect(outline).toContainText('Check oil pressure');
   const tooLow = outline.locator('li[data-kind="branch"]', { hasText: 'If too low:' });
   await expect(tooLow).toContainText('Not applicable');
   await expect(tooLow.locator('li')).toHaveCount(0);
   await expect(outline).toContainText('If in green range:');
+  await expect(outline).toContainText('Reduce power');
+  await expect(outline).toContainText('Open cowl flap');
   await expect(outline).toContainText('Increase airspeed');
   await expect(outline).toContainText('If not returning to green range:');
-  // Exam: no graded panel step is listed, and no verdict word.
-  await expect(briefing).not.toContainText('Reduce power');
-  await expect(briefing).not.toContainText('Open cowl flap');
+  // No severity tag, no verdict word, no graded row in the briefing.
+  await expect(briefing).not.toContainText('CRITICAL');
+  await expect(briefing).not.toContainText('Done');
+  await expect(briefing).not.toContainText('Missed');
   await expect(briefing.getByTestId('debrief-row')).toHaveCount(0);
+
+  // The order inside the card, and the source closes the body.
+  const order = await briefing.evaluate((card) => {
+    const all = [...card.querySelectorAll('*')];
+    const at = (id: string) => {
+      const el = card.querySelector(`[data-testid="${id}"]`);
+      return el === null ? -1 : all.indexOf(el);
+    };
+    const sourceEl = card.querySelector('[data-testid="briefing-source"]');
+    const lastInside = sourceEl === null ? -1 : all.indexOf(sourceEl);
+    const body = [
+      'briefing-situation',
+      'briefing-disclaimer',
+      'briefing-level',
+      'briefing-outline',
+      'briefing-exam',
+    ];
+    return {
+      ids: [...body, 'briefing-source'].map(at),
+      bodyBeforeSource: body.every((id) => at(id) < lastInside),
+    };
+  });
+  expect(order.ids.every((i) => i >= 0)).toBe(true);
+  expect(order.ids).toEqual([...order.ids].sort((x, y) => x - y));
+  expect(order.bodyBeforeSource).toBe(true);
 
   // The panel behind it is unchanged: same control states, empty log, no CAS chip yet.
   expect(await controlStates(page)).toEqual(before);

@@ -3,7 +3,8 @@ import type { OutlineItem, OutlineVerdict, VerdictTone } from '../outline';
 // The recursive checklist outline of the briefing and the debrief (UI-SPEC "Checklist outline",
 // Table O1). Hook-free on purpose, so tests/vnode-walk.ts can expand it. Nesting is real list
 // nesting: a decision holds its branches in a nested list, a branch holds its children in one.
-// All text is rendered as text children, never as markup.
+// A step row carries the debrief-row test id and its aria-label only when it has a verdict, so a
+// briefing step is its text alone. All text is rendered as text children, never as markup.
 
 const TONE_COLORS: Readonly<Record<VerdictTone, string>> = {
   done: '#2fd36f',
@@ -42,11 +43,11 @@ function Item({ item }: { readonly item: OutlineItem }) {
         <li
           class="outline-item outline-step"
           data-kind="step"
-          data-testid={item.muted ? undefined : 'debrief-row'}
+          data-testid={item.verdict === null ? undefined : 'debrief-row'}
           data-step-id={item.id}
           data-verdict={item.verdict?.word}
           data-muted={item.muted ? 'true' : undefined}
-          aria-label={item.muted ? undefined : label.join(', ')}
+          aria-label={item.verdict === null ? undefined : label.join(', ')}
         >
           <div class="outline-row">
             {item.tag === null ? null : <span class="outline-tag">{item.tag}</span>}

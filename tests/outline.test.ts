@@ -127,17 +127,25 @@ describe('the pocket-card fixture', () => {
 describe('buildOutline, briefing form', () => {
   const outline = briefingOf(pocket);
 
-  it('contains no step and no group anywhere', () => {
-    expect(everyItem(outline).filter((i) => i.kind === 'step')).toEqual([]);
+  it('lists the steps of the applying groups as plain steps, none of the branch that does not apply', () => {
+    const steps = everyItem(outline).filter((i): i is OutlineStep => i.kind === 'step');
+    expect(steps.map((s) => s.text)).toEqual(['Reduce power', 'Open cowl flap']);
+    // No tag, no verdict, not muted: a plain checklist line.
+    for (const step of steps) {
+      expect(step.tag).toBeNull();
+      expect(step.verdict).toBeNull();
+      expect(step.muted).toBe(false);
+    }
     const texts = textsOf(outline);
-    for (const hidden of [
-      'Reduce power',
-      'Open cowl flap',
-      'Reduce power at once',
-      'Open cowl flap fully',
-    ]) {
+    for (const hidden of ['Reduce power at once', 'Open cowl flap fully']) {
       expect(texts).not.toContain(hidden);
     }
+  });
+
+  it('has no order item and no "Not graded" note, also for an ordered group', () => {
+    const items = everyItem(briefingOf(ordered));
+    expect(items.filter((i) => i.kind === 'order')).toEqual([]);
+    expect(items.some((i) => i.kind === 'step')).toBe(true);
   });
 
   it('lists the label of the branch that does not apply without any child', () => {
@@ -154,6 +162,8 @@ describe('buildOutline, briefing form', () => {
       'Check oil pressure',
       'If too low:',
       'If in green range:',
+      'Reduce power',
+      'Open cowl flap',
       'Increase airspeed',
       'Check oil temp in green range',
       'If not returning to green range:',
@@ -178,6 +188,8 @@ describe('buildOutline, briefing form', () => {
       'Check oil pressure',
       'If too low:',
       'If in green range:',
+      'Reduce power',
+      'Open cowl flap',
       'Increase airspeed',
       'Check oil temp in green range',
       'If not returning to green range:',
@@ -429,18 +441,17 @@ describe('ChecklistOutline', () => {
     );
   });
 
-  it('contains no step text and no verdict word in the briefing form', () => {
-    const text = textOf(expand(ChecklistOutline({ items: briefingOf(pocket) })));
-    for (const word of [
-      'Reduce power',
-      'Open cowl flap',
-      'CRITICAL',
-      'Done',
-      'Missed',
-      'Not graded',
-    ]) {
+  it('renders a briefing step as its text only: no tag, no verdict word, no debrief-row', () => {
+    const tree = expand(ChecklistOutline({ items: briefingOf(pocket) }));
+    const text = textOf(tree);
+    for (const word of ['CRITICAL', 'STANDARD', 'OPTIONAL', 'Done', 'Missed', 'Not graded']) {
       expect(text).not.toContain(word);
     }
+    expect(text).toContain('Reduce power');
+    expect(text).toContain('Open cowl flap');
+    expect(findElements(tree, (el) => el.props['data-testid'] === 'debrief-row')).toHaveLength(0);
+    const steps = findElements(tree, (el) => el.props['data-kind'] === 'step');
+    expect(steps.map((el) => textOf(el))).toEqual(['Reduce power', 'Open cowl flap']);
     expect(text).toContain('Check oil pressure');
     expect(text).toContain('Land at nearest suitable airfield');
   });
@@ -477,6 +488,16 @@ describe('ChecklistOutline', () => {
     const tree = expand(ChecklistOutline({ items: briefingOf(scenario) }));
     expect(findElements(tree, (el) => el.tag === 'img')).toHaveLength(0);
     expect(textOf(tree)).toContain('<img src=x onerror=alert(1)>');
+
+    // A step text is hostile too, now that the briefing lists the steps.
+    const hostileStep = swap(
+      POCKET,
+      'text: Open cowl flap\n',
+      'text: "<img src=x onerror=alert(2)>"\n',
+    );
+    const stepTree = expand(ChecklistOutline({ items: briefingOf(load(hostileStep)) }));
+    expect(findElements(stepTree, (el) => el.tag === 'img')).toHaveLength(0);
+    expect(textOf(stepTree)).toContain('<img src=x onerror=alert(2)>');
   });
 });
 

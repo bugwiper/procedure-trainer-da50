@@ -6,13 +6,13 @@ import { ChecklistOutline } from './ChecklistOutline';
 import { Modal } from './Modal';
 
 /**
- * The briefing (SES-01, SCN-07, PLT-04, D-04, D-14, D-24; UI-SPEC "Briefing"): scenario title,
- * situation, source and revision, the disclaimer line, the non-graded checklist outline and the
- * exam note, over the unchanged panel. The panel takes the scenario's initial state only at
- * Start run. The level group (Easy, Medium) sits after the disclaimer; the checklist outline shows on
- * Easy only. Panel steps and the children of a branch that does not apply are never shown (exam).
- * It sits on the shared modal shell: Escape is Back to panel, a backdrop tap does nothing. All
- * scenario text is rendered as text children.
+ * The briefing (SES-01, SCN-07, PLT-04, D-04, D-14, D-24; UI-SPEC "Briefing"; phase 02.1): scenario
+ * title, situation, the disclaimer line, the level group (Easy, Medium), the checklist, the exam
+ * note and, last, the source and revision, over the unchanged panel. On Easy the checklist lists the
+ * panel steps of the branches that apply as plain lines, without tag or verdict; a branch that does
+ * not apply keeps its label and no children. On Medium no checklist is shown. The panel takes the
+ * scenario's initial state only at Start run. It sits on the shared modal shell: Escape is Back to
+ * panel, a backdrop tap does nothing. All scenario text is rendered as text children.
  */
 export function Briefing({
   briefed,
@@ -66,10 +66,6 @@ export function Briefing({
       <p class="modal-body" data-testid="briefing-situation">
         {scenario.briefing.situation}
       </p>
-      <div class="briefing-source" data-testid="briefing-source">
-        <p class="briefing-meta">{`Source: ${source.section}, issue ${source.issue}`}</p>
-        <p class="briefing-meta">{`${source.document}, checked ${source.verified}`}</p>
-      </div>
       <p class="briefing-meta" data-testid="briefing-disclaimer">
         {DISCLAIMERS[scenario.disclaimer].short}
       </p>
@@ -99,13 +95,17 @@ export function Briefing({
       </div>
       {level !== 'easy' || outline.length === 0 ? null : (
         <section class="briefing-outline" data-testid="briefing-outline">
-          <h3 class="briefing-label">Steps outside the panel (not graded in this version)</h3>
+          <h3 class="briefing-label">Checklist</h3>
           <ChecklistOutline items={outline} />
         </section>
       )}
       <p class="briefing-meta briefing-exam" data-testid="briefing-exam">
         Exam mode: no hints. When you are done, press Procedure complete.
       </p>
+      <div class="briefing-source" data-testid="briefing-source">
+        <p class="briefing-meta">{`Source: ${source.section}, issue ${source.issue}`}</p>
+        <p class="briefing-meta">{`${source.document}, checked ${source.verified}`}</p>
+      </div>
     </Modal>
   );
 }
