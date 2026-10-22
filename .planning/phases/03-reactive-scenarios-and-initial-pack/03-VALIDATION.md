@@ -48,6 +48,7 @@ created: "2026-10-22"
 | PNL-04 | Needle moves on the production build during a run | e2e | `npx playwright test e2e/run-reaction.spec.ts --project=desktop-chromium` | ❌ W0 |
 | PNL-07 | Transponder code entry commits one event; 7700 step credited; layout gates | unit + e2e | `npx vitest run tests/xpdr.test.ts tests/layout.test.ts`; `npx playwright test e2e/xpdr.spec.ts` | ❌ W0 |
 | CNT-01 | Three scenarios: validate clean; golden PASS, do-nothing FAIL, wrong-order FAIL, forbidden FAIL | unit | `npx vitest run tests/grading.test.ts tests/packs.test.ts`; `npm run validate` | extend |
+| CNT-01 | FUEL selector and ECS SHUTOFF operable, static labels, layout, label and review gates | unit + e2e | `npx vitest run tests/rotary.test.ts tests/lever-skins.test.ts tests/layout.test.ts`; `npx playwright test e2e/fire-controls.spec.ts` | ❌ W0 |
 | CNT-01 | Chooser reaches each scenario; blueprint gate covers all scenarios | unit + e2e | `npx vitest run tests/blueprint.test.ts tests/packs.test.ts`; `npx playwright test e2e/scenario.spec.ts` | extend |
 | 1a | Realistic level: no briefing, onset in window, reaction time from onset | e2e + unit | `npx playwright test e2e/scenario.spec.ts`; `npx vitest run tests/session.test.ts` | extend |
 
@@ -59,7 +60,7 @@ created: "2026-10-22"
 - [ ] `tests/run.test.ts`: store-backed run, retract rebuild, `markConsumed`
 - [ ] `tests/physics.test.ts`: physics validation, base state, response directions
 - [ ] `tests/xpdr.test.ts`: code-entry control, entry buffer, registry and layout rows
-- [ ] `e2e/run-reaction.spec.ts`, `e2e/xpdr.spec.ts`
+- [ ] `e2e/run-reaction.spec.ts`, `e2e/xpdr.spec.ts`, `e2e/fire-controls.spec.ts`
 - [ ] Fixtures in `tests/fixtures/recordings.json` per new scenario
 - [ ] Update `tests/bridge.test.ts`, `tests/session.test.ts`, `tests/predicates.test.ts`, `tests/avionics.test.ts` (idle to base), `tests/blueprint.test.ts`, `e2e/scenario.spec.ts` (Realistic enabled)
 
@@ -70,7 +71,7 @@ created: "2026-10-22"
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
 | Physics constants, outcome thresholds, forbidden lists feel right | SCN-06, CNT-01 | Instructor judgement (assumptions A1-A11) | Owner runs each scenario on desktop and phone and confirms |
-| Fuel valve and ECS shut-off positions | CNT-01 | Layout fidelity needs owner-confirmed positions | Owner confirms or keeps them as ungraded lines |
+| FUEL selector and ECS SHUTOFF as drawn (positions owner-supplied 2026-10-22) | CNT-01 | Layout fidelity: the drawing must match the owner's description; the 225 degree OFF angle is owner-unverified | Owner checks both controls on the panel (plan 03-10 rows in docs/PANEL-REVIEW.md) and confirms or corrects the OFF angle |
 
 ---
 

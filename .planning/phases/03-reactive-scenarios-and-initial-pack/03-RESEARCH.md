@@ -342,17 +342,19 @@ Also in the AFM: the AFM ECS description (section 07, pages 07-36/37) says the E
 | ELECT. MASTER OFF | `sw.elect_master` exists | usable |
 | CIRCULATING AIR FRESH | `lv.env_circ` exists, states `fresh`/`recirc`, **default `fresh`** | a step "set fresh" is already satisfied at start; lint L5 rejects it. Author `initial.controls: lv.env_circ: recirc` so the step is meaningful |
 | FAN | `sw.env_fan` exists (knob with stops, "off" present) | AFM says FAN off with the shut-off pulled; optional |
-| FUEL valve (3 positions NORMAL, EMERGENCY, OFF, handle must be lifted to change) | **no control** | AFM 07-30: handle is in the centre console behind the trim wheel; position not visible in any `.input/` photo seen this session |
-| ECS shut-off (pull knob) | **no control** | location not found in the photos or panel-label tables; the AFM says it seals the cabin at the main bulkhead |
+| FUEL valve (3 positions NORMAL, EMERGENCY, OFF, handle must be lifted to change) | **no control** (at research time) | AFM 07-30: handle is in the centre console behind the trim wheel; position not visible in any `.input/` photo seen this session. Resolved by the owner 2026-10-22: rotary `sw.fuel_valve`, plan 03-10 |
+| ECS shut-off (pull knob) | **no control** (at research time) | location not found in the photos or panel-label tables; the AFM says it seals the cabin at the main bulkhead. Resolved by the owner 2026-10-22: pull knob `lv.ecs_shutoff` under the panel, plan 03-10 |
 | Emergency windows | **no control** | the step is conditional ("if required"); keep as an ungraded line |
 
 [VERIFIED: grep of src/aircraft/da50rg/controls/*.ts and docs/PANEL-LABELS.md found no fuel-valve, ECS or window control; photos `center_lower_pedestal.jpg` and `DA50_virtual.jpg` viewed this session show neither]
 
-**Recommendation:** add `lv.fuel_valve` (detent lever: `normal`, `emergency`, `off`; drag or marker taps; a "lift to change" nuance can be a plain lever for now) and `lv.ecs_shutoff` (two detents `in`, `pulled`, existing `pull-t`/`pull-boot` skin) as registry data, **placed by an owner decision** (layout fidelity is the core value and photo-derived positions are the project rule; list them in `docs/PANEL-LABELS.md` as "assumed position, to confirm" and give the owner the short list in chat). Fallback if the owner cannot supply positions in time: Engine Fire grades only ENGINE MASTER, ELECT. MASTER and CIRCULATING AIR, with the fuel valve and ECS shut-off as ungraded lines; this is a documented MVP simplification, not a silent one.
+**Recommendation:** add `lv.fuel_valve` (detent lever: `normal`, `emergency`, `off`; drag or marker taps; a "lift to change" nuance can be a plain lever for now) and `lv.ecs_shutoff` (two detents `in`, `pulled`, existing `pull-t`/`pull-boot` skin) as registry data, **placed by an owner decision** (layout fidelity is the core value and photo-derived positions are the project rule; list them in `docs/PANEL-LABELS.md` as "assumed position, to confirm" and give the owner the short list in chat).
+
+**Owner decision (2026-10-22, Open Question 3 resolved):** the owner supplied both controls, so Engine Fire grades every panel step of the AFM checklist. The FUEL selector is a rotary knob (`sw.fuel_valve`, existing `rotary` kind with stops NORMAL 0, EMERGENCY 90 and OFF 225 degrees, the last owner-unverified) drawn as an elongated red knob at the bottom left of the pedestal; the ECS SHUTOFF is a pull knob (`lv.ecs_shutoff`, existing `detent-lever` kind like the other under-panel pulls, detents `pulled` and `in`) with a white labelled head, under the panel between ALTERNATE STATIC and the EMERGENCY GEAR EXTENSION handle. Plan 03-10 builds them; plan 03-08 grades them.
 
 **Recommended skeleton:**
 - `briefing.situation`: own-words description of smoke and flames from the engine bay in cruise. `annunciations: []`. `initial.controls`: `lv.env_circ: recirc`.
-- Graded steps (critical unless the instructor says otherwise): `circ_air_fresh`, `ecs_pulled` (if the control exists), `engine_master_off`, `fuel_off` (if the control exists), `elect_master_off`; optional: `squawk_7700`.
+- Graded steps (critical unless the instructor says otherwise): `circ_air_fresh`, `ecs_pulled`, `engine_master_off`, `fuel_valve_off`, `elect_master_off` (both controls exist by the owner decision above); optional: `squawk_7700`.
 - Order: AFM lists engine master before fuel before electrical master; a physical reason for ordering exists (shutting the electrical master first can lose the ECU before the fuel is cut). Whether the group is `ordered` and `order_critical` is an instructor question (Open Question 4); the wrong-order replay test needs one ordered group in at least the scenario that declares it (the Phase 2 pattern uses a synthetic `ordered-critical.toon` fixture; do the same for the new scenarios if they are unordered).
 - Forbidden candidates: `lv.power` increased is not in the AFM but is a sensible harmful action; `lv.cowl_flap` and `sw.fuel_trans`/`sw.emerg_fuel_pump` ON (feeds the fire) [ASSUMED, instructor review]. Keep the forbidden list short and instructor-approved.
 - Escalation outcome: `fire_intensity` at or above a high value for a hold time, named in the debrief (for example "fire spreads"). ENGINE MASTER OFF plus FUEL valve OFF decays it (physics), so a correct run also shows recovery on the gauges before the pilot declares completion. [ASSUMED: names, thresholds]
@@ -489,28 +491,38 @@ Reset `carry` to 0 when a run starts, so the first event time is a multiple of `
 | A4 | Outcome names, thresholds and hold times for the three scenarios | scenario skeletons | Debrief wording and escalation timing need instructor review |
 | A5 | New control kind named `code-entry`, commit-on-fourth-digit entry model, default code `1200` | Transponder | Naming only; entry model could differ from what the owner imagines |
 | A6 | A readout of the entered code on the transponder does not violate owner rule G-0.1 | Transponder | Owner may require a static look; low cost to change |
-| A7 | Fuel valve and ECS shut-off controls are added with an owner-confirmed position | AFM source research | If positions cannot be confirmed the fire scenario grades fewer panel steps |
+| A7 | Fuel valve and ECS shut-off controls are added with an owner-confirmed position | AFM source research | Resolved 2026-10-22: the owner supplied both positions (Open Question 3); only the 225 degree OFF angle of the FUEL selector stays unverified |
 | A8 | Forbidden candidates for Electrical and Fire scenarios | scenario skeletons | Instructor may disagree; start with the smallest list |
 | A9 | Whether a MAX press while active restarts the 120 s run | De-ice MAX | Edge behaviour only |
 | A10 | mulberry32 implementation text | Code examples | Caught by the known-answer test written with the code |
 | A11 | Realistic start applies `initial.controls` as well as registry defaults | Session and UI | Mismatch with D-05 reading; see Open Question 1 |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+Every question below is resolved for planning (2026-10-22). Each carries its resolution line; the plans name the decision they follow.
 
 1. **What exactly is "base panel state" at the start of a realistic run?**
    - Known: D-05 says base panel state, nothing else shown; grade measures `travel_rel` and forbidden triggers from `defaults + initial.controls`.
    - Unclear: whether the scenario's `initial.controls` (e.g. power 75 percent) are part of the invisible base.
    - Recommendation: apply `initial.controls` at start in all levels (documented), keep them non-revealing, and have lint warn if a realistic-eligible scenario sets a control whose state itself announces the failure.
+   - **RESOLVED:** the recommendation is taken: the realistic start is the registry defaults plus `initial.controls`, the base quantities, normal parameters until the onset (plan 03-06, C-31; lint L14 checks the clean start).
 2. **Onset cue for scenarios with no CAS message (Engine Fire).**
    - Known: the AFM table has no fire annunciation; D-05 forbids briefing text.
    - Unclear: whether a transient own-words notice at onset is acceptable.
    - Recommendation: rely on the instrument spike first; ask the owner whether an optional `onset.cue` line is allowed for realistic runs.
-3. **Positions of the FUEL valve and the ECS shut-off knob** (see registry gaps). Needs an owner decision or the fallback grading.
+   - **RESOLVED:** rising engine temperatures only, no notice text (the research recommendation, accepted as the plan default; plan 03-08, C-45; listed in the phase 3 owner review of plan 03-09).
+3. **Positions of the FUEL valve and the ECS shut-off knob** (see registry gaps).
+   - **RESOLVED by the owner (the DA50 instructor, 2026-10-22):** both controls are added and graded; no fallback. FUEL selector: a red elongated rotary knob (about 8 by 2 cm) with a small white line at its pointing end, really on the central pedestal behind the throttle (where the trim wheel sits), drawn at the bottom left of the pedestal next to the throttle; the cowl flap lever becomes shorter and moves up to make room. Positions: forward = NORMAL (white), 90 degrees clockwise = EMERGENCY, 225 degrees clockwise in total = OFF (owner "fairly sure"; listed as unverified). In-flight default NORMAL; the Engine Fire step is FUEL selector OFF. ECS SHUTOFF: a push-pull knob with a white head carrying the text ECS SHUTOFF, under the panel on the left between ALTERNATE STATIC and the EMERGENCY GEAR EXTENSION handle, about one third of the way from ALTERNATE STATIC; pushed in is the default, pulled out shuts off; the pulled look is drawn in pseudo-perspective, tilted slightly down-left. The Engine Fire step is ECS shut-off PULL. Plan 03-10 adds both controls with their layout, label, review, static-text and gesture gates; plan 03-08 grades them.
 4. **Order and forbidden items for the two new scenarios** need the DA50 instructor (the owner is the instructor per 02.1-OWNER-INPUT.md); until then default unordered with a short forbidden list.
+   - **RESOLVED:** the planner defaults stand (groups unordered, wrong-order replayed on a synthetic ordered copy; forbidden lists of C-40 and C-49) and are flagged in the GRADING.md instructor-review list (plan 03-09).
 5. **Which alternator does the single Amps gauge show?** The MFD has one Amps gauge; the AFM has ALTN 1 and ALTN 2 AMPS messages. Recommendation: two quantities, the gauge shows alternator 1 (the main-bus alternator), alternator 2 is hidden.
+   - **RESOLVED:** the recommendation is taken (plan 03-02, C-10).
 6. **Gear transit timing flag** (`gear.in_transit`, requirement text of PNL-14 mentions Phase 3) is not listed in D-04; recommended: leave deferred and say so in the plan.
+   - **RESOLVED:** deferred; plan 03-04 states it as a prohibition.
 7. **Pack layout:** put Engine Fire in the `engine` pack and Electrical in a new `electrical` pack, or all three in one pack? Either works with the per-pack chunk glob; recommend `engine` (oil temp, fire) plus `electrical` so pack titles stay meaningful.
+   - **RESOLVED:** the recommendation is taken (plan 03-07, C-37; plan 03-08 adds Engine Fire to `engine`).
 8. **GRADING.md and CLAUDE.md wording** must be updated (quantities simulated; level still not an input; outcome rule R10, timing). Include in the documents plan.
+   - **RESOLVED:** plan 03-09, Task 1.
 
 ## Environment Availability
 

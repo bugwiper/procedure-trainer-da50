@@ -305,7 +305,34 @@ Plans:
   3. The "New situation" flow offers Oil Temp High, Electrical Failure and Engine Fire, each with its own initial state, annunciations and procedure, and each passes golden, do-nothing, wrong-order and forbidden-action replay tests and registry validation.
   4. User can enter a squawk code (e.g. 7700) in a simplified transponder section, and the entered code counts as graded panel state.
 
-**Plans**: TBD
+**Plans:** 10 plans
+
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md — Tracer: fixed-step simulation (physics, stepper, run), the DA50 oil temperature model, scenario `parameters` and lint L12, step-based clock driver; the oil temperature needle rises when ignored and falls after the correct actions
+- [ ] 03-03-PLAN.md — Simplified transponder in the pilot legroom: `code-entry` control `kp.squawk` (keys 0 to 7, CLR, readout), layout, label and gesture gates
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md — All engine-page gauges follow simulated quantities; AFM 02-05 bands in one place; base (cruise) values; electrical bus model
+- [ ] 03-10-PLAN.md — FUEL selector (rotary, bottom left of the pedestal; cowl flap shortened and raised) and ECS SHUTOFF (pull knob under the panel) at the owner's positions, with layout, label, review, static-text and gesture gates
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-04-PLAN.md — Retract rebuild and the consumed rule (D-03), event-triggered reactions with timers, the de-ice MAX 120 s run (D-04)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-05-PLAN.md — Named outcomes: an ignored failure ends the run as FAIL and the debrief names it; grade replays the same simulation; lint L13
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 03-06-PLAN.md — Realistic level: no briefing, seeded onset in the scenario window, base start, reaction time from onset, scenario revealed in the debrief; lint L14
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 03-07-PLAN.md — Electrical Failure (ALTN 1 FAIL) pack and caution, replay tests, every e2e spec on the chooser helper, blueprint gate over every scenario
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 03-08-PLAN.md — Engine Fire in flight grading every panel step of AFM 03-33 (CIRCULATING AIR, ECS SHUTOFF, ENGINE MASTER, FUEL selector, ELECT. MASTER), hidden fire quantity with the fuel cut, OIL PRES warning, optional squawk 7700 step, replay tests
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 03-09-PLAN.md — GRADING.md, CLAUDE.md, README, owner review list, todos, instructor-review list; final gates with the owner check
 **UI hint**: yes
 
 ### Phase 4: Training Mode, Further Actions and Repeat Loop
@@ -346,6 +373,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Deployed Playable Panel | 9/9 | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario | 13/13 | Complete    | 2026-10-22 |
-| 3. Reactive Scenarios and Initial Pack | 0/TBD | Not started | - |
+| 3. Reactive Scenarios and Initial Pack | 0/9 | Planned | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
 | 5. Offline PWA and Real-Device Hardening | 0/TBD | Not started | - |
