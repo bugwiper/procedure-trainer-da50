@@ -29,7 +29,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **SCN-01**: Scenarios are TOON files validated against a schema, with line-numbered errors
 - [ ] **SCN-02**: A validate command checks every scenario file against the control registry
-- [ ] **SCN-03**: A scenario defines initial panel state, annunciations and the displayed checklist
+- [x] **SCN-03**: A scenario defines initial panel state, annunciations and the displayed checklist
 - [ ] **SCN-04**: Actions can be critical-required, standard-required, optional or forbidden, placed in ordered or unordered groups
 - [ ] **SCN-05**: Actions are matched on resulting control/aircraft state, not on raw clicks
 - [ ] **SCN-06**: Scripted reactions: timers, ramps, triggers on user actions, and escalation to named outcomes (e.g. engine failure if oil temp exceeds red line)
@@ -38,7 +38,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Session & Debrief
 
-- [ ] **SES-01**: User can start a "new situation" (random or selected) with a short briefing
+- [x] **SES-01**: User can start a "new situation" (random or selected) with a short briefing
 - [ ] **SES-02**: Training mode lets the user show/hide the checklist and get hints
 - [ ] **SES-03**: Exam mode is silent and the user ends it with "Procedure complete"
 - [ ] **SES-04**: Debrief shows PASS/FAIL (a missed critical step fails), per-step verdicts, order violations and harmful actions
@@ -116,13 +116,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PNL-15 | Phase 01.1 | Complete |
 | SCN-01 | Phase 2 | Pending |
 | SCN-02 | Phase 2 | Pending |
-| SCN-03 | Phase 2 | Pending |
+| SCN-03 | Phase 2 | Complete |
 | SCN-04 | Phase 2 | Pending |
 | SCN-05 | Phase 2 | Pending |
 | SCN-07 | Phase 2 | Pending |
 | SCN-08 | Phase 2 | Pending |
 | PNL-03 | Phase 2 | Pending |
-| SES-01 | Phase 2 | Pending |
+| SES-01 | Phase 2 | Complete |
 | SES-03 | Phase 2 | Pending |
 | SES-04 | Phase 2 | Pending |
 | PLT-03 | Phase 2 | Pending |
