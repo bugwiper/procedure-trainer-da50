@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { activate } from './support/zoom';
+import { FULL_VIEWBOX, activate } from './support/zoom';
 
-// SES-01, SES-03, SES-04, SCN-05 (phase 02): the pilot's path on the built panel. NEW SITUATION in
-// the co-pilot legroom starts ENG OIL TEMP in its initial state, the user operates the panel,
-// "Procedure complete" in the footer grades the recorded log and the debrief shows PASS or FAIL.
+// SES-01, SES-03, SES-04, SCN-05, SCN-07, PLT-04 (phase 02): the pilot's path on the built panel.
+// NEW SITUATION in the co-pilot legroom opens the briefing over the unchanged panel, Start run
+// starts ENG OIL TEMP in its initial state, the user operates the panel, "Procedure complete" in
+// the footer grades the recorded log and the debrief shows PASS or FAIL.
 // Every case reads an e2e-only window hook, so all titles carry @hooks.
 
 // Mirrors of the read-only window hooks of the e2e build (src/ui/bridge.ts, src/ui/session.ts).
@@ -41,9 +42,18 @@ function resultOf(page: Page): Promise<{ result: string } | null> {
   return page.evaluate(() => (globalThis as HookHost).__panelSession?.result() ?? null);
 }
 
-/** Taps NEW SITUATION and waits until the run is on. */
-async function startRun(page: Page, hasTouch: boolean): Promise<void> {
+/** Taps NEW SITUATION and waits until the briefing is open. */
+async function openBriefing(page: Page, hasTouch: boolean): Promise<void> {
   await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  expect(await screenOf(page)).toBe('briefing');
+}
+
+/** NEW SITUATION, then Start run; waits until the run is on. The one start of every case. */
+async function startRun(page: Page, hasTouch: boolean): Promise<void> {
+  await openBriefing(page, hasTouch);
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeHidden();
   await expect(page.getByTestId('procedure-complete')).toBeVisible();
   expect(await screenOf(page)).toBe('running');
 }
@@ -80,6 +90,115 @@ test('@hooks NEW SITUATION starts ENG OIL TEMP in its initial state', async ({
   expect(button?.height ?? 0).toBeGreaterThanOrEqual(MIN_BUTTON_PX);
   const footer = await page.locator('footer').boundingBox();
   expect(footer?.height ?? 0).toBeGreaterThanOrEqual(MIN_FOOTER_PX);
+});
+
+const BRIEFING_STATE_CONTROLS = ['lv.power', 'lv.cowl_flap'];
+
+async function controlStates(page: Page): Promise<(string | null)[]> {
+  return Promise.all(
+    BRIEFING_STATE_CONTROLS.map((id) => control(page, id).getAttribute('data-state')),
+  );
+}
+
+test('@hooks the briefing shows source, disclaimer and the outline over the unchanged panel', async ({
+  page,
+  hasTouch,
+}) => {
+  const before = await controlStates(page);
+  await openBriefing(page, hasTouch);
+
+  const briefing = page.getByTestId('briefing');
+  await expect(briefing.getByRole('heading', { name: 'ENG OIL TEMP' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'ENG OIL TEMP' })).toBeVisible();
+  await expect(page.getByTestId('briefing-situation')).not.toBeEmpty();
+  const source = page.getByTestId('briefing-source');
+  await expect(source).toContainText('Source: AFM 03-08 ENG OIL TEMP, issue 018');
+  await expect(source).toContainText('AFM DA 50 C, Doc 9.01.01-E, checked 2026-10-22');
+  await expect(page.getByTestId('briefing-disclaimer')).toHaveText(
+    'Training aid only. Not a replacement for the AFM or for instruction.',
+  );
+  await expect(briefing).toContainText('Steps outside the panel (not graded in this version)');
+  await expect(page.getByTestId('briefing-exam')).toHaveText(
+    'Exam mode: no hints. When you are done, press Procedure complete.',
+  );
+
+  // The decision card: the sibling that does not apply is shown as such, without children.
+  const outline = page.getByTestId('briefing-outline');
+  await expect(outline).toContainText('Check oil pressure');
+  const tooLow = outline.locator('li[data-kind="branch"]', { hasText: 'If too low:' });
+  await expect(tooLow).toContainText('Not applicable');
+  await expect(tooLow.locator('li')).toHaveCount(0);
+  await expect(outline).toContainText('If in green range:');
+  await expect(outline).toContainText('Increase airspeed');
+  await expect(outline).toContainText('If not returning to green range:');
+  // Exam: no graded panel step is listed, and no verdict word.
+  await expect(briefing).not.toContainText('Reduce power');
+  await expect(briefing).not.toContainText('Open cowl flap');
+  await expect(briefing.getByTestId('debrief-row')).toHaveCount(0);
+
+  // The panel behind it is unchanged: same control states, empty log, no CAS chip yet.
+  expect(await controlStates(page)).toEqual(before);
+  expect(await events(page)).toEqual([]);
+  await expect(chips(page)).toHaveCount(0);
+  const footer = await page.locator('footer').boundingBox();
+  expect(footer?.height ?? 0).toBeGreaterThanOrEqual(MIN_FOOTER_PX);
+});
+
+test('@hooks Start run starts in the initial state on the full panel', async ({
+  page,
+  hasTouch,
+}) => {
+  await openBriefing(page, hasTouch);
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeHidden();
+
+  expect(await screenOf(page)).toBe('running');
+  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p75');
+  await expect(control(page, 'lv.cowl_flap')).toHaveAttribute('data-state', 'closed');
+  await expect(page.getByTestId('panel')).toHaveAttribute('viewBox', FULL_VIEWBOX);
+  expect(await events(page)).toEqual([]);
+  // The footer kept its 52 px from the briefing on: the panel did not resize.
+  const footer = await page.locator('footer').boundingBox();
+  expect(footer?.height ?? 0).toBeGreaterThanOrEqual(MIN_FOOTER_PX);
+});
+
+for (const how of ['button', 'escape'] as const) {
+  test(`@hooks leaving the briefing by ${how} changes nothing`, async ({ page, hasTouch }) => {
+    const before = await controlStates(page);
+    await openBriefing(page, hasTouch);
+    if (how === 'button') await activate(page.getByTestId('briefing-back'), hasTouch);
+    else await page.keyboard.press('Escape');
+
+    await expect(page.getByTestId('briefing')).toBeHidden();
+    expect(await screenOf(page)).toBe('free');
+    expect(await controlStates(page)).toEqual(before);
+    expect(await events(page)).toEqual([]);
+    await expect(chips(page)).toHaveCount(0);
+    await expect(page.getByTestId('procedure-complete')).toHaveCount(0);
+    // The footer is back to its idle height: the briefing was not a session.
+    const footer = await page.locator('footer').boundingBox();
+    expect(footer?.height ?? 0).toBeLessThan(MIN_FOOTER_PX);
+  });
+}
+
+test('@hooks the briefing action row is reachable without scrolling the page', async ({
+  page,
+  hasTouch,
+}) => {
+  await openBriefing(page, hasTouch);
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  for (const id of ['briefing-start', 'briefing-back']) {
+    const box = await page.getByTestId(id).boundingBox();
+    expect(box).not.toBeNull();
+    if (box === null || viewport === null) return;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+  }
+  // The page itself does not scroll; the card scrolls inside itself.
+  expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(0);
 });
 
 const chips = (page: Page) => page.locator('[data-testid="cas-chip"]');

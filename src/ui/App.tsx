@@ -13,6 +13,7 @@ import { Panel } from './panel/Panel';
 import { isStrayFullPanelClick } from './panel/tap-intent';
 import { buttonCorner, isZoomed, viewChangedByTapAt, zoomOut } from './panel/zoom';
 import { Ack } from './screens/Ack';
+import { Briefing } from './screens/Briefing';
 import { Debrief } from './screens/Debrief';
 import { createSession } from './session';
 
@@ -83,13 +84,22 @@ const closeDebrief = () => {
   session.closeDebrief();
 };
 
+const startRun = () => {
+  session.startRun();
+};
+
+const backToPanel = () => {
+  session.backToPanel();
+};
+
 export function App() {
   const screen = session.screen.value;
   const scenario = session.scenario.value;
+  const briefed = session.briefing.value;
   const result = session.result.value;
-  // The footer grows to hold the 44 px run button for the whole session, so the panel does not
-  // resize at Procedure complete (UI-SPEC D-15 against the legroom area).
-  const inSession = screen === 'running' || screen === 'debrief';
+  // The footer grows to hold the 44 px run button from the briefing until the debrief closes, so
+  // the panel does not resize at Start run or at Procedure complete (UI-SPEC D-15, U-02).
+  const inSession = screen !== 'free';
   return (
     <div class="stage">
       <div class="panel-area">
@@ -136,7 +146,7 @@ export function App() {
       <footer class="footer" data-session={inSession ? 'true' : undefined}>
         <span data-testid="training-aid-notice">Training aid only, not the AFM</span>
         <div class="footer-actions">
-          {screen === 'running' ? (
+          {screen === 'running' || screen === 'briefing' ? (
             <button
               type="button"
               class="run-button"
@@ -154,6 +164,9 @@ export function App() {
         </div>
       </footer>
       {aboutOpen.value ? <About onClose={closeAbout} /> : null}
+      {screen === 'briefing' && briefed !== null ? (
+        <Briefing briefed={briefed} onStart={startRun} onBack={backToPanel} />
+      ) : null}
       {screen === 'debrief' && scenario !== null && result !== null ? (
         <Debrief scenario={scenario} result={result} onClose={closeDebrief} />
       ) : null}

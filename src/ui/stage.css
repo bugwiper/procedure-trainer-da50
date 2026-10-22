@@ -332,6 +332,119 @@ body,
   margin-left: auto;
 }
 
+/* Briefing card (UI-SPEC Briefing): title, situation, source block, disclaimer, the non-graded
+   outline, the exam note. Meta is 14/400 in the muted grey; long lines wrap inside the card. */
+.briefing-meta {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: #aab3bd;
+  overflow-wrap: anywhere;
+}
+
+.briefing-source {
+  margin: 0 0 8px;
+}
+
+.briefing-label {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+}
+
+.briefing-exam {
+  margin-top: 16px;
+}
+
+/* The checklist outline of briefing and debrief (UI-SPEC Checklist outline): real nested lists.
+   Each nested level is 16 px in with a 2 px rule drawn inside that gutter, so three branch levels
+   leave 263 px of text on a 375 px phone. Long lines wrap inside their level. */
+.outline-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.outline-list .outline-list {
+  padding-left: 16px;
+  box-shadow: inset 2px 0 0 #3a424b;
+}
+
+.outline-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 12px;
+  padding: 4px 0;
+  min-width: 0;
+}
+
+.outline-text,
+.outline-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  letter-spacing: 0.02em;
+}
+
+.outline-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.outline-muted {
+  color: #aab3bd;
+}
+
+.outline-meta {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: #aab3bd;
+}
+
+.outline-tag,
+.outline-verdict {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+}
+
+.outline-tag {
+  order: 1;
+  flex: 0 0 auto;
+  min-width: 88px;
+  color: #aab3bd;
+}
+
+.outline-step .outline-text {
+  order: 2;
+  flex: 1 1 160px;
+}
+
+.outline-verdict {
+  order: 3;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* On narrow screens a step row wraps: tag and verdict on the first line, the text below. */
+@media (max-width: 480px) {
+  .outline-step .outline-verdict {
+    order: 2;
+  }
+
+  .outline-step .outline-text {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
 /* About overlay over the whole stage (D-16); long policy text scrolls by finger. */
 .about {
   position: fixed;

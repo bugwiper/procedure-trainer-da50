@@ -13,8 +13,8 @@ import type { AccessPolicy } from '../src/scenario/packs';
 import { createPanelBridge } from '../src/ui/bridge';
 import { createSession, pickRandom } from '../src/ui/session';
 
-// The session machine (plan 02-06, Table N1; SES-01, SES-03, SES-04, SCN-05, D-13): node
-// environment, a real bridge over the DA50 RG and a fake pack provider built from the real
+// The session machine (plan 02-06, Table N1; plan 02-11 adds the briefing; SES-01, SES-03, SES-04,
+// SCN-05, D-13, D-14): node environment, a real bridge over the DA50 RG and a fake pack provider built from the real
 // blueprint text. Credit follows the resulting state of the recorded log.
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -88,10 +88,12 @@ function rig(
   return { session, bridge, onRunStart, loads };
 }
 
-/** A started run on the blueprint. */
+/** A started run on the blueprint: NEW SITUATION, then Start run. */
 async function started(options: Parameters<typeof rig>[0] = {}): Promise<Rig> {
   const r = rig(options);
   await r.session.newSituation();
+  expect(r.session.screen.value).toBe('briefing');
+  r.session.startRun();
   expect(r.session.screen.value).toBe('running');
   return r;
 }
@@ -111,18 +113,43 @@ describe('pickRandom', () => {
 });
 
 describe('newSituation', () => {
-  it('starts the run in the scenario baseline with an empty log', async () => {
+  it('opens the briefing and leaves the panel, the log and the last run untouched', async () => {
     const { session, bridge, onRunStart } = rig();
     expect(session.screen.value).toBe('free');
     expect(bridge.stateOf('lv.power').value).toBe('p70');
 
     await session.newSituation();
 
-    expect(session.screen.value).toBe('running');
-    expect(session.scenario.value?.id).toBe('eng-oil-temp-green');
+    expect(session.screen.value).toBe('briefing');
+    expect(session.briefing.value?.scenario.id).toBe('eng-oil-temp-green');
+    expect(session.briefing.value?.branches.map((b) => b.status)).toEqual([
+      'not_applicable',
+      'applies',
+      'open',
+    ]);
+    // Not a run yet: no scenario of a run, no result, no clock, panel still as the user left it.
+    expect(session.scenario.value).toBeNull();
     expect(session.result.value).toBeNull();
+    expect(session.clock.value).toBeNull();
     expect(session.loadFailure.value).toBeNull();
     expect(session.busy.value).toBe(false);
+    expect(bridge.stateOf('lv.power').value).toBe('p70');
+    expect(bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    expect(bridge.store.events()).toEqual([]);
+    expect(onRunStart).not.toHaveBeenCalled();
+  });
+
+  it('startRun starts the run in the scenario baseline with an empty log', async () => {
+    const { session, bridge, onRunStart } = rig();
+    await session.newSituation();
+
+    session.startRun();
+
+    expect(session.screen.value).toBe('running');
+    expect(session.scenario.value?.id).toBe('eng-oil-temp-green');
+    expect(session.briefing.value).toBeNull();
+    expect(session.result.value).toBeNull();
+    expect(session.loadFailure.value).toBeNull();
     expect(bridge.stateOf('lv.power').value).toBe('p75');
     expect(bridge.stateOf('lv.cowl_flap').value).toBe('closed');
     expect(bridge.quantities.value).toEqual({
@@ -136,15 +163,80 @@ describe('newSituation', () => {
     expect(session.clock.value?.now()).toBe(0);
   });
 
+  it('backToPanel returns to free with nothing changed', async () => {
+    const { session, bridge, onRunStart } = rig();
+    bridge.actuate('lv.power', 'p50');
+    await session.newSituation();
+
+    session.backToPanel();
+
+    expect(session.screen.value).toBe('free');
+    expect(session.briefing.value).toBeNull();
+    expect(session.scenario.value).toBeNull();
+    expect(session.clock.value).toBeNull();
+    expect(bridge.stateOf('lv.power').value).toBe('p50');
+    expect(bridge.store.events()).toHaveLength(1);
+    expect(onRunStart).not.toHaveBeenCalled();
+    // A later NEW SITUATION briefs again.
+    await session.newSituation();
+    expect(session.screen.value).toBe('briefing');
+  });
+
+  it('keeps the last run when a briefing is left again', async () => {
+    const r = await started();
+    r.bridge.actuate('lv.power', 'p50');
+    r.session.complete();
+    r.session.closeDebrief();
+    const graded = r.session.result.value;
+    const last = r.session.scenario.value;
+
+    await r.session.newSituation();
+    r.session.backToPanel();
+
+    expect(r.session.result.value).toBe(graded);
+    expect(r.session.scenario.value).toBe(last);
+    expect(r.bridge.stateOf('lv.power').value).toBe('p50');
+  });
+
+  it('a second NEW SITUATION press during the briefing does nothing', async () => {
+    const r = rig();
+    await r.session.newSituation();
+    const briefed = r.session.briefing.value;
+    await r.session.newSituation();
+    expect(r.session.briefing.value).toBe(briefed);
+    expect(r.loads).toEqual(['eng-oil-temp-green']);
+  });
+
+  it('startRun and backToPanel do nothing outside the briefing', async () => {
+    const free = rig();
+    free.session.startRun();
+    free.session.backToPanel();
+    expect(free.session.screen.value).toBe('free');
+    expect(free.onRunStart).not.toHaveBeenCalled();
+
+    const r = await started();
+    r.bridge.actuate('lv.power', 'p50');
+    r.session.startRun();
+    r.session.backToPanel();
+    expect(r.session.screen.value).toBe('running');
+    expect(r.bridge.store.events()).toHaveLength(1);
+    expect(r.onRunStart).toHaveBeenCalledTimes(1);
+
+    r.session.complete();
+    r.session.startRun();
+    r.session.backToPanel();
+    expect(r.session.screen.value).toBe('debrief');
+  });
+
   it('picks the first and the last entry of two with rng 0 and 0.99', async () => {
     const files = { 'eng-oil-temp-green': BLUEPRINT, 'eng-oil-temp-copy': COPY };
     const first = rig({ manifest: MANIFEST_TWO, files, rng: () => 0 });
     await first.session.newSituation();
-    expect(first.session.scenario.value?.id).toBe('eng-oil-temp-green');
+    expect(first.session.briefing.value?.scenario.id).toBe('eng-oil-temp-green');
 
     const last = rig({ manifest: MANIFEST_TWO, files, rng: () => 0.99 });
     await last.session.newSituation();
-    expect(last.session.scenario.value?.id).toBe('eng-oil-temp-copy');
+    expect(last.session.briefing.value?.scenario.id).toBe('eng-oil-temp-copy');
   });
 
   it('does nothing while running', async () => {
@@ -175,9 +267,9 @@ describe('newSituation', () => {
     await r.session.newSituation();
     await first;
     expect(r.loads).toEqual(['eng-oil-temp-green']);
-    expect(r.onRunStart).toHaveBeenCalledTimes(1);
+    expect(r.onRunStart).not.toHaveBeenCalled();
     expect(r.session.busy.value).toBe(false);
-    expect(r.session.screen.value).toBe('running');
+    expect(r.session.screen.value).toBe('briefing');
   });
 
   it('a denied pack is never opened: loadFailure, still free, panel untouched', async () => {
@@ -238,7 +330,7 @@ describe('newSituation', () => {
     open = true;
     await r.session.newSituation();
     expect(r.session.loadFailure.value).toBeNull();
-    expect(r.session.screen.value).toBe('running');
+    expect(r.session.screen.value).toBe('briefing');
   });
 });
 
@@ -346,6 +438,9 @@ describe('complete', () => {
     expect(r.session.result.value).toBeNull();
     await r.session.newSituation();
     r.session.complete();
+    expect(r.session.screen.value).toBe('briefing');
+    r.session.startRun();
+    r.session.complete();
     const graded = r.session.result.value;
     r.session.complete();
     expect(r.session.result.value).toBe(graded);
@@ -388,6 +483,7 @@ describe('closeDebrief', () => {
     r.session.closeDebrief();
 
     await r.session.newSituation();
+    r.session.startRun();
 
     expect(r.session.screen.value).toBe('running');
     expect(r.session.result.value).toBeNull();

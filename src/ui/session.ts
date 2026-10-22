@@ -1,5 +1,5 @@
 // The session machine (D-14, D-15, D-16, D-18, SES-01, SES-03, SES-04): which screen the app is on
-// (free, running, debrief), how a run starts from a scenario and how it ends in a grade. No router;
+// (free, briefing, running, debrief), how a run starts from a scenario and how it ends in a grade. No router;
 // the screen is a signal. This module has no DOM access, so it is unit tested in node. The UI owns
 // randomness (rng) and real time (the frame driver of plan 09 advances the run's VirtualClock);
 // the engine never sees either.
@@ -8,14 +8,20 @@ import { signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { VirtualClock } from '../engine/clock';
 import type { AircraftEnv } from '../engine/env';
-import { grade } from '../engine/grading';
-import type { GradeResult, Recording } from '../engine/grading';
+import { branchStatuses, grade } from '../engine/grading';
+import type { BranchVerdict, GradeResult, Recording } from '../engine/grading';
 import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
 import type { Scenario } from '../scenario/schema';
 import type { PanelBridge } from './bridge';
 
-export type Screen = 'free' | 'running' | 'debrief';
+export type Screen = 'free' | 'briefing' | 'running' | 'debrief';
+
+/** The scenario held by the briefing, with the branch statuses the engine computed for it. */
+export interface Briefed {
+  readonly scenario: Scenario;
+  readonly branches: readonly BranchVerdict[];
+}
 
 /** A failed OpenResult, kept for the screens that render it (plan 12). */
 export type LoadFailure = Extract<OpenResult, { readonly ok: false }>;
@@ -46,8 +52,10 @@ export interface SessionDeps {
 
 export interface Session {
   readonly screen: ReadonlySignal<Screen>;
-  /** The scenario of the current or last run. */
+  /** The scenario of the current or last run (not the one a briefing holds until Start run). */
   readonly scenario: ReadonlySignal<Scenario | null>;
+  /** The scenario the briefing shows; null outside the briefing. */
+  readonly briefing: ReadonlySignal<Briefed | null>;
   /** The grade of the last run; null until graded, cleared at the next start. */
   readonly result: ReadonlySignal<GradeResult | null>;
   /** True while a pack loads; presses on the session area are ignored meanwhile. */
@@ -55,8 +63,12 @@ export interface Session {
   readonly loadFailure: ReadonlySignal<LoadFailure | null>;
   /** The virtual clock of the current run; null outside a run. */
   readonly clock: ReadonlySignal<VirtualClock | null>;
-  /** Free and not busy only: opens one random allowed scenario and starts the run. */
+  /** Free and not busy only: opens one random allowed scenario and shows its briefing. */
   newSituation(): Promise<void>;
+  /** Briefing only: the panel takes the scenario's initial state and the run begins. */
+  startRun(): void;
+  /** Briefing only: back to the free panel, nothing changed. */
+  backToPanel(): void;
   /** Running only: grades the recorded log and shows the debrief. */
   complete(): void;
   /** Debrief only: back to free; the control state and quantities stay as the run left them. */
@@ -91,6 +103,7 @@ export function createSession(deps: SessionDeps): Session {
   const { bridge, packs, env, rng, onRunStart } = deps;
   const screen = signal<Screen>('free');
   const scenario = signal<Scenario | null>(null);
+  const briefing = signal<Briefed | null>(null);
   const result = signal<GradeResult | null>(null);
   const busy = signal(false);
   const loadFailure = signal<LoadFailure | null>(null);
@@ -102,6 +115,7 @@ export function createSession(deps: SessionDeps): Session {
     const runClock = new VirtualClock();
     bridge.setTimeSource(() => runClock.now());
     scenario.value = opened;
+    briefing.value = null;
     result.value = null;
     clock.value = runClock;
     onRunStart();
@@ -131,6 +145,7 @@ export function createSession(deps: SessionDeps): Session {
   return {
     screen,
     scenario,
+    briefing,
     result,
     busy,
     loadFailure,
@@ -155,18 +170,35 @@ export function createSession(deps: SessionDeps): Session {
           loadFailure.value = opened;
           return;
         }
-        try {
-          start(opened.scenario);
-        } catch (error) {
-          // An illegal baseline changes nothing (bridge.reset); lint should have caught it.
-          loadFailure.value = failure(
-            'invalid',
-            error instanceof Error ? error.message : 'the baseline could not be applied',
-          );
-        }
+        // The briefing leaves the panel, the log and the last run untouched (D-14).
+        briefing.value = {
+          scenario: opened.scenario,
+          branches: branchStatuses(opened.scenario, env),
+        };
+        screen.value = 'briefing';
       } finally {
         busy.value = false;
       }
+    },
+    startRun() {
+      const briefed = briefing.peek();
+      if (screen.peek() !== 'briefing' || briefed === null) return;
+      try {
+        start(briefed.scenario);
+      } catch (error) {
+        // An illegal baseline changes nothing (bridge.reset); lint should have caught it.
+        briefing.value = null;
+        loadFailure.value = failure(
+          'invalid',
+          error instanceof Error ? error.message : 'the baseline could not be applied',
+        );
+        screen.value = 'free';
+      }
+    },
+    backToPanel() {
+      if (screen.peek() !== 'briefing') return;
+      briefing.value = null;
+      screen.value = 'free';
     },
     complete() {
       const current = scenario.peek();

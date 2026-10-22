@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { activate } from './support/zoom';
 
 // SCN-08 (phase 02): the run's virtual clock advances with real frames only while the run is live
-// and no modal is open. Every case reads an e2e-only window hook, so all titles carry @hooks.
+// and no modal is open (the briefing is one, and the run starts after it). Every case reads an e2e-only window hook, so all titles carry @hooks.
 
 // Mirror of the read-only session hook of the e2e build (the e2e project has no DOM lib).
 type HookHost = { __panelSession?: { now(): number | null } };
@@ -17,8 +17,12 @@ function clockNow(page: Page): Promise<number | null> {
   return page.evaluate(() => (globalThis as HookHost).__panelSession?.now() ?? null);
 }
 
+/** NEW SITUATION, then Start run: the briefing is a modal, so the clock starts at Start run. */
 async function startRun(page: Page, hasTouch: boolean): Promise<void> {
   await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeHidden();
   await expect(page.getByTestId('procedure-complete')).toBeVisible();
 }
 
@@ -30,6 +34,19 @@ test('@hooks the run clock advances in real time after NEW SITUATION', async ({
   await startRun(page, hasTouch);
   await page.waitForTimeout(1500);
   expect(await clockNow(page)).toBeGreaterThanOrEqual(1000);
+});
+
+test('@hooks the run clock does not exist during the briefing and starts at Start run', async ({
+  page,
+  hasTouch,
+}) => {
+  await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(await clockNow(page)).toBeNull();
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeHidden();
+  await expect.poll(() => clockNow(page)).toBeGreaterThan(0);
 });
 
 test('@hooks the run clock waits while About is open and goes on after it closes', async ({
