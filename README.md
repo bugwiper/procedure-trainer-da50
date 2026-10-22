@@ -52,6 +52,19 @@ How it behaves:
 - Tapping a neutral area (panel background, display artwork, gaps between controls) never changes anything.
 - The default positions and step sizes flagged as assumptions in the plans are still to be confirmed against the aircraft.
 
+## Running a situation
+
+The session pad sits in the lower right of the panel, in the co-pilot legroom; zoom in with a double tap to use its buttons at full size.
+
+- **NEW SITUATION** picks a situation at random and opens its briefing; **CHOOSE SITUATION** lists the situations and a row opens its briefing. The first scenario is ENG OIL TEMP with the oil pressure in the green range.
+- The **briefing** shows the situation, the source record, the training-aid disclaimer and the checklist outline. It runs in exam mode: the graded panel steps are not listed and nothing gives hints. **Start run** puts the panel into the initial state of the scenario and shows the annunciation on the PFD (the red ENG OIL TEMP message).
+- During the run you operate the panel. Nothing says whether an action was right. When you are done, press **Procedure complete** in the footer.
+- The **debrief** shows PASS or FAIL first, one line per reason, the checklist outline with a verdict for every graded step, the order of ordered groups and the harmful actions with their time (for example "Increase power at 0:07"). There is no score. Back to panel keeps the end state of the panel. The grading rules are written down in [docs/GRADING.md](docs/GRADING.md); the same recorded run always gives the same verdicts.
+
+## Scenario files
+
+Scenarios are hand-written TOON text files under `scenarios/<pack>/`, with one `pack.toon` manifest per pack. `npm run validate` checks every file against the schema and the control registry of the panel and prints each problem as `file:line:col: message`; the CI runs it, so a bad file fails the build. Read the [Content policy](docs/CONTENT-POLICY.md) before adding any scenario text.
+
 ## Content policy
 
 Read the [Content policy](docs/CONTENT-POLICY.md) before adding any scenario, procedure text or artwork. It exists to keep AFM-derived material out of this public repository beyond a small, well-defined limit.
@@ -66,6 +79,7 @@ npm run dev            # start the dev server
 npm run build          # production build
 npm run typecheck      # type-check
 npm run lint           # lint
+npm run validate       # check every scenario file (file:line:col)
 npm run format:check   # check formatting
 npm test               # unit tests (Vitest: layout, reference-table and static-text gates)
 npm run e2e            # end-to-end tests (Playwright; builds dist-e2e with the test hook and serves it)
@@ -73,7 +87,7 @@ npm run e2e            # end-to-end tests (Playwright; builds dist-e2e with the 
 
 `BASE_PATH` sets the deploy base path (default "/"). The e2e run uses the base `/procedure-trainer-da-50/` on port 4173; set `PW_PORT` to use another port (parallel worktrees). Playwright projects: desktop-chromium, desktop-webkit, phone-chromium, phone-webkit, tablet-chromium, tablet-webkit and phone-portrait (run one with `npx playwright test --project=tablet-chromium`). Specs titled `@hooks` read the test-only `window.__panel` hook and are skipped when `PW_BASE_URL` points the run at a deployed site.
 
-The panel is a data-driven registry (`src/aircraft/da50rg`) rendered by Preact widgets (`src/ui`) over a pure store with an action log (`src/engine`). There are no scenarios yet.
+The panel is a data-driven registry (`src/aircraft/da50rg`) rendered by Preact widgets (`src/ui`) over a pure store with an action log (`src/engine`). Scenarios (`src/scenario`) are TOON files validated by a Zod schema and graded by a pure replay of the action log (`src/engine/grading.ts`).
 
 ## Stack
 

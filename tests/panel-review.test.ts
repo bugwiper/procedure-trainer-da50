@@ -521,9 +521,10 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
   };
   const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
 
-  it('has Round 5: morning review as the last section and keeps Round 4', () => {
+  it('has Phase 2: owner review as the last section and keeps Round 5 and Round 4', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Round 5: morning review');
+    expect(headings[headings.length - 1]).toBe('## Phase 2: owner review');
+    expect(headings).toContain('## Round 5: morning review');
     expect(headings).toContain('## Round 4: morning review');
   });
 
@@ -619,5 +620,45 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
     expect(text).not.toMatch(/!\[[^\]]*\]\(/);
     expect(text).not.toMatch(/\.input/);
     expect(text).not.toMatch(/garmin|diamond/i);
+  });
+});
+
+// Plan 02-13: the phase 2 section is the owner's one list for the first gradable scenario.
+describe('phase 2 owner review (plan 02-13)', () => {
+  const at = review.search(/^## Phase 2: owner review/m);
+  const section = at === -1 ? '' : review.slice(at);
+
+  it('has the section', () => {
+    expect(at).toBeGreaterThan(-1);
+  });
+
+  it.each(['U-05', 'U-09', 'U-13', 'U-15', 'U-16'])('lists the UI-SPEC item %s', (label) => {
+    expect(section).toContain(`**${label}**`);
+  });
+
+  it('lists the content, wording and grading reviews and every assumption group', () => {
+    expect(section).toMatch(/step lines/i);
+    expect(section).toMatch(/content policy/i);
+    expect(section).toMatch(/THROTTLE/);
+    expect(section).toMatch(/POWER/);
+    expect(section).toContain('docs/GRADING.md');
+    expect(section).toMatch(/Assumptions taken/);
+    expect(section).toMatch(/nothing was pushed/i);
+    expect(section).toContain('npm run validate');
+  });
+
+  it('has no unfilled item and quotes no private material', () => {
+    expect(section).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b/i);
+    expect(section).not.toMatch(/\.input\//);
+  });
+
+  it('numbers its items from 1 without a gap', () => {
+    const numbers = section
+      .split('\n')
+      .map((line) => /^(\d+)\. /.exec(line)?.[1])
+      .filter((n): n is string => n !== undefined)
+      .map(Number);
+    expect(numbers.length).toBeGreaterThanOrEqual(10);
+    expect(numbers).toEqual(numbers.map((_, i) => i + 1));
   });
 });
