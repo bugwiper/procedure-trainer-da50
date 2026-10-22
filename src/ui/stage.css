@@ -307,8 +307,8 @@ body,
   letter-spacing: 0.04em;
 }
 
-/* Briefing card (UI-SPEC Briefing): title, situation, source block, disclaimer, the non-graded
-   outline, the exam note. Meta is 14/400 in the muted grey; long lines wrap inside the card. */
+/* Briefing card (UI-SPEC Briefing, phase 02.1 order): title, situation, disclaimer, level group, the
+   checklist outline (Easy only), the exam note, the source block last. Meta is 14/400 in the muted grey; long lines wrap inside the card. */
 .briefing-meta {
   margin: 0 0 4px;
   font-size: 14px;
@@ -320,7 +320,26 @@ body,
 }
 
 .briefing-source {
-  margin: 0 0 8px;
+  margin: 16px 0 0;
+}
+
+/* The level group: the label on its own line, the buttons in a wrapping row. The pressed level is a
+   thicker rim in the body text colour, never the accent (reserved for the primary action). */
+.briefing-level {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.briefing-level .briefing-label {
+  flex: 0 0 100%;
+  margin: 0;
+}
+
+.level-button[aria-pressed='true'] {
+  border: 3px solid #e6e9ed;
+  background: transparent;
 }
 
 .briefing-label {

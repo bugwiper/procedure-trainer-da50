@@ -818,3 +818,73 @@ describe('closeDebrief', () => {
     expect(r.onRunStart).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('level (phase 02.1)', () => {
+  it('is easy at creation', () => {
+    expect(rig().session.level.value).toBe('easy');
+  });
+
+  it('is set in the briefing and survives startRun, complete and closeDebrief and the next briefing', async () => {
+    const r = rig();
+    await r.session.newSituation();
+    r.session.setLevel('medium');
+    expect(r.session.level.value).toBe('medium');
+    r.session.startRun();
+    expect(r.session.level.value).toBe('medium');
+    r.bridge.actuate('lv.power', 'p50');
+    r.session.complete();
+    expect(r.session.level.value).toBe('medium');
+    r.session.closeDebrief();
+    expect(r.session.level.value).toBe('medium');
+
+    await r.session.newSituation();
+    expect(r.session.screen.value).toBe('briefing');
+    expect(r.session.level.value).toBe('medium');
+    r.session.setLevel('easy');
+    expect(r.session.level.value).toBe('easy');
+  });
+
+  it('does nothing on free, choosing, running and debrief', async () => {
+    const r = rig({
+      manifest: MANIFEST_TWO,
+      files: { 'eng-oil-temp-green': BLUEPRINT, 'eng-oil-temp-copy': COPY },
+    });
+    r.session.setLevel('medium');
+    expect(r.session.screen.value).toBe('free');
+    expect(r.session.level.value).toBe('easy');
+
+    await r.session.openChooser();
+    expect(r.session.screen.value).toBe('choosing');
+    r.session.setLevel('medium');
+    expect(r.session.level.value).toBe('easy');
+
+    await r.session.chooseScenario({ pack: 'engine', scenario: 'eng-oil-temp-green' });
+    expect(r.session.screen.value).toBe('briefing');
+    r.session.startRun();
+    expect(r.session.screen.value).toBe('running');
+    r.session.setLevel('medium');
+    expect(r.session.level.value).toBe('easy');
+
+    r.session.complete();
+    expect(r.session.screen.value).toBe('debrief');
+    r.session.setLevel('medium');
+    expect(r.session.level.value).toBe('easy');
+  });
+
+  it('grading ignores the level: the same actuations give deep-equal results', async () => {
+    const results = [];
+    for (const level of ['easy', 'medium'] as const) {
+      const r = rig();
+      await r.session.newSituation();
+      r.session.setLevel(level);
+      r.session.startRun();
+      r.bridge.actuate('lv.power', 'p100');
+      r.bridge.actuate('lv.power', 'p50');
+      r.bridge.actuate('lv.cowl_flap', 'open');
+      r.session.complete();
+      results.push(r.session.result.value);
+    }
+    expect(results[0]).not.toBeNull();
+    expect(results[0]).toEqual(results[1]);
+  });
+});
