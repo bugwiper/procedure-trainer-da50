@@ -5,16 +5,16 @@ current_phase_name: First Gradable Scenario
 current_plan: 13
 status: verifying
 stopped_at: Completed 02-13-PLAN.md
-last_updated: "2026-10-22T11:21:07.441Z"
+last_updated: "2026-10-22T13:33:08.722Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 02 execution started
-state_head: c332f01a5c25cd28703825f8add4c8c49f9708e8
+state_head: a5bbc19dac54fd8e9b3af7d64b819fb62457be99
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 2
   total_plans: 71
   completed_plans: 71
-  percent: 29
+  percent: 25
 ---
 
 # Project State
@@ -35,7 +35,7 @@ Status: Phase complete — ready for verification
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
 Last activity: 2026-10-22 — Phase 02 execution started
 
-Progress: [███░░░░░░░] 29%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -208,6 +208,7 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 1.1 inserted after Phase 1: Panel appearance (switch shapes/colours per real DA50: ELECT. MASTER big red rocker, ELT small red, ESS BUS medium red, others white), control inventory for upcoming scenarios, graphical panel rework, single-tap zoom-out and hidden Full panel button fixes. Must settle layout before Phase 2.
+- Phase 2.1 inserted after Phase 2: Briefing difficulty levels easy and medium, source line at the bottom (realistic level goes to Phase 3)
 
 ## Deferred Items
 

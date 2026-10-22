@@ -275,6 +275,16 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 02.1: Briefing difficulty levels easy and medium, source line at the bottom (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 2
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 02.1 to break down)
+
 ### Phase 3: Reactive Scenarios and Initial Pack
 
 **Goal**: Users can run all three initial emergencies (Oil Temp High, Electrical Failure, Engine Fire) and see each one react to what they do: gauges move, ignored failures escalate, handled failures recover.
@@ -283,6 +293,7 @@ Plans:
 **Requirements**: SCN-06, PNL-04, PNL-07, CNT-01
 **Success Criteria** (what must be TRUE):
   1. Engine gauges and displays move with the simulated aircraft state during a scenario (e.g. the oil temperature needle ramps up when the scenario starts and falls after the correct actions).
+  1a. Difficulty level "realistic" (owner request, phase 2 UAT): the run starts in the panel's base state with no briefing text, and after a few seconds (a time window, not a fixed second) the scenario's onset happens on its own (oil temperature climbs above the limit and the CAS message appears). Reaction time is measured from the onset. Levels easy and medium come from phase 2.1.
   2. If the user ignores a scenario or lets a value pass its red line, the scenario escalates to a named outcome (e.g. engine failure), and that outcome appears in the debrief.
   3. The "New situation" flow offers Oil Temp High, Electrical Failure and Engine Fire, each with its own initial state, annunciations and procedure, and each passes golden, do-nothing, wrong-order and forbidden-action replay tests and registry validation.
   4. User can enter a squawk code (e.g. 7700) in a simplified transponder section, and the entered code counts as graded panel state.
