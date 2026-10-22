@@ -87,3 +87,6 @@ outcomes[1]:
       quantity: oil_temp_c
       op: gte
       value: 140
+# The failure of the level Realistic begins at a random second inside this window; the window is an instructor-review value.
+onset:
+  window_s[2]: 5,20

@@ -4,13 +4,17 @@ import { Modal } from './Modal';
 
 /**
  * The level question (phase 02.1): the first card after a scenario is opened, before any briefing.
- * Easy leads to the full briefing, Medium to the briefing without the checklist. Realistic (no
- * briefing at all) is not built yet and stays a disabled button. The card shows no scenario text.
+ * Easy leads to the full briefing, Medium to the briefing without the checklist. Realistic starts the
+ * run at once, with no briefing (D-05); its button is inactive when the opened scenario declares no
+ * onset (`realistic` false). The card shows no scenario text.
  */
 export function LevelPick({
+  realistic,
   onLevel,
   onBack,
 }: {
+  /** True when the opened scenario declares an onset, so the Realistic button is active. */
+  readonly realistic: boolean;
   readonly onLevel: (level: Level) => void;
   readonly onBack: () => void;
 }) {
@@ -42,6 +46,7 @@ export function LevelPick({
             key={entry}
             type="button"
             class="secondary-button level-button"
+            disabled={entry === 'realistic' && !realistic}
             data-testid={`level-pick-${entry}`}
             onClick={() => {
               onLevel(entry);
@@ -50,14 +55,6 @@ export function LevelPick({
             {LEVEL_NAMES[entry]}
           </button>
         ))}
-        <button
-          type="button"
-          class="secondary-button level-button"
-          disabled
-          data-testid="level-pick-realistic"
-        >
-          Realistic
-        </button>
       </div>
     </Modal>
   );

@@ -55,6 +55,8 @@ if (import.meta.env.VITE_TEST_HOOKS === '1') {
     scenarioId: () => session.scenario.value?.id ?? null,
     result: () => session.result.value,
     now: () => session.clock.value?.now() ?? null,
+    onset: () => session.onset.value,
+    recording: () => session.recording.value,
   };
 }
 
@@ -187,7 +189,11 @@ export function App() {
       </footer>
       {aboutOpen.value ? <About onClose={closeAbout} /> : null}
       {screen === 'briefing' && briefed !== null && !session.levelPicked.value ? (
-        <LevelPick onLevel={setLevel} onBack={backToPanel} />
+        <LevelPick
+          realistic={briefed.scenario.onset !== undefined}
+          onLevel={setLevel}
+          onBack={backToPanel}
+        />
       ) : null}
       {screen === 'briefing' && briefed !== null && session.levelPicked.value ? (
         <Briefing

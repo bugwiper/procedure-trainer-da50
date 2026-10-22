@@ -4,19 +4,23 @@
 // randomness (rng) and real time (the frame driver steps the run's simulation, which advances its
 // VirtualClock in whole steps); the engine never sees either. A run is a Run (D-01, D-02): the
 // simulation of the quantities over the store log, whose steps feed the bridge; it exists from
-// Start run until the debrief closes or the run is left. It also holds the difficulty level (Easy or Medium, phase 02.1): display
-// state chosen in the briefing; grade never receives it. A run whose simulation reaches a named
-// outcome (D-06) completes itself: the step listener calls the same completion as the debrief button.
+// Start run until the debrief closes or the run is left. It also holds the difficulty level (Easy,
+// Medium or Realistic): display state chosen on the level card; grade never receives it. A run whose
+// simulation reaches a named outcome (D-06) completes itself: the step listener calls the same
+// completion as the debrief button. Realistic (D-05) is available for a scenario that declares an
+// onset: choosing it starts the run at once, with no briefing, from the base quantities; the session
+// draws a seed with its injected rng, the engine turns it into the onset time (onsetFromSeed) and the
+// onset is recorded run data (the signal `onset`, then Recording.onset), so the run replays.
 
 import { signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import type { VirtualClock } from '../engine/clock';
 import type { AircraftEnv } from '../engine/env';
 import { branchStatuses, grade } from '../engine/grading';
-import type { BranchVerdict, GradeResult, Recording } from '../engine/grading';
+import type { BranchVerdict, GradeResult, RecordedOnset, Recording } from '../engine/grading';
 import { initialQuantities } from '../engine/predicates';
 import { Run } from '../engine/run';
-import { simSetup } from '../engine/sim';
+import { onsetFromSeed, simSetup } from '../engine/sim';
 import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
 import type { Scenario } from '../scenario/schema';
@@ -24,14 +28,24 @@ import type { PanelBridge } from './bridge';
 
 export type Screen = 'free' | 'choosing' | 'briefing' | 'running' | 'debrief';
 
-/** The difficulty level of a run (phase 02.1): Easy briefs with the checklist, Medium without it. */
-export type Level = 'easy' | 'medium';
+/**
+ * The difficulty level of a run: Easy briefs with the checklist, Medium without it, Realistic has no
+ * briefing at all and lets the failure begin by itself (D-05).
+ */
+export type Level = 'easy' | 'medium' | 'realistic';
 
 /** The levels in display order. */
-export const LEVELS: readonly Level[] = ['easy', 'medium'];
+export const LEVELS: readonly Level[] = ['easy', 'medium', 'realistic'];
 
-/** The display name of each level, as the briefing buttons and the debrief print it. */
-export const LEVEL_NAMES: Readonly<Record<Level, string>> = { easy: 'Easy', medium: 'Medium' };
+/** The display name of each level, as the level buttons and the debrief print it. */
+export const LEVEL_NAMES: Readonly<Record<Level, string>> = {
+  easy: 'Easy',
+  medium: 'Medium',
+  realistic: 'Realistic',
+};
+
+/** The seeds the session draws are unsigned 32-bit integers. */
+const SEED_RANGE = 4_294_967_296;
 
 /** What a session button asked for while a run was live; the confirm holds it (U-03). */
 export type PendingAction = 'new' | 'choose';
@@ -56,6 +70,10 @@ export interface SessionTestHook {
   scenarioId(): string | null;
   result(): GradeResult | null;
   now(): number | null;
+  /** The onset of the current or last realistic run; null for any other run. */
+  onset(): RecordedOnset | null;
+  /** The recording the last completed run was graded from; null until a run completes. */
+  recording(): Recording | null;
 }
 
 declare global {
@@ -104,6 +122,13 @@ export interface Session {
   readonly level: ReadonlySignal<Level>;
   /** True once the level of the opened scenario was chosen; the level question comes before the briefing. */
   readonly levelPicked: ReadonlySignal<boolean>;
+  /**
+   * The onset of the current or last realistic run (time in run ms and the seed it was drawn
+   * from); null for Easy and Medium and outside a run. Run data, kept until the next start.
+   */
+  readonly onset: ReadonlySignal<RecordedOnset | null>;
+  /** The recording the last run was graded from; null until a run completes, cleared at the next start. */
+  readonly recording: ReadonlySignal<Recording | null>;
   /** Free and not busy only: opens one random allowed scenario and shows its briefing. */
   newSituation(): Promise<void>;
   /**
@@ -130,7 +155,8 @@ export interface Session {
   dismissFailure(): void;
   /**
    * Briefing only: sets the level. On any other screen it does nothing, so the level of a run
-   * cannot change between Start run and its debrief.
+   * cannot change between Start run and its debrief. Realistic starts the run at once, with no
+   * briefing; for a scenario without an onset it does nothing.
    */
   setLevel(level: Level): void;
   /** Briefing only: the panel takes the scenario's initial state and the run begins. */
@@ -194,28 +220,42 @@ export function createSession(deps: SessionDeps): Session {
   };
   const level = signal<Level>('easy');
   const levelPicked = signal(false);
+  const onset = signal<RecordedOnset | null>(null);
+  const recording = signal<Recording | null>(null);
 
   /** Running only: grades the recorded log at the run clock's time and shows the debrief. */
   const completeRun = (): void => {
     const current = scenario.peek();
     const runClock = clock.peek();
     if (screen.peek() !== 'running' || current === null || runClock === null) return;
-    const recording: Recording = {
+    const graded: Recording = {
       scenarioId: current.id,
       completedAt: runClock.now(),
       events: bridge.store.events().map((e) => ({ t: e.t, id: e.id, value: e.value })),
+      ...(onset.peek() === null ? {} : { onset: onset.peek() }),
     };
-    result.value = grade(current, env, recording);
+    recording.value = graded;
+    result.value = grade(current, env, graded);
     runClock.pause();
     bridge.setTimeSource(null);
     screen.value = 'debrief';
   };
 
-  /** Table N1 "start": baseline without an event, a fresh clock, then the screen. */
-  const start = (opened: Scenario): void => {
-    const setup = simSetup(env, opened);
-    const startQuantities = initialQuantities(opened, env.quantities);
-    bridge.reset(opened.initial.controls, opened.initial.quantities);
+  /**
+   * Table N1 "start": baseline without an event, a fresh clock, then the screen. A realistic start
+   * (C-31, C-32) draws the seed, takes the base quantities and lets the scenario's parameters act
+   * from the onset; otherwise the quantities are the scenario's and the failure is there from t 0.
+   */
+  const start = (opened: Scenario, realistic: boolean): void => {
+    const window = realistic ? opened.onset?.window_s : undefined;
+    let drawn: RecordedOnset | null = null;
+    if (window !== undefined) {
+      const seed = Math.floor(rng() * SEED_RANGE);
+      drawn = { at: onsetFromSeed(seed, window), seed };
+    }
+    const setup = simSetup(env, opened, drawn === null ? {} : { onsetAt: drawn.at });
+    const startQuantities = drawn === null ? initialQuantities(opened, env.quantities) : {};
+    bridge.reset(opened.initial.controls, drawn === null ? opened.initial.quantities : {});
     endRun();
     const current = new Run({ setup, store: bridge.store, start: startQuantities });
     current.onStep((state) => {
@@ -229,6 +269,8 @@ export function createSession(deps: SessionDeps): Session {
     scenario.value = opened;
     briefing.value = null;
     result.value = null;
+    recording.value = null;
+    onset.value = drawn;
     run.value = current;
     clock.value = current.clock;
     onRunStart();
@@ -327,6 +369,22 @@ export function createSession(deps: SessionDeps): Session {
     return loading(key, () => openBriefing(ref));
   };
 
+  /** Starts the run of the briefed scenario; an illegal baseline is kept as a load failure. */
+  const begin = (briefed: Briefed, realistic: boolean): void => {
+    try {
+      start(briefed.scenario, realistic);
+    } catch (error) {
+      // An illegal baseline changes nothing (bridge.reset); lint should have caught it.
+      briefing.value = null;
+      lastRequest = null;
+      loadFailure.value = failure(
+        'invalid',
+        error instanceof Error ? error.message : 'the baseline could not be applied',
+      );
+      screen.value = 'free';
+    }
+  };
+
   const dismissFailure = (): void => {
     loadFailure.value = null;
     lastRequest = null;
@@ -349,6 +407,8 @@ export function createSession(deps: SessionDeps): Session {
     run,
     level,
     levelPicked,
+    onset,
+    recording,
     async newSituation() {
       if (busy.peek()) return;
       // A live run asks first; the request waits in the confirm (U-03).
@@ -394,6 +454,8 @@ export function createSession(deps: SessionDeps): Session {
       scenario.value = null;
       briefing.value = null;
       result.value = null;
+      recording.value = null;
+      onset.value = null;
       clock.value = null;
       lastRequest = null;
       screen.value = 'free';
@@ -413,25 +475,18 @@ export function createSession(deps: SessionDeps): Session {
     },
     dismissFailure,
     setLevel(next) {
-      if (screen.peek() !== 'briefing') return;
+      const briefed = briefing.peek();
+      if (screen.peek() !== 'briefing' || briefed === null) return;
+      // D-05: Realistic shows no briefing; a scenario without an onset does not offer the level.
+      if (next === 'realistic' && briefed.scenario.onset === undefined) return;
       level.value = next;
       levelPicked.value = true;
+      if (next === 'realistic') begin(briefed, true);
     },
     startRun() {
       const briefed = briefing.peek();
       if (screen.peek() !== 'briefing' || briefed === null) return;
-      try {
-        start(briefed.scenario);
-      } catch (error) {
-        // An illegal baseline changes nothing (bridge.reset); lint should have caught it.
-        briefing.value = null;
-        lastRequest = null;
-        loadFailure.value = failure(
-          'invalid',
-          error instanceof Error ? error.message : 'the baseline could not be applied',
-        );
-        screen.value = 'free';
-      }
+      begin(briefed, false);
     },
     backToPanel() {
       if (screen.peek() !== 'briefing') return;

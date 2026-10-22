@@ -12,7 +12,7 @@ import { Modal } from './Modal';
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
  * apply muted, an order line under every ordered group and the harmful actions in log order
- * (no time). It names the level of the run ("Level: Easy"). No score, no timeline. It sits on the
+ * (no time). It names the level of the run ("Level: Easy") and, on a meta line before it, the scenario (D-05). No score, no timeline. It sits on the
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
@@ -58,6 +58,9 @@ export function Debrief({
           {line}
         </p>
       ))}
+      <p class="briefing-meta" data-testid="debrief-scenario">
+        {scenario.title}
+      </p>
       <p class="briefing-meta" data-testid="debrief-level">
         {`Level: ${LEVEL_NAMES[level]}`}
       </p>

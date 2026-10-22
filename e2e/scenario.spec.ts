@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page, Route } from '@playwright/test';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
-import { quantityOf } from './support/session';
+import { parseScenario } from '../src/scenario/parse';
+import { quantityOf, startRealistic } from './support/session';
 import { FULL_VIEWBOX, activate } from './support/zoom';
 
 // SES-01, SES-03, SES-04, SCN-05, SCN-07, PLT-04 (phase 02): the pilot's path on the built panel.
@@ -19,6 +21,7 @@ interface SessionHook {
   screen(): string;
   scenarioId(): string | null;
   result(): { result: string } | null;
+  onset(): { at: number; seed: number } | null;
 }
 type HookHost = { __panel?: PanelHook; __panelSession?: SessionHook };
 
@@ -325,7 +328,7 @@ test('@hooks the Easy briefing shows the checklist with the panel steps and the 
   expect(footer?.height ?? 0).toBeGreaterThanOrEqual(MIN_FOOTER_PX);
 });
 
-test('@hooks Level question: Easy, Medium and a disabled Realistic come before any briefing; Medium has no checklist and the debrief names it', async ({
+test('@hooks Level question: Easy, Medium and Realistic come before any briefing; Medium has no checklist and the debrief names it', async ({
   page,
   hasTouch,
 }) => {
@@ -335,12 +338,14 @@ test('@hooks Level question: Easy, Medium and a disabled Realistic come before a
   const easy = page.getByTestId('level-pick-easy');
   const medium = page.getByTestId('level-pick-medium');
   const realistic = page.getByTestId('level-pick-realistic');
-  await expect(realistic).toBeDisabled();
+  await expect(easy).toBeEnabled();
+  await expect(medium).toBeEnabled();
+  await expect(realistic).toBeEnabled();
 
-  // Both level buttons are real touch targets inside the viewport.
+  // All three level buttons are real touch targets inside the viewport.
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
-  for (const button of [easy, medium]) {
+  for (const button of [easy, medium, realistic]) {
     const box = await button.boundingBox();
     expect(box).not.toBeNull();
     if (box === null || viewport === null) return;
@@ -366,6 +371,48 @@ test('@hooks Level question: Easy, Medium and a disabled Realistic come before a
   await expect(page.getByTestId('debrief-level')).toHaveText('Level: Medium');
   // The debrief always shows the checklist with its verdicts.
   await expect(page.getByTestId('debrief-row')).toHaveCount(2);
+});
+
+/** The scenario of the blueprint file, parsed in node, for the title and the onset window. */
+function blueprint() {
+  const parsed = parseScenario(
+    readFileSync(new URL('../scenarios/engine/eng-oil-temp-green.toon', import.meta.url), 'utf8'),
+  );
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+  return parsed.value;
+}
+
+function onsetOf(page: Page): Promise<{ at: number; seed: number } | null> {
+  return page.evaluate(() => (globalThis as HookHost).__panelSession?.onset() ?? null);
+}
+
+test('@hooks Realistic starts without a briefing, names nothing, the failure comes inside its window and the debrief reveals the scenario', async ({
+  page,
+  hasTouch,
+}) => {
+  const scenario = blueprint();
+  const window = scenario.onset?.window_s;
+  if (window === undefined) throw new Error('the blueprint declares no onset');
+
+  await startRealistic(page, hasTouch, 'engine.eng-oil-temp-green');
+  expect(await screenOf(page)).toBe('running');
+  await expect(page.getByTestId('briefing')).toHaveCount(0);
+  await expect(page.getByTestId('level-pick')).toHaveCount(0);
+  // Nothing on the page names the scenario while the run is young.
+  await page.waitForTimeout(1500);
+  await expect(page.getByText(scenario.title, { exact: true })).toHaveCount(0);
+
+  const onset = await onsetOf(page);
+  expect(onset).not.toBeNull();
+  if (onset === null) return;
+  expect(onset.at % 100).toBe(0);
+  expect(onset.at).toBeGreaterThanOrEqual(window[0] * 1000);
+  expect(onset.at).toBeLessThanOrEqual(window[1] * 1000);
+
+  await goldenTaps(page, hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-level')).toHaveText('Level: Realistic');
+  await expect(page.getByTestId('debrief-scenario')).toHaveText(scenario.title);
 });
 
 test('@hooks Start run starts in the initial state on the full panel', async ({

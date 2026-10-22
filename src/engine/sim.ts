@@ -88,6 +88,33 @@ export interface SimOptions {
   readonly onsetAt?: number;
 }
 
+/**
+ * mulberry32 (public domain): a 32-bit integer generator, one value in [0, 1) per call. The state
+ * moves by integer arithmetic only (Math.imul, unsigned shifts) and the last division is by a power
+ * of two, so every engine agrees bit for bit. It makes a recorded seed repeatable (D-05); the seed
+ * itself is drawn by the UI, never here.
+ */
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * The onset time in ms of a realistic run (D-05, C-32): the first mulberry32 value of the seed
+ * places it inside the scenario's window of seconds, rounded to a whole step.
+ */
+export function onsetFromSeed(seed: number, window_s: readonly [number, number]): number {
+  const u = mulberry32(seed)();
+  const [lo, hi] = window_s;
+  return STEP_MS * Math.round(((lo + u * (hi - lo)) * 1000) / STEP_MS);
+}
+
 export function simSetup(env: AircraftEnv, scenario: Scenario, options: SimOptions = {}): SimSetup {
   const normalParameters = env.physics.normalParameters();
   return Object.freeze({

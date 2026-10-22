@@ -5,7 +5,8 @@
 // example a degraded cooling) with finite values. Cross-references (control, state, quantity,
 // band and parameter ids) are checked by lint.ts against the aircraft, not here. `outcomes` names
 // the failures an ignored emergency escalates to (D-06): each ends the run when its predicate has
-// held for its hold time; the list and the hold time are bounded (MAX_OUTCOMES, MAX_HOLD_S).
+// held for its hold time; the list and the hold time are bounded (MAX_OUTCOMES, MAX_HOLD_S). `onset` is the optional window
+// in seconds in which the failure begins by itself in the level Realistic (D-05, MAX_ONSET_S).
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { z } from 'zod';
@@ -145,6 +146,22 @@ export const Outcome = z.strictObject({
   hold_s: z.number().min(0).max(MAX_HOLD_S),
 });
 
+/** The longest second of an onset window (T-03-16): bounds the lint loop of the realistic level. */
+export const MAX_ONSET_S = 120;
+
+const onsetSecond = z.number().min(1).max(MAX_ONSET_S);
+
+/**
+ * The onset of the failure in the level Realistic (D-05, C-29): the failure begins by itself at a
+ * random time inside `window_s` seconds (first at most second). A scenario without it does not
+ * offer Realistic.
+ */
+export const Onset = z.strictObject({
+  window_s: z
+    .tuple([onsetSecond, onsetSecond])
+    .refine(([lo, hi]) => lo <= hi, { message: 'the first second must not exceed the second' }),
+});
+
 /** Table F1: scenario file, top level. */
 export const Scenario = z.strictObject({
   format: z.literal(FORMAT_VERSION),
@@ -168,6 +185,8 @@ export const Scenario = z.strictObject({
   procedure: z.array(ProcedureNode).min(1),
   forbidden: z.array(Forbidden).default([]),
   outcomes: z.array(Outcome).max(MAX_OUTCOMES).default([]),
+  /** The window in which the failure begins in the level Realistic; absent means no such level. */
+  onset: Onset.optional(),
 });
 
 /** Table F4: pack manifest. */
@@ -193,5 +212,6 @@ export type Group = z.infer<typeof Group>;
 export type Step = z.infer<typeof Step>;
 export type Forbidden = z.infer<typeof Forbidden>;
 export type Outcome = z.infer<typeof Outcome>;
+export type Onset = z.infer<typeof Onset>;
 export type Predicate = z.infer<typeof Predicate>;
 export type Manifest = z.infer<typeof Manifest>;

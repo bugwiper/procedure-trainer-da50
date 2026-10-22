@@ -43,6 +43,18 @@ export async function startScenario(
   await expect(page.getByTestId('procedure-complete')).toBeVisible();
 }
 
+/**
+ * Starts the scenario of the row "pack.scenario" at the level Realistic (D-05): CHOOSE SITUATION,
+ * the row, the level card, then Realistic; no briefing follows. Waits until Procedure complete is
+ * visible.
+ */
+export async function startRealistic(page: Page, hasTouch: boolean, row: string): Promise<void> {
+  await chooseScenario(page, hasTouch, row);
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-realistic'), hasTouch);
+  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+}
+
 /** The current value of one named quantity from the e2e window hook; NaN when it has none. */
 export function quantityOf(page: Page, id: string): Promise<number> {
   return page.evaluate(
