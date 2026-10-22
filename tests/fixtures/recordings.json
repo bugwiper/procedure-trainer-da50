@@ -129,5 +129,100 @@
         "value": "open"
       }
     ]
+  },
+  "elec-golden": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 6000,
+        "id": "sw.alternator_1",
+        "value": "off"
+      },
+      {
+        "t": 9000,
+        "id": "sw.ess_bus",
+        "value": "on"
+      }
+    ]
+  },
+  "elec-golden-long": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 600000,
+    "events": [
+      {
+        "t": 6000,
+        "id": "sw.alternator_1",
+        "value": "off"
+      },
+      {
+        "t": 9000,
+        "id": "sw.ess_bus",
+        "value": "on"
+      }
+    ]
+  },
+  "elec-do-nothing": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 20000,
+    "events": []
+  },
+  "elec-do-nothing-long": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 600000,
+    "events": []
+  },
+  "elec-forbidden": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 5000,
+        "id": "sw.alternator_2",
+        "value": "off"
+      },
+      {
+        "t": 8000,
+        "id": "sw.alternator_1",
+        "value": "off"
+      },
+      {
+        "t": 11000,
+        "id": "sw.ess_bus",
+        "value": "on"
+      }
+    ]
+  },
+  "elec-wrong-order": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 6000,
+        "id": "sw.ess_bus",
+        "value": "on"
+      },
+      {
+        "t": 9000,
+        "id": "sw.alternator_1",
+        "value": "off"
+      }
+    ]
+  },
+  "elec-wrong-order-ordered": {
+    "scenarioId": "elec-ordered",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 6000,
+        "id": "sw.ess_bus",
+        "value": "on"
+      },
+      {
+        "t": 9000,
+        "id": "sw.alternator_1",
+        "value": "off"
+      }
+    ]
   }
 }

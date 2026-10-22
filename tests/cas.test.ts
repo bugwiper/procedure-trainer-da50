@@ -117,6 +117,39 @@ describe('DA50 RG table', () => {
   });
 });
 
+describe('DA50 RG table: ALTN 1 FAIL (plan 03-07, C-38)', () => {
+  const message = { id: 'altn_1_fail', text: 'ALTN 1 FAIL', level: 'caution' };
+  const WARNING = { id: 'eng_oil_temp', text: 'ENG OIL TEMP', level: 'warning' };
+
+  it('is a caution', () => {
+    expect(DA50RG_CAS.get('altn_1_fail')).toMatchObject({ text: 'ALTN 1 FAIL', level: 'caution' });
+  });
+
+  it('is off at the base values', () => {
+    expect(
+      DA50RG_CAS.active(at(DA50RG_ENV.quantities.get('oil_temp_c')?.base ?? 0), DA50RG_ENV),
+    ).toEqual([]);
+  });
+
+  it('is on with no current from alternator 1, also at the threshold, and off just above it', () => {
+    expect(DA50RG_CAS.active(at(91, 5, 0), DA50RG_ENV)).toEqual([message]);
+    expect(DA50RG_CAS.active(at(91, 5, 2.5), DA50RG_ENV)).toEqual([message]);
+    expect(DA50RG_CAS.active(at(91, 5, 2.6), DA50RG_ENV)).toEqual([]);
+  });
+
+  it('stays on after ALTERNATOR 1 is switched OFF while the amps are 0', () => {
+    const switchedOff: PredicateContext = {
+      ...at(91, 5, 0),
+      controls: { 'sw.alternator_1': 'off' },
+    };
+    expect(DA50RG_CAS.active(switchedOff, DA50RG_ENV)).toEqual([message]);
+  });
+
+  it('comes after a warning in the display order', () => {
+    expect(DA50RG_CAS.active(at(126, 5, 0), DA50RG_ENV)).toEqual([WARNING, message]);
+  });
+});
+
 describe('casChipSlots', () => {
   it('stacks two per row from row 0 upward, right slot first', () => {
     expect(casChipSlots(6)).toEqual([

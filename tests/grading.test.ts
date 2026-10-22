@@ -7,6 +7,7 @@ import { branchStatuses, grade } from '../src/engine/grading';
 import type { GradeResult, Recording } from '../src/engine/grading';
 import { initialQuantities } from '../src/engine/predicates';
 import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
+import { checkScenario } from '../src/scenario/lint';
 import { parseScenario } from '../src/scenario/parse';
 import type { Scenario } from '../src/scenario/schema';
 
@@ -15,6 +16,8 @@ import type { Scenario } from '../src/scenario/schema';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const BLUEPRINT = readFileSync(join(root, 'scenarios/engine/eng-oil-temp-green.toon'), 'utf8');
 const ORDERED = readFileSync(join(root, 'tests/fixtures/scenarios/ordered-critical.toon'), 'utf8');
+const ELECTRICAL = readFileSync(join(root, 'scenarios/electrical/elec-altn1-fail.toon'), 'utf8');
+const ELEC_ORDERED = readFileSync(join(root, 'tests/fixtures/scenarios/elec-ordered.toon'), 'utf8');
 const RECORDINGS = JSON.parse(
   readFileSync(join(root, 'tests/fixtures/recordings.json'), 'utf8'),
 ) as Record<string, Recording>;
@@ -49,6 +52,18 @@ function run(scenario: Scenario, events: Recording['events']): GradeResult {
 
 const blueprint = load(BLUEPRINT);
 const ordered = load(ORDERED);
+const electrical = load(ELECTRICAL);
+const elecOrdered = load(ELEC_ORDERED);
+
+/** The scenario a recording belongs to, by its scenario id. */
+function scenarioOf(name: string): Scenario {
+  const id = recording(name).scenarioId;
+  const found = [blueprint, ordered, electrical, elecOrdered].find(
+    (scenario) => scenario.id === id,
+  );
+  if (found === undefined) throw new Error(`no scenario for the recording "${name}"`);
+  return found;
+}
 
 const BLUEPRINT_BRANCHES = [
   { path: 'procedure.0.branches.0', status: 'not_applicable' },
@@ -75,6 +90,11 @@ function simulatedOutcome(scenario: Scenario, name: string) {
 
 const declaredOutcome = blueprint.outcomes[0];
 if (declaredOutcome === undefined) throw new Error('the blueprint declares no outcome');
+
+const electricalOutcome = electrical.outcomes[0];
+if (electricalOutcome === undefined) throw new Error('the electrical scenario declares no outcome');
+
+const ELEC_GROUP = 'immediate';
 
 const power_increased = (t: number, seq: number, failsRun = true) => ({
   id: 'power_increased',
@@ -220,6 +240,130 @@ describe('golden recordings (Table R1)', () => {
         timing: { onsetAt: 0, firstActionMs: 6000 },
       },
     },
+    {
+      name: 'elec-golden',
+      scenario: electrical,
+      expected: {
+        scenarioId: 'elec-altn1-fail',
+        result: 'pass',
+        reasons: [],
+        steps: [step('alt1_off', true, 0, ELEC_GROUP), step('ess_bus_on', true, 1, ELEC_GROUP)],
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 6000 },
+      },
+    },
+    {
+      name: 'elec-golden-long',
+      scenario: electrical,
+      expected: {
+        scenarioId: 'elec-altn1-fail',
+        result: 'pass',
+        reasons: [],
+        steps: [step('alt1_off', true, 0, ELEC_GROUP), step('ess_bus_on', true, 1, ELEC_GROUP)],
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 6000 },
+      },
+    },
+    {
+      name: 'elec-do-nothing',
+      scenario: electrical,
+      expected: {
+        scenarioId: 'elec-altn1-fail',
+        result: 'fail',
+        reasons: [{ kind: 'critical_missed', count: 2 }],
+        steps: [
+          step('alt1_off', false, null, ELEC_GROUP),
+          step('ess_bus_on', false, null, ELEC_GROUP),
+        ],
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: null },
+      },
+    },
+    {
+      name: 'elec-do-nothing-long',
+      scenario: electrical,
+      expected: {
+        scenarioId: 'elec-altn1-fail',
+        result: 'fail',
+        reasons: [
+          { kind: 'outcome', id: electricalOutcome.id },
+          { kind: 'critical_missed', count: 2 },
+        ],
+        steps: [
+          step('alt1_off', false, null, ELEC_GROUP),
+          step('ess_bus_on', false, null, ELEC_GROUP),
+        ],
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: {
+          id: electricalOutcome.id,
+          text: electricalOutcome.text,
+          t: simulatedOutcome(electrical, 'elec-do-nothing-long')?.t ?? Number.NaN,
+        },
+        timing: { onsetAt: 0, firstActionMs: null },
+      },
+    },
+    {
+      name: 'elec-forbidden',
+      scenario: electrical,
+      expected: {
+        scenarioId: 'elec-altn1-fail',
+        result: 'fail',
+        reasons: [{ kind: 'forbidden', id: 'alt2_off' }],
+        steps: [step('alt1_off', true, 1, ELEC_GROUP), step('ess_bus_on', true, 2, ELEC_GROUP)],
+        branches: [],
+        orderViolations: [],
+        harmful: [
+          { id: 'alt2_off', text: 'Switch off alternator 2', t: 5000, seq: 0, failsRun: true },
+        ],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 5000 },
+      },
+    },
+    {
+      // The real group is unordered (C-39): the reverse order is not a violation.
+      name: 'elec-wrong-order',
+      scenario: electrical,
+      expected: {
+        scenarioId: 'elec-altn1-fail',
+        result: 'pass',
+        reasons: [],
+        steps: [step('alt1_off', true, 1, ELEC_GROUP), step('ess_bus_on', true, 0, ELEC_GROUP)],
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 6000 },
+      },
+    },
+    {
+      // The synthetic copy with an ordered, order-critical group: the same events fail.
+      name: 'elec-wrong-order-ordered',
+      scenario: elecOrdered,
+      expected: {
+        scenarioId: 'elec-ordered',
+        result: 'fail',
+        reasons: [{ kind: 'order', group: ELEC_GROUP }],
+        steps: [step('alt1_off', true, 1, ELEC_GROUP), step('ess_bus_on', true, 0, ELEC_GROUP)],
+        branches: [],
+        orderViolations: [
+          { group: ELEC_GROUP, expected: 'alt1_off', before: 'ess_bus_on', critical: true },
+        ],
+        harmful: [],
+        outcome: null,
+        timing: { onsetAt: 0, firstActionMs: 6000 },
+      },
+    },
   ];
 
   it('covers every recording of the fixture file', () => {
@@ -307,6 +451,37 @@ describe('named outcomes (R10, D-06, C-26)', () => {
       { kind: 'critical_missed', count: missed },
     ];
   }
+});
+
+describe('Electrical Failure replays (plan 03-07, D-08, D-06, C-39)', () => {
+  it('the scenario and its ordered copy pass the scenario check', () => {
+    expect(checkScenario(ELECTRICAL, DA50RG_ENV).ok).toBe(true);
+    expect(checkScenario(ELEC_ORDERED, DA50RG_ENV).ok).toBe(true);
+    expect(elecOrdered.procedure).toHaveLength(electrical.procedure.length);
+  });
+
+  it('a handled failure recovers: the golden actions never escalate, however long the run lasts', () => {
+    expect(simulatedOutcome(electrical, 'elec-golden-long')).toBeNull();
+    const result = grade(electrical, DA50RG_ENV, recording('elec-golden-long'));
+    expect(result.outcome).toBeNull();
+    expect(result.result).toBe('pass');
+  });
+
+  it('an ignored failure escalates after the short run and before 600 s, on a step boundary', () => {
+    const outcome = grade(electrical, DA50RG_ENV, recording('elec-do-nothing-long')).outcome;
+    if (outcome === null) throw new Error('the ignored run did not escalate');
+    expect(outcome.id).toBe(electricalOutcome.id);
+    expect(outcome.t % STEP_MS).toBe(0);
+    expect(outcome.t).toBeGreaterThan(recording('elec-do-nothing').completedAt);
+    expect(outcome.t).toBeLessThan(recording('elec-do-nothing-long').completedAt);
+    expect(outcome.t).toBe(simulatedOutcome(electrical, 'elec-do-nothing-long')?.t);
+  });
+
+  it('the forbidden item ELECT. MASTER off also fails the run', () => {
+    const result = run(electrical, [{ t: 4000, id: 'sw.elect_master', value: 'off' }]);
+    expect(result.result).toBe('fail');
+    expect(result.reasons).toContainEqual({ kind: 'forbidden', id: 'elect_master_off' });
+  });
 });
 
 describe('step targets relative to the baseline (D-02, D-09)', () => {
@@ -446,7 +621,7 @@ describe('determinism (R9)', () => {
 
   it('gives JSON-identical results for two calls and survives a JSON round trip', () => {
     for (const name of Object.keys(RECORDINGS)) {
-      const scenario = name === 'wrong-order' ? ordered : blueprint;
+      const scenario = scenarioOf(name);
       const first = grade(scenario, DA50RG_ENV, recording(name));
       const second = grade(scenario, DA50RG_ENV, recording(name));
       expect(JSON.stringify(second)).toBe(JSON.stringify(first));
