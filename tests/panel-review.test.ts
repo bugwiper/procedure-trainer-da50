@@ -285,7 +285,9 @@ describe('phase 01.2 review list (Q2, U2, P2, Round 3)', () => {
 
   it('states the final counts in the README and describes the new areas', () => {
     const readme = read('README.md');
-    expect(readme).toContain('92 controls and 13 indicator lamps in 30 regions');
+    expect(readme).toContain(
+      `${REFERENCE_POSITIONS.length + CB_REFERENCE.length} controls and ${INDICATOR_POSITIONS.length} indicator lamps in ${ALL_REGION_IDS.length} regions`,
+    );
     for (const needle of [
       'CIRCUIT BREAKERS',
       'ESSENTIAL',

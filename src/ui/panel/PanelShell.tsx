@@ -46,6 +46,7 @@ const PLATE_FILLS: Readonly<Record<string, string>> = {
   environmental: '#1f2226',
   pedestal: '#1f2226',
   'bus-panel': '#15171a',
+  'session-pad': '#101215',
 };
 
 /** One visible plate drawn from the plate data (owner finding G-0.5). */

@@ -122,6 +122,10 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'pedestal', name: 'PEDESTAL', bounds: { x: 957, y: 1042, w: 211, h: 248 } },
   // Right of the pedestal.
   { id: 'under_panel_right', name: 'UNDER PANEL R', bounds: { x: 1170, y: 740, w: 90, h: 125 } },
+  // Session area (phase 02, D-14 amended): the NEW SITUATION and CHOOSE SITUATION buttons in the
+  // co-pilot legroom right of the centre console, below the face plate. Real-geometry exception of
+  // the 02 UI-SPEC: it is trainer content, not an aircraft part, and carries no registry control.
+  { id: 'scenario_area', name: 'SESSION', bounds: { x: 1300, y: 780, w: 820, h: 480 } },
 ];
 
 export const DA50RG = defineRegistry({

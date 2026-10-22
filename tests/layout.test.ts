@@ -125,9 +125,14 @@ describe('viewBox and regions', () => {
     for (const row of [...REFERENCE_POSITIONS, ...INDICATOR_POSITIONS]) {
       expect(row.x, row.id).toBeLessThan(1980);
     }
-    // The circuit-breaker regions (cb_*) are the new content of the widened strip.
+    // The circuit-breaker regions (cb_*) are the new content of the widened strip. The session
+    // area (phase 02) is trainer content in the legroom below the face plate; it carries no
+    // control or lamp, so the claim about pre-phase controls and lamps still holds.
     const rights = DA50RG.regions
-      .filter((r) => !r.id.startsWith('cb_') && r.bounds.x + r.bounds.w > 1980)
+      .filter(
+        (r) =>
+          !r.id.startsWith('cb_') && r.id !== 'scenario_area' && r.bounds.x + r.bounds.w > 1980,
+      )
       .map((r) => r.id);
     expect(rights).toEqual([]);
   });
@@ -770,12 +775,13 @@ describe('avionics unit regions and plates (plan 06)', () => {
     ]);
   });
 
-  it('the three unit plates carry exactly their region and there are 13 plates', () => {
+  it('the three unit plates carry exactly their region and there are 14 plates', () => {
     const carried = (id: string) => [...(PLATES.find((p) => p.id === id)?.regions ?? [])];
     expect(carried('ap-unit')).toEqual(['autopilot_panel']);
     expect(carried('pfd-left-unit')).toEqual(['pfd_bezel_left']);
     expect(carried('mfd-right-unit')).toEqual(['mfd_bezel_right']);
-    expect(PLATES).toHaveLength(13);
+    expect(carried('session-pad')).toEqual(['scenario_area']);
+    expect(PLATES).toHaveLength(14);
   });
 
   it('keeps its clearances to the neighbours (strip-flaps, gear plate, bezels, bus plate)', () => {

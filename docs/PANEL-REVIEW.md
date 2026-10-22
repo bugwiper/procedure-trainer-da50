@@ -213,6 +213,10 @@ The environmental-control plate sits above the pedestal plate. It was rebuilt in
 
 The pedestal (PARKING BRAKE, THROTTLE, COWL FLAP) sits on its own plate below the environmental control plate (plan 19); the placards and the cowl-flap lamp captions are static plate text (`src/aircraft/da50rg/placards.ts`). The default of the cowl flap is an assumption (U-04). The temperature slider prints only COLD and WARM beside a triangle pictogram; the fan prints only OFF.
 
+## Session area (region `scenario_area`, phase 02)
+
+Trainer content, not an aircraft part: the plate `session-pad` (x 1280, y 760, 860 x 520) sits in the co-pilot legroom right of the centre console, below the face plate, and carries the region `scenario_area` (name SESSION, x 1300, y 780, 820 x 480). It holds the NEW SITUATION and CHOOSE SITUATION buttons of the scenario session (drawn in a later plan of phase 02), has no registry control, and is the one real-geometry exception of the phase 02 UI-SPEC. The region-local rectangles are in `src/ui/panel/session-area.ts` (`SESSION_LAYOUT`). Nothing is drawn in it yet.
+
 ## Shell and placards (static art, no region)
 
 All static art lives in `src/ui/panel/PanelShell.tsx` and carries no handler; plates are data in `src/aircraft/da50rg/plates.ts` and placards are data in `src/aircraft/da50rg/placards.ts`. Outline coordinates are redrawn approximations of the photo silhouettes (U-12). The plate rectangles below are the ones the art-fit gate (`e2e/art-fit.spec.ts`) measures every control and caption against; the open list of that gate is empty, so every control, lamp and caption lies on its plate.

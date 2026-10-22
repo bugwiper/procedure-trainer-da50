@@ -395,6 +395,8 @@ export const ALL_REGION_IDS: readonly string[] = [
   'pfd_bezel_left',
   'autopilot_panel',
   'mfd_bezel_right',
+  // Session area of phase 02: trainer content in the co-pilot legroom, no registry controls.
+  'scenario_area',
 ];
 
 export const FRONT_PANEL_REGIONS: readonly string[] = [

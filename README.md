@@ -10,7 +10,7 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ## Demo controls
 
-The panel has 92 controls and 13 indicator lamps in 30 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork with no controls):
+The panel has 92 controls and 13 indicator lamps in 31 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork and the session area is trainer content, both with no controls):
 
 - **LIGHTS**, glareshield: LANDING, TAXI, POSITION, STROBE (ON above OFF is printed once on each side of the four rockers, as on the aircraft)
 - **INSTRUMENT AND FLOOD LIGHT**, between the displays: INSTRUMENT LIGHT and FLOOD LIGHT knobs

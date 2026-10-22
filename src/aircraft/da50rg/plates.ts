@@ -93,6 +93,10 @@ export const PLATES: readonly PlateDef[] = [
   // Parking brake, cowl flap with its two lamps and the throttle on one plate below the
   // environmental control plate, as in the owner's side-view photo (G-3).
   { id: 'pedestal', x: 962, y: 1046, w: 201, h: 242, rx: 18, regions: ['pedestal'] },
+  // Session pad (phase 02, D-14 amended): real-geometry exception of the 02 UI-SPEC. It sits in the
+  // co-pilot legroom right of the centre console, below the face plate, and carries the trainer's
+  // session buttons (region scenario_area, no registry controls).
+  { id: 'session-pad', x: 1280, y: 760, w: 860, h: 520, rx: 18, regions: ['scenario_area'] },
 ];
 
 /** One outlined group box of a plate; its title cuts the top edge (static shell art). */
