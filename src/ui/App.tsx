@@ -15,6 +15,7 @@ import { isStrayFullPanelClick } from './panel/tap-intent';
 import { buttonCorner, isZoomed, viewChangedByTapAt, zoomOut } from './panel/zoom';
 import { Ack } from './screens/Ack';
 import { Briefing } from './screens/Briefing';
+import { LevelPick } from './screens/LevelPick';
 import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
 import { Debrief } from './screens/Debrief';
 import { createSession } from './session';
@@ -185,11 +186,13 @@ export function App() {
         </div>
       </footer>
       {aboutOpen.value ? <About onClose={closeAbout} /> : null}
-      {screen === 'briefing' && briefed !== null ? (
+      {screen === 'briefing' && briefed !== null && !session.levelPicked.value ? (
+        <LevelPick onLevel={setLevel} onBack={backToPanel} />
+      ) : null}
+      {screen === 'briefing' && briefed !== null && session.levelPicked.value ? (
         <Briefing
           briefed={briefed}
           level={session.level.value}
-          onLevel={setLevel}
           onStart={startRun}
           onBack={backToPanel}
         />

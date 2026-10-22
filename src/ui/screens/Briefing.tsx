@@ -1,13 +1,12 @@
 import { DISCLAIMERS } from '../../scenario/disclaimers';
 import { buildOutline } from '../outline';
-import { LEVELS, LEVEL_NAMES } from '../session';
 import type { Briefed, Level } from '../session';
 import { ChecklistOutline } from './ChecklistOutline';
 import { Modal } from './Modal';
 
 /**
  * The briefing (SES-01, SCN-07, PLT-04, D-04, D-14, D-24; UI-SPEC "Briefing"; phase 02.1): scenario
- * title, situation, the disclaimer line, the level group (Easy, Medium), the checklist, the exam
+ * title, situation, the disclaimer line, the checklist, the exam
  * note and, last, the source and revision, over the unchanged panel. On Easy the checklist lists the
  * panel steps of the branches that apply as plain lines, without tag or verdict; a branch that does
  * not apply keeps its label and no children. On Medium no checklist is shown. The panel takes the
@@ -17,13 +16,11 @@ import { Modal } from './Modal';
 export function Briefing({
   briefed,
   level,
-  onLevel,
   onStart,
   onBack,
 }: {
   readonly briefed: Briefed;
   readonly level: Level;
-  readonly onLevel: (level: Level) => void;
   readonly onStart: () => void;
   readonly onBack: () => void;
 }) {
@@ -69,30 +66,6 @@ export function Briefing({
       <p class="briefing-meta" data-testid="briefing-disclaimer">
         {DISCLAIMERS[scenario.disclaimer].short}
       </p>
-      <div
-        class="briefing-level"
-        role="group"
-        aria-labelledby="briefing-level-label"
-        data-testid="briefing-level"
-      >
-        <p id="briefing-level-label" class="briefing-label">
-          Level
-        </p>
-        {LEVELS.map((entry) => (
-          <button
-            key={entry}
-            type="button"
-            class="secondary-button level-button"
-            aria-pressed={entry === level}
-            data-testid={`briefing-level-${entry}`}
-            onClick={() => {
-              onLevel(entry);
-            }}
-          >
-            {LEVEL_NAMES[entry]}
-          </button>
-        ))}
-      </div>
       {level !== 'easy' || outline.length === 0 ? null : (
         <section class="briefing-outline" data-testid="briefing-outline">
           <h3 class="briefing-label">Checklist</h3>

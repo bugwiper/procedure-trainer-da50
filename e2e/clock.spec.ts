@@ -20,6 +20,9 @@ function clockNow(page: Page): Promise<number | null> {
 /** NEW SITUATION, then Start run: the briefing is a modal, so the clock starts at Start run. */
 async function startRun(page: Page, hasTouch: boolean): Promise<void> {
   await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
+  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
   await activate(page.getByTestId('briefing-start'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeHidden();
@@ -41,6 +44,9 @@ test('@hooks the run clock does not exist during the briefing and starts at Star
   hasTouch,
 }) => {
   await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
+  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
   await page.waitForTimeout(500);
   expect(await clockNow(page)).toBeNull();

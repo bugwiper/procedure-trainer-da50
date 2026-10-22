@@ -820,6 +820,18 @@ describe('closeDebrief', () => {
 });
 
 describe('level (phase 02.1)', () => {
+  it('is asked first: levelPicked is false on every opened briefing until setLevel', async () => {
+    const r = rig();
+    expect(r.session.levelPicked.value).toBe(false);
+    await r.session.newSituation();
+    expect(r.session.levelPicked.value).toBe(false);
+    r.session.setLevel('easy');
+    expect(r.session.levelPicked.value).toBe(true);
+    r.session.backToPanel();
+    await r.session.newSituation();
+    expect(r.session.levelPicked.value).toBe(false);
+  });
+
   it('is easy at creation', () => {
     expect(rig().session.level.value).toBe('easy');
   });

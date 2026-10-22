@@ -39,6 +39,9 @@ const control = (page: Page, id: string) => page.locator(`[data-control-id="${id
 
 async function startRun(page: Page, hasTouch: boolean): Promise<void> {
   await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
+  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
   await activate(page.getByTestId('briefing-start'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeHidden();

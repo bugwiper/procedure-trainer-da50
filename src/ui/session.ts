@@ -94,6 +94,8 @@ export interface Session {
    * page lifetime. grade never receives it.
    */
   readonly level: ReadonlySignal<Level>;
+  /** True once the level of the opened scenario was chosen; the level question comes before the briefing. */
+  readonly levelPicked: ReadonlySignal<boolean>;
   /** Free and not busy only: opens one random allowed scenario and shows its briefing. */
   newSituation(): Promise<void>;
   /**
@@ -177,6 +179,7 @@ export function createSession(deps: SessionDeps): Session {
     | null = null;
   const clock = signal<VirtualClock | null>(null);
   const level = signal<Level>('easy');
+  const levelPicked = signal(false);
 
   /** Table N1 "start": baseline without an event, a fresh clock, then the screen. */
   const start = (opened: Scenario): void => {
@@ -237,6 +240,7 @@ export function createSession(deps: SessionDeps): Session {
       branches: branchStatuses(opened.scenario, env),
     };
     choices.value = [];
+    levelPicked.value = false;
     screen.value = 'briefing';
   };
 
@@ -302,6 +306,7 @@ export function createSession(deps: SessionDeps): Session {
     confirm,
     clock,
     level,
+    levelPicked,
     async newSituation() {
       if (busy.peek()) return;
       // A live run asks first; the request waits in the confirm (U-03).
@@ -367,6 +372,7 @@ export function createSession(deps: SessionDeps): Session {
     setLevel(next) {
       if (screen.peek() !== 'briefing') return;
       level.value = next;
+      levelPicked.value = true;
     },
     startRun() {
       const briefed = briefing.peek();

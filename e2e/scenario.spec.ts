@@ -54,6 +54,9 @@ async function afterShield(page: Page): Promise<void> {
 /** Taps NEW SITUATION and waits until the briefing is open. */
 async function openBriefing(page: Page, hasTouch: boolean): Promise<void> {
   await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
+  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
   expect(await screenOf(page)).toBe('briefing');
 }
@@ -139,6 +142,9 @@ test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its br
   await activate(page.locator(CHOOSE_SITUATION), hasTouch);
   await afterShield(page);
   await activate(page.locator('[data-session-hit^="session.row."]').first(), hasTouch);
+  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
   await expect(
     page.getByTestId('briefing').getByRole('heading', { name: 'ENG OIL TEMP' }),
@@ -189,6 +195,9 @@ test('@hooks NEW SITUATION during a run asks first; Keep going and Escape keep t
   await activate(page.locator(NEW_SITUATION), hasTouch);
   await expect(confirm).toBeVisible();
   await activate(page.getByTestId('leave-leave'), hasTouch);
+  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
   expect(await screenOf(page)).toBe('briefing');
   expect(await resultOf(page)).toBeNull();
@@ -231,6 +240,9 @@ test('@hooks a pack that cannot be loaded shows the error; Try again retries the
   await expect(error).toBeVisible();
   await page.unroute('**/pack-engine*', abort);
   await activate(page.getByTestId('load-error-retry'), hasTouch);
+  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
   await expect(error).toBeHidden();
   expect(await screenOf(page)).toBe('briefing');
@@ -293,13 +305,7 @@ test('@hooks the Easy briefing shows the checklist with the panel steps and the 
     };
     const sourceEl = card.querySelector('[data-testid="briefing-source"]');
     const lastInside = sourceEl === null ? -1 : all.indexOf(sourceEl);
-    const body = [
-      'briefing-situation',
-      'briefing-disclaimer',
-      'briefing-level',
-      'briefing-outline',
-      'briefing-exam',
-    ];
+    const body = ['briefing-situation', 'briefing-disclaimer', 'briefing-outline', 'briefing-exam'];
     return {
       ids: [...body, 'briefing-source'].map(at),
       bodyBeforeSource: body.every((id) => at(id) < lastInside),
@@ -317,23 +323,17 @@ test('@hooks the Easy briefing shows the checklist with the panel steps and the 
   expect(footer?.height ?? 0).toBeGreaterThanOrEqual(MIN_FOOTER_PX);
 });
 
-test('@hooks Medium: the level is chosen in the briefing, no checklist, the debrief names it', async ({
+test('@hooks Level question: Easy, Medium and a disabled Realistic come before any briefing; Medium has no checklist and the debrief names it', async ({
   page,
   hasTouch,
 }) => {
-  await openBriefing(page, hasTouch);
-  const easy = page.getByTestId('briefing-level-easy');
-  const medium = page.getByTestId('briefing-level-medium');
-  await expect(easy).toHaveAttribute('aria-pressed', 'true');
-  await expect(medium).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('briefing-outline')).toBeVisible();
-
-  await afterShield(page);
-  await activate(medium, hasTouch);
-  await expect(medium).toHaveAttribute('aria-pressed', 'true');
-  await expect(easy).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('briefing-outline')).toHaveCount(0);
-  await expect(page.getByTestId('briefing-situation')).toBeVisible();
+  await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
+  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await expect(page.getByTestId('briefing')).toHaveCount(0);
+  const easy = page.getByTestId('level-pick-easy');
+  const medium = page.getByTestId('level-pick-medium');
+  const realistic = page.getByTestId('level-pick-realistic');
+  await expect(realistic).toBeDisabled();
 
   // Both level buttons are real touch targets inside the viewport.
   const viewport = page.viewportSize();
@@ -348,6 +348,12 @@ test('@hooks Medium: the level is chosen in the briefing, no checklist, the debr
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
   }
+
+  await afterShield(page);
+  await activate(medium, hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await expect(page.getByTestId('briefing-outline')).toHaveCount(0);
+  await expect(page.getByTestId('briefing-situation')).toBeVisible();
 
   await activate(page.getByTestId('briefing-start'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeHidden();
