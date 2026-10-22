@@ -7,6 +7,8 @@ import { VITE_PACKS } from '../scenario/packs-vite';
 import { About } from './about/About';
 import { browserStorage, createAckStore } from './ack';
 import { createPanelBridge } from './bridge';
+import { attachClockDriver } from './clock-driver';
+import { anyModalOpen, holdModal, releaseModal } from './modals';
 import { Panel } from './panel/Panel';
 import { isStrayFullPanelClick } from './panel/tap-intent';
 import { buttonCorner, isZoomed, viewChangedByTapAt, zoomOut } from './panel/zoom';
@@ -26,6 +28,20 @@ const session = createSession({
     zoomOut(bridge.registry.viewBox);
   },
 });
+
+// The run's virtual clock follows real frames while the run is live, the tab is visible and no
+// modal is open (SCN-08); the engine never sees a real clock.
+const detachClockDriver = attachClockDriver({
+  session,
+  raf: (run) => requestAnimationFrame(run),
+  cancelRaf: (handle) => {
+    cancelAnimationFrame(handle);
+  },
+  now: () => performance.now(),
+  hidden: () => document.hidden,
+  blocked: () => anyModalOpen.peek(),
+});
+import.meta.hot?.dispose(detachClockDriver);
 
 // Read-only view for e2e specs; the e2e build only (VITE_TEST_HOOKS=1).
 if (import.meta.env.VITE_TEST_HOOKS === '1') {
@@ -52,8 +68,15 @@ const acceptAck = () => {
   ackRequired.value = false;
 };
 
+// About is not on the modal shell; it holds its own id so the run clock waits while it is open.
+const openAbout = () => {
+  holdModal('about');
+  aboutOpen.value = true;
+};
+
 const closeAbout = () => {
   aboutOpen.value = false;
+  releaseModal('about');
 };
 
 const closeDebrief = () => {
@@ -125,14 +148,7 @@ export function App() {
               Procedure complete
             </button>
           ) : null}
-          <button
-            type="button"
-            class="footer-link"
-            data-testid="about-open"
-            onClick={() => {
-              aboutOpen.value = true;
-            }}
-          >
+          <button type="button" class="footer-link" data-testid="about-open" onClick={openAbout}>
             About and content policy
           </button>
         </div>
