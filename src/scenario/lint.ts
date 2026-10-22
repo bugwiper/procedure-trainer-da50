@@ -7,6 +7,7 @@
 // check of the app and of `npm run validate`: it locates every issue in the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
+import { MAX_CAS_CHIPS } from '../engine/cas';
 import type { AircraftEnv } from '../engine/env';
 import {
   baselineOf,
@@ -93,6 +94,11 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
     }
   }
 
+  // L10 (reference part): every listed annunciation names a rule of the aircraft table.
+  scenario.annunciations.forEach((id, i) => {
+    if (env.cas.get(id) === undefined) add(['annunciations', i], `unknown CAS id "${id}"`);
+  });
+
   checkNodes(['procedure'], scenario.procedure);
   scenario.forbidden.forEach((item, i) => {
     checkPredicate(['forbidden', i, 'trigger'], item.trigger);
@@ -158,7 +164,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
   return issues;
 }
 
-/** L5 and L6: what already holds before the first event (RESEARCH Pitfall 7, R3). */
+/** L5, L6 and L10: what already holds before the first event (RESEARCH Pitfall 7, R3). */
 function checkInitialState(
   scenario: Scenario,
   env: AircraftEnv,
@@ -208,6 +214,33 @@ function checkInitialState(
     });
   };
   visit(['procedure'], scenario.procedure, true);
+
+  // L10: the annunciations list equals, as a set, the rules that fire in the initial state, and
+  // the PFD shows at most MAX_CAS_CHIPS of them (SCN-03, T-02-14: a scenario cannot claim a message
+  // its quantities do not fire).
+  const fired = env.cas.active(ctx, env).map((m) => m.id);
+  const listed = new Set<string>();
+  scenario.annunciations.forEach((id, i) => {
+    if (listed.has(id)) add(['annunciations', i], `"${id}" is listed twice`);
+    else if (!fired.includes(id)) {
+      add(
+        ['annunciations', i],
+        `"${id}" is listed but its rule does not fire in the initial state`,
+      );
+    }
+    listed.add(id);
+  });
+  for (const id of fired) {
+    if (!listed.has(id)) {
+      add(['annunciations'], `"${id}" is not listed; its rule fires in the initial state`);
+    }
+  }
+  if (fired.length > MAX_CAS_CHIPS) {
+    add(
+      ['annunciations'],
+      `${String(fired.length)} messages are active at the start; the PFD shows at most ${String(MAX_CAS_CHIPS)}`,
+    );
+  }
 
   scenario.forbidden.forEach((item, i) => {
     const watched = item.when === undefined || evaluatePredicate(item.when, ctx, env);

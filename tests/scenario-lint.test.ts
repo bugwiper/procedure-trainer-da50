@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
+import { defineCasRules } from '../src/engine/cas';
 import { checkScenario, lintScenario, MAX_BRANCH_LEVELS } from '../src/scenario/lint';
 import { colOf, lineOf, MINIMAL, nested, swap } from './scenario-text';
 
@@ -305,5 +306,79 @@ describe('L8: groups under a branch decided during the run', () => {
 
   it('accepts a run branch with lines only', () => {
     expect(checkScenario(nested(1, '- kind: line\n  text: Land', 1), DA50RG_ENV).ok).toBe(true);
+  });
+});
+
+describe('L10: annunciations equal the rules that fire at the start', () => {
+  it('names an unknown CAS id at its list item', () => {
+    const text = swap(
+      MINIMAL,
+      'annunciations[1]: eng_oil_temp',
+      'annunciations[2]: eng_oil_temp,eng_nope',
+    );
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'annunciations.1',
+      message: 'unknown CAS id "eng_nope"',
+      line: lineOf(text, 'annunciations[2]'),
+    });
+  });
+
+  it('flags a missing expected annunciation', () => {
+    const text = swap(MINIMAL, 'annunciations[1]: eng_oil_temp', 'annunciations[0]:');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'annunciations',
+      message: expect.stringContaining('"eng_oil_temp"') as string,
+      line: lineOf(text, 'annunciations[0]'),
+    });
+  });
+
+  it('flags an extra annunciation whose rule does not fire', () => {
+    const text = swap(MINIMAL, 'oil_temp_c: 128', 'oil_temp_c: 100');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'annunciations.0',
+      message: expect.stringContaining('does not fire') as string,
+      line: lineOf(text, 'annunciations[1]'),
+    });
+  });
+
+  it('flags a duplicate listing', () => {
+    const text = swap(
+      MINIMAL,
+      'annunciations[1]: eng_oil_temp',
+      'annunciations[2]: eng_oil_temp,eng_oil_temp',
+    );
+    const issues = issuesOf(text);
+    expect(issues.map((i) => i.path)).toEqual(['annunciations.1']);
+  });
+
+  it('flags more than 6 active rules at the start', () => {
+    const rules = Array.from({ length: 7 }, (_, i) => ({
+      id: `m${String(i)}`,
+      text: `MSG ${String(i)}`,
+      level: 'caution' as const,
+      when: { check: 'quantity' as const, quantity: 'oil_temp_c', op: 'gt' as const, value: 100 },
+    }));
+    const env = {
+      ...DA50RG_ENV,
+      cas: defineCasRules(rules, DA50RG_ENV),
+    };
+    const scenario = { ...parsedOf(MINIMAL), annunciations: rules.map((r) => r.id) };
+    const found = lintScenario(scenario, env);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      path: 'annunciations',
+      message: expect.stringContaining('at most 6') as string,
+    });
+  });
+
+  it('passes the blueprint and the minimal scenario', () => {
+    expect(lintScenario(parsedOf(BLUEPRINT), DA50RG_ENV)).toEqual([]);
+    expect(lintScenario(parsedOf(MINIMAL), DA50RG_ENV)).toEqual([]);
   });
 });

@@ -126,6 +126,28 @@ test('@hooks the ENG OIL TEMP chip shows during the run and stays after the debr
   await expectChipInPfd(page);
 });
 
+const mfdGauge = (page: Page, label: string) =>
+  page.locator(`[data-region-id="mfd"] [data-gauge="${label}"]`);
+
+test('@hooks the MFD oil gauges read the scenario values and the idle values in the free panel', async ({
+  page,
+  hasTouch,
+}) => {
+  await expect(mfdGauge(page, 'Oil temp')).toContainText('15 °C');
+  await expect(mfdGauge(page, 'Oil pres')).toContainText('0 BAR');
+
+  await startRun(page, hasTouch);
+  // Map page: the engine strip shows 128 degrees C (red band) and 5 bar (green band).
+  await expect(mfdGauge(page, 'Oil temp')).toContainText('128 °C');
+  await expect(mfdGauge(page, 'Oil pres')).toContainText('5 BAR');
+  // Engine page: the same values on the arc and the bar.
+  await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
+  await expect(page.getByTestId('mfd-engine-page')).toBeVisible();
+  await expect(mfdGauge(page, 'Oil temp')).toContainText('128 °C');
+  await expect(mfdGauge(page, 'Oil pres')).toContainText('5');
+  await expect(mfdGauge(page, 'Oil pres')).toContainText('BAR');
+});
+
 test('@hooks the golden run grades PASS and keeps the end state', async ({ page, hasTouch }) => {
   await startRun(page, hasTouch);
   await goldenTaps(page, hasTouch);

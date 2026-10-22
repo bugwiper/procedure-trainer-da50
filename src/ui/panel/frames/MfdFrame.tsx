@@ -6,6 +6,8 @@ import {
   legendTabCentreX,
 } from '../../../aircraft/da50rg/avionics';
 import type { DisplayId } from '../../../aircraft/da50rg/avionics';
+import { DA50RG_QUANTITIES } from '../../../aircraft/da50rg/quantities';
+import type { BandColour, QuantityId } from '../../../engine/quantities';
 import type { Region } from '../../../engine/registry';
 import type { PanelBridge } from '../../bridge';
 import type { Session } from '../../session';
@@ -167,6 +169,8 @@ interface GaugeSpec {
   readonly unit: string;
   /** Plausible engine-off idle reading (D-11); live values arrive with PNL-04. */
   readonly value: number;
+  /** A gauge bound to a named quantity reads it instead of the fixed value (D-07, D-07a). */
+  readonly quantity?: QuantityId;
   readonly min: number;
   readonly max: number;
   readonly bands: readonly Band[];
@@ -200,35 +204,38 @@ const LOAD: GaugeSpec = {
     { from: 90, to: 100, color: YELLOW },
   ],
 };
-const OIL_PRES: GaugeSpec = {
-  label: 'Oil pres',
-  unit: 'bar',
-  value: 0,
-  min: 0,
-  max: 9,
-  // AFM 02-05: red 0-2.0, yellow 2.0-3.5, green 3.5-7.0, yellow 7.0-7.5, red above 7.5.
-  bands: [
-    { from: 0, to: 2, color: RED },
-    { from: 2, to: 3.5, color: YELLOW },
-    { from: 3.5, to: 7, color: GREEN },
-    { from: 7, to: 7.5, color: YELLOW },
-    { from: 7.5, to: 9, color: RED },
-  ],
+const BAND_COLOUR: Readonly<Record<BandColour, string>> = {
+  green: GREEN,
+  yellow: YELLOW,
+  red: RED,
 };
-const OIL_TEMP: GaugeSpec = {
-  label: 'Oil temp',
-  unit: '°C',
-  value: 15,
-  min: -25,
-  max: 150,
-  // AFM 02-05: yellow -25..50, green 50-115, yellow 115-125, red above 125.
-  bands: [
-    { from: -25, to: 50, color: YELLOW },
-    { from: 50, to: 115, color: GREEN },
-    { from: 115, to: 125, color: YELLOW },
-    { from: 125, to: 150, color: RED },
-  ],
-};
+
+/**
+ * A gauge whose range, idle value, unit and colour bands all come from the aircraft quantity data
+ * (AFM 02-05 markings live there once), and whose reading is that quantity's current value.
+ */
+function quantityGauge(label: string, quantity: QuantityId): GaugeSpec {
+  const def = DA50RG_QUANTITIES.get(quantity);
+  if (def === undefined) throw new Error(`unknown quantity "${quantity}"`);
+  let from = def.min;
+  const bands: Band[] = def.bands.map((b) => {
+    const band = { from, to: b.to, color: BAND_COLOUR[b.colour] };
+    from = b.to;
+    return band;
+  });
+  return {
+    label,
+    unit: def.unit,
+    value: def.idle,
+    quantity,
+    min: def.min,
+    max: def.max,
+    bands,
+  };
+}
+
+const OIL_PRES: GaugeSpec = quantityGauge('Oil pres', 'oil_pressure_bar');
+const OIL_TEMP: GaugeSpec = quantityGauge('Oil temp', 'oil_temp_c');
 const COOLANT_TEMP: GaugeSpec = {
   label: 'Coolant temp',
   unit: '°C',
@@ -340,6 +347,13 @@ const AMPS: GaugeSpec = {
   ],
 };
 
+type Quantities = Readonly<Record<QuantityId, number>>;
+
+/** The reading of a gauge: its bound quantity when the bridge has a value, else its fixed value. */
+function readingOf(g: GaugeSpec, quantities: Quantities): number {
+  return g.quantity === undefined ? g.value : (quantities[g.quantity] ?? g.value);
+}
+
 export const SCREEN_FILL = '#05080b';
 const STRIP_W = 150;
 const STRIP_GAUGES: readonly GaugeSpec[] = [
@@ -367,6 +381,7 @@ const ENGINE_BARS_RIGHT: readonly GaugeSpec[] = [VOLTS, AMPS, FUEL_QTY_LH, FUEL_
  */
 export function MfdFrame({ region, bridge }: FrameProps) {
   const page = bridge.stateOf('sw.mfd_page').value;
+  const quantities = bridge.quantities.value;
   const { w, h } = region.bounds;
   return (
     <g data-mfd-page={page} pointer-events="none">
@@ -381,7 +396,11 @@ export function MfdFrame({ region, bridge }: FrameProps) {
       />
       <GlassHeader title={page === 'engine' ? 'EIS - Engine' : 'Map - Navigation Map'} />
       <g data-glass-zone="content">
-        {page === 'engine' ? <EnginePage w={w} /> : <MapPage w={w} />}
+        {page === 'engine' ? (
+          <EnginePage w={w} quantities={quantities} />
+        ) : (
+          <MapPage w={w} quantities={quantities} />
+        )}
       </g>
       <LegendRow
         display="mfd"
@@ -392,7 +411,7 @@ export function MfdFrame({ region, bridge }: FrameProps) {
   );
 }
 
-function MapPage({ w }: { readonly w: number }) {
+function MapPage({ w, quantities }: { readonly w: number; readonly quantities: Quantities }) {
   const mapX = STRIP_W + 8;
   const mapW = w - mapX - 8;
   const cx = mapX + mapW / 2;
@@ -406,7 +425,7 @@ function MapPage({ w }: { readonly w: number }) {
             key={g.label}
             label={g.label}
             unit={g.unit}
-            value={g.value}
+            value={readingOf(g, quantities)}
             min={g.min}
             max={g.max}
             bands={g.bands}
@@ -439,7 +458,7 @@ function MapPage({ w }: { readonly w: number }) {
   );
 }
 
-function EnginePage({ w }: { readonly w: number }) {
+function EnginePage({ w, quantities }: { readonly w: number; readonly quantities: Quantities }) {
   const arcs: readonly GaugeSpec[] = [RPM, LOAD, OIL_PRES];
   const colW = (w - 8) / 3;
   const barW = (w - 8) / 2 - 24;
@@ -453,7 +472,7 @@ function EnginePage({ w }: { readonly w: number }) {
           key={g.label}
           label={g.label}
           unit={g.unit}
-          value={g.value}
+          value={readingOf(g, quantities)}
           min={g.min}
           max={g.max}
           bands={g.bands}
@@ -467,7 +486,7 @@ function EnginePage({ w }: { readonly w: number }) {
           key={g.label}
           label={g.label}
           unit={g.unit}
-          value={g.value}
+          value={readingOf(g, quantities)}
           min={g.min}
           max={g.max}
           bands={g.bands}
@@ -482,7 +501,7 @@ function EnginePage({ w }: { readonly w: number }) {
           key={g.label}
           label={g.label}
           unit={g.unit}
-          value={g.value}
+          value={readingOf(g, quantities)}
           min={g.min}
           max={g.max}
           bands={g.bands}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
+import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { createPanelBridge } from '../src/ui/bridge';
 
 // Bridge retract (owner finding R3-Z3, plan 35): the control signal and every derived lamp follow a
@@ -114,6 +115,40 @@ describe('bridge reset', () => {
     expect(bridge.quantities.value).toEqual({});
     bridge.reset(baseline, { oil_temp_c: 128 });
     expect(bridge.quantities.value).toEqual({ oil_temp_c: 128 });
+  });
+});
+
+describe('bridge cas signal', () => {
+  const baseline = { 'lv.power': 'p75', 'lv.cowl_flap': 'closed' };
+
+  it('follows a quantities reset and a return to idle', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
+    expect(bridge.cas.value).toEqual([]);
+    bridge.reset(baseline, { oil_temp_c: 128, oil_pressure_bar: 5 });
+    expect(bridge.cas.value).toEqual([
+      { id: 'eng_oil_temp', text: 'ENG OIL TEMP', level: 'warning' },
+    ]);
+    bridge.reset({}, { oil_temp_c: 125 });
+    expect(bridge.cas.value).toEqual([]);
+    bridge.reset(baseline, { oil_temp_c: 128 });
+    expect(bridge.cas.value).toHaveLength(1);
+    bridge.reset({});
+    expect(bridge.cas.value).toEqual([]);
+  });
+
+  it('keeps the message after an actuation of another control', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
+    bridge.reset(baseline, { oil_temp_c: 128 });
+    bridge.actuate('lv.cowl_flap', 'open');
+    expect(bridge.cas.value.map((m) => m.id)).toEqual(['eng_oil_temp']);
+  });
+
+  it('is empty for a free bridge and for a bridge without an aircraft', () => {
+    expect(createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV).cas.value).toEqual([]);
+    expect(createPanelBridge(DA50RG).cas.value).toEqual([]);
+    expect(
+      createPanelBridge(DA50RG, DA50RG_INDICATORS, { quantities: DA50RG_QUANTITIES }).cas.value,
+    ).toEqual([]);
   });
 });
 
