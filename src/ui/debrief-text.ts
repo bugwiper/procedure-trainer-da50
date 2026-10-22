@@ -1,5 +1,5 @@
 // The copy rules of the debrief (UI-SPEC "Debrief" and Copywriting Contract, D-10 to D-12, D-16):
-// reason lines, the m:ss clock, the order line of an ordered group and the harmful-action row.
+// reason lines, the order line of an ordered group and the harmful-action row.
 // Pure functions of the GradeResult and the scenario data; no score and no timeline anywhere.
 // Pure TypeScript, no DOM, no framework, no clock.
 
@@ -30,14 +30,6 @@ export function reasonLines(result: GradeResult): string[] {
   return lines;
 }
 
-/** Whole seconds, rounded down, as m:ss (0 gives 0:00, 65999 gives 1:05). */
-export function formatClock(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${String(minutes)}:${String(seconds).padStart(2, '0')}`;
-}
-
 /**
  * The order lines under a group: none for an unordered group, "Order kept" for an ordered group
  * without violation, else one "Order wrong: ..." line per violation, in result order.
@@ -52,7 +44,10 @@ export function orderLine(group: Group, result: GradeResult): string[] {
   );
 }
 
-/** One row of the harmful section: the text and the virtual-clock time of the action. */
+/**
+ * One row of the harmful section: the text of the item only. The GradeResult keeps the virtual
+ * time of the action (replay identity); a time display returns with the time limits of Phase 3.
+ */
 export function harmfulLine(entry: HarmfulEntry): string {
-  return `${entry.text} at ${formatClock(entry.t)}`;
+  return entry.text;
 }

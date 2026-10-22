@@ -11,9 +11,9 @@ import { Modal } from './Modal';
  * The debrief (SES-04, D-16, D-25): PASS or FAIL, one reason line per cause and the checklist
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
- * apply muted, an order line under every ordered group and the harmful actions with their
- * virtual-clock time. It names the level of the run ("Level: Easy"). No score, no timeline. It sits on the shared modal shell: Escape is Back to panel,
- * a tap on the backdrop does nothing.
+ * apply muted, an order line under every ordered group and the harmful actions in log order
+ * (no time). It names the level of the run ("Level: Easy"). No score, no timeline. It sits on the
+ * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
   scenario,

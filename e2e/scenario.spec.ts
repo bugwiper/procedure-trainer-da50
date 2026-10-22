@@ -559,7 +559,6 @@ test('@hooks a power increase is a harmful action that fails the run', async ({
   // POWER up to the 100 % marker is the harmful action (D-03); it is reverted by the golden taps.
   await activate(page.locator('[data-detent="lv.power:p100"]'), hasTouch);
   await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p100');
-  await page.waitForTimeout(1500);
   await goldenTaps(page, hasTouch);
 
   await activate(page.getByTestId('procedure-complete'), hasTouch);
@@ -571,7 +570,7 @@ test('@hooks a power increase is a harmful action that fails the run', async ({
   await expect(debrief.getByRole('heading', { name: 'Harmful actions (1)' })).toBeVisible();
   const rows = page.getByTestId('debrief-harmful-row');
   await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toHaveText(/^Increase power/);
+  await expect(rows.first()).toHaveText('Increase power');
   await expect(page.getByTestId('debrief-harmful-none')).toHaveCount(0);
   // The order of the sections: result, steps, harmful actions, action row.
   const order = await debrief.evaluate((card) => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GradeResult, OrderViolation, Reason } from '../src/engine/grading';
 import type { Group } from '../src/scenario/schema';
-import { formatClock, harmfulLine, orderLine, reasonLines } from '../src/ui/debrief-text';
+import { harmfulLine, orderLine, reasonLines } from '../src/ui/debrief-text';
 
 // Table T1 of plan 02-13: the copy rules of the debrief, pure functions of the grade result.
 
@@ -103,24 +103,6 @@ describe('reasonLines', () => {
   });
 });
 
-describe('formatClock', () => {
-  it('shows whole seconds rounded down as m:ss', () => {
-    expect(formatClock(0)).toBe('0:00');
-    expect(formatClock(999)).toBe('0:00');
-    expect(formatClock(1000)).toBe('0:01');
-    expect(formatClock(9400)).toBe('0:09');
-    expect(formatClock(59999)).toBe('0:59');
-    expect(formatClock(60000)).toBe('1:00');
-    expect(formatClock(65999)).toBe('1:05');
-    expect(formatClock(600000)).toBe('10:00');
-  });
-
-  it('treats a negative or fractional time as zero or whole seconds', () => {
-    expect(formatClock(-5)).toBe('0:00');
-    expect(formatClock(1500.9)).toBe('0:01');
-  });
-});
-
 describe('orderLine', () => {
   it('an unordered group has no order line', () => {
     expect(orderLine(group({ ordered: false }), result({}))).toEqual([]);
@@ -156,9 +138,11 @@ describe('orderLine', () => {
 });
 
 describe('harmfulLine', () => {
-  it('prints the text and the virtual-clock time', () => {
-    expect(harmfulLine({ id: 'p', text: 'Increase power', t: 2300, seq: 0, failsRun: false })).toBe(
-      'Increase power at 0:02',
-    );
+  it('prints the text only, for every recorded time', () => {
+    for (const t of [0, 2300, 65999]) {
+      const line = harmfulLine({ id: 'p', text: 'Increase power', t, seq: 0, failsRun: false });
+      expect(line).toBe('Increase power');
+      expect(line).not.toMatch(/\d:\d\d/);
+    }
   });
 });
