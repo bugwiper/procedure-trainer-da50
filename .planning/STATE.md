@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: First Gradable Scenario
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-10-22T07:01:09.205Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-10-22T07:09:08.110Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 02 execution started
-state_head: eb711bbcb34b6ada5551f0c10cafd77cd6fe4c50
+state_head: 8da4c1771107f4e25647f139729de9efc78bd36a
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 71
-  completed_plans: 59
+  completed_plans: 60
   percent: 29
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 02 (First Gradable Scenario) — EXECUTING
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 13
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
@@ -110,6 +110,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 01.1 P40 | 45min | 3 tasks | 24 files |
 | Phase 01.1 P41 | 25min | 3 tasks | 7 files |
 | Phase 02 P01 | 12min | 2 tasks | 14 files |
+| Phase 02 P02 | 11 min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -165,6 +166,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: R3-Z2/Z3 round closed: Round 5 is the owner's entry point; the only WebKit failure was a FAN test that tapped one body twice inside the pair window and was fixed in the test
 - [Phase 02]: Scenario format 1 is TOON decoded by @toon-format/toon 4.4.0 and validated by zod 4.6.7 (exact pins, no ranges)
 - [Phase 02]: Quantity band bounds are inclusive: a value on a bound belongs to the lower band (oil temp 125 high_yellow, 128 high_red)
+- [Phase 02]: A throwing or rejecting AccessPolicy denies (fail closed); steps under non-applicable or open branches are omitted from GradeResult.steps
 
 ### Pending Todos
 
@@ -194,6 +196,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T07:01:08.996Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-10-22T07:09:07.828Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
