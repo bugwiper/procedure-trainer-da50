@@ -55,7 +55,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **PLT-01**: GitHub Actions deploys to GitHub Pages; build is host-agnostic (base path from environment)
 - [ ] **PLT-02**: App installs as a PWA and works offline
-- [ ] **PLT-03**: Scenario packs load only through a PackProvider/AccessPolicy seam, open in v1
+- [x] **PLT-03**: Scenario packs load only through a PackProvider/AccessPolicy seam, open in v1
 - [x] **PLT-04**: First-run training-aid acknowledgment is shown, and each scenario shows its source/disclaimer
 
 ## v2 Requirements
@@ -125,7 +125,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SES-01 | Phase 2 | Complete |
 | SES-03 | Phase 2 | Pending |
 | SES-04 | Phase 2 | Pending |
-| PLT-03 | Phase 2 | Pending |
+| PLT-03 | Phase 2 | Complete |
 | PLT-04 | Phase 2 | Complete |
 | SCN-06 | Phase 3 | Pending |
 | PNL-04 | Phase 3 | Pending |

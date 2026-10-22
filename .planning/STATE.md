@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: First Gradable Scenario
-current_plan: 12
+current_plan: 13
 status: executing
-stopped_at: Completed 02-11-PLAN.md
-last_updated: "2026-10-22T10:51:47.922Z"
+stopped_at: Completed 02-12-PLAN.md
+last_updated: "2026-10-22T11:04:12.592Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 02 execution started
-state_head: 973567f0f79dcb7c2dfd9e35349303638fb9eae5
+state_head: 3c143a5b41986c2547f4598ff615cfa2bfbc7975
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 71
-  completed_plans: 69
+  completed_plans: 70
   percent: 29
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 02 (First Gradable Scenario) — EXECUTING
-Current Plan: 12
+Current Plan: 13
 Total Plans in Phase: 13
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
@@ -120,6 +120,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 02 P09 | 20 min | 3 tasks | 15 files |
 | Phase 02 P10 | 15 min | 2 tasks | 6 files |
 | Phase 02 P11 | 25 min | 2 tasks | 12 files |
+| Phase 02 P12 | 20 min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -185,6 +186,7 @@ Recent decisions affecting current work:
 - [Phase 02]: Session buttons are x 35, w 750 so the desktop Full panel button clears them in every corner (plan 10)
 - [Phase 02]: 02-11: the briefing scenario lives in its own session signal (briefing), so Back to panel leaves the last run untouched
 - [Phase 02]: 02-11: buildOutline flattens group steps to the group's level; the briefing form drops steps, groups and children of not-applicable branches
+- [Phase 02]: 02-12: an all-denied or empty listing sets the empty message for NEW SITUATION and CHOOSE SITUATION; a failed chosen row keeps the list under the error modal and Back to panel returns to free
 
 ### Pending Todos
 
@@ -214,6 +216,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T10:51:47.681Z
-Stopped at: Completed 02-11-PLAN.md
+Last session: 2026-10-22T11:04:12.329Z
+Stopped at: Completed 02-12-PLAN.md
 Resume file: None
