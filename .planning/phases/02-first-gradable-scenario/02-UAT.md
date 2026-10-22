@@ -8,11 +8,11 @@ updated: 2026-10-22T12:00:00Z
 
 ## Current Test
 
-number: 2
-name: UI-SPEC wording and alert text
+number: 3
+name: Instructor review of docs/GRADING.md and the scenario file
 expected: |
-  Dialogs, briefing, debrief, confirm and error text accepted against 02-UI-SPEC.md; the chip reads "ENG OIL TEMP" (the real CAS text) where the roadmap says "OIL TEMP HIGH".
-awaiting: user response
+  A DA50 instructor confirms rules R1-R9 and the severity, threshold and forbidden assignments as acceptable.
+awaiting: user response (external reviewer)
 
 ## Tests
 
@@ -23,7 +23,8 @@ note: Passed on macOS Safari and iPhone Safari (local preview). Android and tabl
 
 ### 2. UI-SPEC wording and alert text
 expected: Dialogs, briefing, debrief, confirm and error text accepted against 02-UI-SPEC.md; the chip reads "ENG OIL TEMP" (the real CAS text) where the roadmap says "OIL TEMP HIGH".
-result: [pending]
+result: pass
+note: Wording accepted. Owner change requests (not gaps): (1) move the briefing source line to the very bottom; (2) difficulty levels easy, medium, realistic, so the checklist is not always shown in the briefing. Both go to the backlog / next phase decision.
 
 ### 3. Instructor review of docs/GRADING.md and the scenario file
 expected: A DA50 instructor confirms rules R1-R9 and the severity, threshold and forbidden assignments as acceptable.
@@ -32,9 +33,9 @@ result: [pending]
 ## Summary
 
 total: 3
-passed: 1
+passed: 2
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
