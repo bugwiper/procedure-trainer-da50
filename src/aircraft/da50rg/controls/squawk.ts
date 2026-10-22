@@ -1,7 +1,7 @@
 import type { CodeEntryKeyDef, ControlSpec } from '../../../engine/registry';
 
 // The simplified transponder (D-11, PNL-07): a TRAINER PART, temporary. It will be replaced later by
-// the transponder of the Garmin PFD, so its position (the pilot's legroom, by owner decision) is
+// the transponder of the PFD, so its position (the pilot's legroom, by owner decision) is
 // not a fidelity item. One control whose state is the committed four-digit code, keys 0 to 7 and a
 // clear key; the partial entry lives in the widget and never reaches the store. Nothing here is
 // read from the aircraft: cb.xpdr is the breaker of the real unit, this is the squawk entry.

@@ -960,6 +960,9 @@ test('the classification gate: every hit and detent element has the data-press c
     switch (r.kind) {
       case 'momentary-button':
         return 'momentary';
+      case 'code-entry':
+        // The keys of the simplified transponder (D-11, C-16): momentary, never zoom or pair.
+        return 'momentary';
       case 'rotary':
         return r.isDetent ? 'latch' : 'own';
       case 'detent-lever':
