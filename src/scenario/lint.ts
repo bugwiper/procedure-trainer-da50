@@ -4,8 +4,11 @@
 // quantities are looked up through Map-backed getters and the scenario-keyed records are only
 // iterated over their own keys, so a key such as "constructor" or "__proto__" never resolves
 // (T-02-02). Rules L4 to L8 (RESEARCH Pitfall 7 among them), L10 and L11 (a run that does nothing
-// must fail) follow, and L12 checks the physics parameters a scenario sets (known, inside range), and checkScenario is the one check of the app and of `npm run validate`: it
-// locates every issue in the text.
+// must fail) follow, L12 checks the physics parameters a scenario sets (known, inside range), and
+// L13 checks the named outcomes (D-06): every outcome predicate resolves, the outcome id shares the
+// L4 namespace, and no outcome already holds in the initial state, which would end the run at once.
+// checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
+// the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { MAX_CAS_CHIPS } from '../engine/cas';
@@ -119,11 +122,16 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
     checkPredicate(['forbidden', i, 'trigger'], item.trigger);
     if (item.when !== undefined) checkPredicate(['forbidden', i, 'when'], item.when);
   });
+  // L13: every outcome predicate resolves against the aircraft.
+  scenario.outcomes.forEach((item, i) => {
+    checkPredicate(['outcomes', i, 'when'], item.when);
+  });
 
   // L4: group, step and forbidden ids share one namespace within a scenario.
   const seen = new Set<string>();
   const claim = (path: Segments, id: string): void => {
-    if (seen.has(id)) add(path, `duplicate id "${id}"; group, step and forbidden ids are unique`);
+    if (seen.has(id))
+      add(path, `duplicate id "${id}"; group, step, forbidden and outcome ids are unique`);
     else seen.add(id);
   };
 
@@ -173,6 +181,9 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
   scenario.forbidden.forEach((item, i) => {
     claim(['forbidden', i, 'id'], item.id);
   });
+  scenario.outcomes.forEach((item, i) => {
+    claim(['outcomes', i, 'id'], item.id);
+  });
 
   // L5 and L6 evaluate predicates, which needs every reference to resolve first.
   if (issues.length === 0) checkInitialState(scenario, env, add);
@@ -180,7 +191,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
 }
 
 /**
- * L5, L6, L10 and L11: what already holds before the first event (RESEARCH Pitfall 7, R3), and
+ * L5, L6, L10, L11 and L13: what already holds before the first event (RESEARCH Pitfall 7, R3), and
  * that at least one critical step is graded at the start, so a run that does nothing fails (WR-01).
  */
 function checkInitialState(
@@ -274,6 +285,16 @@ function checkInitialState(
       add(
         ['forbidden', i, 'trigger'],
         `trigger of "${item.id}" already holds in the initial state; it would count at once`,
+      );
+    }
+  });
+
+  // L13: an outcome that holds at the start would end the run as soon as its hold time passed.
+  scenario.outcomes.forEach((item, i) => {
+    if (evaluatePredicate(item.when, ctx, env)) {
+      add(
+        ['outcomes', i, 'when'],
+        `outcome "${item.id}" already holds in the initial state; the run would end at once`,
       );
     }
   });

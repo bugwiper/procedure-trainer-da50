@@ -6,7 +6,7 @@ import { defineCasRules } from '../src/engine/cas';
 import { checkScenario, lintScenario, MAX_BRANCH_LEVELS } from '../src/scenario/lint';
 import { colOf, lineOf, MINIMAL, nested, swap } from './scenario-text';
 
-// Lint rules L1 to L8, L10, L11 and L12 (SCN-02, Table L1) through checkScenario: one failing case per rule, each an
+// Lint rules L1 to L8 and L10 to L13 (SCN-02, Table L1) through checkScenario: one failing case per rule, each an
 // edit of the minimal valid scenario, with the exact line and column of the edit.
 const root = fileURLToPath(new URL('../', import.meta.url));
 const BLUEPRINT = readFileSync(`${root}scenarios/engine/eng-oil-temp-green.toon`, 'utf8');
@@ -463,5 +463,120 @@ describe('L10: annunciations equal the rules that fire at the start', () => {
   it('passes the blueprint and the minimal scenario', () => {
     expect(lintScenario(parsedOf(BLUEPRINT), DA50RG_ENV)).toEqual([]);
     expect(lintScenario(parsedOf(MINIMAL), DA50RG_ENV)).toEqual([]);
+  });
+});
+
+describe('L13: outcomes', () => {
+  const outcome = (id: string, quantityLine = 'quantity: oil_temp_c', value = 140): string =>
+    [
+      `  - id: ${id}`,
+      '    text: Engine failure from overheating',
+      '    hold_s: 15',
+      '    when:',
+      '      check: quantity',
+      `      ${quantityLine}`,
+      '      op: gte',
+      `      value: ${String(value)}`,
+      '',
+    ].join('\n');
+  const withOutcomes = (items: readonly string[]): string =>
+    `${MINIMAL}outcomes[${String(items.length)}]:\n${items.join('')}`;
+  const ID_COL = 5;
+
+  it('passes a well-formed outcome', () => {
+    expect(checkScenario(withOutcomes([outcome('engine_failure')]), DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('rejects an unknown quantity at the predicate path', () => {
+    const text = withOutcomes([outcome('engine_failure', 'quantity: oil_nope')]);
+    expect(issuesOf(text)).toEqual([
+      expect.objectContaining({
+        path: 'outcomes.0.when.quantity',
+        message: 'unknown quantity "oil_nope"',
+        line: lineOf(text, 'quantity: oil_nope'),
+      }),
+    ]);
+  });
+
+  it('rejects an unknown band', () => {
+    const text = swap(
+      withOutcomes([outcome('engine_failure')]),
+      'check: quantity\n      quantity: oil_temp_c\n      op: gte\n      value: 140',
+      'check: band\n      quantity: oil_temp_c\n      in[1]: purple',
+    );
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'outcomes.0.when.in.0',
+      line: lineOf(text, 'in[1]: purple'),
+    });
+  });
+
+  it('rejects an illegal control state', () => {
+    const text = swap(
+      withOutcomes([outcome('engine_failure')]),
+      'check: quantity\n      quantity: oil_temp_c\n      op: gte\n      value: 140',
+      'check: state\n      control: lv.cowl_flap\n      is: ajar',
+    );
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'outcomes.0.when.is',
+      line: lineOf(text, 'is: ajar'),
+    });
+  });
+
+  it('rejects an id used by a step, a group or a forbidden item, at the outcome', () => {
+    for (const id of ['reduce_power', 'immediate', 'power_increased']) {
+      const text = withOutcomes([outcome(id)]);
+      const issues = issuesOf(text);
+      expect(issues, id).toHaveLength(1);
+      expect(issues[0], id).toMatchObject({
+        path: 'outcomes.0.id',
+        line: lineOf(text, 'text: Engine failure from overheating') - 1,
+        col: ID_COL,
+      });
+      expect(issues[0]?.message, id).toContain(`duplicate id "${id}"`);
+    }
+  });
+
+  it('rejects two outcomes with one id, at the second', () => {
+    const text = withOutcomes([
+      outcome('engine_failure'),
+      outcome('engine_failure', undefined, 145),
+    ]);
+    const issues = issuesOf(text);
+    expect(issues.map((i) => i.path)).toEqual(['outcomes.1.id']);
+  });
+
+  it('rejects an outcome that already holds in the initial state', () => {
+    const text = withOutcomes([outcome('engine_failure', undefined, 100)]);
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'outcomes.0.when',
+      message:
+        'outcome "engine_failure" already holds in the initial state; the run would end at once',
+      line: lineOf(text, 'when:'),
+    });
+  });
+
+  it('rejects a hold time above 600 s and more than 4 outcomes with a line and column', () => {
+    const slow = swap(withOutcomes([outcome('engine_failure')]), 'hold_s: 15', 'hold_s: 601');
+    expect(issuesOf(slow)[0]).toMatchObject({
+      path: 'outcomes.0.hold_s',
+      line: lineOf(slow, 'hold_s: 601'),
+      col: colOf(slow, 'hold_s: 601', 'hold_s'),
+    });
+    const many = withOutcomes(['a', 'b', 'c', 'd', 'e'].map((id) => outcome(`fail_${id}`)));
+    const issues = issuesOf(many);
+    expect(issues[0]?.path).toBe('outcomes');
+    expect(issues[0]?.line).toBeGreaterThan(0);
+    expect(issues[0]?.col).toBeGreaterThan(0);
+  });
+
+  it('passes the shipped blueprint with its outcome', () => {
+    expect(lintScenario(parsedOf(BLUEPRINT), DA50RG_ENV)).toEqual([]);
+    expect(parsedOf(BLUEPRINT).outcomes).toHaveLength(1);
   });
 });
