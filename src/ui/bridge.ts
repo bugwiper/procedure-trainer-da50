@@ -5,6 +5,7 @@ import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal, Signal } from '@preact/signals';
 import { evaluateIndicator } from '../engine/indicators';
 import type { IndicatorSet } from '../engine/indicators';
+import type { QuantityId, QuantitySet } from '../engine/quantities';
 import { legalStates } from '../engine/registry';
 import type { ControlId, Registry, StateId } from '../engine/registry';
 import { PanelStore } from '../engine/store';
@@ -24,6 +25,11 @@ declare global {
   }
 }
 
+/** What the bridge needs of an aircraft beyond its registry; DA50RG_ENV satisfies it. */
+export interface BridgeAircraft {
+  readonly quantities: QuantitySet;
+}
+
 export interface PanelBridge {
   readonly registry: Registry;
   readonly store: PanelStore;
@@ -37,9 +43,26 @@ export interface PanelBridge {
   actuate(id: ControlId, value: StateId): DispatchResult;
   /** Removes the last event from the log (R3-Z3); the signals and lamps follow. See PanelStore.retract. */
   retract(seq: number): RetractResult;
+  /** Named quantity values (D-08); idle values at start, empty without an aircraft. */
+  readonly quantities: ReadonlySignal<Readonly<Record<QuantityId, number>>>;
+  /**
+   * Starts a run from a scenario baseline (SCN-03) without an event: the log is emptied, every
+   * control signal and lamp follows, the quantities are the idle values overlaid with the given
+   * ones. Throws RangeError, changing nothing, for an illegal baseline. See PanelStore.reset.
+   */
+  reset(
+    controls: Readonly<Record<ControlId, StateId>>,
+    quantities?: Readonly<Record<QuantityId, number>>,
+  ): void;
+  /** Event times come from now() (a virtual clock); null restores performance.now. */
+  setTimeSource(now: (() => number) | null): void;
 }
 
-export function createPanelBridge(registry: Registry, indicators?: IndicatorSet): PanelBridge {
+export function createPanelBridge(
+  registry: Registry,
+  indicators?: IndicatorSet,
+  aircraft?: BridgeAircraft,
+): PanelBridge {
   const store = new PanelStore(registry);
   const signals = new Map<ControlId, Signal<StateId>>();
   for (const [id, value] of Object.entries(store.snapshot())) signals.set(id, signal(value));
@@ -54,6 +77,19 @@ export function createPanelBridge(registry: Registry, indicators?: IndicatorSet)
     const s = signals.get(event.id);
     if (s !== undefined) s.value = restored;
   });
+
+  // A reset sets the baseline without events, so every control signal is refreshed from the store.
+  store.onReset(() => {
+    for (const [id, value] of Object.entries(store.snapshot())) {
+      const s = signals.get(id);
+      if (s !== undefined) s.value = value;
+    }
+  });
+
+  const idleQuantities = (): Readonly<Record<QuantityId, number>> =>
+    aircraft === undefined ? {} : aircraft.quantities.idleValues();
+  const quantities = signal<Readonly<Record<QuantityId, number>>>(idleQuantities());
+  let timeSource: () => number = () => performance.now();
 
   // Flags (for example gear.in_transit) are an empty record in this phase; Phase 3 feeds them.
   const flags: Readonly<Record<string, boolean>> = {};
@@ -100,10 +136,18 @@ export function createPanelBridge(registry: Registry, indicators?: IndicatorSet)
       return lamp;
     },
     actuate(id, value) {
-      return store.dispatch(id, value, performance.now());
+      return store.dispatch(id, value, timeSource());
     },
     retract(seq) {
       return store.retract(seq);
+    },
+    quantities,
+    reset(controls, given = {}) {
+      store.reset(controls);
+      quantities.value = { ...idleQuantities(), ...given };
+    },
+    setTimeSource(now) {
+      timeSource = now ?? (() => performance.now());
     },
   };
 }

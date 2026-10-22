@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
+import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { createPanelBridge } from '../src/ui/bridge';
 
 // Bridge retract (owner finding R3-Z3, plan 35): the control signal and every derived lamp follow a
@@ -52,5 +53,80 @@ describe('bridge retract', () => {
     expect(bridge.store.events().map((e) => [e.seq, e.id, e.value])).toEqual([
       [0, 'lv.flaps', 'ldg'],
     ]);
+  });
+});
+
+// Scenario baseline and time source (plan 02-04, SCN-03, D-08, D-13).
+describe('bridge reset', () => {
+  const aircraft = { quantities: DA50RG_QUANTITIES };
+  const baseline = { 'lv.power': 'p75', 'lv.cowl_flap': 'closed' };
+
+  it('applies a baseline to the signals and lamps without an event and sets the quantities', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    expect(bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    bridge.actuate('lv.cowl_flap', 'open');
+    expect(bridge.indicatorOf('lt.cowl_open').value).toBe(true);
+    bridge.reset(baseline, { oil_temp_c: 128, oil_pressure_bar: 5 });
+    expect(bridge.stateOf('lv.power').value).toBe('p75');
+    expect(bridge.stateOf('lv.cowl_flap').value).toBe('closed');
+    expect(bridge.indicatorOf('lt.cowl_open').value).toBe(false);
+    expect(bridge.indicatorOf('lt.cowl_closed').value).toBe(true);
+    expect(bridge.store.events()).toEqual([]);
+    expect(bridge.quantities.value).toEqual({
+      ...DA50RG_QUANTITIES.idleValues(),
+      oil_temp_c: 128,
+      oil_pressure_bar: 5,
+    });
+    const snapshot = bridge.store.snapshot();
+    for (const def of DA50RG.controls) {
+      expect(bridge.stateOf(def.id).value).toBe(snapshot[def.id]);
+    }
+  });
+
+  it('keeps the baseline through a retract of another control', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    bridge.reset(baseline);
+    bridge.actuate('lv.flaps', 'to');
+    expect(bridge.retract(0)).toMatchObject({ ok: true, restored: 'up' });
+    expect(bridge.stateOf('lv.power').value).toBe('p75');
+    bridge.actuate('lv.power', 'p50');
+    expect(bridge.retract(0)).toMatchObject({ ok: true, restored: 'p75' });
+    expect(bridge.stateOf('lv.power').value).toBe('p75');
+  });
+
+  it('a second reset without quantities returns them to idle', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    bridge.reset(baseline, { oil_temp_c: 128 });
+    bridge.reset({});
+    expect(bridge.quantities.value).toEqual(DA50RG_QUANTITIES.idleValues());
+    expect(bridge.stateOf('lv.power').value).toBe('p70');
+  });
+
+  it('refuses an illegal baseline and changes nothing', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, aircraft);
+    bridge.reset(baseline);
+    expect(() => bridge.reset({ 'lv.power': 'p99' })).toThrow(RangeError);
+    expect(bridge.stateOf('lv.power').value).toBe('p75');
+  });
+
+  it('has an empty quantities signal without an aircraft', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS);
+    expect(bridge.quantities.value).toEqual({});
+    bridge.reset(baseline, { oil_temp_c: 128 });
+    expect(bridge.quantities.value).toEqual({ oil_temp_c: 128 });
+  });
+});
+
+describe('bridge time source', () => {
+  it('stamps events with the given clock and null restores performance.now', () => {
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS);
+    bridge.setTimeSource(() => 1234);
+    bridge.actuate('lv.flaps', 'to');
+    expect(bridge.store.events()[0]?.t).toBe(1234);
+    bridge.setTimeSource(null);
+    bridge.actuate('lv.flaps', 'ldg');
+    const t = bridge.store.events()[1]?.t ?? 0;
+    expect(t).not.toBe(1234);
+    expect(t).toBeGreaterThan(0);
   });
 });

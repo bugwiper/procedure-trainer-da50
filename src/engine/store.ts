@@ -24,16 +24,19 @@ export type RetractResult =
   | { readonly ok: false; readonly reason: RetractRefusal };
 
 /**
- * The control state map defined by an action log: the default of every control, then every event
- * applied in order (the later value wins). The one definition shared by the live state, retract
- * and the tests. Events are trusted: they were accepted by dispatch, so no legality is checked.
+ * The control state map defined by an action log: the default of every control, then the scenario
+ * baseline (initial state), then every event applied in order (the later value wins). The one
+ * definition shared by the live state, retract and the tests. Events and the baseline are trusted:
+ * the events were accepted by dispatch and the baseline was checked by PanelStore.reset.
  */
 export function deriveState(
   registry: Registry,
   events: readonly ControlEvent[],
+  baseline: Readonly<Record<ControlId, StateId>> = {},
 ): Record<ControlId, StateId> {
   const state: Record<ControlId, StateId> = {};
   for (const def of registry.controls) state[def.id] = def.default;
+  for (const [id, value] of Object.entries(baseline)) state[id] = value;
   for (const event of events) state[event.id] = event.value;
   return state;
 }
@@ -44,11 +47,13 @@ export class PanelStore {
   private readonly log: ControlEvent[] = [];
   private readonly listeners = new Set<(event: ControlEvent) => void>();
   private readonly retractListeners = new Set<(event: ControlEvent, restored: StateId) => void>();
+  private readonly resetListeners = new Set<() => void>();
+  private base: Readonly<Record<ControlId, StateId>> = Object.freeze({});
   private consumed = -1;
 
   constructor(registry: Registry) {
     this.registry = registry;
-    this.state = new Map(Object.entries(deriveState(registry, this.log)));
+    this.state = new Map(Object.entries(deriveState(registry, this.log, this.base)));
   }
 
   /** Highest seq a time-driven reaction has consumed; -1 when none (retract refuses these). */
@@ -64,8 +69,36 @@ export class PanelStore {
     return Object.fromEntries(this.state);
   }
 
+  /** A new array of the frozen events; the log itself is never handed out. */
   events(): readonly ControlEvent[] {
     return this.log.slice();
+  }
+
+  /** The scenario baseline (initial state) in force; empty when the registry defaults apply. */
+  baseline(): Readonly<Record<ControlId, StateId>> {
+    return Object.freeze({ ...this.base });
+  }
+
+  /**
+   * Starts a run from a scenario baseline without a single event (SCN-03, D-13): every entry must
+   * name a registry control and one of its legal states, else RangeError naming the id and nothing
+   * changes. Sets the baseline, empties the log, lowers the consumed watermark to -1, rebuilds the
+   * state and calls the reset listeners once. No event is created, so no dispatch listener is
+   * called, and a later retract rebuilds from this baseline, never from the registry defaults.
+   */
+  reset(baseline: Readonly<Record<ControlId, StateId>> = {}): void {
+    for (const [id, value] of Object.entries(baseline)) {
+      const def = this.registry.get(id);
+      if (def === undefined) throw new RangeError(`baseline names unknown control "${id}"`);
+      if (!legalStates(def).includes(value)) {
+        throw new RangeError(`baseline state "${value}" is not legal for control "${id}"`);
+      }
+    }
+    this.base = Object.freeze({ ...baseline });
+    this.log.length = 0;
+    this.consumed = -1;
+    this.state = new Map(Object.entries(deriveState(this.registry, this.log, this.base)));
+    for (const listener of [...this.resetListeners]) listener();
   }
 
   /** True for a guarded-toggle whose guard is 'closed'. */
@@ -86,7 +119,13 @@ export class PanelStore {
     if (this.state.get(id) === value) return { ok: false, reason: 'unchanged' };
 
     this.state.set(id, value);
-    const event: ControlEvent = { seq: this.log.length, t, id, value, source: 'user' };
+    const event: ControlEvent = Object.freeze({
+      seq: this.log.length,
+      t,
+      id,
+      value,
+      source: 'user' as const,
+    });
     this.log.push(event);
     for (const listener of [...this.listeners]) listener(event);
     return { ok: true, event };
@@ -115,7 +154,7 @@ export class PanelStore {
     const event = this.log[seq];
     if (event === undefined) return { ok: false, reason: 'unknown-event' };
     const remaining = this.log.slice(0, seq);
-    const next = deriveState(this.registry, remaining);
+    const next = deriveState(this.registry, remaining, this.base);
     const restored = next[event.id];
     if (restored === undefined)
       throw new Error(`event ${String(seq)} names unknown control "${event.id}"`);
@@ -149,6 +188,13 @@ export class PanelStore {
     this.retractListeners.add(listener);
     return () => {
       this.retractListeners.delete(listener);
+    };
+  }
+
+  onReset(listener: () => void): () => void {
+    this.resetListeners.add(listener);
+    return () => {
+      this.resetListeners.delete(listener);
     };
   }
 

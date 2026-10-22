@@ -572,3 +572,108 @@ describe('retract random walk over the real DA50RG registry', () => {
     },
   );
 });
+
+// Scenario baseline (plan 02-04, SCN-03, D-13): the initial state of a run is applied without a
+// single event, and a retract rebuilds from it, never from the registry defaults.
+describe('baseline and reset', () => {
+  it('deriveState overlays the baseline on the defaults before the events', () => {
+    const store = plainStore();
+    const log = [{ seq: 0, t: 1, id: 'sw.engine_master', value: 'off', source: 'user' as const }];
+    expect(deriveState(store.registry, [], { 'lv.flaps': 'down' })).toEqual({
+      'sw.engine_master': 'off',
+      'lv.flaps': 'down',
+    });
+    expect(
+      deriveState(store.registry, log, { 'sw.engine_master': 'on', 'lv.flaps': 'down' }),
+    ).toEqual({ 'sw.engine_master': 'off', 'lv.flaps': 'down' });
+  });
+
+  it('reset applies the baseline, empties the log and the watermark and creates no event', () => {
+    const store = plainStore();
+    store.dispatch('sw.engine_master', 'on', 1);
+    store.dispatch('lv.flaps', 'down', 2);
+    store.markConsumed(1);
+    const dispatched: unknown[] = [];
+    store.subscribe((e) => dispatched.push(e));
+    store.reset({ 'lv.flaps': 'down' });
+    expect(store.events()).toEqual([]);
+    expect(store.consumedThrough).toBe(-1);
+    expect(store.snapshot()).toEqual({ 'sw.engine_master': 'off', 'lv.flaps': 'down' });
+    expect(store.baseline()).toEqual({ 'lv.flaps': 'down' });
+    expect(dispatched).toEqual([]);
+  });
+
+  it('reset with no argument returns to the registry defaults', () => {
+    const store = plainStore();
+    store.reset({ 'lv.flaps': 'down' });
+    store.reset();
+    expect(store.snapshot()).toEqual({ 'sw.engine_master': 'off', 'lv.flaps': 'up' });
+    expect(store.baseline()).toEqual({});
+  });
+
+  it('reset with an unknown id or an illegal state throws RangeError naming the id and changes nothing', () => {
+    const store = plainStore();
+    store.reset({ 'lv.flaps': 'down' });
+    store.dispatch('sw.engine_master', 'on', 1);
+    expect(() => store.reset({ 'sw.nothing': 'on' })).toThrow(RangeError);
+    expect(() => store.reset({ 'sw.nothing': 'on' })).toThrow(/sw\.nothing/);
+    expect(() => store.reset({ 'lv.flaps': 'sideways' })).toThrow(/lv\.flaps/);
+    expect(store.events()).toHaveLength(1);
+    expect(store.baseline()).toEqual({ 'lv.flaps': 'down' });
+    expect(store.snapshot()).toEqual({ 'sw.engine_master': 'on', 'lv.flaps': 'down' });
+  });
+
+  it('calls the reset listeners once per reset and not the dispatch listeners', () => {
+    const store = plainStore();
+    let resets = 0;
+    let dispatches = 0;
+    const off = store.onReset(() => {
+      resets += 1;
+    });
+    store.subscribe(() => {
+      dispatches += 1;
+    });
+    store.reset({ 'lv.flaps': 'down' });
+    expect(resets).toBe(1);
+    expect(dispatches).toBe(0);
+    off();
+    store.reset();
+    expect(resets).toBe(1);
+  });
+
+  it('baseline() is a frozen copy', () => {
+    const store = plainStore();
+    const given = { 'lv.flaps': 'down' };
+    store.reset(given);
+    given['lv.flaps'] = 'up';
+    const copy = store.baseline();
+    expect(copy).toEqual({ 'lv.flaps': 'down' });
+    expect(Object.isFrozen(copy)).toBe(true);
+  });
+
+  it('a retract rebuilds from the baseline, never from the registry default', () => {
+    const store = plainStore();
+    store.reset({ 'lv.flaps': 'down' });
+    store.dispatch('sw.engine_master', 'on', 1);
+    store.dispatch('lv.flaps', 'up', 2);
+    expect(store.retract(1)).toMatchObject({ ok: true, restored: 'down' });
+    expect(store.get('lv.flaps')).toBe('down');
+    expect(store.retract(0)).toMatchObject({ ok: true, restored: 'off' });
+    expect(store.snapshot()).toEqual({ 'sw.engine_master': 'off', 'lv.flaps': 'down' });
+  });
+});
+
+describe('frozen events (WR-07)', () => {
+  it('freezes every event at creation and hands out a new array each time', () => {
+    const store = plainStore();
+    const result = store.dispatch('sw.engine_master', 'on', 1);
+    expect(result.ok && Object.isFrozen(result.event)).toBe(true);
+    const first = store.events();
+    expect(first.every((e) => Object.isFrozen(e))).toBe(true);
+    expect(store.events()).not.toBe(first);
+    expect(() => {
+      (first[0] as { value: string }).value = 'off';
+    }).toThrow(TypeError);
+    expect(store.get('sw.engine_master')).toBe('on');
+  });
+});
