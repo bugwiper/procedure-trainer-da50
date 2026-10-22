@@ -11,6 +11,7 @@ import { createPressArbiter } from './press-arbiter';
 import type { Midpoint, PressEffect, TargetDescriptor } from './press-arbiter';
 import { pressKeyOf, pressTargetOf } from './press-targets';
 import type { PressTarget } from './press-targets';
+import { sessionFootprints } from './session-area';
 import { createDoubleTapTracker, resolveControlTap } from './tap-intent';
 import type { ControlTapResult, DoubleTapIntent, PointerKind } from './tap-intent';
 import {
@@ -140,7 +141,13 @@ export function attachZoomGestures(
   const { registry } = opts;
   const { viewBox } = registry;
   fullView.value = { x: 0, y: 0, w: viewBox.w, h: viewBox.h };
-  footprints.value = controlFootprints(registry);
+  // The session buttons are no registry controls: their footprints join the corner chooser so the
+  // Full panel button never covers one (U-07). Skipped when the registry has no such region.
+  const sessionRegion = registry.regions.find((r) => r.id === 'scenario_area');
+  footprints.value = [
+    ...controlFootprints(registry),
+    ...(sessionRegion === undefined ? [] : sessionFootprints(sessionRegion.bounds)),
+  ];
   lastCorner = 'tr';
   const measure = () => {
     const box = svg.getBoundingClientRect();

@@ -3,6 +3,8 @@
 // (global x 1300, y 780); the region is 820 x 480. The widgets that draw the buttons come in
 // plan 06; nothing here touches the DOM or a registry control.
 
+import type { Rect } from '../../engine/registry';
+
 export interface LocalRect {
   readonly x: number;
   readonly y: number;
@@ -36,4 +38,24 @@ export const SESSION_LAYOUT = {
 /** Baseline of a button label inside the rectangle r (label rule of SESSION_LAYOUT). */
 export function labelBaseline(r: LocalRect): number {
   return r.y + r.h / 2 + SESSION_LAYOUT.label.baselineOffset;
+}
+
+/**
+ * Global rectangles of every session button of both views (new, choose, close and the choose rows),
+ * moved by the origin of the region scenario_area. A conservative superset like controlFootprints:
+ * the Full panel corner chooser avoids all of them in either view. The reserved free slot is not a
+ * button and is left out.
+ */
+export function sessionFootprints(regionBounds: {
+  readonly x: number;
+  readonly y: number;
+}): Rect[] {
+  const { main, choose } = SESSION_LAYOUT;
+  const locals: readonly LocalRect[] = [main.new, main.choose, choose.close, ...choose.rows];
+  return locals.map((r) => ({
+    x: regionBounds.x + r.x,
+    y: regionBounds.y + r.y,
+    w: r.w,
+    h: r.h,
+  }));
 }

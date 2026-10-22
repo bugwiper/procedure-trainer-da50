@@ -31,7 +31,9 @@ export async function backgroundPoint(page: Page, regionId: string): Promise<Poi
     ).map((el) => el.getBoundingClientRect());
     const button = document.querySelector('[data-testid="zoom-out"]')?.getBoundingClientRect();
     const screenW = document.documentElement.clientWidth;
-    const screenH = document.documentElement.clientHeight - 28;
+    // The footer is 28 px at rest and 52 px during a session: measure it, never assume it.
+    const footerH = document.querySelector('footer')?.getBoundingClientRect().height ?? 0;
+    const screenH = document.documentElement.clientHeight - footerH;
     const clearance = (x: number, y: number): number => {
       let best = Infinity;
       for (const t of targets) {
@@ -150,5 +152,24 @@ export async function buttonCoverage(page: Page): Promise<string[]> {
         return r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
       })
       .map((el) => el.getAttribute('data-hit') ?? el.getAttribute('data-detent') ?? '');
+  });
+}
+
+/**
+ * The ids of every [data-session-hit] element whose box overlaps the box of the Full panel button
+ * (touching is not overlap), or ['no button'] when the button is absent (U-07). Sibling of
+ * buttonCoverage for the session buttons, which are no registry controls.
+ */
+export async function sessionButtonCoverage(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const button = document.querySelector('[data-testid="zoom-out"]');
+    if (button === null) return ['no button'];
+    const b = button.getBoundingClientRect();
+    return Array.from(document.querySelectorAll('[data-session-hit]'))
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
+      })
+      .map((el) => el.getAttribute('data-session-hit') ?? '');
   });
 }
