@@ -61,7 +61,7 @@ const step = (
   group = 'immediate',
 ): GradeResult['steps'][number] => ({ id, group, severity: 'critical', credited, enteredAt });
 
-const power_increased = (t: number, seq: number, failsRun = false) => ({
+const power_increased = (t: number, seq: number, failsRun = true) => ({
   id: 'power_increased',
   text: 'Increase power',
   t,
@@ -102,8 +102,8 @@ describe('golden recordings (Table R1)', () => {
       scenario: blueprint,
       expected: {
         scenarioId: 'eng-oil-temp-green',
-        result: 'pass',
-        reasons: [],
+        result: 'fail',
+        reasons: [{ kind: 'forbidden', id: 'power_increased' }],
         steps: [step('reduce_power', true, 1), step('open_cowl_flap', true, 2)],
         branches: BLUEPRINT_BRANCHES,
         orderViolations: [],
@@ -115,8 +115,8 @@ describe('golden recordings (Table R1)', () => {
       scenario: blueprint,
       expected: {
         scenarioId: 'eng-oil-temp-green',
-        result: 'pass',
-        reasons: [],
+        result: 'fail',
+        reasons: [{ kind: 'forbidden', id: 'power_increased' }],
         steps: [step('reduce_power', true, 3), step('open_cowl_flap', true, 4)],
         branches: BLUEPRINT_BRANCHES,
         orderViolations: [],
@@ -192,15 +192,18 @@ describe('step targets relative to the baseline (D-02, D-09)', () => {
 
 describe('fails_run and order_critical (D-11, D-12)', () => {
   it('fails the run on a fails_run forbidden item that fired', () => {
-    const strict = load(swap(BLUEPRINT, '      delta: 0', '      delta: 0\n    fails_run: true'));
-    const result = grade(strict, DA50RG_ENV, recording('forbidden'));
+    const result = grade(blueprint, DA50RG_ENV, recording('forbidden'));
     expect(result.result).toBe('fail');
     expect(result.reasons).toEqual([{ kind: 'forbidden', id: 'power_increased' }]);
     expect(result.harmful).toEqual([power_increased(5000, 0, true)]);
   });
 
-  it('keeps fails_run false as a report only', () => {
-    expect(grade(blueprint, DA50RG_ENV, recording('forbidden')).result).toBe('pass');
+  it('keeps an item without fails_run as a report only', () => {
+    const report = load(swap(BLUEPRINT, '    fails_run: true\n', ''));
+    const result = grade(report, DA50RG_ENV, recording('forbidden'));
+    expect(result.result).toBe('pass');
+    expect(result.reasons).toEqual([]);
+    expect(result.harmful).toEqual([power_increased(5000, 0, false)]);
   });
 
   it('lists a violation of a group that is not order-critical without failing', () => {

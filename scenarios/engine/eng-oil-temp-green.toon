@@ -69,6 +69,7 @@ procedure[1]:
 forbidden[1]:
   - id: power_increased
     text: Increase power
+    fails_run: true
     trigger:
       check: travel_rel
       control: lv.power

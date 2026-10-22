@@ -551,7 +551,7 @@ test('@hooks the debrief shows the outline with verdicts, Not graded and the bra
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('@hooks a harmful action is reported with its time and the run still grades PASS', async ({
+test('@hooks a power increase is a harmful action that fails the run', async ({
   page,
   hasTouch,
 }) => {
@@ -563,13 +563,15 @@ test('@hooks a harmful action is reported with its time and the run still grades
   await goldenTaps(page, hasTouch);
 
   await activate(page.getByTestId('procedure-complete'), hasTouch);
-  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
-  await expect(page.getByTestId('debrief-reason')).toHaveText('All critical steps done.');
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+  await expect(page.getByTestId('debrief-reason')).toHaveText(
+    'A harmful action counts as a fail in this scenario.',
+  );
   const debrief = page.getByTestId('debrief');
   await expect(debrief.getByRole('heading', { name: 'Harmful actions (1)' })).toBeVisible();
   const rows = page.getByTestId('debrief-harmful-row');
   await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toHaveText(/^Increase power at 0:0\d$/);
+  await expect(rows.first()).toHaveText(/^Increase power/);
   await expect(page.getByTestId('debrief-harmful-none')).toHaveCount(0);
   // The order of the sections: result, steps, harmful actions, action row.
   const order = await debrief.evaluate((card) => {

@@ -83,10 +83,10 @@ describe('the blueprint scenario', () => {
     expect(retry.nodes.map((n) => n.kind)).toEqual(['line']);
   });
 
-  it('has one forbidden item that does not fail the run', () => {
+  it('has one forbidden item that fails the run', () => {
     expect(scenario.forbidden).toHaveLength(1);
     expect(scenario.forbidden[0]?.id).toBe('power_increased');
-    expect(scenario.forbidden[0]?.fails_run).toBe(false);
+    expect(scenario.forbidden[0]?.fails_run).toBe(true);
   });
 
   it('resolves against the DA50 RG registry and quantities without an issue', () => {

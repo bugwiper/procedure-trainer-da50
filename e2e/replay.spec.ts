@@ -97,7 +97,7 @@ test('@hooks the UI verdicts equal a node replay of the recorded log', async ({
   ]);
 
   await activate(page.getByTestId('procedure-complete'), hasTouch);
-  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
   const shown = await page.evaluate(
     () => (globalThis as HookHost).__panelSession?.result() ?? null,
   );
@@ -118,7 +118,8 @@ test('@hooks the UI verdicts equal a node replay of the recorded log', async ({
   expect(replayed).toEqual(shown);
   // The harmful action is part of what both sides agree on.
   expect(replayed.harmful.map((h) => h.id)).toEqual(['power_increased']);
-  expect(replayed.result).toBe('pass');
+  expect(replayed.result).toBe('fail');
+  expect(replayed.reasons).toEqual([{ kind: 'forbidden', id: 'power_increased' }]);
 });
 
 test('@hooks the exam stays silent during a run', async ({ page, hasTouch }) => {
