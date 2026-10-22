@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Reactive Scenarios and Initial Pack
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-10-22T20:47:45.867Z"
+stopped_at: Completed 03-10-PLAN.md
+last_updated: "2026-10-22T21:05:39.532Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 03 execution started
-state_head: 2d45d7f235f2e68334e0aa4558daf14b1ea30589
+state_head: "0b2d331620af4794f322b7cd71ba466bf61c1567"
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 84
-  completed_plans: 77
+  completed_plans: 78
   percent: 25
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 03 (Reactive Scenarios and Initial Pack) — EXECUTING
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 10
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
@@ -127,6 +127,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 03 P01 | 14 min | 3 tasks | 22 files |
 | Phase 03 P03 | 14 min | 3 tasks | 19 files |
 | Phase 03 P02 | 12min | 3 tasks | 19 files |
+| Phase 03 P10 | 16 min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -198,6 +199,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Fixed-step simulation: STEP_MS 100, MAX_RUN_MS 1800000; oil temperature is a 60 s lag model in aircraft data, scenario sets oil_cooling (lint L12) — Live Run and simulate share one stepper and event timing rule so replays are bit-identical (D-01, D-02)
 - [Phase 03]: 03-03: the simplified transponder is one code-entry control (kp.squawk) whose state is the committed four-digit code; keys are momentary press targets, the partial entry stays in the widget, the readout is the one recorded G-0.1 exception (D-11)
 - [Phase 03]: 03-02: quantity base values are the cruise equilibrium of every anchored model; fuel quantities carry a finer rounding scale (100000) so the 0.1 gal/min burn survives the step rounding
+- [Phase 03]: 03-10: FUEL selector geometry set by the phone tap-size gate: centre 1005, 1258, hit 86 x 44, r 22 (a three-stop knob has two tap halves of hit.w / 2)
+- [Phase 03]: 03-10: cowl flap track 44, hit 50 x 88, centre 1192 (the handle square is capped by the marker spacing = track length); lamps 1170 and 1214, placard dy -46
+- [Phase 03]: 03-10: pull-ecs head prints ECS SHUTOFF in two lines at font size 6; stem dark red #8f0f16 (safety red stays reserved for pull-t and pull-tab)
 
 ### Pending Todos
 
@@ -228,6 +232,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T20:47:45.470Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-10-22T21:05:39.128Z
+Stopped at: Completed 03-10-PLAN.md
 Resume file: None
