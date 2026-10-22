@@ -125,6 +125,9 @@ export function targetSide(def: ControlDef): number {
     case 'circuit-breaker':
       // One tap toggles, so the whole hit is the target.
       return Math.min(def.hit.w, def.hit.h);
+    case 'code-entry':
+      // Each key is its own press target: the smallest key side (D-11).
+      return Math.min(...def.keys.map((k) => Math.min(k.w, k.h)));
     case 'guarded-toggle':
       return Math.min(def.hit.w, def.hit.h, def.guardOpenHit.w, def.guardOpenHit.h);
     case 'guard':

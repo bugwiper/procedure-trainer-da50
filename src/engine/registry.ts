@@ -226,6 +226,55 @@ export interface CircuitBreakerDef extends ControlBase {
   readonly labelDx?: number;
 }
 
+/**
+ * One key of a code-entry unit (D-11): a control-local rectangle, centre (x, y) and size (w, h),
+ * centre of the control at (0, 0). `key` is one alphabet character, or 'clr' for the clear key.
+ */
+export interface CodeEntryKeyDef {
+  readonly key: string;
+  /** Static legend printed on the key (G-0.1). */
+  readonly label: string;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** A control-local rectangle given by its centre (x, y) and size (w, h), control centre at 0, 0. */
+export interface CentredRect {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** Upper bound of the code space of one code-entry control (RESEARCH Pitfall 7). */
+export const MAX_CODE_SPACE = 4096;
+/** The key id of the clear key of a code-entry control. */
+export const CODE_ENTRY_CLEAR_KEY = 'clr';
+
+/**
+ * Code-entry unit (D-11, PNL-07): a keypad whose state is the whole committed code, a string of
+ * `digits` characters over `alphabet`. The simplified transponder is the only user. A momentary
+ * button cannot carry a digit and a rotary has at most five stops, so the code is one control:
+ * the store sees only complete codes (the partial entry lives in the widget, never in the store),
+ * and the legal states are every string of the right length over the alphabet, enumerated once
+ * per definition and bounded by MAX_CODE_SPACE. The unit has no `states` list.
+ */
+export interface CodeEntryDef extends ControlBase {
+  readonly kind: 'code-entry';
+  /** Length of a code, 1 to 4. */
+  readonly digits: number;
+  /** The characters a code may use, each once. */
+  readonly alphabet: string;
+  /** The code at rest: `digits` characters of the alphabet. */
+  readonly default: StateId;
+  /** One key per alphabet character plus the clear key (CODE_ENTRY_CLEAR_KEY). */
+  readonly keys: readonly CodeEntryKeyDef[];
+  /** Where the readout of the code is drawn. */
+  readonly display: CentredRect;
+}
+
 export type ControlDef =
   | ToggleDef
   | GuardedToggleDef
@@ -233,7 +282,8 @@ export type ControlDef =
   | DetentLeverDef
   | MomentaryButtonDef
   | RotaryDef
-  | CircuitBreakerDef;
+  | CircuitBreakerDef
+  | CodeEntryDef;
 export type ControlKind = ControlDef['kind'];
 /** What aircraft data authors write. */
 export type ControlSpec = Exclude<ControlDef, GuardDef>;
@@ -262,9 +312,43 @@ export function guardIdFor(switchId: ControlId): ControlId {
   return `${switchId}.guard`;
 }
 
+/** size to the power of digits by repeated multiplication (pure code uses no power operator). */
+function codeSpace(size: number, digits: number): number {
+  let space = 1;
+  for (let i = 0; i < digits && space <= MAX_CODE_SPACE; i++) space *= size;
+  return space;
+}
+
+/** Legal codes per code-entry definition, built once (a WeakMap keyed by the definition object). */
+const CODE_STATES = new WeakMap<CodeEntryDef, readonly StateId[]>();
+
+/**
+ * Every string of `digits` characters over the alphabet, in counting order. Bounded: a definition
+ * whose code space exceeds MAX_CODE_SPACE is refused before anything is built (D-11, T-03-07).
+ */
+function codeStates(def: CodeEntryDef): readonly StateId[] {
+  const known = CODE_STATES.get(def);
+  if (known !== undefined) return known;
+  const chars = [...def.alphabet];
+  const space = codeSpace(chars.length, def.digits);
+  if (!(def.digits >= 1) || !Number.isInteger(def.digits) || !(space <= MAX_CODE_SPACE)) {
+    throw new RegistryError(
+      `code entry "${def.id}" has a code space of ${chars.length}^${def.digits}, above ${MAX_CODE_SPACE}`,
+    );
+  }
+  let codes: string[] = [''];
+  for (let i = 0; i < def.digits; i++) {
+    codes = codes.flatMap((prefix) => chars.map((c) => prefix + c));
+  }
+  Object.freeze(codes);
+  CODE_STATES.set(def, codes);
+  return codes;
+}
+
 export function legalStates(def: ControlDef): readonly StateId[] {
   if (def.kind === 'detent-lever') return def.detents.map((d) => d.id);
   if (def.kind === 'rotary') return def.stops.map((s) => s.id);
+  if (def.kind === 'code-entry') return codeStates(def);
   return def.states.map((s) => s.id);
 }
 
@@ -288,6 +372,8 @@ const KIND_PREFIX: Readonly<Record<ControlKind, string>> = {
   'momentary-button': 'btn.',
   rotary: 'sw.',
   'circuit-breaker': 'cb.',
+  // Keypad of the simplified transponder (D-11); cb.xpdr is the breaker of the real unit.
+  'code-entry': 'kp.',
 };
 
 function checkKindPrefix(def: ControlDef): void {
@@ -433,6 +519,93 @@ function checkRotarySpots(def: RotaryDef, spots: readonly RotarySpotDef[]): void
         Math.min(a.y + a.h / 2, b.y + b.h / 2) - Math.max(a.y - a.h / 2, b.y - b.h / 2);
       if (overlapX > 1e-9 && overlapY > 1e-9) {
         throw new RegistryError(`knob "${def.id}" spots "${a.stop}" and "${b.stop}" overlap`);
+      }
+    }
+  }
+}
+
+/**
+ * Load-time rules of a code-entry unit (C-19, D-11): 1 to 4 digits, a distinct alphabet, a code
+ * space of at most MAX_CODE_SPACE, a legal default, one key per alphabet character plus the clear
+ * key, and keys and readout inside the hit footprint without overlapping. Runs before any legal
+ * state is enumerated, so an oversized definition never allocates.
+ */
+function checkCodeEntry(def: CodeEntryDef): void {
+  if (!Number.isInteger(def.digits) || def.digits < 1 || def.digits > 4) {
+    throw new RegistryError(`code entry "${def.id}" needs 1 to 4 digits (got ${def.digits})`);
+  }
+  const chars = [...def.alphabet];
+  if (chars.length < 2) {
+    throw new RegistryError(`code entry "${def.id}" needs an alphabet of at least two characters`);
+  }
+  if (new Set(chars).size !== chars.length) {
+    throw new RegistryError(
+      `code entry "${def.id}" alphabet "${def.alphabet}" repeats a character`,
+    );
+  }
+  const space = codeSpace(chars.length, def.digits);
+  if (space > MAX_CODE_SPACE) {
+    throw new RegistryError(
+      `code entry "${def.id}" has a code space of ${space} (${chars.length}^${def.digits}), above ${MAX_CODE_SPACE}`,
+    );
+  }
+  const defaultChars = [...def.default];
+  if (defaultChars.length !== def.digits || !defaultChars.every((c) => chars.includes(c))) {
+    throw new RegistryError(
+      `code entry "${def.id}" default "${def.default}" is not a legal code of ${def.digits} characters of "${def.alphabet}"`,
+    );
+  }
+  if (def.keys.length !== chars.length + 1) {
+    throw new RegistryError(
+      `code entry "${def.id}" needs ${chars.length + 1} keys (one per alphabet character and "${CODE_ENTRY_CLEAR_KEY}"), got ${def.keys.length}`,
+    );
+  }
+  const wanted = new Set<string>([...chars, CODE_ENTRY_CLEAR_KEY]);
+  const seenKeys = new Set<string>();
+  for (const key of def.keys) {
+    if (!wanted.has(key.key)) {
+      throw new RegistryError(`code entry "${def.id}" has a key "${key.key}" outside its alphabet`);
+    }
+    if (seenKeys.has(key.key)) {
+      throw new RegistryError(`code entry "${def.id}" has two keys "${key.key}"`);
+    }
+    seenKeys.add(key.key);
+  }
+  for (const w of wanted) {
+    if (!seenKeys.has(w)) throw new RegistryError(`code entry "${def.id}" has no key "${w}"`);
+  }
+  const parts: { name: string; rect: CentredRect }[] = [
+    ...def.keys.map((k) => ({ name: `key "${k.key}"`, rect: k })),
+    { name: 'readout', rect: def.display },
+  ];
+  for (const { name, rect } of parts) {
+    if (![rect.x, rect.y, rect.w, rect.h].every(Number.isFinite) || !(rect.w > 0 && rect.h > 0)) {
+      throw new RegistryError(
+        `code entry "${def.id}" ${name} needs finite coordinates and positive sides`,
+      );
+    }
+    if (
+      Math.abs(rect.x) + rect.w / 2 > def.hit.w / 2 ||
+      Math.abs(rect.y) + rect.h / 2 > def.hit.h / 2
+    ) {
+      throw new RegistryError(
+        `code entry "${def.id}" ${name} leaves the ${def.hit.w} x ${def.hit.h} hit footprint`,
+      );
+    }
+  }
+  for (let i = 0; i < parts.length; i++) {
+    for (let j = i + 1; j < parts.length; j++) {
+      const a = parts[i];
+      const b = parts[j];
+      if (a === undefined || b === undefined) continue;
+      const overlapX =
+        Math.min(a.rect.x + a.rect.w / 2, b.rect.x + b.rect.w / 2) -
+        Math.max(a.rect.x - a.rect.w / 2, b.rect.x - b.rect.w / 2);
+      const overlapY =
+        Math.min(a.rect.y + a.rect.h / 2, b.rect.y + b.rect.h / 2) -
+        Math.max(a.rect.y - a.rect.h / 2, b.rect.y - b.rect.h / 2);
+      if (overlapX > 1e-9 && overlapY > 1e-9) {
+        throw new RegistryError(`code entry "${def.id}" ${a.name} and ${b.name} overlap`);
       }
     }
   }
@@ -615,6 +788,8 @@ export function defineRegistry(input: {
     checkIdPattern(def.id);
     checkKindPrefix(def);
     checkUniqueId(def.id, seen);
+    // Bounded before anything enumerates the code space (C-19, T-03-07).
+    if (spec.kind === 'code-entry') checkCodeEntry(spec);
     checkDistinctStates(def);
     if (spec.kind === 'detent-lever') checkDetents(spec);
     if (spec.kind === 'momentary-button') {

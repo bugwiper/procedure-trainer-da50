@@ -1,6 +1,7 @@
 import type { ControlDef } from '../../engine/registry';
 import type { PanelBridge } from '../bridge';
 import { CircuitBreaker } from './widgets/CircuitBreaker';
+import { CodeEntry } from './widgets/CodeEntry';
 import { DetentLever } from './widgets/DetentLever';
 import { GuardedToggle } from './widgets/GuardedToggle';
 import { MomentaryButton } from './widgets/MomentaryButton';
@@ -29,6 +30,8 @@ export function ControlWidget({ def, bridge }: WidgetProps) {
       return <Rotary def={def} bridge={bridge} />;
     case 'circuit-breaker':
       return <CircuitBreaker def={def} bridge={bridge} />;
+    case 'code-entry':
+      return <CodeEntry def={def} bridge={bridge} />;
     case 'guard':
       // The guard is drawn by its guarded-toggle widget.
       return null;

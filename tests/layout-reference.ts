@@ -75,6 +75,9 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lv.parking_brake', x: 1008, y: 1110, tol: 8, review: true },
   { id: 'lv.power', x: 1115, y: 1160, tol: 8, review: true },
   { id: 'lv.cowl_flap', x: 1058, y: 1218, tol: 8, review: true },
+  // Simplified transponder (phase 03, D-11): a temporary trainer part in the pilot's legroom; the
+  // position is an assumption, not a fidelity item (region transponder at 300, 900; centre 180, 100).
+  { id: 'kp.squawk', x: 480, y: 1000, tol: 8, review: true },
 ];
 
 /**

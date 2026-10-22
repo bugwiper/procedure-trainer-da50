@@ -97,6 +97,9 @@ export const PLATES: readonly PlateDef[] = [
   // co-pilot legroom right of the centre console, below the face plate, and carries the trainer's
   // session buttons (region scenario_area, no registry controls).
   { id: 'session-pad', x: 1280, y: 760, w: 860, h: 520, rx: 18, regions: ['scenario_area'] },
+  // Simplified transponder (phase 03, D-11): the plate around the region transponder, 20 units
+  // larger on every side. A temporary trainer part in the pilot's legroom, by owner decision.
+  { id: 'transponder-pad', x: 280, y: 880, w: 400, h: 240, rx: 12, regions: ['transponder'] },
 ];
 
 /** One outlined group box of a plate; its title cuts the top edge (static shell art). */
