@@ -111,15 +111,16 @@ describe('pedestal and front-panel lever inventory', () => {
 });
 
 describe('under-panel lever inventory', () => {
-  it('UNDER_PANEL_CONTROLS is exactly alternate static, emergency gear, alternate air', () => {
+  it('UNDER_PANEL_CONTROLS is exactly alternate static, emergency gear, alternate air and ECS SHUTOFF', () => {
     expect(UNDER_PANEL_CONTROLS.map((c) => c.id)).toEqual([
       'lv.alt_static',
       'lv.emerg_gear',
       'lv.alt_air',
+      'lv.ecs_shutoff',
     ]);
   });
 
-  it('all are two-detent levers; only EMERGENCY GEAR EXTENSION is dragOnly (PNL-06)', () => {
+  it('all are two-detent levers; only EMERGENCY GEAR EXTENSION is dragOnly (PNL-06), so the ECS SHUTOFF has a tap marker per detent', () => {
     for (const c of UNDER_PANEL_CONTROLS) {
       expect(c.kind).toBe('detent-lever');
       if (c.kind !== 'detent-lever') continue;
@@ -128,7 +129,12 @@ describe('under-panel lever inventory', () => {
     }
   });
 
-  it('defaults are closed, normal, closed', () => {
-    expect(UNDER_PANEL_CONTROLS.map((c) => c.default)).toEqual(['closed', 'normal', 'closed']);
+  it('defaults are closed, normal, closed and in (the ECS SHUTOFF is pushed in)', () => {
+    expect(UNDER_PANEL_CONTROLS.map((c) => c.default)).toEqual([
+      'closed',
+      'normal',
+      'closed',
+      'in',
+    ]);
   });
 });

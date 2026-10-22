@@ -594,7 +594,8 @@ const LEVER_THREE: DetentLeverDef['detents'] = [
 describe('lever skins', () => {
   it('accepts every skin of the vocabulary and none', () => {
     expect(LEVER_SKINS).toContain('power-grip');
-    expect(LEVER_SKINS).toHaveLength(9);
+    expect(LEVER_SKINS).toHaveLength(10);
+    expect(LEVER_SKINS).toContain('pull-ecs');
     expect(LEVER_SKINS).not.toContain('bat-small');
     expect(LEVER_SKINS).toContain('parking-flap');
     expect(LEVER_SKINS).not.toContain('parking-lever');

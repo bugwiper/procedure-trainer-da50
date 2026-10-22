@@ -65,4 +65,35 @@ export const KNOB_CONTROLS: readonly ControlSpec[] = [
     ],
     default: 'off',
   },
+  // FUEL selector (owner decision 2026-10-22, RESEARCH Open Question 3): an elongated red knob at
+  // the bottom left of the pedestal, next to the throttle, with a small white line at its pointing
+  // end. Forward is NORMAL (the in-flight default), 90 degrees clockwise EMERGENCY, 225 degrees
+  // clockwise OFF. The real knob sits behind the throttle where the trim wheel is; it is drawn at
+  // the bottom left of the pedestal by owner decision. The OFF angle 225 is owner-unverified
+  // (docs/PANEL-LABELS.md, docs/PANEL-REVIEW.md). The three position words are static art of the
+  // selector-bar look, so the knob is nameless. No click spots: a tap on the right half steps
+  // clockwise, on the left half back, a drag commits the nearest stop.
+  {
+    id: 'sw.fuel_valve',
+    kind: 'rotary',
+    label: 'FUEL VALVE',
+    nameless: true,
+    region: 'pedestal',
+    // Global 1005, 1258. A knob with three stops has a tap half on either side, and each half must
+    // reach 44 px at the pedestal zoom of the phone (tests/zoom.test.ts): 86 wide. The footprint
+    // lies on the pedestal plate (x 962 on the left, y 1288 at the bottom) and touches the footprint
+    // of the cowl flap above it at y 1236.
+    x: 48,
+    y: 216,
+    hit: { w: 86, h: 44 },
+    r: 22,
+    skin: 'selector-bar',
+    scale: 'none',
+    stops: [
+      { id: 'normal', label: 'NORMAL', angle: 0 },
+      { id: 'emergency', label: 'EMERGENCY', angle: 90 },
+      { id: 'off', label: 'OFF', angle: 225 },
+    ],
+    default: 'normal',
+  },
 ];

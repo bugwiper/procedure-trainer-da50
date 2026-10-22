@@ -49,7 +49,20 @@ export const LEVER_ART: Readonly<Record<LeverSkin, SkinArt>> = {
   // Drawn by FlapBody, never by the handle code; the numbers only keep the table type-complete.
   'parking-flap': { along: 0, across: 0, tick: 0, tickColour: '#4a525c' },
   'env-slider': { along: 7, across: 11, tick: 6, tickColour: '#6b7580' },
+  // White round head r 14, up to 10 % larger when pulled, drawn up to ECS_TILT to the left.
+  'pull-ecs': { along: 16, across: 22, tick: 8, tickColour: '#6b7580' },
 };
+
+/** The white head of the ECS SHUTOFF pull knob: radius stowed, and units drawn left when pulled. */
+export const ECS_HEAD_R = 14;
+export const ECS_TILT = 6;
+/** The pulled head is drawn closer to the viewer, so up to this much larger (pseudo-perspective). */
+export const ECS_GROWTH = 0.1;
+const ECS_HEAD = '#f4f5f7';
+const ECS_HEAD_EDGE = '#9aa1a9';
+const ECS_LETTERS = '#1b1e22';
+const ECS_STEM = '#8f0f16';
+const ECS_SHADOW = '#050506';
 
 function outline(dragging: boolean, rest: string): { stroke: string; 'stroke-width': number } {
   return dragging ? { stroke: DRAG_RING, 'stroke-width': 2 } : { stroke: rest, 'stroke-width': 1 };
@@ -70,10 +83,17 @@ export interface LeverHandleProps {
   readonly axis: 'v' | 'h';
   /** True only while the handle is being dragged. */
   readonly dragging: boolean;
+  /** 0 stowed to 1 fully pulled; only the pull-ecs head reads it (it is drawn down-left). */
+  readonly pull?: number;
+}
+
+/** How far a handle on a vertical track is pulled out: 0 at the top end, 1 at the bottom end. */
+export function pullFraction(length: number, dy: number): number {
+  return length > 0 ? Math.min(1, Math.max(0, (dy + length / 2) / length)) : 0;
 }
 
 /** The handle art of one skin, centred on its own origin. */
-export function LeverHandle({ skin, axis, dragging }: LeverHandleProps) {
+export function LeverHandle({ skin, axis, dragging, pull = 0 }: LeverHandleProps) {
   switch (skin) {
     case 'gear-knob':
       return (
@@ -204,6 +224,42 @@ export function LeverHandle({ skin, axis, dragging }: LeverHandleProps) {
       );
     case 'parking-flap':
       return null;
+    case 'pull-ecs': {
+      // White round head with the static text ECS SHUTOFF. Pulled, it moves a few units to the
+      // left, grows a little and throws a soft shadow down-left: pseudo-perspective, art only.
+      const scale = 1 + ECS_GROWTH * pull;
+      return (
+        <g transform={`translate(${round(-ECS_TILT * pull)} 0)`}>
+          {pull > 0 ? (
+            <ellipse
+              cx={round(-3 * pull)}
+              cy={round(3 * pull)}
+              rx={ECS_HEAD_R * scale}
+              ry={ECS_HEAD_R * scale}
+              fill={ECS_SHADOW}
+              fill-opacity={0.45}
+            />
+          ) : null}
+          <g transform={`scale(${round(scale)})`}>
+            <circle r={ECS_HEAD_R} fill={ECS_HEAD} {...outline(dragging, ECS_HEAD_EDGE)} />
+            <text
+              text-anchor="middle"
+              font-family={FONT}
+              font-size={6}
+              font-weight={700}
+              fill={ECS_LETTERS}
+            >
+              <tspan x={0} y={-1.5}>
+                ECS{' '}
+              </tspan>
+              <tspan x={0} y={5.5} textLength={ECS_HEAD_R * 1.7} lengthAdjust="spacingAndGlyphs">
+                SHUTOFF
+              </tspan>
+            </text>
+          </g>
+        </g>
+      );
+    }
     case 'env-slider': {
       // 22 across the slot by 14 along it.
       const w = axis === 'v' ? 22 : 14;
@@ -259,6 +315,23 @@ function PullTrack({
   );
 }
 
+/**
+ * Stem of the ECS SHUTOFF knob: from the panel entry at the stowed end to the centre of the head.
+ * Pulled, the head sits ECS_TILT to the left, so the stem slants down-left (a quadrilateral, not
+ * the straight PullTrack rectangle).
+ */
+function EcsStem({ length, handleAt }: { length: number; handleAt: LeverTrackProps['handleAt'] }) {
+  const entry = -length / 2 - LEVER_ART['pull-ecs'].along - 2;
+  const drift = -ECS_TILT * pullFraction(length, handleAt.dy);
+  const end = handleAt.dy;
+  const d = `M-2 ${entry}L2 ${entry}L${round(drift + 2)} ${end}L${round(drift - 2)} ${end}Z`;
+  return (
+    <g>
+      <path data-ecs-stem d={d} fill={ECS_STEM} />
+    </g>
+  );
+}
+
 /** A dark slot centred on the track, `w` wide across and `length + pad` long along it. */
 function Slot({
   axis,
@@ -305,6 +378,8 @@ export function LeverTrack({ skin, length, axis, handleAt }: LeverTrackProps) {
     case 'pull-tab':
     case 'pull-boot':
       return <PullTrack length={length} handleAt={handleAt} along={LEVER_ART[skin].along} />;
+    case 'pull-ecs':
+      return <EcsStem length={length} handleAt={handleAt} />;
     case 'power-grip':
       return (
         <g>

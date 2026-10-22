@@ -42,12 +42,16 @@ export const PEDESTAL_CONTROLS: readonly ControlSpec[] = [
     kind: 'detent-lever',
     label: 'COWL FLAP',
     region: 'pedestal',
-    // Global 1058, 1218. Handle square min(50, 104 - 60) = 44. The placard COWL FLAP and the
+    // Global 1058, 1192. Handle square min(50, 88 - 44) = 44. The placard COWL FLAP and the
     // lamps lt.cowl_open / lt.cowl_closed name the two positions, so the lever prints nothing.
+    // Shorter and higher than before (owner decision 2026-10-22, was 60 long at global y 1218) to
+    // make room for the FUEL selector (sw.fuel_valve, knobs.ts) at the bottom left of the
+    // pedestal. The track cannot go below 44: the handle square is capped by the marker spacing,
+    // which is the track length, and the phone zoom needs 44 px (tests/zoom.test.ts).
     x: 101,
-    y: 176,
-    hit: { w: 50, h: 104 },
-    track: { length: 60, axis: 'v' },
+    y: 150,
+    hit: { w: 50, h: 88 },
+    track: { length: 44, axis: 'v' },
     nameless: true,
     legends: [],
     detents: [

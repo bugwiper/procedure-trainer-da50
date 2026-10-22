@@ -143,18 +143,22 @@ describe('stopAngle', () => {
 });
 
 describe('DA50RG knobs (Table K1)', () => {
-  it('has FUEL TRANS, INSTRUMENT LIGHT, FLOOD LIGHT and FAN, all resting OFF', () => {
+  it('has FUEL TRANS, INSTRUMENT LIGHT, FLOOD LIGHT, FAN and the FUEL selector; all rest OFF but the selector, which rests NORMAL', () => {
     expect(rotaries.map((r) => r.id).sort()).toEqual([
       'sw.env_fan',
       'sw.flood_light',
       'sw.fuel_trans',
+      'sw.fuel_valve',
       'sw.instr_light',
     ]);
-    for (const def of rotaries) expect(def.default).toBe('off');
+    for (const def of rotaries) {
+      expect(def.default, def.id).toBe(def.id === 'sw.fuel_valve' ? 'normal' : 'off');
+    }
     expect(KNOB_CONTROLS.map((c) => c.id)).toEqual([
       'sw.instr_light',
       'sw.flood_light',
       'sw.env_fan',
+      'sw.fuel_valve',
     ]);
   });
 

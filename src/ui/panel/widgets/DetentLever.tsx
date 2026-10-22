@@ -9,7 +9,14 @@ import { DRAG_START_PX } from '../press-arbiter';
 import { registerPressTarget, seqOf } from '../press-targets';
 import type { PressTarget } from '../press-targets';
 import { FlapBody } from '../skins/Flap';
-import { EnvIcon, ENV_ICONS, LEVER_ART, LeverHandle, LeverTrack } from '../skins/LeverHandles';
+import {
+  EnvIcon,
+  ENV_ICONS,
+  LEVER_ART,
+  LeverHandle,
+  LeverTrack,
+  pullFraction,
+} from '../skins/LeverHandles';
 
 const FONT = 'B612, system-ui, sans-serif';
 
@@ -383,7 +390,12 @@ export function LeverBody({
       })}
       <g transform={`translate(${handleAt.dx} ${handleAt.dy})`} pointer-events="none">
         {skin !== undefined ? (
-          <LeverHandle skin={skin} axis={def.track.axis} dragging={dragging} />
+          <LeverHandle
+            skin={skin}
+            axis={def.track.axis}
+            dragging={dragging}
+            pull={vertical ? pullFraction(length, handleAt.dy) : 0}
+          />
         ) : (
           <>
             <rect

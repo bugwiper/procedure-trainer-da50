@@ -68,13 +68,19 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lv.alt_static', x: 51, y: 805, tol: 3, review: true },
   { id: 'lv.emerg_gear', x: 907, y: 805, tol: 3, review: false },
   { id: 'lv.alt_air', x: 1205, y: 805, tol: 3, review: false },
+  // ECS SHUTOFF (owner description 2026-10-22): between ALTERNATE STATIC and the EMERGENCY GEAR
+  // EXTENSION handle, about one third of the way from ALTERNATE STATIC, on the row of the pulls.
+  { id: 'lv.ecs_shutoff', x: 336, y: 805, tol: 8, review: true },
   { id: 'lv.env_direction', x: 1004, y: 828, tol: 8, review: true },
   { id: 'lv.env_temp', x: 1100, y: 880, tol: 8, review: true },
   { id: 'sw.env_fan', x: 1020, y: 932, tol: 8, review: true },
   { id: 'lv.env_circ', x: 1063, y: 1010, tol: 8, review: true },
   { id: 'lv.parking_brake', x: 1008, y: 1110, tol: 8, review: true },
   { id: 'lv.power', x: 1115, y: 1160, tol: 8, review: true },
-  { id: 'lv.cowl_flap', x: 1058, y: 1218, tol: 8, review: true },
+  // Shorter and higher than before (owner decision 2026-10-22; was y 1218).
+  { id: 'lv.cowl_flap', x: 1058, y: 1192, tol: 8, review: true },
+  // FUEL selector (owner decision 2026-10-22): bottom left of the pedestal, next to the throttle.
+  { id: 'sw.fuel_valve', x: 1005, y: 1258, tol: 8, review: true },
   // Simplified transponder (phase 03, D-11): a temporary trainer part in the pilot's legroom; the
   // position is an assumption, not a fidelity item (region transponder at 300, 900; centre 180, 100).
   { id: 'kp.squawk', x: 480, y: 1000, tol: 8, review: true },
@@ -211,8 +217,8 @@ export const INDICATOR_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lt.flap_to', x: 1274, y: 660, tol: 8, review: true },
   { id: 'lt.flap_ldg', x: 1263, y: 689, tol: 8, review: true },
   { id: 'lt.elt', x: 1752, y: 656, tol: 8, review: true },
-  { id: 'lt.cowl_open', x: 1022, y: 1188, tol: 8, review: true },
-  { id: 'lt.cowl_closed', x: 1022, y: 1248, tol: 8, review: true },
+  { id: 'lt.cowl_open', x: 1022, y: 1170, tol: 8, review: true },
+  { id: 'lt.cowl_closed', x: 1022, y: 1214, tol: 8, review: true },
   { id: 'lt.deice_max', x: 164, y: 256, tol: 12, review: true },
   { id: 'lt.deice_high', x: 164, y: 298, tol: 12, review: true },
   { id: 'lt.deice_norm', x: 164, y: 340, tol: 12, review: true },
@@ -275,6 +281,15 @@ export const ORDERING: readonly OrderRow[] = [
   ['lv.alt_static', 'left-of', 'lv.emerg_gear'],
   ['lv.emerg_gear', 'left-of', 'region:pedestal'],
   ['lv.alt_air', 'right-of', 'region:pedestal'],
+  // ECS SHUTOFF (owner description 2026-10-22): between ALTERNATE STATIC and the emergency gear
+  // handle, on the row of the under-panel pulls.
+  ['lv.alt_static', 'left-of', 'lv.ecs_shutoff'],
+  ['lv.ecs_shutoff', 'left-of', 'lv.emerg_gear'],
+  ['lv.ecs_shutoff', 'same-row', 'lv.alt_static'],
+  // FUEL selector: bottom left of the pedestal, left of the throttle, under the brake and cowl flap.
+  ['sw.fuel_valve', 'left-of', 'lv.power'],
+  ['sw.fuel_valve', 'below', 'lv.parking_brake'],
+  ['sw.fuel_valve', 'below', 'lv.cowl_flap'],
   ['lv.power', 'above', 'lv.cowl_flap'],
   // Glareshield light switches and dimmer knobs (D-08).
   ...chain(LIGHT_SWITCHES, 'left-of'),
@@ -389,6 +404,7 @@ export const ALL_REGION_IDS: readonly string[] = [
   'flaps',
   'right_panel',
   'under_panel_left',
+  'under_panel_ecs',
   'under_panel_centre',
   'env_control',
   'env_circ',
@@ -439,6 +455,8 @@ export const FRONT_PANEL_REGIONS: readonly string[] = [
 
 export const UNDER_PANEL_REGIONS: readonly string[] = [
   'under_panel_left',
+  // The ECS SHUTOFF pull (owner description 2026-10-22), on the row of the other under-panel pulls.
+  'under_panel_ecs',
   'under_panel_centre',
   'env_control',
   'env_circ',

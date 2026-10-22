@@ -63,13 +63,20 @@ export const LEVER_SKINS = [
   'env-slider',
   'parking-flap',
   'cowl-slider',
+  'pull-ecs',
 ] as const;
+/**
+ * Looks of a rotary knob. Absent means `round` (the black disc with a pointer line); `selector-bar`
+ * is the elongated red selector knob of the FUEL valve (owner decision 2026-10-22).
+ */
+export const ROTARY_SKINS = ['round', 'selector-bar'] as const;
 
 export type ToggleSkin = (typeof TOGGLE_SKINS)[number];
 export type RockerSize = (typeof ROCKER_SIZES)[number];
 export type RockerColour = (typeof ROCKER_COLOURS)[number];
 export type ButtonSkin = (typeof BUTTON_SKINS)[number];
 export type LeverSkin = (typeof LEVER_SKINS)[number];
+export type RotarySkin = (typeof ROTARY_SKINS)[number];
 
 /**
  * Drawn position of a toggle body. A two-state toggle draws its first state as `low` and its
@@ -198,6 +205,8 @@ export interface RotaryDef extends ControlBase {
    * the half-stepping is gone; absent: the knob steps by halves. Validated at load.
    */
   readonly spots?: readonly RotarySpotDef[];
+  /** Absent means `round`; `selector-bar` is the elongated selector knob. Validated at load. */
+  readonly skin?: RotarySkin;
 }
 
 /** Bus groups of the circuit breakers (UI-SPEC 01.2, Table A1). Re-checked at run time. */
@@ -447,6 +456,9 @@ function checkMomentaryRest(def: MomentaryButtonDef): void {
 }
 
 function checkRotary(def: RotaryDef): void {
+  if (def.skin !== undefined && !(ROTARY_SKINS as readonly string[]).includes(def.skin)) {
+    throw new RegistryError(`knob "${def.id}" has unknown skin "${def.skin}"`);
+  }
   if (def.stops.length < 2 || def.stops.length > 5) {
     throw new RegistryError(`knob "${def.id}" needs 2 to 5 stops (got ${def.stops.length})`);
   }

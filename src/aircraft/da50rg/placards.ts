@@ -215,7 +215,7 @@ export const PLACARDS: readonly PlacardDef[] = [
     id: 'cowl_flap.name',
     near: 'lv.cowl_flap',
     dx: -17,
-    dy: -54,
+    dy: -46,
     lines: ['COWL FLAP'],
     anchor: 'middle',
     size: 6,

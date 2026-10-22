@@ -119,12 +119,109 @@ export interface RotaryBodyProps {
   readonly pressed: boolean;
 }
 
+/** Colours of the selector-bar look: a red knob, a white pointing line, white position words. */
+export const SELECTOR_RED = '#b3141c';
+export const SELECTOR_RED_EDGE = '#7a0d13';
+const SELECTOR_WORD = '#f2f4f7';
+/** Gap between the sweep of the knob and its position words, in units. */
+const SELECTOR_WORD_GAP = 4;
+/** Length of the white line at the pointing end of the selector bar, in units. */
+const SELECTOR_LINE = 8;
+
+/** Width of the selector bar: the 4 to 1 shape of the real 8 by 2 cm knob (length 2r). */
+export function selectorBarWidth(r: number): number {
+  return r / 2;
+}
+
+/**
+ * The elongated selector knob (C-52): a red bar of length 2r and width r/2 turned to the pointer
+ * angle, a short white line at its pointing end, and the position words in white outside the sweep
+ * at their stop directions, each reading away from the knob. All text is static (G-0.1).
+ */
+function SelectorBarBody({ def, state, dragAngle, pressed }: RotaryBodyProps) {
+  const { r } = def;
+  const current = def.stops.find((s) => s.id === state) ?? def.stops[0];
+  const angle = dragAngle ?? (current === undefined ? 0 : stopAngle(def, current.id));
+  const width = selectorBarWidth(r);
+  const lines = def.nameless === true ? [] : placardLines(def.label);
+  return (
+    <g pointer-events="none" data-skin={def.skin}>
+      {lines.map((line, i) => (
+        <text
+          key={line}
+          x={0}
+          y={-(r + 12) - (lines.length - 1 - i) * 9.6}
+          text-anchor="middle"
+          font-family={FONT}
+          font-size={8}
+          fill="#aab3bd"
+        >
+          {line}
+        </text>
+      ))}
+      {def.stops.map((stop) => {
+        const p = polar(stop.angle, r + SELECTOR_WORD_GAP);
+        const side = Math.sin((stop.angle * Math.PI) / 180);
+        // Screen direction of the stop: positive is down.
+        const down = -Math.cos((stop.angle * Math.PI) / 180);
+        // Words read away from the knob: right of it for a stop on the right, left of it for a stop
+        // on the left, above or below it for a stop straight up or down.
+        const anchor = side > 0.3 ? 'start' : side < -0.3 ? 'end' : 'middle';
+        // A stop straight up or down puts its word above or below the point; a diagonal or sideways
+        // stop puts it beside the point.
+        const y =
+          Math.abs(side) <= 0.3 ? (down > 0 ? p.y + 6 : p.y - 1) : p.y + (down > 0.3 ? 3 : 2);
+        return (
+          <text
+            key={stop.id}
+            data-selector-word={stop.id}
+            x={fixed(p.x)}
+            y={fixed(y)}
+            text-anchor={anchor}
+            font-family={FONT}
+            font-size={6}
+            font-weight={700}
+            fill={SELECTOR_WORD}
+          >
+            {stop.label}
+          </text>
+        );
+      })}
+      <g data-selector-knob transform={`rotate(${fixed(angle)})`}>
+        <rect
+          data-selector-bar
+          x={-width / 2}
+          y={-r}
+          width={width}
+          height={2 * r}
+          rx={width / 2}
+          fill={SELECTOR_RED}
+          stroke={pressed ? '#8fb8e6' : SELECTOR_RED_EDGE}
+          stroke-width={pressed ? 2 : 1}
+        />
+        <line
+          data-selector-line
+          x1={0}
+          y1={fixed(-r + 3)}
+          x2={0}
+          y2={fixed(-r + 3 + SELECTOR_LINE)}
+          stroke="#ffffff"
+          stroke-width={1.5}
+          stroke-linecap="round"
+        />
+      </g>
+    </g>
+  );
+}
+
 /**
  * Knob art (UI-SPEC 8.4), pure: black disc with rim and knurl ticks, white pointer line, printed
  * scale and placard, all static (G-0.1: the knob shows its stop by the pointer, never as text). Wide
  * footprints (the FAN, twice as wide as high) put the placard left; others put it above.
  */
-export function RotaryBody({ def, state, dragAngle, pressed }: RotaryBodyProps) {
+export function RotaryBody(props: RotaryBodyProps) {
+  if (props.def.skin === 'selector-bar') return <SelectorBarBody {...props} />;
+  const { def, state, dragAngle, pressed } = props;
   const { r } = def;
   const scale = def.scale ?? 'none';
   const current = def.stops.find((s) => s.id === state) ?? def.stops[0];

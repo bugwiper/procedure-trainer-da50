@@ -1477,6 +1477,12 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
   /** The two under-panel regions that existed before phase 2 and reach into the top of the legroom. */
   const LEGROOM_EXCEPTIONS = ['under_panel_left', 'under_panel_centre'];
   /**
+   * The ECS SHUTOFF pull (phase 03, plan 10): the owner placed it under the panel on 2026-10-22, on
+   * the row of the pre-phase-2 under-panel pulls, so its region reaches into the top of the legroom
+   * like theirs. It has no plate.
+   */
+  const OWNER_ECS_REGION = 'under_panel_ecs';
+  /**
    * The simplified transponder (phase 03, D-11): the owner placed it in the pilot's footroom, a
    * temporary trainer part whose position is not a fidelity item. Its region and its plate are the
    * only new parts allowed in the reserved legroom.
@@ -1526,14 +1532,16 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     }
   });
 
-  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions and the D-11 transponder region and plate', () => {
+  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions, the owner-placed under_panel_ecs region (2026-10-22) and the D-11 transponder region and plate', () => {
     const plates = PLATES.filter((p) => overlaps(rectOf(p), PILOT_LEGROOM)).map((p) => p.id);
     expect(plates).toEqual([D11_TRANSPONDER_PLATE]);
     const regions = DA50RG.regions
       .filter((r) => overlaps(r.bounds, PILOT_LEGROOM))
       .map((r) => r.id)
       .sort();
-    expect(regions).toEqual([...LEGROOM_EXCEPTIONS, D11_TRANSPONDER_REGION].sort());
+    expect(regions).toEqual(
+      [...LEGROOM_EXCEPTIONS, OWNER_ECS_REGION, D11_TRANSPONDER_REGION].sort(),
+    );
   });
 
   it('the transponder plate carries the transponder region and lies wholly inside the legroom (D-11)', () => {

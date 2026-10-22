@@ -188,7 +188,7 @@ const COWL_LAMPS: readonly IndicatorSpec[] = [
     label: 'OPEN',
     region: 'pedestal',
     x: 65,
-    y: 146,
+    y: 128, // level with the open end of the shorter track (global 1170)
     r: 5,
     colour: 'white',
     caption: 'above',
@@ -200,7 +200,7 @@ const COWL_LAMPS: readonly IndicatorSpec[] = [
     label: 'CLOSED',
     region: 'pedestal',
     x: 65,
-    y: 206,
+    y: 172, // level with the closed end of the shorter track (global 1214)
     r: 5,
     colour: 'white',
     caption: 'above',

@@ -111,6 +111,11 @@ export const REGIONS: readonly RegionDef[] = [
   ...CB_REGIONS,
   // Under the panel: left of the pilot's left knee.
   { id: 'under_panel_left', name: 'UNDER PANEL L', bounds: { x: 15, y: 745, w: 80, h: 120 } },
+  // The ECS SHUTOFF pull knob (owner description 2026-10-22): between ALTERNATE STATIC (global x 51)
+  // and the EMERGENCY GEAR EXTENSION handle (x 907), about one third of the way, on the row of the
+  // other under-panel pulls. Like them it reaches into the reserved pilot legroom (a named exception
+  // of the legroom gate).
+  { id: 'under_panel_ecs', name: 'UNDER PANEL ECS', bounds: { x: 296, y: 745, w: 80, h: 120 } },
   // Left of the pedestal.
   { id: 'under_panel_centre', name: 'UNDER PANEL C', bounds: { x: 860, y: 740, w: 90, h: 125 } },
   // Environmental plate, top of the centre console. Split from the pedestal (PD-01): in one
