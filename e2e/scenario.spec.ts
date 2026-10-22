@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page, Route } from '@playwright/test';
+import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { quantityOf } from './support/session';
 import { FULL_VIEWBOX, activate } from './support/zoom';
 
@@ -476,16 +477,25 @@ test('@hooks the ENG OIL TEMP chip shows during the run and stays after the debr
 const mfdGauge = (page: Page, label: string) =>
   page.locator(`[data-region-id="mfd"] [data-gauge="${label}"]`);
 
-test('@hooks the MFD oil gauges read the idle values in the free panel and the live values in a run', async ({
+test('@hooks the MFD oil gauges read the base values in the free panel and the live values in a run', async ({
   page,
   hasTouch,
 }) => {
-  await expect(mfdGauge(page, 'Oil temp')).toContainText('15 °C');
-  await expect(mfdGauge(page, 'Oil pres')).toContainText('0 BAR');
+  // The free panel shows the base (cruise) readings at the gauge's resolution; the expected text
+  // is read from the quantity data, never typed in.
+  const oilTemp = DA50RG_QUANTITIES.get('oil_temp_c');
+  const oilPres = DA50RG_QUANTITIES.get('oil_pressure_bar');
+  if (oilTemp === undefined || oilPres === undefined) throw new Error('missing quantity data');
+  await expect(mfdGauge(page, 'Oil temp')).toContainText(
+    `${oilTemp.base.toFixed(0)} ${oilTemp.unit.toUpperCase()}`,
+  );
+  await expect(mfdGauge(page, 'Oil pres')).toContainText(
+    `${oilPres.base.toFixed(1)} ${oilPres.unit.toUpperCase()}`,
+  );
 
   await startRun(page, hasTouch);
   // The oil temperature moves during a run (D-01), so the start values 128 degrees C and 5 bar are
-  // read with a tolerance right after Start run; the pressure has no model and stays at 5.
+  // read with a tolerance right after Start run; the pressure sits at its base, which is 5.
   expect(Math.abs((await quantityOf(page, 'oil_temp_c')) - 128)).toBeLessThanOrEqual(3);
   expect(Math.abs((await quantityOf(page, 'oil_pressure_bar')) - 5)).toBeLessThanOrEqual(3);
   // Map page: the engine strip shows a number with its unit for each.

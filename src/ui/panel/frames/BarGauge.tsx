@@ -1,4 +1,4 @@
-import { formatReading } from './ArcGauge';
+import { readoutText } from './ArcGauge';
 import type { Band } from './ArcGauge';
 
 export interface BarGaugeProps {
@@ -12,12 +12,26 @@ export interface BarGaugeProps {
   readonly y: number;
   readonly w: number;
   readonly h: number;
+  /** Digits after the point in the readout; absent keeps formatReading. */
+  readonly decimals?: number;
 }
 
 const BAR_H = 7;
 
-/** Presentational horizontal bar gauge; the value is a plain prop (live values: PNL-04). */
-export function BarGauge({ label, unit, value, min, max, bands, x, y, w, h }: BarGaugeProps) {
+/** Presentational horizontal bar gauge; the value is a plain prop (the simulated quantity). */
+export function BarGauge({
+  label,
+  unit,
+  value,
+  min,
+  max,
+  bands,
+  x,
+  y,
+  w,
+  h,
+  decimals,
+}: BarGaugeProps) {
   const frac = (v: number) => (Math.min(max, Math.max(min, v)) - min) / (max - min);
   const barY = y + h - BAR_H - 3;
   const pointerX = x + frac(value) * w;
@@ -35,7 +49,7 @@ export function BarGauge({ label, unit, value, min, max, bands, x, y, w, h }: Ba
         fill="#ffffff"
         pointer-events="none"
       >
-        {`${formatReading(value)} ${unit.toUpperCase()}`}
+        {`${readoutText(value, decimals)} ${unit.toUpperCase()}`}
       </text>
       {bands.map((b) => (
         <rect

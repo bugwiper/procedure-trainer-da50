@@ -26,6 +26,7 @@ import type { PanelBridge } from '../src/ui/bridge';
 import { AudioPanelFrame } from '../src/ui/panel/frames/AudioPanelFrame';
 import { AutopilotPanelFrame } from '../src/ui/panel/frames/AutopilotPanelFrame';
 import { BezelColumnFrame } from '../src/ui/panel/frames/BezelColumnFrame';
+import { formatReading } from '../src/ui/panel/frames/ArcGauge';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
 import { SoftkeysFrame } from '../src/ui/panel/frames/SoftkeysFrame';
@@ -476,6 +477,154 @@ describe('glass header, content and legend zones', () => {
     expect(title?.props['y']).toBe(46);
     const arcs = findElements(page, (e) => e.props['data-gauge'] !== undefined);
     expect(arcs).toHaveLength(12);
+  });
+});
+
+// Plan 03-02 (D-12, C-12, T-03-04): every gauge of the map strip and of the engine page reads a
+// named quantity; its scale and band colours are the quantity data and its readout prints at the
+// gauge's resolution. The gauge table is the independent reference (Table Q1).
+const GAUGE_REFERENCE: readonly {
+  readonly label: string;
+  readonly quantity: string;
+  readonly decimals: number;
+}[] = [
+  { label: 'RPM', quantity: 'rpm', decimals: 0 },
+  { label: 'Load', quantity: 'load_pct', decimals: 0 },
+  { label: 'Oil pres', quantity: 'oil_pressure_bar', decimals: 1 },
+  { label: 'Oil temp', quantity: 'oil_temp_c', decimals: 0 },
+  { label: 'Coolant temp', quantity: 'coolant_temp_c', decimals: 0 },
+  { label: 'Gearbox temp', quantity: 'gearbox_temp_c', decimals: 0 },
+  { label: 'Fuel temp', quantity: 'fuel_temp_c', decimals: 0 },
+  { label: 'Fuel pres', quantity: 'fuel_pressure_bar', decimals: 1 },
+  { label: 'Fuel qty LH', quantity: 'fuel_qty_lh_gal', decimals: 1 },
+  { label: 'Fuel qty RH', quantity: 'fuel_qty_rh_gal', decimals: 1 },
+  { label: 'Volts', quantity: 'bus_volts', decimals: 1 },
+  { label: 'Amps', quantity: 'alt1_amps', decimals: 0 },
+];
+const STRIP_LABELS = [
+  'RPM',
+  'Load',
+  'Oil pres',
+  'Oil temp',
+  'Coolant temp',
+  'Gearbox temp',
+  'Volts',
+  'Fuel qty LH',
+] as const;
+const BAND_COLOURS: Readonly<Record<string, string>> = {
+  green: '#2fd36f',
+  yellow: '#f2c230',
+  red: '#f0443c',
+  none: '#3a424b',
+};
+
+describe('MFD gauges read quantities (plan 03-02)', () => {
+  const bridgeWith = (page: 'map' | 'engine', values: Record<string, number>): PanelBridge =>
+    ({
+      ...fakeBridge(page),
+      quantities: { value: values },
+    }) as unknown as PanelBridge;
+  const render = (page: 'map' | 'engine', values: Record<string, number>) =>
+    expand(MfdFrame({ region: region('mfd'), bridge: bridgeWith(page, values) }));
+  const gaugeOf = (tree: El, label: string): El => {
+    const found = findElements(tree, (e) => e.props['data-gauge'] === label)[0];
+    if (found === undefined) throw new Error(`no gauge ${label}`);
+    return found;
+  };
+  const refOf = (label: string) => {
+    const found = GAUGE_REFERENCE.find((g) => g.label === label);
+    const def = found === undefined ? undefined : DA50RG_QUANTITIES.get(found.quantity);
+    if (found === undefined || def === undefined) throw new Error(`no reference for ${label}`);
+    return { ...found, def };
+  };
+  /** A value inside the range with a fractional part, different from the base. */
+  const stubValues = (): Record<string, number> =>
+    Object.fromEntries(
+      DA50RG_QUANTITIES.all.map((d) => [d.id, d.min + (d.max - d.min) * 0.4137 + 0.0123]),
+    );
+
+  it('the engine page draws one gauge per reference row and the strip the first eight', () => {
+    const page = render('engine', {});
+    const labels = findElements(page, (e) => e.props['data-gauge'] !== undefined).map(
+      (e) => e.props['data-gauge'],
+    );
+    expect([...labels].sort()).toEqual(GAUGE_REFERENCE.map((g) => g.label).sort());
+    const strip = findElements(render('map', {}), (e) => e.props['data-gauge'] !== undefined).map(
+      (e) => e.props['data-gauge'],
+    );
+    expect(strip).toEqual([...STRIP_LABELS]);
+  });
+
+  it.each(['map', 'engine'] as const)(
+    'on the %s page every gauge has the band colours and proportions of its quantity',
+    (pageName) => {
+      const tree = render(pageName, {});
+      const labels = pageName === 'map' ? STRIP_LABELS : GAUGE_REFERENCE.map((g) => g.label);
+      for (const label of labels) {
+        const { def } = refOf(label);
+        const gauge = gaugeOf(tree, label);
+        const bands = findElements(gauge, (e) =>
+          pageName === 'engine' && ['RPM', 'Load', 'Oil pres'].includes(label)
+            ? e.tag === 'path'
+            : e.tag === 'rect',
+        );
+        expect(bands, label).toHaveLength(def.bands.length);
+        const colours = bands.map((b) => (b.tag === 'path' ? b.props['stroke'] : b.props['fill']));
+        expect(colours, label).toEqual(def.bands.map((b) => BAND_COLOURS[b.colour]));
+        if (bands[0]?.tag === 'rect') {
+          const total = bands.reduce((sum, b) => sum + Number(b.props['width']), 0);
+          let from = def.min;
+          bands.forEach((b, i) => {
+            const to = def.bands[i]?.to ?? Number.NaN;
+            expect(Number(b.props['width']) / total, `${label} band ${String(i)}`).toBeCloseTo(
+              (to - from) / (def.max - def.min),
+              6,
+            );
+            from = to;
+          });
+        }
+      }
+    },
+  );
+
+  /** The digital readout of a gauge: its glass-digits text, exactly. */
+  const readoutOf = (gauge: El): string => {
+    const digits = findElements(gauge, (e) => e.props['class'] === 'glass-digits')[0];
+    if (digits === undefined) throw new Error('no readout');
+    return textOf(digits);
+  };
+  const isArc = (pageName: string, label: string): boolean =>
+    pageName === 'engine' && ['RPM', 'Load', 'Oil pres'].includes(label);
+
+  it.each(['map', 'engine'] as const)(
+    'on the %s page every gauge prints a stub value at its resolution',
+    (pageName) => {
+      const values = stubValues();
+      const tree = render(pageName, values);
+      const labels = pageName === 'map' ? STRIP_LABELS : GAUGE_REFERENCE.map((g) => g.label);
+      for (const label of labels) {
+        const { quantity, decimals, def } = refOf(label);
+        const shown = (values[quantity] ?? Number.NaN).toFixed(decimals);
+        const expected = isArc(pageName, label) ? shown : `${shown} ${def.unit.toUpperCase()}`;
+        expect(readoutOf(gaugeOf(tree, label)), label).toBe(expected);
+      }
+    },
+  );
+
+  it('without a value every gauge prints the base of its quantity at its resolution', () => {
+    const tree = render('engine', {});
+    for (const g of GAUGE_REFERENCE) {
+      const def = DA50RG_QUANTITIES.get(g.quantity);
+      const shown = (def?.base ?? Number.NaN).toFixed(g.decimals);
+      const expected = isArc('engine', g.label) ? shown : `${shown} ${def?.unit.toUpperCase()}`;
+      expect(readoutOf(gaugeOf(tree, g.label)), g.label).toBe(expected);
+    }
+  });
+
+  it('formatReading keeps its output when no resolution is given', () => {
+    expect(formatReading(2093.27)).toBe('2093.3');
+    expect(formatReading(91)).toBe('91');
+    expect(formatReading(0.4)).toBe('0.4');
   });
 });
 

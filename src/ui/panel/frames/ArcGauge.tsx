@@ -15,6 +15,8 @@ export interface ArcGaugeProps {
   readonly cx: number;
   readonly cy: number;
   readonly r: number;
+  /** Digits after the point in the readout; absent keeps formatReading. */
+  readonly decimals?: number;
 }
 
 /** Sweep of the scale, centred on straight up. */
@@ -44,11 +46,27 @@ export function formatReading(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+/** The readout at the gauge's resolution when it has one (toFixed), else formatReading. */
+export function readoutText(value: number, decimals?: number): string {
+  return decimals === undefined ? formatReading(value) : value.toFixed(decimals);
+}
+
 /**
- * Presentational arc gauge. The value is a plain prop (live values arrive with PNL-04);
+ * Presentational arc gauge. The value is a plain prop (the MFD feeds it the simulated quantity);
  * the needle turns with the SVG rotate(angle cx cy) form, never a CSS origin.
  */
-export function ArcGauge({ label, unit, value, min, max, bands, cx, cy, r }: ArcGaugeProps) {
+export function ArcGauge({
+  label,
+  unit,
+  value,
+  min,
+  max,
+  bands,
+  cx,
+  cy,
+  r,
+  decimals,
+}: ArcGaugeProps) {
   const needleAngle = angleOf(value, min, max);
   const ticks = Array.from({ length: TICK_COUNT + 1 }, (_, i) =>
     angleOf(min + ((max - min) * i) / TICK_COUNT, min, max),
@@ -112,7 +130,7 @@ export function ArcGauge({ label, unit, value, min, max, bands, cx, cy, r }: Arc
         fill="#ffffff"
         pointer-events="none"
       >
-        {formatReading(value)}
+        {readoutText(value, decimals)}
       </text>
       <text
         x={cx}

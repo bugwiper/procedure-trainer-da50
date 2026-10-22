@@ -174,6 +174,8 @@ interface GaugeSpec {
   readonly min: number;
   readonly max: number;
   readonly bands: readonly Band[];
+  /** Digits after the point in the readout: the gauge's resolution (C-12). */
+  readonly decimals: number;
 }
 
 /** An unmarked scale range (colour 'none'): the dark scale colour of the frame. */
@@ -191,7 +193,7 @@ const BAND_COLOUR: Readonly<Record<BandColour, string>> = {
  * (the AFM 02-05 markings live there once, src/aircraft/da50rg/quantities.ts), and whose reading is
  * that quantity's current value. The frame holds no gauge number of its own (T-03-04).
  */
-function quantityGauge(label: string, quantity: QuantityId): GaugeSpec {
+function quantityGauge(label: string, quantity: QuantityId, decimals: number): GaugeSpec {
   const def = DA50RG_QUANTITIES.get(quantity);
   if (def === undefined) throw new Error(`unknown quantity "${quantity}"`);
   let from = def.min;
@@ -208,21 +210,22 @@ function quantityGauge(label: string, quantity: QuantityId): GaugeSpec {
     min: def.min,
     max: def.max,
     bands,
+    decimals,
   };
 }
 
-const RPM: GaugeSpec = quantityGauge('RPM', 'rpm');
-const LOAD: GaugeSpec = quantityGauge('Load', 'load_pct');
-const OIL_PRES: GaugeSpec = quantityGauge('Oil pres', 'oil_pressure_bar');
-const OIL_TEMP: GaugeSpec = quantityGauge('Oil temp', 'oil_temp_c');
-const COOLANT_TEMP: GaugeSpec = quantityGauge('Coolant temp', 'coolant_temp_c');
-const GEARBOX_TEMP: GaugeSpec = quantityGauge('Gearbox temp', 'gearbox_temp_c');
-const FUEL_TEMP: GaugeSpec = quantityGauge('Fuel temp', 'fuel_temp_c');
-const FUEL_PRES: GaugeSpec = quantityGauge('Fuel pres', 'fuel_pressure_bar');
-const FUEL_QTY_LH: GaugeSpec = quantityGauge('Fuel qty LH', 'fuel_qty_lh_gal');
-const FUEL_QTY_RH: GaugeSpec = quantityGauge('Fuel qty RH', 'fuel_qty_rh_gal');
-const VOLTS: GaugeSpec = quantityGauge('Volts', 'bus_volts');
-const AMPS: GaugeSpec = quantityGauge('Amps', 'alt1_amps');
+const RPM: GaugeSpec = quantityGauge('RPM', 'rpm', 0);
+const LOAD: GaugeSpec = quantityGauge('Load', 'load_pct', 0);
+const OIL_PRES: GaugeSpec = quantityGauge('Oil pres', 'oil_pressure_bar', 1);
+const OIL_TEMP: GaugeSpec = quantityGauge('Oil temp', 'oil_temp_c', 0);
+const COOLANT_TEMP: GaugeSpec = quantityGauge('Coolant temp', 'coolant_temp_c', 0);
+const GEARBOX_TEMP: GaugeSpec = quantityGauge('Gearbox temp', 'gearbox_temp_c', 0);
+const FUEL_TEMP: GaugeSpec = quantityGauge('Fuel temp', 'fuel_temp_c', 0);
+const FUEL_PRES: GaugeSpec = quantityGauge('Fuel pres', 'fuel_pressure_bar', 1);
+const FUEL_QTY_LH: GaugeSpec = quantityGauge('Fuel qty LH', 'fuel_qty_lh_gal', 1);
+const FUEL_QTY_RH: GaugeSpec = quantityGauge('Fuel qty RH', 'fuel_qty_rh_gal', 1);
+const VOLTS: GaugeSpec = quantityGauge('Volts', 'bus_volts', 1);
+const AMPS: GaugeSpec = quantityGauge('Amps', 'alt1_amps', 0);
 
 type Quantities = Readonly<Record<QuantityId, number>>;
 
@@ -307,6 +310,7 @@ function MapPage({ w, quantities }: { readonly w: number; readonly quantities: Q
             min={g.min}
             max={g.max}
             bands={g.bands}
+            decimals={g.decimals}
             x={12}
             y={34 + i * 38}
             w={STRIP_W - 20}
@@ -354,6 +358,7 @@ function EnginePage({ w, quantities }: { readonly w: number; readonly quantities
           min={g.min}
           max={g.max}
           bands={g.bands}
+          decimals={g.decimals}
           cx={4 + colW * (i + 0.5)}
           cy={112}
           r={52}
@@ -368,6 +373,7 @@ function EnginePage({ w, quantities }: { readonly w: number; readonly quantities
           min={g.min}
           max={g.max}
           bands={g.bands}
+          decimals={g.decimals}
           x={16}
           y={176 + i * 33}
           w={barW}
@@ -383,6 +389,7 @@ function EnginePage({ w, quantities }: { readonly w: number; readonly quantities
           min={g.min}
           max={g.max}
           bands={g.bands}
+          decimals={g.decimals}
           x={w / 2 + 8}
           y={176 + i * 33}
           w={barW}
