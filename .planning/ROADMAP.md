@@ -305,7 +305,7 @@ Plans:
   3. The "New situation" flow offers Oil Temp High, Electrical Failure and Engine Fire, each with its own initial state, annunciations and procedure, and each passes golden, do-nothing, wrong-order and forbidden-action replay tests and registry validation.
   4. User can enter a squawk code (e.g. 7700) in a simplified transponder section, and the entered code counts as graded panel state.
 
-**Plans:** 4/10 plans executed
+**Plans:** 5/10 plans executed
 
 Plans:
 **Wave 1**
@@ -317,7 +317,7 @@ Plans:
 - [x] 03-10-PLAN.md — FUEL selector (rotary, bottom left of the pedestal; cowl flap shortened and raised) and ECS SHUTOFF (pull knob under the panel) at the owner's positions, with layout, label, review, static-text and gesture gates
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 03-04-PLAN.md — Retract rebuild and the consumed rule (D-03), event-triggered reactions with timers, the de-ice MAX 120 s run (D-04)
+- [x] 03-04-PLAN.md — Retract rebuild and the consumed rule (D-03), event-triggered reactions with timers, the de-ice MAX 120 s run (D-04)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 03-05-PLAN.md — Named outcomes: an ignored failure ends the run as FAIL and the debrief names it; grade replays the same simulation; lint L13
@@ -374,6 +374,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Deployed Playable Panel | 9/9 | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario | 13/13 | Complete    | 2026-10-22 |
-| 3. Reactive Scenarios and Initial Pack | 4/10 | In Progress | - |
+| 3. Reactive Scenarios and Initial Pack | 5/10 | In Progress | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
 | 5. Offline PWA and Real-Device Hardening | 0/TBD | Not started | - |

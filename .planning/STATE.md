@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Reactive Scenarios and Initial Pack
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 03-10-PLAN.md
-last_updated: "2026-10-22T21:05:39.532Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-10-22T21:17:52.813Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 03 execution started
-state_head: "0b2d331620af4794f322b7cd71ba466bf61c1567"
+state_head: 8042721659be6276c57497ba1c3f5dbe39554b8b
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 84
-  completed_plans: 78
+  completed_plans: 79
   percent: 25
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 03 (Reactive Scenarios and Initial Pack) — EXECUTING
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 10
 Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
@@ -128,6 +128,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 03 P03 | 14 min | 3 tasks | 19 files |
 | Phase 03 P02 | 12min | 3 tasks | 19 files |
 | Phase 03 P10 | 16 min | 3 tasks | 20 files |
+| Phase 03 P04 | 12 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -202,6 +203,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-10: FUEL selector geometry set by the phone tap-size gate: centre 1005, 1258, hit 86 x 44, r 22 (a three-stop knob has two tap halves of hit.w / 2)
 - [Phase 03]: 03-10: cowl flap track 44, hit 50 x 88, centre 1192 (the handle square is capped by the marker spacing = track length); lamps 1170 and 1214, placard dy -46
 - [Phase 03]: 03-10: pull-ecs head prints ECS SHUTOFF in two lines at font size 6; stem dark red #8f0f16 (safety red stays reserved for pull-t and pull-tab)
+- [Phase 03]: 03-04: a reaction is in force for exactly its duration from the step that applied the arming event; SimState.flags holds only active flags
+- [Phase 03]: 03-04: a fired reaction consumes its arming event (markConsumed by the run); a clearing event is not consumed and a retract of an applied event rebuilds the run by replay
 
 ### Pending Todos
 
@@ -232,6 +235,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-22T21:05:39.128Z
-Stopped at: Completed 03-10-PLAN.md
+Last session: 2026-10-22T21:17:52.399Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None
