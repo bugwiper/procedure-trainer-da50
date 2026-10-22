@@ -10,7 +10,7 @@ The code is `src/engine/grading.ts` (the function `grade`) and `src/engine/predi
 
 The result holds the verdict (`pass` or `fail`), the reasons for a fail, one entry per graded step, the status of every branch of the checklist, the order violations and the harmful actions.
 
-The level of the briefing (Easy or Medium) is not an input of `grade`: every level grades the same. The level only changes what the briefing shows and what the debrief names.
+The level chosen before the briefing (Easy or Medium; Realistic is shown but not yet available) is not an input of `grade`: every level grades the same. The level only changes what the briefing shows and what the debrief names.
 
 ## The rules
 
