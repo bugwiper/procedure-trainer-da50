@@ -1,5 +1,5 @@
 ---
-status: testing
+status: complete
 phase: 02-first-gradable-scenario
 source: [02-VERIFICATION.md]
 started: 2026-10-22T00:00:00Z
@@ -8,11 +8,7 @@ updated: 2026-10-22T12:00:00Z
 
 ## Current Test
 
-number: 3
-name: Instructor review of docs/GRADING.md and the scenario file
-expected: |
-  A DA50 instructor confirms rules R1-R9 and the severity, threshold and forbidden assignments as acceptable.
-awaiting: user response (external reviewer)
+[testing complete]
 
 ## Tests
 
@@ -28,14 +24,15 @@ note: Wording accepted. Owner change requests (not gaps): (1) move the briefing 
 
 ### 3. Instructor review of docs/GRADING.md and the scenario file
 expected: A DA50 instructor confirms rules R1-R9 and the severity, threshold and forbidden assignments as acceptable.
-result: [pending]
+result: pass
+note: Owner (flight instructor) answered the four open questions; the grading semantics are accepted with changes. Changes (power increase fails the run, no times in this scenario, optional time limits later, pass with recommendation) are in 02.1-OWNER-INPUT.md.
 
 ## Summary
 
 total: 3
-passed: 2
+passed: 3
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
