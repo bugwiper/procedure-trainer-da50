@@ -4,16 +4,16 @@ current_phase: 03
 current_phase_name: Reactive Scenarios and Initial Pack
 current_plan: 10
 status: executing
-stopped_at: Completed 03-12-PLAN.md
-last_updated: "2026-10-23T10:05:25.904Z"
+stopped_at: Completed 03-13-PLAN.md
+last_updated: "2026-10-23T10:17:28.482Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 03 execution started
-state_head: 04f1fa7ab914f62f43c69d106c494b7599b3e213
+state_head: a5f561832fec6d66b7ebe6a75467e2a0d8964bcf
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 88
-  completed_plans: 86
+  completed_plans: 87
   percent: 17
 ---
 
@@ -136,6 +136,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 03 P09 | 20 min | 3 tasks | 9 files |
 | Phase 03 P11 | 24 min | 3 tasks | 21 files |
 | Phase 03 P12 | 25 min | 3 tasks | 7 files |
+| Phase 03 P13 | 50 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -223,6 +224,8 @@ Recent decisions affecting current work:
 - [Phase 03]: Plan 03-09: the WebKit failure of the load-error retry case (desktop-webkit, phone-webkit) is recorded, not fixed; WebKit is not a gate
 - [Phase 03]: 03-11: the Realistic setup is scenario data in the onset block (quantities, parameters); the oil temperature rises faster through the aircraft parameter oil_temp_rate, one start function realisticQuantities serves session, grade and lint, lint L15 bounds the message at 12 s
 - [Phase 03]: Gauge alert tone comes from the quantity data's own band lookup (toneOf over QuantitySet.bandOf); bars and arcs share one rule, green draws the tree unchanged (03-12, C-67, C-70)
+- [Phase 03]: 03-13: a checklist is the procedure itself (rows are line and step nodes, printed full-width rows are comment nodes); the printed wording is pinned by an independent reference table in tests/
+- [Phase 03]: 03-13: L16 numbering resumes after a higher number and keeps the expected one after a repeat; a marker in the table form is an L17 issue at its own key
 
 ### Pending Todos
 
@@ -258,6 +261,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-23T10:05:25.433Z
-Stopped at: Completed 03-12-PLAN.md
+Last session: 2026-10-23T10:17:28.018Z
+Stopped at: Completed 03-13-PLAN.md
 Resume file: None
