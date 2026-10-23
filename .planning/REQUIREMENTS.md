@@ -24,7 +24,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-13**: The G1000 NXi PFD and MFD appear in their well-known shape incl. all softkeys (inert except the MFD page softkey and the engine page); the audio panel, autopilot panel and the static backup EFIS, with the knob and key columns beside both displays, are visible in their real positions (buttons not functional; DISPLAY BACKUP and the glass menus are deferred)
 - [x] **PNL-14**: The gear indicator is three separate green lights (each green or off; all three green = down and locked) plus a separate red light (red or off; on for unsafe or in transition; all off for up and locked; GEAR TEST lights all four); the flap lights (UP, T/O, LDG) follow flap state; lamps are derived from control state and nothing pulses; transition timing arrives with Phase 3
 - [x] **PNL-15**: A single click or tap never zooms; a double click (mouse) or double tap (touch) zooms into the tapped region and, while zoomed, zooms fully out again (also from intermediate pinch levels), on the panel background and on a latching control (toggle, rocker, breaker, guard, brake flap, lever marker, FAN spot): the first tap actuates at once and the recognised pair retracts it from the action log, so the control ends in its original state, and a pair across two different controls is not a double tap; a double press on a momentary or drag control stays two presses and never zooms (a momentary control commits after 100 ms held still); a press that moves beyond 10 px (touch) or 5 px (mouse) or gains a second finger pans or pinches the view instead of operating the control; the "Full panel" button is never hidden by the footer and never covers a control
-- [ ] **PNL-16**: The MFD engine page shows the electrical system in one Electrical box: an Amps bar with one pointer for each alternator (1 and 2) and a Volts bar, with the yellow and red alert styling of the other gauges and static marks only
+- [x] **PNL-16**: The MFD engine page shows the electrical system in one Electrical box: an Amps bar with one pointer for each alternator (1 and 2) and a Volts bar, with the yellow and red alert styling of the other gauges and static marks only
 
 ### Scenario Engine
 
@@ -38,7 +38,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-08**: Engine uses a virtual, pausable clock so grading and replay are deterministic
 - [x] **SCN-09**: A scenario can declare several causes (variants) behind one failure, each with its own start state, parameters and applying steps; one is drawn by seed on every level, recorded with the run, replayed by the grader and named in the debrief after the run
 - [x] **SCN-10**: The simulation can change a control by itself (a circuit breaker that pops at the onset, or pops again when pushed in while the fault is present), identically in the live run and in every replay
-- [ ] **SCN-11**: The electrical system is a bus model (main, essential, battery, hot and avionics buses, bus tie relay, alternators, ESS BUS, ELECT. MASTER, breakers, battery) derived from control states and parameters; the ALTN 1 FAIL and ALTN 2 FAIL cautions come from an alternator control unit model, not from a current threshold
+- [x] **SCN-11**: The electrical system is a bus model (main, essential, battery, hot and avionics buses, bus tie relay, alternators, ESS BUS, ELECT. MASTER, breakers, battery) derived from control states and parameters; the ALTN 1 FAIL and ALTN 2 FAIL cautions come from an alternator control unit model, not from a current threshold
 
 ### Session & Debrief
 
@@ -55,7 +55,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CNT-01**: Initial pack contains Oil Temp High, Electrical Failure and Engine Fire scenarios
 - [ ] **CNT-02**: An authoring guide explains how to add scenarios and validate them
 - [x] **CNT-03**: A content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is decided before any procedure text is committed
-- [ ] **CNT-04**: The pack contains an ALTN 2 FAIL scenario with its checklist as printed and several causes behind the one message
+- [x] **CNT-04**: The pack contains an ALTN 2 FAIL scenario with its checklist as printed and several causes behind the one message
 
 ### Platform & Business
 
@@ -137,9 +137,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCN-09 | Phase 3.1 | Complete |
 | SCN-10 | Phase 3.1 | Complete |
 | SES-07 | Phase 3.1 | Complete |
-| SCN-11 | Phase 4 | Pending |
-| PNL-16 | Phase 4 | Pending |
-| CNT-04 | Phase 4 | Pending |
+| SCN-11 | Phase 4 | Complete |
+| PNL-16 | Phase 4 | Complete |
+| CNT-04 | Phase 4 | Complete |
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |

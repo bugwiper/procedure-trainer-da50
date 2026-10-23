@@ -20,3 +20,7 @@ source: owner instructor review of phase 3 (checklists supplied as photos)
 Roadmap (decided 2026-10-23): the ALTN 1 FAIL and ALTN 2 FAIL items belong to Phase 4, Electrical system fidelity.
 
 The instructor review answers (items 2, 4, 5, 6, 8 accepted; 1, 9, 10 accepted for the beta, to tune during use) are recorded in `docs/GRADING.md`.
+
+## Closed (Phase 4, 2026-10-23)
+
+ALTN 1 FAIL, ALTN 2 FAIL and Engine Fire are all as printed: the circuit breaker row and the monitor line were closed in plan 03-13 and phase 3.1, ALTN 2 FAIL shipped in plan 04-02 with its caution rule and the alternator 2 parameters from plan 04-01.
