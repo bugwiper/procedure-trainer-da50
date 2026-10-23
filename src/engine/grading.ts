@@ -155,6 +155,7 @@ function walkProcedure(scenario: Scenario, ctx0: PredicateContext, env: Aircraft
       const here = `${path}.${String(i)}`;
       switch (node.kind) {
         case 'line':
+        case 'comment':
           return;
         case 'group':
           walk.groups.push({ group: node, graded: parent === 'applies' });

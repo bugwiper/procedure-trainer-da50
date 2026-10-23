@@ -1,12 +1,12 @@
-# ALTN 1 FAIL: alternator 1 gives no current and the main bus runs on the battery (format 1). Step and checklist lines are short checklist wording; all other text is own wording. The threshold, hold time, onset window and forbidden items are instructor-review values.
+# ALTN 1 FAIL: alternator 1 gives no current and the main bus runs on the battery (format 1). The checklist (heading, message, rows and comment rows) is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decision 2026-10-23); all other text is own wording. The threshold, hold time, onset window and forbidden items are instructor-review values.
 format: 1
 id: elec-altn1-fail
 title: ALTN 1 FAIL
 source:
-  document: "AFM DA 50 C, Doc 9.01.01-E"
-  issue: "018"
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
   section: AFM 03A-02 ALTN 1 FAIL
-  verified: "2026-10-22"
+  verified: "2026-10-23"
 disclaimer: training-aid
 briefing:
   situation: "You are in cruise flight when the yellow ALTN 1 FAIL message appears on the primary flight display. The Amps reading has dropped to zero. The engine runs normally and the main bus now draws on the battery."
@@ -18,31 +18,45 @@ initial:
 parameters:
   alt1_output: 0
 annunciations[1]: altn_1_fail
-procedure[4]:
+checklist:
+  form: table
+  heading: ALTN 1 FAIL
+  message: ALTERNATOR 1 HAS FAILED
+procedure[5]:
   - kind: line
-    text: "Circuit breakers: check all pressed in"
+    number: 1
+    text: Circuit breaker
+    action: check IN
   - kind: group
     id: immediate
     ordered: false
     steps[2]:
       - id: alt1_off
         severity: critical
-        text: "ALTERNATOR 1 switch: OFF"
+        number: 2
+        text: Alternator 1
+        action: "OFF"
         done:
           check: state
           control: sw.alternator_1
           is: off
       - id: ess_bus_on
         severity: critical
-        text: "ESSENTIAL BUS switch: ON"
+        number: 3
+        text: Essential bus
+        action: "ON"
         done:
           check: state
           control: sw.ess_bus
           is: on
   - kind: line
-    text: "Bus voltage: monitor"
-  - kind: line
-    text: "NVFR or IFR flight: terminate, land at next suitable airfield"
+    number: 4
+    text: Bus voltage
+    action: MONITOR
+  - kind: comment
+    text: Terminate NVFR/IFR-flight and land at nearest suitable airfield.
+  - kind: comment
+    text: Leave icing conditions.
 # Each of these removes the remaining supply of the bus; both are instructor-review items.
 forbidden[2]:
   - id: alt2_off

@@ -15,6 +15,10 @@
 // REALISTIC_SHOW_WITHIN_MS after the onset, and the Realistic setup is sound (onset.parameters and
 // onset.quantities name known ids inside their ranges, and no branch decided at the start reads a
 // quantity the onset block sets, because grade decides such a branch on the initial state, WR-04).
+// L16 and L17 (plan 03-13) keep a printed checklist consistent: L16 wants the row numbers present
+// to run 1, 2, 3 in document order (rows without a number are free); L17 keeps the two forms apart
+// (table: numbers, actions and comments, no decision, branch or marker; outline: markers, no
+// number, action, comment or boxed).
 // checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
 // the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
@@ -77,6 +81,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
       const here = [...path, i];
       switch (node.kind) {
         case 'line':
+        case 'comment':
           return;
         case 'group':
           node.steps.forEach((step, j) => {
@@ -187,6 +192,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
       const here = [...path, i];
       switch (node.kind) {
         case 'line':
+        case 'comment':
           return;
         case 'group':
           claim([...here, 'id'], node.id);
@@ -231,10 +237,80 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
     claim(['outcomes', i, 'id'], item.id);
   });
 
+  checkChecklist(scenario, add);
+
   // L5 and L6 evaluate predicates, which needs every reference to resolve first.
   if (issues.length === 0) checkInitialState(scenario, env, add);
   if (issues.length === 0) checkRealisticStart(scenario, env, add);
   return issues;
+}
+
+/**
+ * L16 and L17: a checklist as printed. L16: in document order (a group's steps in order, nested
+ * nodes where they stand) the numbers present are 1, 2, 3 and so on; a gap, a repeat or a start
+ * other than 1 is reported at the number, with the expected and the found number; counting resumes
+ * after a higher number and keeps the expected one after a repeat, so one slip is one issue. L17: the table form has no decision, branch or
+ * marker; the outline form (the default) has no number, action, comment node or boxed.
+ */
+function checkChecklist(
+  scenario: Scenario,
+  add: (segments: Segments, message: string) => void,
+): void {
+  const table = scenario.checklist?.form === 'table';
+  let expected = 1;
+  const numbered = (path: Segments, number: number | undefined): void => {
+    if (number === undefined) return;
+    if (number === expected) {
+      expected++;
+      return;
+    }
+    add(
+      [...path, 'number'],
+      `row number ${String(number)} breaks the numbering; expected ${String(expected)}`,
+    );
+    // A gap or a late start resumes after the found number; a repeat keeps the expected one.
+    if (number > expected) expected = number + 1;
+  };
+  const outlineOnly = (path: Segments, keys: Record<string, unknown>, what: string): void => {
+    for (const [key, value] of Object.entries(keys)) {
+      if (value !== undefined) {
+        add([...path, key], `${key} is for the table form; this checklist is an ${what}`);
+      }
+    }
+  };
+  const visit = (path: Segments, nodes: readonly ProcedureNode[]): void => {
+    nodes.forEach((node, i) => {
+      const here = [...path, i];
+      switch (node.kind) {
+        case 'line':
+          numbered(here, node.number);
+          if (!table) outlineOnly(here, { number: node.number, action: node.action }, 'outline');
+          return;
+        case 'comment':
+          if (!table)
+            add(here, 'a comment row is for the table form; this checklist is an outline');
+          return;
+        case 'group':
+          node.steps.forEach((step, j) => {
+            const at = [...here, 'steps', j];
+            numbered(at, step.number);
+            if (!table) outlineOnly(at, { number: step.number, action: step.action }, 'outline');
+          });
+          return;
+        case 'branch':
+          if (table) add(here, 'a branch is for the outline form; this checklist is a table');
+          visit([...here, 'nodes'], node.nodes);
+          return;
+        case 'decision':
+          if (table) add(here, 'a decision is for the outline form; this checklist is a table');
+          node.branches.forEach((branch, j) => {
+            visit([...here, 'branches', j, 'nodes'], branch.nodes);
+          });
+          return;
+      }
+    });
+  };
+  visit(['procedure'], scenario.procedure);
 }
 
 /**
@@ -259,6 +335,7 @@ function checkInitialState(
       const here = [...path, i];
       switch (node.kind) {
         case 'line':
+        case 'comment':
           return;
         case 'group':
           if (!applies) return;

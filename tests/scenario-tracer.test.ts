@@ -167,8 +167,8 @@ describe('parseScenario on author errors', () => {
     expect(result.issues.some((i) => i.path.endsWith('.ordred'))).toBe(true);
   });
 
-  it('returns an issue for a 13-word step text', () => {
-    const words = Array.from({ length: 13 }, (_, i) => `w${String(i)}`).join(' ');
+  it('returns an issue for a 21-word step text (the checklist cap is 20 words)', () => {
+    const words = Array.from({ length: 21 }, (_, i) => `w${String(i)}`).join(' ');
     const result = parseScenario(swap('text: Reduce power', `text: ${words}`));
     expect(result.ok).toBe(false);
     if (result.ok) return;

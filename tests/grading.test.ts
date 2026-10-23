@@ -696,7 +696,13 @@ describe('Electrical Failure replays (plan 03-07, D-08, D-06, C-39)', () => {
   it('the scenario and its ordered copy pass the scenario check', () => {
     expect(checkScenario(ELECTRICAL, DA50RG_ENV).ok).toBe(true);
     expect(checkScenario(ELEC_ORDERED, DA50RG_ENV).ok).toBe(true);
-    expect(elecOrdered.procedure).toHaveLength(electrical.procedure.length);
+    // The ordered copy grades the same steps; the shipped file also carries the printed rows and
+    // comment lines (plan 03-13), which the synthetic copy does not.
+    const stepIds = (scenario: typeof electrical): string[] =>
+      scenario.procedure.flatMap((node) =>
+        node.kind === 'group' ? node.steps.map((step) => step.id) : [],
+      );
+    expect(stepIds(elecOrdered)).toEqual(stepIds(electrical));
   });
 
   it('a handled failure recovers: the golden actions never escalate, however long the run lasts', () => {

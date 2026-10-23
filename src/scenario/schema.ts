@@ -7,6 +7,12 @@
 // the failures an ignored emergency escalates to (D-06): each ends the run when its predicate has
 // held for its hold time; the list and the hold time are bounded (MAX_OUTCOMES, MAX_HOLD_S). `onset` is the optional window
 // in seconds in which the failure begins by itself in the level Realistic (D-05, MAX_ONSET_S).
+// A checklist can be written as printed (plan 03-13, owner decision 2026-10-23): the optional
+// `checklist` block names the printed heading and message tag and the form, `table` (numbered rows
+// with an item and a desired action, full-width comment rows between them) or `outline` (nested
+// items; the default). `number` and `action` sit on a line or step, `comment` is a node kind of its
+// own. All of it is additive and optional, the format stays 1, and nothing in it is graded. Checklist
+// text is reproduced as printed, so its cap (MAX_LINE_WORDS) is a layout bound, not a style rule.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { z } from 'zod';
@@ -24,6 +30,14 @@ const wordsBetween = (min: number, max: number) =>
   z.string().refine((s) => wordCount(s) >= min && wordCount(s) <= max, {
     message: min === max ? `must be ${min} words` : `must have ${min} to ${max} words`,
   });
+
+/** The longest checklist line in words: a layout bound, the printed wording is not shortened. */
+export const MAX_LINE_WORDS = 20;
+
+const lineWords = wordsBetween(1, MAX_LINE_WORDS);
+
+/** The row number printed at the left of a checklist table row. */
+const rowNumber = z.number().int().min(1).max(99);
 
 const nonBlank = z.string().refine((s) => s.trim() !== '', { message: 'must not be empty' });
 
@@ -76,11 +90,27 @@ export const Predicate = z.discriminatedUnion('check', [
 export const Step = z.strictObject({
   id: nodeId,
   severity: z.enum(['critical', 'standard', 'optional']),
-  text: wordsBetween(1, 12),
+  text: lineWords,
+  /** Printed row number (table form) and desired action (right-hand column). */
+  number: rowNumber.optional(),
+  action: lineWords.optional(),
   done: Predicate,
 });
 
-const Line = z.strictObject({ kind: z.literal('line'), text: wordsBetween(1, 12) });
+const Line = z.strictObject({
+  kind: z.literal('line'),
+  text: lineWords,
+  number: rowNumber.optional(),
+  action: lineWords.optional(),
+});
+
+/** A full-width printed row between checklist rows; `action` is a right-hand reference such as a page. */
+const Comment = z.strictObject({
+  kind: z.literal('comment'),
+  text: lineWords,
+  action: lineWords.optional(),
+  boxed: z.boolean().optional(),
+});
 
 const Group = z.strictObject({
   kind: z.literal('group'),
@@ -118,13 +148,19 @@ const BranchNode = z.strictObject({
 
 const Decision = z.strictObject({
   kind: z.literal('decision'),
-  text: wordsBetween(1, 12),
+  text: lineWords,
   get branches() {
     return z.array(BranchObject).min(1);
   },
 });
 
-export const ProcedureNode = z.discriminatedUnion('kind', [Line, Decision, BranchNode, Group]);
+export const ProcedureNode = z.discriminatedUnion('kind', [
+  Line,
+  Comment,
+  Decision,
+  BranchNode,
+  Group,
+]);
 
 export const Forbidden = z.strictObject({
   id: nodeId,
@@ -168,6 +204,15 @@ export const Onset = z.strictObject({
   parameters: z.record(nodeId, z.number()).default({}),
 });
 
+/** The printed form of a checklist and its heading and message tag (all optional, plan 03-13). */
+export const CHECKLIST_FORMS = ['table', 'outline'] as const;
+
+export const Checklist = z.strictObject({
+  form: z.enum(CHECKLIST_FORMS).default('outline'),
+  heading: lineWords.optional(),
+  message: lineWords.optional(),
+});
+
 /** Table F1: scenario file, top level. */
 export const Scenario = z.strictObject({
   format: z.literal(FORMAT_VERSION),
@@ -188,6 +233,8 @@ export const Scenario = z.strictObject({
   /** Physics parameters this scenario sets (D-01); absent means the aircraft's normal values. */
   parameters: z.record(nodeId, z.number()).default({}),
   annunciations: z.array(z.string().min(1)),
+  /** The printed form, heading and message tag of the checklist; absent means an unadorned outline. */
+  checklist: Checklist.optional(),
   procedure: z.array(ProcedureNode).min(1),
   forbidden: z.array(Forbidden).default([]),
   outcomes: z.array(Outcome).max(MAX_OUTCOMES).default([]),
@@ -215,6 +262,7 @@ export type Scenario = z.infer<typeof Scenario>;
 export type ProcedureNode = z.infer<typeof ProcedureNode>;
 export type BranchObject = z.infer<typeof BranchObject>;
 export type Group = z.infer<typeof Group>;
+export type Checklist = z.infer<typeof Checklist>;
 export type Step = z.infer<typeof Step>;
 export type Forbidden = z.infer<typeof Forbidden>;
 export type Outcome = z.infer<typeof Outcome>;

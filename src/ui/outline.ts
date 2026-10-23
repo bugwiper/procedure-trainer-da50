@@ -140,6 +140,8 @@ export function buildOutline(
       const here = `${path}.${String(i)}`;
       switch (node.kind) {
         case 'line':
+        case 'comment':
+          // Until the checklist renderer (plan 03-14) a comment row prints as a line of its text.
           items.push({ kind: 'line', text: node.text, muted, notGraded: debrief && !muted });
           return;
         case 'group':

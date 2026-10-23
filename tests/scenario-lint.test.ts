@@ -821,3 +821,155 @@ describe('the Realistic setup: L12 on the onset block, L14 on its start, L15 spe
     }
   });
 });
+
+describe('L16 and L17: a checklist as printed (plan 03-13)', () => {
+  // MINIMAL as a numbered table: the two steps of its group are rows 1 and 2, the line row 3.
+  const TABLE = swap(
+    swap(
+      swap(
+        swap(MINIMAL, 'procedure[2]:', 'checklist:\n  form: table\nprocedure[2]:'),
+        'text: Reduce power',
+        'text: Reduce power\n        number: 1',
+      ),
+      'text: Open cowl flap',
+      'text: Open cowl flap\n        number: 2',
+    ),
+    'text: Increase airspeed',
+    'text: Increase airspeed\n    number: 3',
+  );
+
+  it('passes the numbered table and a checklist without numbers', () => {
+    expect(checkScenario(TABLE, DA50RG_ENV).ok).toBe(true);
+    expect(checkScenario(MINIMAL, DA50RG_ENV).ok).toBe(true);
+    // rows 1 and 2 stay numbered, the last row is free
+    expect(checkScenario(swap(TABLE, '\n    number: 3', ''), DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('L16: reports a gap at the number, with the expected and the found number', () => {
+    const text = swap(TABLE, 'number: 3', 'number: 4');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'procedure.1.number',
+      line: lineOf(text, 'number: 4'),
+      col: colOf(text, 'number: 4', 'number'),
+    });
+    expect(issues[0]?.message).toContain('expected 3');
+    expect(issues[0]?.message).toContain('4');
+  });
+
+  it('L16: reports a repeat and a start other than 1, one issue each', () => {
+    const repeat = swap(TABLE, 'number: 3', 'number: 2');
+    const repeated = issuesOf(repeat);
+    expect(repeated).toHaveLength(1);
+    expect(repeated[0]).toMatchObject({
+      path: 'procedure.1.number',
+      line: lineOf(repeat, 'text: Increase airspeed') + 1,
+    });
+    expect(repeated[0]?.message).toContain('expected 3');
+
+    const late = swap(
+      swap(swap(TABLE, 'number: 3', 'number: 4'), 'number: 2', 'number: 3'),
+      'number: 1',
+      'number: 2',
+    );
+    const start = issuesOf(late);
+    expect(start).toHaveLength(1);
+    expect(start[0]).toMatchObject({
+      path: 'procedure.0.steps.0.number',
+      line: lineOf(late, 'text: Reduce power') + 1,
+    });
+    expect(start[0]?.message).toContain('expected 1');
+  });
+
+  it('L16: rows without a number are free between numbered rows', () => {
+    const text = swap(
+      TABLE,
+      '  - kind: line\n    text: Increase airspeed\n    number: 3',
+      '  - kind: comment\n    text: Select appropriate emergency landing area\n  - kind: line\n    text: Increase airspeed\n    number: 3',
+    ).replace('procedure[2]:', 'procedure[3]:');
+    expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('L17: a decision and a branch in a table, each at its node', () => {
+    const branch = [
+      '  - kind: branch',
+      '    label: "If something:"',
+      '    when:',
+      '      check: state',
+      '      control: lv.cowl_flap',
+      '      is: closed',
+    ].join('\n');
+    const decision = [
+      '  - kind: decision',
+      '    text: Check',
+      '    branches[1]:',
+      '      - label: "If more:"',
+      '        when:',
+      '          check: state',
+      '          control: lv.cowl_flap',
+      '          is: closed',
+    ].join('\n');
+    for (const [node, word] of [
+      [branch, 'branch'],
+      [decision, 'decision'],
+    ] as const) {
+      const text = swap(TABLE, '    number: 3', `    number: 3\n${node}`).replace(
+        'procedure[2]:',
+        'procedure[3]:',
+      );
+      const issues = issuesOf(text);
+      expect(issues, word).toHaveLength(1);
+      expect(issues[0]).toMatchObject({
+        path: 'procedure.2',
+        line: lineOf(text, `kind: ${word}`),
+        col: colOf(text, `kind: ${word}`, 'kind') - 2,
+      });
+      expect(issues[0]?.message).toContain(word);
+    }
+  });
+
+  it('L17: a number, an action and a comment in the default form, each at its key', () => {
+    const numbered = swap(
+      MINIMAL,
+      'text: Increase airspeed',
+      'text: Increase airspeed\n    number: 1',
+    );
+    const a = issuesOf(numbered);
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({
+      path: 'procedure.1.number',
+      line: lineOf(numbered, 'number: 1'),
+      col: colOf(numbered, 'number: 1', 'number'),
+    });
+
+    const action = swap(
+      MINIMAL,
+      'text: Increase airspeed',
+      'text: Increase airspeed\n    action: ON',
+    );
+    const b = issuesOf(action);
+    expect(b).toHaveLength(1);
+    expect(b[0]).toMatchObject({ path: 'procedure.1.action', line: lineOf(action, 'action: ON') });
+
+    const comment = swap(
+      MINIMAL,
+      'text: Increase airspeed',
+      'text: Increase airspeed\n  - kind: comment\n    text: Leave icing conditions.',
+    ).replace('procedure[2]:', 'procedure[3]:');
+    const c = issuesOf(comment);
+    expect(c).toHaveLength(1);
+    expect(c[0]).toMatchObject({
+      path: 'procedure.2',
+      line: lineOf(comment, 'kind: comment'),
+      col: colOf(comment, 'kind: comment', 'kind') - 2,
+    });
+  });
+
+  it('L17: a step number and action in the default form are reported at the step key', () => {
+    const text = swap(MINIMAL, 'text: Reduce power', 'text: Reduce power\n        number: 1');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.path).toBe('procedure.0.steps.0.number');
+  });
+});

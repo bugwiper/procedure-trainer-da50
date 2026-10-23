@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_TEXT_LENGTH, parseManifest, parseScenario } from '../src/scenario/parse';
+import { MAX_LINE_WORDS } from '../src/scenario/schema';
 import { colOf, lineOf, MINIMAL, swap } from './scenario-text';
 
 // Parser errors of an author (SCN-01): every issue names its line and column. Each case edits the
@@ -89,16 +90,26 @@ describe('parseScenario', () => {
     expect(issues[0]).toMatchObject({ path: '(root)', line: 1, col: 1 });
   });
 
-  it('rejects a 13-word step text and accepts 12 words', () => {
-    expect(parseScenario(swap(MINIMAL, 'text: Reduce power', `text: ${words(12)}`)).ok).toBe(true);
-    const text = swap(MINIMAL, 'text: Reduce power', `text: ${words(13)}`);
+  it('rejects a 21-word step text and accepts 20 words', () => {
+    expect(MAX_LINE_WORDS).toBe(20);
+    expect(parseScenario(swap(MINIMAL, 'text: Reduce power', `text: ${words(20)}`)).ok).toBe(true);
+    const text = swap(MINIMAL, 'text: Reduce power', `text: ${words(21)}`);
     const issues = issuesOf(text);
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({
       path: 'procedure.0.steps.0.text',
-      line: lineOf(text, 'w12'),
-      col: colOf(text, 'w12', 'text'),
+      line: lineOf(text, 'w20'),
+      col: colOf(text, 'w20', 'text'),
     });
+  });
+
+  it('keeps 12 words for a forbidden text, in own words', () => {
+    const own = 'text: Increase power';
+    expect(parseScenario(swap(MINIMAL, own, `text: ${words(12)}`)).ok).toBe(true);
+    const text = swap(MINIMAL, own, `text: ${words(13)}`);
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ path: 'forbidden.0.text', line: lineOf(text, 'w12') });
   });
 
   it('rejects a 61-word situation and accepts 60 words', () => {
@@ -169,6 +180,91 @@ describe('parseScenario', () => {
       expect(() => parseScenario(text)).not.toThrow();
       expect(parseScenario(text).ok).toBe(false);
     }
+  });
+});
+
+describe('a checklist as printed (plan 03-13)', () => {
+  const LINE = '  - kind: line\n    text: Increase airspeed';
+  // Adds keys to the line (`withLine`) or one node after it (`withNode`; the list header count
+  // follows, strict decoding).
+  const withLine = (extra: string): string => swap(MINIMAL, LINE, `${LINE}\n${extra}`);
+  const withNode = (node: string): string =>
+    withLine(node).replace('procedure[2]:', 'procedure[3]:');
+
+  it('accepts number and action on a line and on a step', () => {
+    const text = swap(
+      withLine('    number: 1\n    action: check IN'),
+      'text: Reduce power',
+      'text: Reduce power\n        number: 2\n        action: "OFF"',
+    );
+    const result = parseScenario(text);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.procedure[1]).toMatchObject({ number: 1, action: 'check IN' });
+    const group = result.value.procedure[0];
+    expect(group?.kind === 'group' && group.steps[0]).toMatchObject({ number: 2, action: 'OFF' });
+  });
+
+  it('rejects the numbers 0, 100 and 1.5 at the key', () => {
+    for (const bad of ['0', '100', '1.5']) {
+      const text = withLine(`    number: ${bad}`);
+      const issues = issuesOf(text);
+      expect(issues, bad).toHaveLength(1);
+      expect(issues[0]).toMatchObject({
+        path: 'procedure.1.number',
+        line: lineOf(text, `number: ${bad}`),
+        col: colOf(text, `number: ${bad}`, 'number'),
+      });
+    }
+    expect(parseScenario(withLine('    number: 99')).ok).toBe(true);
+  });
+
+  it('accepts a comment node with and without boxed and with an action', () => {
+    for (const body of [
+      '  - kind: comment\n    text: Leave icing conditions.',
+      '  - kind: comment\n    text: EMERGENCY LANDING (ENGINE OFF)\n    boxed: true\n    action: (page 9)',
+    ]) {
+      expect(parseScenario(withNode(body)).ok).toBe(true);
+    }
+  });
+
+  it('rejects an unknown key in a comment at the key itself', () => {
+    const text = withNode('  - kind: comment\n    text: Leave icing conditions.\n    boxd: true');
+    const issues = issuesOf(text);
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        path: 'procedure.2.boxd',
+        line: lineOf(text, 'boxd'),
+        col: colOf(text, 'boxd', 'boxd'),
+      }),
+    );
+  });
+
+  it('accepts the two forms and rejects any other at the key', () => {
+    for (const form of ['table', 'outline']) {
+      const text = swap(MINIMAL, 'procedure[2]:', `checklist:\n  form: ${form}\nprocedure[2]:`);
+      expect(parseScenario(text).ok, form).toBe(true);
+    }
+    const bad = swap(MINIMAL, 'procedure[2]:', 'checklist:\n  form: list\nprocedure[2]:');
+    expect(issuesOf(bad)[0]).toMatchObject({
+      path: 'checklist.form',
+      line: lineOf(bad, 'form: list'),
+      col: colOf(bad, 'form: list', 'form'),
+    });
+  });
+
+  it('defaults the form to outline and keeps heading and message', () => {
+    const text = swap(
+      MINIMAL,
+      'procedure[2]:',
+      'checklist:\n  heading: ALTN 1 FAIL\n  message: ALTERNATOR 1 HAS FAILED\nprocedure[2]:',
+    );
+    const result = parseScenario(text);
+    expect(result.ok && result.value.checklist).toEqual({
+      form: 'outline',
+      heading: 'ALTN 1 FAIL',
+      message: 'ALTERNATOR 1 HAS FAILED',
+    });
   });
 });
 
