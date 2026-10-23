@@ -35,6 +35,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-06**: Scripted reactions: timers, ramps, triggers on user actions, and escalation to named outcomes (e.g. engine failure if oil temp exceeds red line)
 - [x] **SCN-07**: Each scenario carries source, revision and disclaimer metadata
 - [x] **SCN-08**: Engine uses a virtual, pausable clock so grading and replay are deterministic
+- [ ] **SCN-09**: A scenario can declare several causes (variants) behind one failure, each with its own start state, parameters and applying steps; one is drawn by seed on every level, recorded with the run, replayed by the grader and named in the debrief after the run
+- [ ] **SCN-10**: The simulation can change a control by itself (a circuit breaker that pops at the onset, or pops again when pushed in while the fault is present), identically in the live run and in every replay
 
 ### Session & Debrief
 
@@ -44,6 +46,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SES-04**: Debrief shows PASS/FAIL (a missed critical step fails), per-step verdicts, order violations and harmful actions
 - [ ] **SES-05**: A "Further actions" section offers non-panel actions as a fixed list, e.g. monitor oil pressure, declare MAYDAY, brief passengers, plus a graded landing-decision ladder (continue flight / safety landing on suitable field / emergency landing on next field / outlanding if necessary)
 - [ ] **SES-06**: User can retry the scenario or move to the next situation
+- [ ] **SES-07**: A running scenario survives a failing step listener (the error is shown and the run ends cleanly) and a run that reaches the 30-minute cap ends exactly as its replay does
 
 ### Content
 
@@ -128,6 +131,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLT-03 | Phase 2 | Complete |
 | PLT-04 | Phase 2 | Complete |
 | SCN-06 | Phase 3 | Complete |
+| SCN-09 | Phase 3.1 | Pending |
+| SCN-10 | Phase 3.1 | Pending |
+| SES-07 | Phase 3.1 | Pending |
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |
@@ -138,8 +144,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLT-02 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 36 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica)
-- Mapped to phases: 36
+- v1 requirements: 39 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1)
+- Mapped to phases: 39
 - Unmapped: 0 ✓
 
 ---

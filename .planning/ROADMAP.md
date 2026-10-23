@@ -431,9 +431,23 @@ Plans:
 
 **Goal**: Scenarios can declare several causes behind one failure, drawn by seed, each with its own starting state and required steps, plus a breaker that re-trips; the run survives a throwing step listener (WR-03) and live run and replay agree at the 30-minute cap (WR-05). Source todo: .planning/todos/pending/2026-10-23-scenario-variants.md.
 **Depends on**: Phase 3
-**Requirements**: TBD (to be defined when the phase is planned)
+**Requirements**: SCN-09, SCN-10, SES-07
 
-**Plans**: TBD
+**Plans:** 3 plans (lean form, see WORKFLOW.md)
+
+Plans:
+
+**Wave 1**
+
+- [ ] 03.1-01 — Variant mechanism end to end on ALTN 1 FAIL (two variants): schema, seed draw recorded in the Recording, grading by the recorded variant, controls set by the simulation (variant controls at the onset), lint L18 to L21, debrief cause line
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 03.1-02 — Re-tripping breaker (trips in the physics), the four ALTN 1 FAIL causes as data, replay tests and an e2e per variant
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 03.1-03 — Run robustness (WR-03 throwing step listener, WR-05 30-minute cap) and the phase-end documentation
 
 ### Phase 4: Electrical system fidelity
 
@@ -500,7 +514,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 1. Deployed Playable Panel                            | 9/9            | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario                            | 13/13          | Complete    | 2026-10-22 |
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
-| 3.1. Scenario variants and run robustness             | 0/TBD          | Not started | -          |
+| 3.1. Scenario variants and run robustness             | 0/3            | Planned     | -          |
 | 4. Electrical system fidelity                         | 0/TBD          | Not started | -          |
 | 5. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 6. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
