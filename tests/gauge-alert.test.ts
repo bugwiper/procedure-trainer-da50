@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
+import { ArcGauge } from '../src/ui/panel/frames/ArcGauge';
+import type { ArcGaugeProps } from '../src/ui/panel/frames/ArcGauge';
 import { BarGauge } from '../src/ui/panel/frames/BarGauge';
 import type { BarGaugeProps } from '../src/ui/panel/frames/BarGauge';
 import {
@@ -173,6 +175,108 @@ describe('BarGauge in every tone (C-68, T-03-31)', () => {
     const strings = (tone?: GaugeTone) => texts(draw(tone)).map((t) => textOf(t));
     const plain = strings();
     expect(plain).toEqual(['OIL TEMP', '128 °C']);
+    for (const tone of ['green', 'yellow', 'red', 'none'] as const) {
+      expect(strings(tone), tone).toEqual(plain);
+    }
+  });
+});
+
+describe('ArcGauge in every tone (C-68, C-70, T-03-31)', () => {
+  const props: ArcGaugeProps = {
+    label: 'Oil pres',
+    unit: 'bar',
+    value: 1.2,
+    min: 0,
+    max: 9,
+    bands: [
+      { from: 0, to: 2, color: RED },
+      { from: 2, to: 3.5, color: YELLOW },
+      { from: 3.5, to: 7, color: GREEN },
+      { from: 7, to: 9, color: RED },
+    ],
+    cx: 200,
+    cy: 112,
+    r: 52,
+    decimals: 1,
+  };
+  const draw = (tone?: GaugeTone): El =>
+    expand(ArcGauge(tone === undefined ? props : { ...props, tone }));
+  const boxes = (tree: El): El[] =>
+    findElements(tree, (e) => e.props['data-alert-box'] !== undefined);
+  const texts = (tree: El): El[] => findElements(tree, (e) => e.tag === 'text');
+  const needle = (tree: El): El => {
+    const found = findElements(
+      tree,
+      (e) => e.tag === 'line' && e.props['transform'] !== undefined,
+    )[0];
+    if (found === undefined) throw new Error('no needle');
+    return found;
+  };
+  const num = (el: El, key: string): number => Number(el.props[key]);
+
+  it.each([undefined, 'green', 'none'] as const)(
+    'tone %s draws no box and no data-alert, with the plain fills and a white needle',
+    (tone) => {
+      const tree = draw(tone);
+      expect(boxes(tree)).toEqual([]);
+      expect(tree.props['data-alert']).toBeUndefined();
+      expect(texts(tree).map((t) => t.props['fill'])).toEqual([
+        PLAIN_LABEL,
+        PLAIN_VALUE,
+        '#8d97a2',
+      ]);
+      expect(needle(tree).props['stroke']).toBe(PLAIN_VALUE);
+    },
+  );
+
+  it.each(['yellow', 'red'] as const)(
+    'tone %s boxes the label and the readout and colours the needle',
+    (tone) => {
+      const style = gaugeAlertStyle(tone);
+      const tree = draw(tone);
+      expect(tree.props['data-alert']).toBe(tone);
+      const drawn = boxes(tree);
+      expect(drawn.map((b) => b.props['data-alert-box'])).toEqual(['label', 'value']);
+      for (const box of drawn) {
+        expect(box.tag).toBe('rect');
+        expect(box.props['fill']).toBe(style.boxFill);
+        expect(box.props['rx']).toBe(2);
+      }
+      // The unit line below the readout stays plain.
+      expect(texts(tree).map((t) => t.props['fill'])).toEqual([
+        style.labelFill,
+        style.valueFill,
+        '#8d97a2',
+      ]);
+      expect(needle(tree).props['stroke']).toBe(style.pointerFill);
+    },
+  );
+
+  it('each box is centred on its text, holds its estimated width and the two do not overlap', () => {
+    const tree = draw('red');
+    const [labelBox, valueBox] = boxes(tree);
+    const [label, readout] = texts(tree);
+    if (!labelBox || !valueBox || !label || !readout) throw new Error('missing parts');
+    const pairs: [El, El, number, boolean][] = [
+      [labelBox, label, 10, false],
+      [valueBox, readout, 14, true],
+    ];
+    for (const [box, text, size, mono] of pairs) {
+      const need = textBoxWidth(textOf(text), size, mono);
+      expect(num(box, 'width')).toBeGreaterThanOrEqual(need);
+      expect(num(box, 'x') + num(box, 'width') / 2).toBeCloseTo(props.cx, 6);
+      expect(num(box, 'height')).toBe(size + 4);
+      // The baseline sits inside the box, below the cap line.
+      expect(num(text, 'y')).toBeLessThanOrEqual(num(box, 'y') + num(box, 'height'));
+      expect(num(text, 'y') - 0.7 * size).toBeGreaterThanOrEqual(num(box, 'y'));
+    }
+    expect(num(labelBox, 'y') + num(labelBox, 'height')).toBeLessThan(num(valueBox, 'y'));
+  });
+
+  it('the label, the readout and the unit are the same strings in every tone (G-0)', () => {
+    const strings = (tone?: GaugeTone) => texts(draw(tone)).map((t) => textOf(t));
+    const plain = strings();
+    expect(plain).toEqual(['OIL PRES', '1.2', 'BAR']);
     for (const tone of ['green', 'yellow', 'red', 'none'] as const) {
       expect(strings(tone), tone).toEqual(plain);
     }
