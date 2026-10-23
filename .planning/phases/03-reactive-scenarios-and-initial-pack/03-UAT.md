@@ -81,7 +81,7 @@ blocked: 0
 ## Gaps
 
 - truth: "On Realistic the failure shows quickly: the onset comes soon, the reading starts in the yellow band and reaches red with the CAS message within about 10 s; Medium keeps its time constants"
-  status: failed
+  status: resolved
   reason: "User reported: the start takes a bit too long on Realistic, then one watches the temperature rise slowly for ever"
   severity: minor
   test: 1
@@ -92,8 +92,12 @@ blocked: 0
     - "Correction (user): on Realistic the failure starts the reading just below the yellow band, so yellow is reached a few seconds after the scenario starts"
     - "Rise from onset to red and CAS message in about 10 s on Realistic only, Easy and Medium unchanged (scenario or level data, not a global time constant)"
   debug_session: ""
+  resolved_by: "03-11 and commits 039e81c, e42ed3c"
+  resolved_at: "2026-10-23"
+  accepted_by_owner: "2026-10-23"
+
 - truth: "On Realistic every failure shows a recognisable cue at the onset, including Engine Fire"
-  status: failed
+  status: deferred
   reason: "User reported (first live test, test 5): Engine Fire on Realistic is not solvable, nothing happens first and the pilot does not know what is expected"
   severity: major
   test: 5
@@ -105,8 +109,10 @@ blocked: 0
     - "Windscreen area above the panel with static cues (fire, smoke, iced windscreen later), or an interim cue"
     - "Onset cue declared in the scenario data and checked by lint (L14 extension)"
   debug_session: ""
+  deferred_to: "Phase 6 (windscreen and failure cues), owner decision 2026-10-23"
+
 - truth: "Checklists in briefing and debrief look and read like the official checklist: numbered table, item and number left-aligned, desired action right-aligned, full-width comment lines between two numbers (for example the carry-out line), wording 1:1 as in the AFM"
-  status: failed
+  status: resolved
   reason: "User reported (test 10): checklist formatting is too jumbled; must be tabular and numbered like the official one; 1:1 accurate, no rephrasing or paraphrasing; copyright is not a concern, the AFM and checklists are public"
   severity: major
   test: 10
@@ -120,8 +126,12 @@ blocked: 0
     - "Update docs/CONTENT-POLICY.md, .claude/CLAUDE.md convention and the lint or tests that cap step lines at 10 words"
     - "Briefing and debrief outline renders it as a table"
   debug_session: ""
+  resolved_by: "03-13, 03-14"
+  resolved_at: "2026-10-23"
+  accepted_by_owner: "2026-10-23"
+
 - truth: "A gauge value in the yellow band gets a yellow box behind its label and its numeric value with black text and a yellow pointer on the bar; a value in the red band gets a red label box with white text and a red pointer"
-  status: failed
+  status: resolved
   reason: "User reported (after test 12, with photos of the real engine page: Oil Pres in yellow, Fuel Qty in red): the real display marks an out-of-range value with a coloured box and a pointer in the band colour; the trainer does not"
   severity: minor
   test: 1
@@ -139,3 +149,6 @@ blocked: 0
     - "Unit tests on the pure band-to-style mapping and an e2e check on the oil temperature run"
     - "The full engine page layout (combined gauges, fuel flow, fuel calculator, oxygen, de-ice, rudder trim) is NOT part of this gap: it goes to the physics fidelity phase"
   debug_session: ""
+  resolved_by: "03-12"
+  resolved_at: "2026-10-23"
+  accepted_by_owner: "2026-10-23"
