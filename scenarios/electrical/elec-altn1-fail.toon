@@ -92,8 +92,8 @@ outcomes[1]:
       quantity: bus_volts
       op: lte
       value: 22.5
-# The causes behind the one message (phase 3.1). The checklist above is the printed one; which of its rows are graded depends on the cause drawn at the start of a run. The weights and the cause texts are instructor-review values.
-variants[2]:
+# The four causes behind the one message (phase 3.1): the alternator is dead and the breaker in; the breaker has popped and the alternator is fine; the alternator has a short and its breaker pops again when it is pushed in; the breaker has popped and the alternator is dead too, so pushing it in does not help. The checklist above is the printed one; which of its rows are graded depends on the cause drawn at the start of a run. The weights and the cause texts are instructor-review values.
+variants[4]:
   - id: alternator_dead
     weight: 40
     applies[2]: alt1_off,ess_bus_on
@@ -106,6 +106,20 @@ variants[2]:
       alt1_output: 1
     applies[1]: alt1_breaker_in
     debrief: The alternator 1 circuit breaker had popped. Pushing it in cleared the message.
+  - id: alternator_shorted
+    weight: 15
+    controls:
+      cb.alt1: out
+    parameters:
+      alt1_short: 1
+    applies[2]: alt1_off,ess_bus_on
+    debrief: Alternator 1 had a short and its circuit breaker had popped. Pushing the breaker in only popped it again, so the alternator had to be switched off.
+  - id: breaker_popped_dead
+    weight: 15
+    controls:
+      cb.alt1: out
+    applies[2]: alt1_off,ess_bus_on
+    debrief: The alternator 1 circuit breaker had popped and the alternator was dead as well. Pushing the breaker in did not help.
 # The failure of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
 onset:
   window_s[2]: 2,6

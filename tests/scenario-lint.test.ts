@@ -1048,6 +1048,12 @@ describe('variants: L12, L18 to L21', () => {
     return ALTN.replace(from, to);
   }
 
+  /** The shipped file with the first of several equal texts replaced (the variants repeat lines). */
+  function editedFirst(from: string, to: string): string {
+    expect(ALTN.includes(from), `"${from}" in the shipped file`).toBe(true);
+    return ALTN.replace(from, to);
+  }
+
   /** The issues of an edited file whose message contains the text, located at a line and column. */
   function found(text: string, part: string) {
     const hits = issuesOf(text).filter((issue) => issue.message.includes(part));
@@ -1073,16 +1079,18 @@ describe('variants: L12, L18 to L21', () => {
   });
 
   it('L18: a variant id is unique', () => {
-    found(edited('  - id: breaker_popped', '  - id: alternator_dead'), 'duplicate variant id');
+    found(edited('  - id: breaker_popped\n', '  - id: alternator_dead\n'), 'duplicate variant id');
   });
 
   it('L18: controls name a known control in a legal state', () => {
-    const hits = found(edited('      cb.alt1: out', '      cb.nothing: out'), 'unknown control');
+    const text = editedFirst('      cb.alt1: out', '      cb.nothing: out');
+    const hits = found(text, 'unknown control');
     // The issue sits on the key inside the variant, not at the top of the file.
-    expect(
-      lineOf(edited('      cb.alt1: out', '      cb.nothing: out'), '      cb.nothing: out'),
-    ).toBe(hits[0]?.line);
-    found(edited('      cb.alt1: out', '      cb.alt1: sideways'), 'is not a state of control');
+    expect(lineOf(text, '      cb.nothing: out')).toBe(hits[0]?.line);
+    found(
+      editedFirst('      cb.alt1: out', '      cb.alt1: sideways'),
+      'is not a state of control',
+    );
   });
 
   it('L18: parameters name a known parameter inside its range', () => {
@@ -1093,7 +1101,7 @@ describe('variants: L12, L18 to L21', () => {
   it('L18: applies names a step or forbidden item, each once', () => {
     found(edited('applies[1]: alt1_breaker_in', 'applies[1]: no_such_step'), 'names no step');
     found(
-      edited('applies[2]: alt1_off,ess_bus_on', 'applies[2]: alt1_off,alt1_off'),
+      editedFirst('applies[2]: alt1_off,ess_bus_on', 'applies[2]: alt1_off,alt1_off'),
       'is listed twice',
     );
   });
@@ -1115,7 +1123,7 @@ describe('variants: L12, L18 to L21', () => {
   });
 
   it('L19: the start checks run per variant and name it', () => {
-    const text = edited(
+    const text = editedFirst(
       '    applies[2]: alt1_off,ess_bus_on',
       '    controls:\n      sw.alternator_1: off\n    applies[2]: alt1_off,ess_bus_on',
     );

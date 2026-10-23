@@ -2,8 +2,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
+import { DA50RG_CAS } from '../src/aircraft/da50rg/cas';
 import { grade } from '../src/engine/grading';
 import type { Recording } from '../src/engine/grading';
+import { initialQuantities, realisticQuantities } from '../src/engine/predicates';
+import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
 import { resolveVariant, variantFromSeed } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
 import type { ProcedureNode, Scenario } from '../src/scenario/schema';
@@ -223,5 +226,181 @@ describe('grade on Realistic: the simulation pops the breaker at the onset (V-06
     expect(JSON.stringify(grade(ALTN, DA50RG_ENV, rec))).toBe(
       JSON.stringify(grade(ALTN, DA50RG_ENV, rec)),
     );
+  });
+});
+
+// Every cause of the shipped file (plan 03.1-02, V-10, V-11): one table, the ids read from the file.
+describe('every variant of ALTN 1 FAIL, replayed on Easy and on Realistic', () => {
+  const BREAKER = 'cb.alt1';
+  const ONSET_AT = 3000;
+  const ALT2_OFF = { id: 'sw.alternator_2', value: 'off' };
+  const ids = ALTN.variants.map((v) => v.id);
+
+  /** Pilot actions at offsets from the start of the pilot's work; the table is checked against the file. */
+  const solutions: Record<string, readonly { dt: number; id: string; value: string }[]> = {
+    alternator_dead: [
+      { dt: 0, id: 'sw.alternator_1', value: 'off' },
+      { dt: 1000, id: 'sw.ess_bus', value: 'on' },
+    ],
+    breaker_popped: [{ dt: 0, id: BREAKER, value: 'in' }],
+    // The push comes first and pops again after the delay, the two switches follow.
+    alternator_shorted: [
+      { dt: 0, id: BREAKER, value: 'in' },
+      { dt: 4000, id: 'sw.alternator_1', value: 'off' },
+      { dt: 5000, id: 'sw.ess_bus', value: 'on' },
+    ],
+    breaker_popped_dead: [
+      { dt: 0, id: BREAKER, value: 'in' },
+      { dt: 2000, id: 'sw.alternator_1', value: 'off' },
+      { dt: 3000, id: 'sw.ess_bus', value: 'on' },
+    ],
+  };
+  /** The switches the scenario asks for in this variant, read from the variant's `applies`. */
+  const required = (id: string) => ALTN.variants.find((v) => v.id === id)?.applies.length ?? 0;
+  const popped = (id: string) =>
+    ALTN.variants.find((v) => v.id === id)?.controls[BREAKER] === 'out';
+
+  it('the table has exactly the variants of the file', () => {
+    expect(Object.keys(solutions).sort()).toEqual([...ids].sort());
+    expect(ids.length).toBe(4);
+  });
+
+  // The ordered copy of the file: the same steps in an ordered, order-critical group.
+  const ALTN_TEXT = readFileSync(`${root}scenarios/electrical/elec-altn1-fail.toon`, 'utf8');
+  const ORDERED_TEXT = ALTN_TEXT.replace(
+    '    id: immediate\n    ordered: false',
+    '    id: immediate\n    ordered: true\n    order_critical: true',
+  );
+  expect(ORDERED_TEXT).not.toBe(ALTN_TEXT);
+  const ORDERED = (() => {
+    const checked = checkScenario(ORDERED_TEXT, DA50RG_ENV);
+    if (!checked.ok) throw new Error('the ordered copy does not pass the scenario check');
+    return checked.scenario;
+  })();
+
+  for (const realistic of [false, true]) {
+    const level = realistic ? 'Realistic' : 'Easy';
+    // On Realistic the pilot acts after the onset.
+    const base = realistic ? ONSET_AT + 2000 : ONSET_AT;
+    const rec = (
+      id: string,
+      events: readonly { t: number; id: string; value: string }[],
+      completedAt: number,
+    ): Recording => ({
+      scenarioId: ALTN.id,
+      completedAt,
+      variant: { id, seed: 7 },
+      ...(realistic ? { onset: { at: ONSET_AT, seed: 1 } } : {}),
+      events,
+    });
+    const golden = (id: string) =>
+      (solutions[id] ?? []).map((a) => ({ t: base + a.dt, id: a.id, value: a.value }));
+    const withoutPush = (id: string) => golden(id).filter((e) => e.id !== BREAKER);
+
+    describe(level, () => {
+      for (const id of ids) {
+        it(`${id}: the golden run passes with nothing harmful, short and 600 s long`, () => {
+          const short = grade(ALTN, DA50RG_ENV, rec(id, golden(id), 30_000));
+          expect(short.result).toBe('pass');
+          expect(short.harmful).toEqual([]);
+          const long = grade(ALTN, DA50RG_ENV, rec(id, golden(id), 600_000));
+          expect(long.result).toBe('pass');
+          expect(long.outcome).toBeNull();
+        });
+
+        it(`${id}: doing nothing fails, misses every critical step and runs into the bus loss`, () => {
+          const idle = grade(ALTN, DA50RG_ENV, rec(id, [], 30_000));
+          expect(idle.result).toBe('fail');
+          expect(idle.reasons).toContainEqual({ kind: 'critical_missed', count: required(id) });
+          const long = grade(ALTN, DA50RG_ENV, rec(id, [], 600_000));
+          expect(long.outcome?.id).toBe('main_bus_lost');
+          expect(long.result).toBe('fail');
+        });
+
+        it(`${id}: switching off alternator 2 fails for that reason alone`, () => {
+          const events = [...golden(id), { t: base + 500, ...ALT2_OFF }];
+          const result = grade(ALTN, DA50RG_ENV, rec(id, events, 30_000));
+          expect(result.result).toBe('fail');
+          expect(result.reasons.map((r) => r.kind)).toEqual(['forbidden']);
+          expect(result.harmful.map((h) => h.id)).toEqual(['alt2_off']);
+        });
+
+        if (required(id) === 2) {
+          it(`${id}: ESS BUS before ALTERNATOR 1 breaks the order of an ordered group`, () => {
+            const events = withoutPush(id)
+              .reverse()
+              .map((e, i) => ({ ...e, t: base + i * 1000 }));
+            const result = grade(ORDERED, DA50RG_ENV, rec(id, events, 30_000));
+            expect(result.result).toBe('fail');
+            expect(result.reasons).toEqual([{ kind: 'order', group: 'immediate' }]);
+            const right = grade(ORDERED, DA50RG_ENV, rec(id, withoutPush(id), 30_000));
+            expect(right.result).toBe('pass');
+          });
+        }
+      }
+    });
+  }
+
+  const resolvedRun = (id: string, realistic: boolean, events: SimEventLike[], until: number) => {
+    const resolved = resolveVariant(ALTN, id, realistic);
+    const setup = simSetup(DA50RG_ENV, resolved, realistic ? { onsetAt: ONSET_AT } : {});
+    const start = realistic
+      ? realisticQuantities(resolved, DA50RG_ENV.quantities)
+      : initialQuantities(resolved, DA50RG_ENV.quantities);
+    return simulate(setup, { events, start, untilMs: until });
+  };
+  type SimEventLike = { t: number; id: string; value: string };
+  const casRule = DA50RG_CAS.get('altn_1_fail');
+  if (casRule?.when.check !== 'quantity') throw new Error('ALTN 1 FAIL reads no quantity');
+  const AMPS_LIMIT = casRule.when.value;
+  const messageOn = (state: { quantities: Readonly<Record<string, number>> }) =>
+    (state.quantities['alt1_amps'] ?? 0) <= AMPS_LIMIT;
+
+  it('breaker_popped: pushing the breaker in clears the message within seconds', () => {
+    const push = [{ t: 0, id: BREAKER, value: 'in' }];
+    expect(messageOn(resolvedRun('breaker_popped', false, [], 8000).state)).toBe(true);
+    expect(messageOn(resolvedRun('breaker_popped', false, push, 8000).state)).toBe(false);
+  });
+
+  it('breaker_popped: ALTERNATOR 1 off plus ESS BUS on alone fails, the breaker step is missed', () => {
+    const rec = {
+      scenarioId: ALTN.id,
+      completedAt: 30_000,
+      variant: { id: 'breaker_popped', seed: 7 },
+      events: [
+        { t: 3000, id: 'sw.alternator_1', value: 'off' },
+        { t: 4000, id: 'sw.ess_bus', value: 'on' },
+      ],
+    };
+    const result = grade(ALTN, DA50RG_ENV, rec);
+    expect(result.result).toBe('fail');
+    expect(result.reasons).toEqual([{ kind: 'critical_missed', count: 1 }]);
+  });
+
+  it('alternator_shorted: the pushed breaker is out again after the delay, the message stays', () => {
+    const push = [{ t: 0, id: BREAKER, value: 'in' }];
+    const run = resolvedRun('alternator_shorted', false, push, 10_000);
+    expect(run.injected).toEqual([{ t: 2000, id: BREAKER, value: 'out', before: 1 }]);
+    expect(run.state.controls[BREAKER]).toBe('out');
+    expect(messageOn(run.state)).toBe(true);
+    const early = resolvedRun('alternator_shorted', false, push, 2000 - STEP_MS);
+    expect(early.state.controls[BREAKER]).toBe('in');
+  });
+
+  it('breaker_popped_dead: the pushed breaker stays in and the message stays', () => {
+    const push = [{ t: 0, id: BREAKER, value: 'in' }];
+    const run = resolvedRun('breaker_popped_dead', false, push, 20_000);
+    expect(run.injected).toEqual([]);
+    expect(run.state.controls[BREAKER]).toBe('in');
+    expect(messageOn(run.state)).toBe(true);
+  });
+
+  it('Realistic: the breaker is in before the onset in every variant, out after it in the popped ones', () => {
+    for (const id of ids) {
+      const before = resolvedRun(id, true, [], ONSET_AT - STEP_MS);
+      expect(before.state.controls[BREAKER], `${id} before`).toBe('in');
+      const after = resolvedRun(id, true, [], ONSET_AT + 2 * STEP_MS);
+      expect(after.state.controls[BREAKER], `${id} after`).toBe(popped(id) ? 'out' : 'in');
+    }
   });
 });
