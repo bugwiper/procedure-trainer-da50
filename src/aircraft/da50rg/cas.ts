@@ -27,11 +27,17 @@ export const DA50RG_CAS = defineCasRules(
     {
       id: 'altn_1_fail',
       text: 'ALTN 1 FAIL',
-      // The AFM lists it as a caution (03A-02). The rule reads the Amps of alternator 1: it fires
-      // while the alternator gives (almost) no current, also after ALTERNATOR 1 is switched OFF,
-      // because the alternator is still not delivering. 2.5 A is an instructor-review value (C-38).
+      // The AFM lists it as a caution (03A-02). It comes from the alternator control unit, not from
+      // a current: the fault flag (electrical.ts, E-07) stays while the alternator is switched
+      // OFF and goes when a popped breaker was the only cause and is pushed in. Band check: no number.
       level: 'caution',
-      when: { check: 'quantity', quantity: 'alt1_amps', op: 'lte', value: 2.5 },
+      when: { check: 'band', quantity: 'alt1_fault', in: ['fault'] },
+    },
+    {
+      id: 'altn_2_fail',
+      text: 'ALTN 2 FAIL',
+      level: 'caution',
+      when: { check: 'band', quantity: 'alt2_fault', in: ['fault'] },
     },
   ],
   { registry: DA50RG, quantities: DA50RG_QUANTITIES },

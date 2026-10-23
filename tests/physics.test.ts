@@ -779,6 +779,38 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
       const def = DA50RG_PHYSICS.parameter('alt1_output');
       expect(def).toEqual({ id: 'alt1_output', min: 0, max: 1, normal: 1 });
     });
+
+    it('alternator 2 has the same two parameters as alternator 1 (E-08)', () => {
+      expect(DA50RG_PHYSICS.parameter('alt2_output')).toEqual({
+        id: 'alt2_output',
+        min: 0,
+        max: 1,
+        normal: 1,
+      });
+      expect(DA50RG_PHYSICS.parameter('alt2_short')).toEqual({
+        id: 'alt2_short',
+        min: 0,
+        max: 1,
+        normal: 0,
+      });
+    });
+
+    it('the control unit flags are hidden, follow in one step, and have the bands ok and fault', () => {
+      for (const id of ['alt1_fault', 'alt2_fault']) {
+        const def = DA50RG_QUANTITIES.get(id);
+        expect(
+          def?.bands.map((b) => b.id),
+          id,
+        ).toEqual(['ok', 'fault']);
+        expect(def?.base, id).toBe(0);
+        const model = DA50RG_PHYSICS.models.find((m) => m.quantity === id);
+        expect(model?.mode, id).toBe('lag');
+        if (model?.mode === 'lag') expect(model.tauMs, id).toBe(STEP_MS);
+      }
+      expect(q(settle({}, 5 * STEP_MS, { parameters: failed }), 'alt1_fault')).toBe(1);
+      expect(q(settle({ 'cb.alt2': 'out' }, 5 * STEP_MS), 'alt2_fault')).toBe(1);
+      expect(q(settle({}, MINUTE), 'alt1_fault')).toBe(0);
+    });
   });
 
   describe('engine fire (plan 03-08, C-44)', () => {
@@ -952,6 +984,28 @@ describe('definePhysics trips (phase 3.1, V-09)', () => {
     expect(() => definePhysics(spec({ trips: [GOOD_TRIP, GOOD_TRIP] }), env)).toThrow(
       /duplicate trip id "alt1_breaker"/,
     );
+  });
+
+  it('the alternator 2 trip pops cb.alt2 after the delay only with the short (E-08)', () => {
+    const trip = DA50RG_PHYSICS.trips.find((item) => item.id === 'alt2_breaker');
+    if (trip === undefined) throw new Error('the aircraft has no trip alt2_breaker');
+    expect(trip.control).toBe('cb.alt2');
+    expect(trip.to).toBe('out');
+    const alt1Trip = DA50RG_PHYSICS.trips.find((item) => item.id === 'alt1_breaker');
+    expect(trip.delayMs).toBe(alt1Trip?.delayMs);
+    const breakerAt = (alt2Short: number, ms: number): string | undefined => {
+      const given = {
+        ...scenario,
+        initial: { controls: {}, quantities: {} },
+        parameters: { alt2_short: alt2Short },
+      };
+      const setup = simSetup(DA50RG_ENV, given);
+      const start = initialQuantities(given, DA50RG_ENV.quantities);
+      return simulate(setup, { events: [], start, untilMs: ms }).state.controls['cb.alt2'];
+    };
+    expect(breakerAt(1, trip.delayMs - STEP_MS)).toBe('in');
+    expect(breakerAt(1, trip.delayMs + STEP_MS)).toBe('out');
+    expect(breakerAt(0, 5 * trip.delayMs)).toBe('in');
   });
 
   it('the shipped trips pass their own validation and name registry controls', () => {

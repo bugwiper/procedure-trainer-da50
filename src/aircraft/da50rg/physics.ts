@@ -3,6 +3,8 @@ import { definePhysics } from '../../engine/physics';
 import type { PhysicsInputs, QuantityModel } from '../../engine/physics';
 import { travelPercent } from '../../engine/predicates';
 import type { DetentLeverDef } from '../../engine/registry';
+import { STEP_MS } from '../../engine/sim';
+import { acuFault, alternatorOnline } from './electrical';
 import { DEICE_MAX_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
 import { OIL_TEMP_RISE_RATE_CURVE } from './oil-temp-curve';
@@ -168,25 +170,14 @@ function loadPercent(inputs: PhysicsInputs): number {
   return running(inputs) ? travelPercent(POWER, stateOf(inputs, 'lv.power')) : 0;
 }
 
-/** Alternator 1 delivers: running, switched on, breaker in, ELECT. MASTER on, output above 0. */
+/** Alternator 1 delivers: the shared online rule of electrical.ts (E-04). */
 function alt1Delivers(inputs: PhysicsInputs): boolean {
-  return (
-    running(inputs) &&
-    stateOf(inputs, 'sw.alternator_1') === 'on' &&
-    stateOf(inputs, 'cb.alt1') === 'in' &&
-    stateOf(inputs, 'sw.elect_master') === 'on' &&
-    parameterOf(inputs, 'alt1_output') > 0
-  );
+  return alternatorOnline(inputs, 1, running(inputs));
 }
 
-/** Alternator 2 runs: running, switched on, breaker in, ELECT. MASTER on. */
+/** Alternator 2 runs: the same rule for alternator 2. */
 function alt2Runs(inputs: PhysicsInputs): boolean {
-  return (
-    running(inputs) &&
-    stateOf(inputs, 'sw.alternator_2') === 'on' &&
-    stateOf(inputs, 'cb.alt2') === 'in' &&
-    stateOf(inputs, 'sw.elect_master') === 'on'
-  );
+  return alternatorOnline(inputs, 2, running(inputs));
 }
 
 /** Alternator 2 supplies the main bus only with ESS BUS on. */
@@ -335,9 +326,9 @@ function busVoltsTarget(inputs: PhysicsInputs): number {
 /** The de-ice MAX run lasts 120 s of run time (owner finding G-1). */
 const DEICE_MAX_RUN_MS = 120_000;
 
-// A shorted alternator 1 pops its breaker again soon after the pilot pushes it in (phase 3.1,
-// V-09). The 2 s are an instructor-review value, not an AFM figure.
-const ALT1_SHORT_REPOP_MS = 2_000;
+// A shorted alternator pops its breaker again soon after the pilot pushes it in (phase 3.1, V-09;
+// alternator 2 in phase 4, E-08). The 2 s are an instructor-review value, not an AFM figure.
+const ALT_SHORT_REPOP_MS = 2_000;
 
 const lag = (
   quantity: string,
@@ -372,6 +363,9 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'alt1_output', min: 0, max: 1, normal: 1 },
       // 0 is alternator 1 without a short; above 0 it has one and its breaker pops again (trips).
       { id: 'alt1_short', min: 0, max: 1, normal: 0 },
+      // The same two parameters for alternator 2 (E-08).
+      { id: 'alt2_output', min: 0, max: 1, normal: 1 },
+      { id: 'alt2_short', min: 0, max: 1, normal: 0 },
       // 0 is no fire; 1 is a fire that burns while fuel feeds it (the Engine Fire scenario).
       { id: 'engine_fire', min: 0, max: 1, normal: 0 },
     ],
@@ -398,6 +392,9 @@ export const DA50RG_PHYSICS = definePhysics(
       lag('alt2_amps', AMPS_TAU_MS, alt2AmpsTarget),
       { quantity: 'battery_pct', mode: 'rate', perMinute: batteryPerMinute },
       lag('bus_volts', VOLTS_TAU_MS, busVoltsTarget),
+      // The control unit flags follow the logic in one step (E-07); CAS rules read them as bands.
+      lag('alt1_fault', STEP_MS, (inputs) => (acuFault(inputs, 1) ? 1 : 0)),
+      lag('alt2_fault', STEP_MS, (inputs) => (acuFault(inputs, 2) ? 1 : 0)),
       lag('fire_intensity', FIRE_TAU_MS, fireTarget),
     ],
     trips: [
@@ -405,8 +402,15 @@ export const DA50RG_PHYSICS = definePhysics(
         id: 'alt1_breaker',
         control: 'cb.alt1',
         to: 'out',
-        delayMs: ALT1_SHORT_REPOP_MS,
+        delayMs: ALT_SHORT_REPOP_MS,
         when: (inputs) => parameterOf(inputs, 'alt1_short') > 0,
+      },
+      {
+        id: 'alt2_breaker',
+        control: 'cb.alt2',
+        to: 'out',
+        delayMs: ALT_SHORT_REPOP_MS,
+        when: (inputs) => parameterOf(inputs, 'alt2_short') > 0,
       },
     ],
     reactions: [

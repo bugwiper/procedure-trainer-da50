@@ -208,6 +208,30 @@ export const DA50RG_QUANTITIES = defineQuantities([
     ],
   },
   {
+    // Hidden: no gauge. 1 while the alternator control unit of alternator n reports a fault (E-07),
+    // else 0; the ALTN n FAIL cautions read the fault band, so no number enters the CAS table.
+    id: 'alt1_fault',
+    unit: '',
+    min: 0,
+    max: 1,
+    base: 0,
+    bands: [
+      { id: 'ok', colour: 'none', to: 0.5 },
+      { id: 'fault', colour: 'none', to: 1 },
+    ],
+  },
+  {
+    id: 'alt2_fault',
+    unit: '',
+    min: 0,
+    max: 1,
+    base: 0,
+    bands: [
+      { id: 'ok', colour: 'none', to: 0.5 },
+      { id: 'fault', colour: 'none', to: 1 },
+    ],
+  },
+  {
     // Hidden: no gauge. The intensity of an engine fire, 0 when there is none (plan 03-08, C-44).
     // It grows while fuel feeds the fire and decays once the fuel is cut; the engine temperatures
     // rise with it, which is the only sign the pilot sees. One unmarked band: there is no mark.

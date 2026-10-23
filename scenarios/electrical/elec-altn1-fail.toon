@@ -13,6 +13,7 @@ briefing:
 initial:
   quantities:
     alt1_amps: 0
+    alt1_fault: 1
     bus_volts: 25.9
     battery_pct: 98
 parameters:

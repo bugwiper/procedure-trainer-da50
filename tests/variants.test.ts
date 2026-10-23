@@ -351,10 +351,13 @@ describe('every variant of ALTN 1 FAIL, replayed on Easy and on Realistic', () =
   };
   type SimEventLike = { t: number; id: string; value: string };
   const casRule = DA50RG_CAS.get('altn_1_fail');
-  if (casRule?.when.check !== 'quantity') throw new Error('ALTN 1 FAIL reads no quantity');
-  const AMPS_LIMIT = casRule.when.value;
+  if (casRule?.when.check !== 'band') throw new Error('ALTN 1 FAIL reads no band');
+  const FAULT_QUANTITY = casRule.when.quantity;
+  const FAULT_BANDS = casRule.when.in;
   const messageOn = (state: { quantities: Readonly<Record<string, number>> }) =>
-    (state.quantities['alt1_amps'] ?? 0) <= AMPS_LIMIT;
+    FAULT_BANDS.includes(
+      DA50RG_ENV.quantities.bandOf(FAULT_QUANTITY, state.quantities[FAULT_QUANTITY] ?? 0),
+    );
 
   it('breaker_popped: pushing the breaker in clears the message within seconds', () => {
     const push = [{ t: 0, id: BREAKER, value: 'in' }];
