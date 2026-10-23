@@ -66,6 +66,21 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
       { kind: 'comment', text: 'Leave icing conditions.' },
     ],
   },
+  'elec-altn2-fail': {
+    form: 'table',
+    heading: 'ALTN 2 FAIL',
+    message: 'ALTERNATOR 2 HAS FAILED',
+    rows: [
+      { kind: 'row', number: 1, item: 'Circuit breaker', action: 'check IN' },
+      { kind: 'row', number: 2, item: 'Alternator 2', action: 'OFF' },
+      { kind: 'row', number: 3, item: 'Bus voltage', action: 'MONITOR' },
+      {
+        kind: 'comment',
+        text: 'Terminate NVFR/IFR-flight and land at nearest suitable airfield.',
+      },
+      { kind: 'comment', text: 'Leave icing conditions.' },
+    ],
+  },
   'eng-fire-in-flight': {
     form: 'table',
     heading: 'ENGINE FIRE IN FLIGHT',
@@ -137,6 +152,7 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
 /** The scenario file of each reference entry, relative to the repository root. */
 export const PRINTED_FILES: Readonly<Record<string, string>> = {
   'elec-altn1-fail': 'scenarios/electrical/elec-altn1-fail.toon',
+  'elec-altn2-fail': 'scenarios/electrical/elec-altn2-fail.toon',
   'eng-fire-in-flight': 'scenarios/engine/eng-fire-in-flight.toon',
   'eng-oil-temp-green': 'scenarios/engine/eng-oil-temp-green.toon',
 };

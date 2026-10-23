@@ -1,0 +1,106 @@
+# ALTN 2 FAIL: alternator 2 gives no current while alternator 1 carries both buses (format 1). The checklist (heading, message, rows and comment rows) is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decision 2026-10-23); all other text is own wording. The weights and the forbidden items are instructor-review values.
+format: 1
+id: elec-altn2-fail
+title: ALTN 2 FAIL
+source:
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
+  section: AFM 03A-02 ALTN 2 FAIL
+  verified: "2026-10-23"
+disclaimer: training-aid
+briefing:
+  situation: "You are in cruise flight when the yellow ALTN 2 FAIL message appears on the primary flight display. The second Amps pointer has dropped to zero. The engine runs normally and the bus voltage is normal."
+initial:
+  quantities:
+    alt2_amps: 0
+    alt2_fault: 1
+parameters:
+  alt2_output: 0
+annunciations[1]: altn_2_fail
+checklist:
+  form: table
+  heading: ALTN 2 FAIL
+  message: ALTERNATOR 2 HAS FAILED
+procedure[5]:
+  - kind: group
+    id: breaker_check
+    ordered: false
+    steps[1]:
+      - id: alt2_breaker_in
+        severity: critical
+        number: 1
+        text: Circuit breaker
+        action: check IN
+        done:
+          check: state
+          control: cb.alt2
+          is: in
+  - kind: group
+    id: immediate
+    ordered: false
+    steps[1]:
+      - id: alt2_off
+        severity: critical
+        number: 2
+        text: Alternator 2
+        action: "OFF"
+        done:
+          check: state
+          control: sw.alternator_2
+          is: off
+  - kind: line
+    number: 3
+    text: Bus voltage
+    action: MONITOR
+  - kind: comment
+    text: Terminate NVFR/IFR-flight and land at nearest suitable airfield.
+  - kind: comment
+    text: Leave icing conditions.
+# Each of these removes the remaining supply of the buses; both are instructor-review items. Essential bus ON is not graded: it is harmless here.
+forbidden[2]:
+  - id: alt1_off
+    text: Switch off alternator 1
+    fails_run: true
+    trigger:
+      check: state
+      control: sw.alternator_1
+      is: off
+  - id: elect_master_off
+    text: Switch off the electrical master
+    fails_run: true
+    trigger:
+      check: state
+      control: sw.elect_master
+      is: off
+# No outcome: an ignored ALTN 2 FAIL only costs the additional loads, alternator 1 carries both buses through the closed tie relay, so nothing escalates and the run fails by its missed critical steps alone.
+# The four causes behind the one message, as for ALTN 1 FAIL: the alternator is dead and the breaker in; the breaker has popped and the alternator is fine; the alternator has a short and its breaker pops again when it is pushed in; the breaker has popped and the alternator is dead too, so pushing it in does not help. The checklist above is the printed one; which of its rows are graded depends on the cause drawn at the start of a run. The weights and the cause texts are instructor-review values.
+variants[4]:
+  - id: alternator_dead
+    weight: 40
+    applies[1]: alt2_off
+    debrief: The breaker was in and alternator 2 had failed.
+  - id: breaker_popped
+    weight: 30
+    controls:
+      cb.alt2: out
+    parameters:
+      alt2_output: 1
+    applies[1]: alt2_breaker_in
+    debrief: The alternator 2 circuit breaker had popped. Pushing it in cleared the message.
+  - id: alternator_shorted
+    weight: 15
+    controls:
+      cb.alt2: out
+    parameters:
+      alt2_short: 1
+    applies[1]: alt2_off
+    debrief: Alternator 2 had a short and its circuit breaker had popped. Pushing the breaker in only popped it again, so the alternator had to be switched off.
+  - id: breaker_popped_dead
+    weight: 15
+    controls:
+      cb.alt2: out
+    applies[1]: alt2_off
+    debrief: The alternator 2 circuit breaker had popped and the alternator was dead as well. Pushing the breaker in did not help.
+# The failure of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
+onset:
+  window_s[2]: 2,6
