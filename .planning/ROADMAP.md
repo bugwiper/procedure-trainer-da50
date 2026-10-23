@@ -305,7 +305,7 @@ Plans:
   3. The "New situation" flow offers Oil Temp High, Electrical Failure and Engine Fire, each with its own initial state, annunciations and procedure, and each passes golden, do-nothing, wrong-order and forbidden-action replay tests and registry validation.
   4. User can enter a squawk code (e.g. 7700) in a simplified transponder section, and the entered code counts as graded panel state.
 
-**Plans:** 10/14 plans executed (4 gap-closure plans 11 to 14 planned from the owner UAT of 2026-10-23)
+**Plans:** 11/14 plans executed (4 gap-closure plans 11 to 14 planned from the owner UAT of 2026-10-23)
 
 Plans:
 **Wave 1**
@@ -337,7 +337,7 @@ Plans:
 **Gap closure** *(owner UAT of 2026-10-23, 03-UAT.md Gaps; waves counted inside the gap closure; unattended, no push)*
 
 **Wave 1**
-- [ ] 03-11-PLAN.md — Realistic speed: onset window 2 to 6 s, start just below yellow, faster rise through the aircraft parameter oil_temp_rate, lint L15 (UAT test 1)
+- [x] 03-11-PLAN.md — Realistic speed: onset window 2 to 6 s, start just below yellow, faster rise through the aircraft parameter oil_temp_rate, lint L15 (UAT test 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 03-12-PLAN.md — MFD gauge alert styling: yellow and red label boxes, value boxes and pointers (UAT gap after test 12)
@@ -386,6 +386,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Deployed Playable Panel | 9/9 | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario | 13/13 | Complete    | 2026-10-22 |
-| 3. Reactive Scenarios and Initial Pack | 10/14 | In Progress | - |
+| 3. Reactive Scenarios and Initial Pack | 11/14 | In Progress | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
 | 5. Offline PWA and Real-Device Hardening | 0/TBD | Not started | - |
