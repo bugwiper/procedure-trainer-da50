@@ -112,12 +112,11 @@ outcomes[1]:
       quantity: oil_temp_c
       op: gte
       value: 140
-# The failure of the level Realistic begins at a random second inside this window, with the oil temperature just below the yellow band, and then rises quickly. The window, the start reading and the rate are instructor-review values.
+# The failure of the level Realistic begins at a random second inside this window, with the oil temperature just below the yellow band. The oil temperature then rises with the aircraft's own rate curve: yellow about 1 s after the onset, red with the message about 20 s after it (lint L15 allows 22 s), and the named outcome about 3 minutes after the start of red. The window, the start reading and the bound are instructor-review values.
 onset:
   window_s[2]: 2,6
   # Start reading of the Realistic run: at the top of the green range.
   quantities:
     oil_temp_c: 114
-  # From the onset the oil temperature follows its target three times as fast as on Easy and Medium.
-  parameters:
-    oil_temp_rate: 3
+  # Latest second after the onset by which the message must show in a run that does nothing.
+  message_within_s: 22

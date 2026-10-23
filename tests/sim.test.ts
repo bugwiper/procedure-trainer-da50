@@ -611,6 +611,9 @@ describe('outcomes and hold timers (C-25, D-06)', () => {
     while (run.state.outcome === null && steps < MAX_RUN_MS / STEP_MS) {
       run.step();
       steps += 1;
+      // The ignored run is about 1700 steps long: a full replay at every 50th step and at the end
+      // (the shorter cases above and below compare every single step).
+      if (steps % 50 !== 0 && run.state.outcome === null) continue;
       const replay = simulate(live, { events: store.events(), start, untilMs: steps * STEP_MS });
       expect(run.state, `step ${String(steps)}`).toEqual(replay.state);
     }
@@ -694,6 +697,7 @@ describe('the Realistic setup (plan 03-11, C-58 to C-61, C-65)', () => {
   const atOf = (second: number): number => STEP_MS * Math.round((second * 1000) / STEP_MS);
   const band = (id: string) => DA50RG_QUANTITIES.get(OIL_TEMP)?.bands.find((b) => b.id === id);
   const greenTop = band('green')?.to ?? Number.NaN;
+  const redFrom = band('high_yellow')?.to ?? Number.NaN;
   const message = scenario.annunciations[0] ?? '';
   const realisticStart = realisticQuantities(scenario, DA50RG_ENV.quantities);
 
@@ -706,13 +710,32 @@ describe('the Realistic setup (plan 03-11, C-58 to C-61, C-65)', () => {
       )
       .map((m) => m.id);
 
-  it('a do-nothing Easy run ends in the named outcome at 42600 ms, the value of the phase 3 verification', () => {
+  /** The ignored run of the blueprint from the Easy and Medium start: the timeline in ms of run time. */
+  function easyTimeline(): { messageAt: number | null; outcomeAt: number | null } {
+    const easy = simSetup(DA50RG_ENV, scenario);
+    let state = initSim(easy, start);
+    let messageAt: number | null = null;
+    while (state.outcome === null && state.t < MAX_RUN_MS) {
+      if (messageAt === null && activeIds(easy, state).includes(message)) messageAt = state.t;
+      state = stepSim(easy, state, []).state;
+    }
+    return { messageAt, outcomeAt: state.outcome?.t ?? null };
+  }
+
+  it('a do-nothing Easy run ends in the named outcome at 173200 ms, about 3 minutes (owner, 2026-10-23)', () => {
+    // It was 42 600 ms until the owner's retest asked for about 3 minutes (rate curve, plan 03-11 follow-up).
     const { state } = simulate(simSetup(DA50RG_ENV, scenario), {
       events: [],
       start,
       untilMs: MAX_RUN_MS,
     });
-    expect(state.outcome?.t).toBe(42_600);
+    expect(state.outcome?.t).toBe(173_200);
+    expect(state.outcome?.id).toBe(scenario.outcomes[0]?.id);
+  });
+
+  it('on Easy and Medium the failure is there from the start: red with the message at once', () => {
+    // The start reading 128 is already in the red band; there is no yellow phase to wait for.
+    expect(easyTimeline()).toEqual({ messageAt: 0, outcomeAt: 173_200 });
   });
 
   describe('simSetup folds the onset parameters in only when an onset time is given (C-59)', () => {
@@ -725,16 +748,18 @@ describe('the Realistic setup (plan 03-11, C-58 to C-61, C-65)', () => {
     });
 
     it('with onsetAt it is overlaid with the onset parameters as well, whatever the time', () => {
+      // The shipped file sets no onset parameter since the rate curve; the overlay is still the rule.
+      const hotter = { ...scenario, onset: { ...onset, parameters: { oil_cooling: 0.4 } } };
       for (const onsetAt of [0, atOf(lo), atOf(hi)]) {
-        const timed = simSetup(DA50RG_ENV, scenario, { onsetAt });
+        const timed = simSetup(DA50RG_ENV, hotter, { onsetAt });
         expect(timed.faultedParameters, String(onsetAt)).toEqual({
           ...DA50RG_ENV.physics.normalParameters(),
           ...scenario.parameters,
-          ...onset.parameters,
+          oil_cooling: 0.4,
         });
         expect(timed.normalParameters).toEqual(DA50RG_ENV.physics.normalParameters());
       }
-      expect(Object.keys(onset.parameters).length).toBeGreaterThan(0);
+      expect(Object.keys(onset.parameters)).toEqual([]);
     });
 
     it('a scenario without an onset block is untouched by an onset time', () => {
@@ -771,6 +796,19 @@ describe('the Realistic setup (plan 03-11, C-58 to C-61, C-65)', () => {
     });
   });
 
+  /**
+   * The measured timeline of the ignored Realistic run at the two ends of the window, in ms after
+   * the onset (instructor-review values, owner retest 2026-10-23: yellow about 1 s, red about 20 s,
+   * the end about 3 minutes after the start of red). The yellow time differs between the ends only
+   * because the oil temperature cools toward its normal value until the onset.
+   */
+  const PINNED_REALISTIC: Readonly<
+    Record<number, { yellow: number; red: number; outcome: number }>
+  > = {
+    2: { yellow: 800, red: 19_600, outcome: 206_200 },
+    6: { yellow: 1200, red: 20_100, outcome: 206_700 },
+  };
+
   describe.each([
     ['the lower', lo],
     ['the upper', hi],
@@ -778,11 +816,12 @@ describe('the Realistic setup (plan 03-11, C-58 to C-61, C-65)', () => {
     const onsetAt = atOf(second);
     const realistic = simSetup(DA50RG_ENV, scenario, { onsetAt });
 
-    it('is clean before the onset; yellow within 3 s and the message within 10 s of it', () => {
+    /** The do-nothing timeline of this onset, in ms after the onset, and the clean start before it. */
+    function ignoredTimeline(): { yellow: number; red: number; outcome: number } {
       let state = initSim(realistic, realisticStart);
       let yellowAt: number | null = null;
       let messageAt: number | null = null;
-      while (state.t < onsetAt + 12_000 && state.outcome === null) {
+      while (state.outcome === null && state.t < MAX_RUN_MS) {
         if (state.t <= onsetAt) {
           expect(activeIds(realistic, state), `t ${String(state.t)}`).toEqual([]);
           expect(quantity(state.quantities, OIL_TEMP), `t ${String(state.t)}`).toBeLessThanOrEqual(
@@ -798,32 +837,74 @@ describe('the Realistic setup (plan 03-11, C-58 to C-61, C-65)', () => {
         }
       }
       expect(yellowAt).not.toBeNull();
-      expect(yellowAt ?? Number.NaN).toBeLessThanOrEqual(3000);
       expect(messageAt).not.toBeNull();
-      expect(messageAt ?? Number.NaN).toBeLessThanOrEqual(10_000);
+      expect(state.outcome).not.toBeNull();
+      return {
+        yellow: yellowAt ?? Number.NaN,
+        red: messageAt ?? Number.NaN,
+        outcome: (state.outcome?.t ?? Number.NaN) - onsetAt,
+      };
+    }
+
+    it('is clean before the onset; yellow about 1 s, red with the message about 20 s after it', () => {
+      const { yellow, red } = ignoredTimeline();
+      expect(yellow).toBeGreaterThanOrEqual(500);
+      expect(yellow).toBeLessThanOrEqual(1500);
+      expect(red).toBeGreaterThanOrEqual(19_000);
+      expect(red).toBeLessThanOrEqual(21_000);
+      // The bound of the scenario file (lint L15) holds with a margin.
+      expect(red).toBeLessThan((onset.message_within_s ?? Number.NaN) * 1000);
     });
 
-    it('POWER p60 with the cowl open clears the message within 10 s and no outcome follows for 120 s', () => {
+    it('the named outcome ends the ignored run about 3 minutes after the start of red', () => {
+      const { red, outcome } = ignoredTimeline();
+      expect(outcome - red).toBeGreaterThanOrEqual(175_000);
+      expect(outcome - red).toBeLessThanOrEqual(190_000);
+    });
+
+    it('the timeline is the pinned one', () => {
+      expect(ignoredTimeline()).toEqual(PINNED_REALISTIC[second]);
+    });
+
+    /** Handles the failure (POWER p60, cowl flap open) when the reading first reaches `reading`. */
+    function handledAt(reading: number): { goneAfter: number; greenAfter: number } {
       let state = initSim(realistic, realisticStart);
-      while (!activeIds(realistic, state).includes(message)) {
+      while (quantity(state.quantities, OIL_TEMP) < reading) {
         state = stepSim(realistic, state, []).state;
       }
-      const shownAt = state.t;
+      const at = state.t;
       const handled: SimEvent[] = [
-        { t: shownAt, id: 'lv.power', value: 'p60' },
-        { t: shownAt, id: 'lv.cowl_flap', value: 'open' },
+        { t: at, id: 'lv.power', value: 'p60' },
+        { t: at, id: 'lv.cowl_flap', value: 'open' },
       ];
       state = stepSim(realistic, state, handled).state;
-      let goneAt: number | null = null;
-      while (state.t < shownAt + 120_000) {
+      let goneAfter: number | null = null;
+      let greenAfter: number | null = null;
+      while (state.t < at + 240_000) {
         expect(state.outcome, `t ${String(state.t)}`).toBeNull();
-        if (goneAt === null && !activeIds(realistic, state).includes(message)) {
-          goneAt = state.t - shownAt;
+        if (goneAfter === null && !activeIds(realistic, state).includes(message)) {
+          goneAfter = state.t - at;
+        }
+        if (greenAfter === null && quantity(state.quantities, OIL_TEMP) <= greenTop) {
+          greenAfter = state.t - at;
         }
         state = stepSim(realistic, state, []).state;
       }
-      expect(goneAt).not.toBeNull();
-      expect(goneAt ?? Number.NaN).toBeLessThanOrEqual(10_000);
+      expect(goneAfter).not.toBeNull();
+      expect(greenAfter).not.toBeNull();
+      return { goneAfter: goneAfter ?? Number.NaN, greenAfter: greenAfter ?? Number.NaN };
+    }
+
+    it('POWER p60 with the cowl open at the first sign of red clears the message at once, green in about a minute', () => {
+      const { goneAfter, greenAfter } = handledAt(redFrom + 0.01);
+      expect(goneAfter).toBeLessThanOrEqual(1000);
+      expect(greenAfter).toBeLessThanOrEqual(90_000);
+    });
+
+    it('the same handling late, at 139 degrees, still clears the message in 60 s and returns to green in 150 s', () => {
+      const { goneAfter, greenAfter } = handledAt(139);
+      expect(goneAfter).toBeLessThanOrEqual(60_000);
+      expect(greenAfter).toBeLessThanOrEqual(150_000);
     });
   });
 

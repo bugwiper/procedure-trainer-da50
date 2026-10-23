@@ -115,8 +115,9 @@ describe('the blueprint principle', () => {
   });
 
   it('the parameter ids include the keys of every onset block of the shipped scenarios (plan 03-11)', () => {
+    // No shipped scenario sets an onset parameter since the oil temperature rate curve (the loop is
+    // empty then); a scenario that does must find its keys in the derived list.
     const onsetKeys = unique(scenarios.flatMap((s) => Object.keys(s.onset?.parameters ?? {})));
-    expect(onsetKeys.length).toBeGreaterThan(0);
     for (const key of onsetKeys) expect(SCENARIO_LITERALS['parameter id']).toContain(key);
   });
 

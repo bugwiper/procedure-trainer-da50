@@ -5,6 +5,7 @@ import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { DA50RG_CAS } from '../src/aircraft/da50rg/cas';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_PHYSICS } from '../src/aircraft/da50rg/physics';
+import { OIL_TEMP_RISE_RATE_CURVE } from '../src/aircraft/da50rg/oil-temp-curve';
 import { PROP_SPEED_CURVE } from '../src/aircraft/da50rg/prop-curve';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { interpolate } from '../src/engine/curve';
@@ -263,19 +264,50 @@ describe('DA50 oil temperature model (Table P1)', () => {
     expect(DEGRADED).toBeLessThan(def?.normal ?? Number.NaN);
   });
 
-  it('the rate parameter is declared 1 to 10 with the normal value 1 and the lag reads it', () => {
-    const def = DA50RG_PHYSICS.parameter('oil_temp_rate');
-    expect(def).toEqual({ id: 'oil_temp_rate', min: 1, max: 10, normal: 1 });
+  it('the lag has no rate parameter any more: the rate is a curve over the reading (owner, 2026-10-23)', () => {
+    expect(DA50RG_PHYSICS.parameter('oil_temp_rate')).toBeUndefined();
     expect(model.rate).toBeTypeOf('function');
-    const at = (value: number): number =>
+  });
+
+  describe('the rate of the oil temperature lag', () => {
+    /** The rate for a reading and controls, with the degraded cooling of the scenario. */
+    const rateAt = (reading: number, controls: Record<string, string> = {}): number =>
       model.rate?.({
-        controls: base,
-        parameters: { oil_temp_rate: value },
-        quantities: DA50RG_QUANTITIES.baseValues(),
+        controls: { ...base, ...controls },
+        parameters: { oil_cooling: DEGRADED },
+        quantities: { ...DA50RG_QUANTITIES.baseValues(), [OIL_TEMP]: reading },
         flags: {},
       }) ?? Number.NaN;
-    expect(at(1)).toBe(1);
-    expect(at(3)).toBe(3);
+
+    it('a rising temperature reads the curve at its own reading, at every point of the table', () => {
+      for (const point of OIL_TEMP_RISE_RATE_CURVE) {
+        expect(rateAt(point.x), String(point.x)).toBeCloseTo(point.y, 12);
+      }
+      expect(rateAt(121)).toBe(interpolate(OIL_TEMP_RISE_RATE_CURVE, 121));
+    });
+
+    it('is fast below the red band, slow in and above it, and never above 3 nor at or below 0', () => {
+      const redFrom = DA50RG_QUANTITIES.get(OIL_TEMP)?.bands.find(
+        (b) => b.id === 'high_yellow',
+      )?.to;
+      expect(redFrom).toBeDefined();
+      for (let reading = 91; reading <= 140; reading += 1) {
+        const rate = rateAt(reading);
+        expect(rate, String(reading)).toBeGreaterThan(0);
+        expect(rate, String(reading)).toBeLessThanOrEqual(3);
+      }
+      expect(rateAt(114)).toBeGreaterThanOrEqual(2);
+      expect(rateAt((redFrom ?? 0) + 4)).toBeLessThanOrEqual(0.2);
+      expect(rateAt(140)).toBe(rateAt((redFrom ?? 0) + 4));
+    });
+
+    it('is the plain lag (1) for a normal temperature and for a falling one, whatever the reading', () => {
+      expect(rateAt(91)).toBe(1);
+      const handled = { 'lv.power': 'p60', 'lv.cowl_flap': 'open' };
+      for (const reading of [120, 126, 135, 148]) {
+        expect(rateAt(reading, handled), String(reading)).toBe(1);
+      }
+    });
   });
 
   const setup = simSetup(DA50RG_ENV, scenario);
@@ -283,8 +315,10 @@ describe('DA50 oil temperature model (Table P1)', () => {
   const after = (events: SimEvent[], ms: number): number =>
     simulate(setup, { events, start, untilMs: ms }).state.quantities[OIL_TEMP] ?? Number.NaN;
 
-  it('P1-b: from the start value the ignored failure rises by at least 1 degree within 3 s', () => {
-    expect(after([], 3000)).toBeGreaterThanOrEqual(START_TEMP + 1);
+  it('P1-b: from the start value the ignored failure rises slowly, by 0.2 to 1 degree within 3 s', () => {
+    // The pilot needs time for the checklist (owner, 2026-10-23): in red the rise is about 0.1 degree/s.
+    expect(after([], 3000)).toBeGreaterThanOrEqual(START_TEMP + 0.2);
+    expect(after([], 3000)).toBeLessThanOrEqual(START_TEMP + 1);
   });
 
   it('P1-c: after POWER p50 and the cowl flap open it falls by at least 1 degree within 3 s', () => {

@@ -623,7 +623,7 @@ describe('named outcomes (R10, D-06, C-26)', () => {
     return outcome;
   };
 
-  it('an ignored run escalates inside its 600 s: a step boundary after 20 s', () => {
+  it('an ignored run escalates inside its 600 s: a step boundary, after 3 minutes', () => {
     const outcome = longIgnored();
     expect(outcome.id).toBe(declaredOutcome.id);
     expect(outcome.text).toBe(declaredOutcome.text);
@@ -631,6 +631,8 @@ describe('named outcomes (R10, D-06, C-26)', () => {
     expect(outcome.t).toBeGreaterThan(recording('do-nothing').completedAt);
     expect(outcome.t).toBeLessThan(recording('do-nothing-long').completedAt);
     expect(outcome.t).toBe(simulatedOutcome(blueprint, 'do-nothing-long')?.t);
+    // The pinned value of the rate curve (owner retest 2026-10-23: about 3 minutes; it was 42 600).
+    expect(outcome.t).toBe(173_200);
   });
 
   it('a handled failure recovers: the golden actions never escalate, however long the run lasts', () => {

@@ -37,9 +37,12 @@ test('@hooks the oil temperature rises while ignored and falls after POWER down 
   expect(v0).toBeGreaterThan(100);
   const firstText = await gauge.textContent();
 
-  // Ignored: the value climbs and the gauge text follows it.
-  await expect.poll(() => quantityOf(page, OIL_TEMP), { timeout: 10_000 }).toBeGreaterThan(v0 + 1);
-  await expect.poll(() => gauge.textContent(), { timeout: 10_000 }).not.toBe(firstText);
+  // Ignored: the value climbs and the gauge text follows it. In red it climbs slowly (about 0.1
+  // degree per second, owner retest 2026-10-23), so the first whole degree takes about 5 s.
+  await expect
+    .poll(() => quantityOf(page, OIL_TEMP), { timeout: 20_000 })
+    .toBeGreaterThan(v0 + 0.5);
+  await expect.poll(() => gauge.textContent(), { timeout: 20_000 }).not.toBe(firstText);
 
   // The correct actions: POWER to the 50 % marker, the cowl flap to the open marker.
   await activate(page.locator('[data-detent="lv.power:p50"]'), hasTouch);
@@ -144,12 +147,15 @@ test('@hooks an ignored run escalates: the debrief opens by itself as FAIL and n
   hasTouch,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'the long escalation case runs once');
-  test.setTimeout(120_000);
+  // The ignored Easy run ends after about 173 s (rate curve, owner retest 2026-10-23; it was 43 s).
+  // The e2e build has no hook that advances the run clock, so the case runs in real time with a
+  // test timeout of 4 minutes.
+  test.setTimeout(240_000);
   const outcome = blueprintOutcome();
 
   await startScenario(page, hasTouch, ROW);
   // Nothing is touched: the oil temperature passes its red line and the hold time runs out.
-  await expect(page.getByTestId('debrief-result')).toBeVisible({ timeout: 110_000 });
+  await expect(page.getByTestId('debrief-result')).toBeVisible({ timeout: 220_000 });
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
   await expect(page.getByTestId('debrief-reason').first()).toContainText(outcome.text);
   await expect(page.getByTestId('debrief-reason')).toHaveCount(2);
@@ -186,7 +192,7 @@ function msAfterOnsetWhenAbove(page: Page, above: number): Promise<number> {
             reject(new Error('the run has no onset'));
           } else if (oil > limit) {
             resolve(now - at);
-          } else if (Date.now() - started > 30_000) {
+          } else if (Date.now() - started > 45_000) {
             reject(new Error(`the oil temperature stayed at ${String(oil)}`));
           } else {
             setTimeout(look, 10);
@@ -198,10 +204,24 @@ function msAfterOnsetWhenAbove(page: Page, above: number): Promise<number> {
   );
 }
 
-test('@hooks Realistic ENG OIL TEMP shows yellow within 3 s and red with the message within 10 s of the onset', async ({
+/** The latest second after the onset by which the message must show, read in node from the file. */
+function blueprintMessageWithinS(): number {
+  const parsed = parseScenario(
+    readFileSync(new URL('../scenarios/engine/eng-oil-temp-green.toon', import.meta.url), 'utf8'),
+  );
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+  const within = parsed.value.onset?.message_within_s;
+  if (within === undefined) throw new Error('the blueprint declares no message_within_s');
+  return within;
+}
+
+test('@hooks Realistic ENG OIL TEMP shows yellow within 3 s and red with the message within its bound of the onset', async ({
   page,
   hasTouch,
 }) => {
+  // The onset lies 2 to 6 s after the start, red about 20 s after the onset: allow a minute.
+  test.setTimeout(90_000);
+  const messageWithinS = blueprintMessageWithinS();
   const greenTop = bandTopOf('green');
   const yellowTop = bandTopOf('high_yellow');
 
@@ -212,6 +232,6 @@ test('@hooks Realistic ENG OIL TEMP shows yellow within 3 s and red with the mes
   expect(first).toBeLessThanOrEqual(greenTop);
 
   expect(await msAfterOnsetWhenAbove(page, greenTop)).toBeLessThanOrEqual(3000);
-  expect(await msAfterOnsetWhenAbove(page, yellowTop)).toBeLessThanOrEqual(10_000);
+  expect(await msAfterOnsetWhenAbove(page, yellowTop)).toBeLessThanOrEqual(messageWithinS * 1000);
   await expect(page.locator('[data-testid="cas-chip"]').first()).toBeVisible();
 });

@@ -5,6 +5,7 @@ import { travelPercent } from '../../engine/predicates';
 import type { DetentLeverDef } from '../../engine/registry';
 import { DEICE_MAX_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
+import { OIL_TEMP_RISE_RATE_CURVE } from './oil-temp-curve';
 import { PROP_SPEED_CURVE } from './prop-curve';
 import { DA50RG_QUANTITIES } from './quantities';
 
@@ -15,7 +16,8 @@ import { DA50RG_QUANTITIES } from './quantities';
 // free panel and every untouched run stay put. The time constants are compressed (a few seconds to
 // tens of seconds, against minutes in the real engine) so that a scenario resolves in one to five
 // minutes: a training-aid choice stated here, once. The oil temperature lag may be sped up further
-// by the parameter oil_temp_rate (the Realistic setup of a scenario). All constants are an
+// by a rate (oil-temp-curve.ts): a rising oil temperature follows its target at a speed that depends
+// on its own reading, fast below the red band and slow in and above it. All constants are an
 // instructor-review item (RESEARCH A1, A3), not measured values. No AFM wording; only + - * /
 // (RESEARCH Pitfall 1).
 
@@ -28,6 +30,15 @@ const HEAT_PER_LOAD = 80;
 const COWL_OPEN_COOLING = 1.3;
 /** Oil temperature time constant, compressed. */
 const OIL_TEMP_TAU_MS = 60_000;
+/**
+ * How many times faster than the time constant a falling oil temperature follows its target: the
+ * plain lag. With POWER down and the cowl flap open the ENG OIL TEMP message goes out within a
+ * second when the pilot acts as it shows, about 40 s later from 139 degrees, and the reading is back
+ * in green after about 70 s from the message and about 110 s from 139 degrees (instructor-review
+ * values, measured by simulation in tests/sim.test.ts). A rising temperature uses
+ * OIL_TEMP_RISE_RATE_CURVE instead.
+ */
+const OIL_TEMP_RECOVERY_RATE = 1;
 
 // Time constants of the other quantities, compressed like the oil temperature.
 const RPM_TAU_MS = 2_000;
@@ -337,9 +348,15 @@ const lag = (
   ...(rate === undefined ? {} : { rate }),
 });
 
-/** How many times faster the oil temperature follows its target (the parameter oil_temp_rate). */
+/**
+ * The rate of the oil temperature lag: the rise reads the curve at the current reading (fast below
+ * the red band, slow in and above it), the recovery is the plain lag. Only the sign of the gap to
+ * the target selects the branch, so a target equal to the reading counts as a rise (no movement).
+ */
 function oilTempRate(inputs: PhysicsInputs): number {
-  return parameterOf(inputs, 'oil_temp_rate');
+  const current = quantityOf(inputs, 'oil_temp_c');
+  if (oilTempTarget(inputs) < current) return OIL_TEMP_RECOVERY_RATE;
+  return interpolate(OIL_TEMP_RISE_RATE_CURVE, current);
 }
 
 export const DA50RG_PHYSICS = definePhysics(
@@ -351,10 +368,6 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'alt1_output', min: 0, max: 1, normal: 1 },
       // 0 is no fire; 1 is a fire that burns while fuel feeds it (the Engine Fire scenario).
       { id: 'engine_fire', min: 0, max: 1, normal: 0 },
-      // How many times faster the oil temperature follows its target (rise and recovery alike, the
-      // same lag); 1 is the compressed time constant. A scenario's Realistic setup sets it from the
-      // onset, so the failure shows within seconds without a stronger cooling fault.
-      { id: 'oil_temp_rate', min: 1, max: 10, normal: 1 },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),

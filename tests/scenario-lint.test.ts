@@ -623,7 +623,8 @@ describe('L14: the realistic level starts clean and shows what the scenario list
     expect(parsedOf(BLUEPRINT).onset).toEqual({
       window_s: [2, 6],
       quantities: { oil_temp_c: 114 },
-      parameters: { oil_temp_rate: 3 },
+      parameters: {},
+      message_within_s: 22,
     });
     expect(lintScenario(parsedOf(BLUEPRINT), DA50RG_ENV)).toEqual([]);
   });
@@ -707,31 +708,35 @@ describe('the Realistic setup: L12 on the onset block, L14 on its start, L15 spe
     return result.ok ? [] : result.issues;
   };
   const withOnset = (from: string, to: string): string => swap(BLUEPRINT, from, to);
+  /** The blueprint with one onset parameter line (the shipped file sets none since the rate curve). */
+  const withParameter = (line: string): string =>
+    withOnset('  message_within_s: 22\n', `  message_within_s: 22\n  parameters:\n    ${line}\n`);
+
+  it('the blueprint with the onset parameter oil_cooling 0.55 (the scenario value) passes', () => {
+    expect(issuesFor(withParameter('oil_cooling: 0.55'))).toEqual([]);
+  });
 
   it('L12 reports an unknown onset parameter at onset.parameters.<id>', () => {
-    const text = withOnset('oil_temp_rate: 3', 'oil_temp_rat: 3');
+    const text = withParameter('oil_coolin: 0.55');
     const issues = issuesFor(text);
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({
-      path: 'onset.parameters.oil_temp_rat',
-      message: 'unknown parameter "oil_temp_rat"',
-      line: lineOf(text, 'oil_temp_rat'),
+      path: 'onset.parameters.oil_coolin',
+      message: 'unknown parameter "oil_coolin"',
+      line: lineOf(text, 'oil_coolin: 0.55'),
     });
   });
 
-  it.each([0.5, 11])(
-    'L12 reports an onset parameter outside the range: oil_temp_rate %s',
-    (bad) => {
-      const text = withOnset('oil_temp_rate: 3', `oil_temp_rate: ${String(bad)}`);
-      const issues = issuesFor(text);
-      expect(issues).toHaveLength(1);
-      expect(issues[0]).toMatchObject({
-        path: 'onset.parameters.oil_temp_rate',
-        message: `${String(bad)} is outside 1..10 of parameter "oil_temp_rate"`,
-        line: lineOf(text, 'oil_temp_rate'),
-      });
-    },
-  );
+  it.each([0.1, 1.5])('L12 reports an onset parameter outside the range: oil_cooling %s', (bad) => {
+    const text = withParameter(`oil_cooling: ${String(bad)}`);
+    const issues = issuesFor(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'onset.parameters.oil_cooling',
+      message: `${String(bad)} is outside 0.2..1 of parameter "oil_cooling"`,
+      line: lineOf(text, `oil_cooling: ${String(bad)}`),
+    });
+  });
 
   it('reports an unknown onset quantity and one outside its range at onset.quantities.<id>', () => {
     const unknown = withOnset('oil_temp_c: 114', 'oil_temperature: 114');
@@ -774,8 +779,8 @@ describe('the Realistic setup: L12 on the onset block, L14 on its start, L15 spe
     );
   });
 
-  it('L15 speed: the Easy time constant (oil_temp_rate 1) shows the message too late, with the seconds', () => {
-    const text = withOnset('oil_temp_rate: 3', 'oil_temp_rate: 1');
+  /** The seconds the L15 message names as measured, from the first issue of a text. */
+  const measuredS = (text: string): number => {
     const issues = issuesFor(text);
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({
@@ -783,9 +788,37 @@ describe('the Realistic setup: L12 on the onset block, L14 on its start, L15 spe
       line: lineOf(text, 'annunciations[1]'),
     });
     expect(issues[0]?.message).toMatch(/shows \d+\.\d s after the onset/);
-    expect(issues[0]?.message).toContain(`${String(REALISTIC_SHOW_WITHIN_MS / 1000)} s`);
-    const measured = Number(/shows (\d+\.\d) s/.exec(issues[0]?.message ?? '')?.[1]);
+    return Number(/shows (\d+\.\d) s/.exec(issues[0]?.message ?? '')?.[1]);
+  };
+
+  it('L15 speed: a scenario without its own bound is held to the default, with the seconds', () => {
+    const text = withOnset('  message_within_s: 22\n', '');
+    const measured = measuredS(text);
     expect(measured * 1000).toBeGreaterThan(REALISTIC_SHOW_WITHIN_MS);
+    expect(issuesFor(text)[0]?.message).toContain(
+      `within ${String(REALISTIC_SHOW_WITHIN_MS / 1000)} s`,
+    );
+  });
+
+  it('L15 speed: the bound of the scenario file replaces the default for that file', () => {
+    const text = withOnset('message_within_s: 22', 'message_within_s: 19');
+    const measured = measuredS(text);
+    expect(measured).toBeGreaterThan(19);
+    expect(measured).toBeLessThanOrEqual(22);
+    expect(issuesFor(text)[0]?.message).toContain('within 19 s');
+    expect(issuesFor(BLUEPRINT)).toEqual([]);
+  });
+
+  it('L15 speed: the other two scenarios declare no bound of their own and keep the default', () => {
+    for (const file of SHIPPED) {
+      const parsed = parseScenario(readFileSync(file, 'utf8'));
+      if (!parsed.ok) throw new Error(`${file} does not parse`);
+      if (file.endsWith('eng-oil-temp-green.toon')) {
+        expect(parsed.value.onset?.message_within_s, file).toBe(22);
+      } else {
+        expect(parsed.value.onset?.message_within_s, file).toBeUndefined();
+      }
+    }
   });
 
   it('L15 guard: a branch decided at the start that reads an onset quantity is reported there', () => {

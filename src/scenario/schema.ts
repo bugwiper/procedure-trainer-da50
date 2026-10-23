@@ -215,7 +215,9 @@ const onsetSecond = z.number().min(1).max(MAX_ONSET_S);
  * values of a Realistic run (laid over the aircraft's base values, in place of initial.quantities)
  * and `parameters` are physics parameters in force from the onset (laid over the top-level
  * parameters). Both are read only when an onset is declared and a run has one; Easy and Medium
- * never read them.
+ * never read them. `message_within_s` is the latest second after the onset by which every listed
+ * annunciation must show in a Realistic run that does nothing; lint rule L15 checks it. It is
+ * absent for a quick failure (the lint default applies).
  */
 export const Onset = z.strictObject({
   window_s: z
@@ -223,6 +225,7 @@ export const Onset = z.strictObject({
     .refine(([lo, hi]) => lo <= hi, { message: 'the first second must not exceed the second' }),
   quantities: z.record(z.string(), z.number()).default({}),
   parameters: z.record(nodeId, z.number()).default({}),
+  message_within_s: onsetSecond.optional(),
 });
 
 /** The printed form of a checklist and its heading and message tag (all optional, plan 03-13). */

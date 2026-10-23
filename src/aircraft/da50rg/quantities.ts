@@ -16,6 +16,14 @@ import { defineQuantities } from '../../engine/quantities';
  */
 const FUEL_SCALE = 10_000_000;
 
+/**
+ * The oil temperature climbs by 0.002 to 0.01 degrees per step in the slow part of its rate curve
+ * (oil-temp-curve.ts); the default scale of 0.01 would round that to all or nothing and turn the
+ * slow rise into a fixed 0.1 degrees per second. 1e-4 keeps the quantisation error of a step below
+ * 5 % of the slowest step.
+ */
+const OIL_TEMP_SCALE = 10_000;
+
 export const DA50RG_QUANTITIES = defineQuantities([
   {
     id: 'rpm',
@@ -62,6 +70,7 @@ export const DA50RG_QUANTITIES = defineQuantities([
     max: 150,
     // The cruise equilibrium of the oil temperature model (cooling 1, POWER at its default).
     base: 91,
+    scale: OIL_TEMP_SCALE,
     bands: [
       { id: 'low_yellow', colour: 'yellow', to: 50 },
       { id: 'green', colour: 'green', to: 115 },

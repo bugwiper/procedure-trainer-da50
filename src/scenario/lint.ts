@@ -47,8 +47,10 @@ const REALISTIC_LOOKAHEAD_MS = 600_000;
 
 /**
  * L15: the latest a listed annunciation may show after the onset in a do-nothing Realistic run, in
- * ms. The owner asked for the message "within about 10 seconds" (UAT test 1 of phase 3, 2026-10-23);
- * the bound adds a margin of 2 s.
+ * ms, unless the scenario declares its own (`onset.message_within_s`). The owner asked for the
+ * message "within about 10 seconds" (UAT test 1 of phase 3, 2026-10-23); the bound adds a margin of
+ * 2 s. A slower failure declares its own bound in its file (the oil temperature scenario: about 20 s
+ * asked for on 2026-10-23, so 22 s), and the other scenarios keep this one.
  */
 export const REALISTIC_SHOW_WITHIN_MS = 12_000;
 
@@ -445,8 +447,8 @@ function quantityRead(predicate: Predicate): string | null {
  * nothing. No message may be active at the start and no outcome may hold there. Two runs follow,
  * with the onset at the lower and at the upper end of the window: every listed annunciation must
  * become active before the run ends or the lookahead (the window cap plus 600 s, below MAX_RUN_MS)
- * is over (L14), and no later than REALISTIC_SHOW_WITHIN_MS after the onset (L15, the owner's
- * "about 10 s" with a margin). The guard clause of L15: a branch decided at the start must not read
+ * is over (L14), and no later than the scenario's own onset.message_within_s, else
+ * REALISTIC_SHOW_WITHIN_MS, after the onset (L15, the owner's "about 10 s" with a margin). The guard clause of L15: a branch decided at the start must not read
  * a quantity the onset block sets, because grade decides such a branch on the scenario's initial
  * state (WR-04 stays open). The scenario's own initial.quantities do not apply: the level starts
  * from the base values (C-31).
@@ -540,6 +542,8 @@ function checkRealisticStart(
   const lower = firstShown(lowerAt);
   const upper = firstShown(upperAt);
 
+  const showWithinMs =
+    onset.message_within_s === undefined ? REALISTIC_SHOW_WITHIN_MS : onset.message_within_s * 1000;
   scenario.annunciations.forEach((id, i) => {
     const early = lower.get(id);
     const late = upper.get(id);
@@ -551,10 +555,10 @@ function checkRealisticStart(
       return;
     }
     const afterOnsetMs = Math.max(early - lowerAt, late - upperAt);
-    if (afterOnsetMs > REALISTIC_SHOW_WITHIN_MS) {
+    if (afterOnsetMs > showWithinMs) {
       add(
         ['annunciations', i],
-        `"${id}" shows ${(afterOnsetMs / 1000).toFixed(1)} s after the onset in a realistic run that does nothing; the level Realistic must show it within ${String(REALISTIC_SHOW_WITHIN_MS / 1000)} s`,
+        `"${id}" shows ${(afterOnsetMs / 1000).toFixed(1)} s after the onset in a realistic run that does nothing; the level Realistic must show it within ${String(showWithinMs / 1000)} s`,
       );
     }
   });
