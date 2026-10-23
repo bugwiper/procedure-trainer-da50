@@ -4,6 +4,9 @@ import {
   MIN_RADIUS,
   angleOf,
   nearestStop,
+  oneWayPointer,
+  oneWayStop,
+  oneWayTravel,
   stepStop,
   stopAngle,
   tapStop,
@@ -25,6 +28,11 @@ interface Gesture {
   readonly y: number;
   /** Knob-local point of pointerdown: its half steps a knob, its spot sets a stop. */
   readonly local: { readonly x: number; readonly y: number };
+  /** Committed stop at pointerdown: a one-way knob measures its drag from there. */
+  readonly from: string;
+  /** One-way knob: pointer angle at the last sample and clockwise travel since pointerdown. */
+  prevAngle: number | null;
+  travel: number;
   dragging: boolean;
   lastAngle: number | null;
 }
@@ -344,10 +352,11 @@ export function makeSpotPress(deps: SpotPressDeps): PressTarget {
  * own target (R3-Z2, plan 39), so a second finger can still pinch before the drag has travelled
  * DRAG_START_PX and discards the local gesture: primary pointer only, capture on pointerdown, no click listener; cancel
  * and lost capture clear without dispatching. A release under DRAG_START_PX of travel is a tap: the right
- * half steps one stop clockwise, the left half one back (a two-stop knob always toggles); a knob
+ * half steps one stop clockwise, the left half one back (a two-stop knob always toggles; a one-way
+ * knob steps clockwise only, cycling, and its left half does nothing); a knob
  * with click spots sets the stop nearest to the tapped angle on the body between the spots. A
  * longer gesture is a drag: the pointer follows the finger in a UI-local signal and the nearest
- * stop is committed on release. The click spots (the FAN) are latching press targets on the press
+ * stop is committed on release (a one-way knob clamps the drag at its start). The click spots (the FAN) are latching press targets on the press
  * arbiter (R3-Z2): they act on release and give their pointer to the view when it moves or a
  * second finger lands. Only stop ids reach the store (T-01.1-07).
  */
@@ -395,6 +404,9 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
       x: e.clientX,
       y: e.clientY,
       local,
+      from: bridge.stateOf(def.id).value,
+      prevAngle: Math.hypot(local.x, local.y) < MIN_RADIUS ? null : angleOf(local.x, local.y),
+      travel: 0,
       dragging: false,
       lastAngle: null,
     };
@@ -411,6 +423,14 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
     const angle = angleAt(e.clientX, e.clientY);
     if (angle === null) return;
     g.lastAngle = angle;
+    if (def.oneWay === 'cw') {
+      // A one-way knob measures the rotation since pointerdown and never draws the pointer behind
+      // its start: the drag is clamped there, wherever the finger swings round the knob.
+      g.travel = oneWayTravel(def, g.from, g.travel, g.prevAngle ?? angle, angle);
+      g.prevAngle = angle;
+      dragAngle.value = oneWayPointer(def, g.from, g.travel);
+      return;
+    }
     dragAngle.value = angle;
   };
 
@@ -421,7 +441,17 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
     const angle = dragging ? (angleAt(e.clientX, e.clientY) ?? g.lastAngle) : null;
     clear();
     if (dragging) {
-      if (angle !== null) bridge.actuate(def.id, nearestStop(def, angle));
+      if (angle !== null) {
+        const stop =
+          def.oneWay === 'cw'
+            ? oneWayStop(
+                def,
+                g.from,
+                oneWayTravel(def, g.from, g.travel, g.prevAngle ?? angle, angle),
+              )
+            : nearestStop(def, angle);
+        if (stop !== bridge.stateOf(def.id).value) bridge.actuate(def.id, stop);
+      }
       return;
     }
     if (def.spots !== undefined) {
@@ -431,7 +461,10 @@ export function Rotary({ def, bridge }: WidgetProps<RotaryDef>) {
       if (stop !== null) bridge.actuate(def.id, stop);
       return;
     }
-    bridge.actuate(def.id, stepStop(def, bridge.stateOf(def.id).value, g.local.x >= 0 ? 1 : -1));
+    const current = bridge.stateOf(def.id).value;
+    // The left half of a one-way knob steps nowhere (the knob does not turn back).
+    const next = stepStop(def, current, g.local.x >= 0 ? 1 : -1);
+    if (next !== current) bridge.actuate(def.id, next);
   };
 
   // Built in the render body and registered by a ref callback on every render, so the target

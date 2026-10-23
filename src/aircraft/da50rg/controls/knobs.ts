@@ -71,8 +71,11 @@ export const KNOB_CONTROLS: readonly ControlSpec[] = [
   // clockwise OFF. The real knob sits behind the throttle where the trim wheel is; it is drawn at
   // the bottom left of the pedestal by owner decision. The OFF angle 225 is owner-unverified
   // (docs/PANEL-LABELS.md, docs/PANEL-REVIEW.md). The three position words are static art of the
-  // selector-bar look, so the knob is nameless. No click spots: a tap on the right half steps
-  // clockwise, on the left half back, a drag commits the nearest stop.
+  // selector-bar look, so the knob is nameless. The real handle turns only clockwise (owner,
+  // first live test; the AFM schematic shows NORMAL at the top, EMERGENCY at the right, OFF at the
+  // bottom, the same clockwise order): `oneWay: 'cw'`. No click spots: a tap on the right half
+  // steps one stop clockwise (OFF is followed by NORMAL), the left half does nothing, a drag
+  // commits the nearest stop clockwise of its start and is clamped there.
   {
     id: 'sw.fuel_valve',
     kind: 'rotary',
@@ -95,5 +98,6 @@ export const KNOB_CONTROLS: readonly ControlSpec[] = [
       { id: 'off', label: 'OFF', angle: 225 },
     ],
     default: 'normal',
+    oneWay: 'cw',
   },
 ];

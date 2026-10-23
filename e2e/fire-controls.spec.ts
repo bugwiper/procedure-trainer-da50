@@ -54,7 +54,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('panel')).toBeVisible();
 });
 
-test('FUEL selector steps NORMAL, EMERGENCY, OFF by right-half taps and back by a left-half tap', async ({
+test('FUEL selector turns only clockwise: right-half taps step NORMAL, EMERGENCY, OFF, NORMAL; a left-half tap does nothing', async ({
   page,
   hasTouch,
 }) => {
@@ -70,10 +70,19 @@ test('FUEL selector steps NORMAL, EMERGENCY, OFF by right-half taps and back by 
   const printed = await knob.locator('text').allTextContents();
   expect([...printed].sort()).toEqual(['EMERGENCY', 'NORMAL', 'OFF']);
 
+  // A left-half tap on NORMAL does not turn the knob back (and never reaches OFF).
+  await tapHalf(page, 'left', hasTouch);
+  await expect(knob).toHaveAttribute('data-state', 'normal');
+  await afterPairWindow(page);
+
   await tapHalf(page, 'right', hasTouch);
   await expect(knob).toHaveAttribute('data-state', 'emergency');
   await expect(panel).toHaveAttribute('viewBox', regionView ?? '');
   expect(await knob.locator('text').allTextContents()).toEqual(printed);
+
+  await afterPairWindow(page);
+  await tapHalf(page, 'left', hasTouch);
+  await expect(knob).toHaveAttribute('data-state', 'emergency');
 
   await afterPairWindow(page);
   await tapHalf(page, 'right', hasTouch);
@@ -81,11 +90,47 @@ test('FUEL selector steps NORMAL, EMERGENCY, OFF by right-half taps and back by 
   await expect(panel).toHaveAttribute('viewBox', regionView ?? '');
   expect(await knob.locator('text').allTextContents()).toEqual(printed);
 
+  // A left-half tap on OFF does not go back to EMERGENCY; the next right-half tap comes round to NORMAL.
   await afterPairWindow(page);
   await tapHalf(page, 'left', hasTouch);
-  await expect(knob).toHaveAttribute('data-state', 'emergency');
-  await expect(panel).toHaveAttribute('viewBox', regionView ?? '');
+  await expect(knob).toHaveAttribute('data-state', 'off');
+  await afterPairWindow(page);
+  await tapHalf(page, 'right', hasTouch);
+  await expect(knob).toHaveAttribute('data-state', 'normal');
   expect(await knob.locator('text').allTextContents()).toEqual(printed);
+});
+
+test('FUEL selector: a mouse drag round the left side never reaches OFF, a clockwise drag does', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop mouse path');
+  await zoomIntoRegion(page, hasTouch, 'pedestal');
+  const knob = control(page, 'sw.fuel_valve');
+  const b = await box(page.locator('[data-hit="sw.fuel_valve"]'));
+  const c = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+  const u = b.w / 86;
+  /** Drags from the knob centre through the given directions (degrees clockwise from up). */
+  async function dragThrough(angles: number[]): Promise<void> {
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.down();
+    for (const a of angles) {
+      const rad = (a * Math.PI) / 180;
+      await page.mouse.move(c.x + 26 * u * Math.sin(rad), c.y - 26 * u * Math.cos(rad), {
+        steps: 4,
+      });
+    }
+    await page.mouse.up();
+  }
+
+  await expect(knob).toHaveAttribute('data-state', 'normal');
+  // Counter-clockwise: up-left, left, down-left (towards the OFF position at 225 degrees).
+  await dragThrough([315, 270, 225]);
+  await expect(knob).toHaveAttribute('data-state', 'normal');
+  await afterPairWindow(page);
+  // Clockwise: up, right, down, down-left.
+  await dragThrough([0, 90, 180, 225]);
+  await expect(knob).toHaveAttribute('data-state', 'off');
 });
 
 test('ECS SHUTOFF pulls by its marker and the in marker pushes it back', async ({

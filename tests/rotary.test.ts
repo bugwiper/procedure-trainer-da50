@@ -9,6 +9,10 @@ import {
   MIN_RADIUS,
   angleOf,
   nearestStop,
+  oneWayPointer,
+  oneWayReach,
+  oneWayStop,
+  oneWayTravel,
   stepStop,
   stopAngle,
   tapStop,
@@ -347,6 +351,25 @@ describe('rotary registry invariants', () => {
     expect(() =>
       define(build({ stops: stops(0, 90), skin: 'bar' as unknown as RotaryDef['skin'] })),
     ).toThrow(RegistryError);
+  });
+
+  it('accepts oneWay cw, rejects an unknown direction and rejects it together with click spots', () => {
+    expect(() => define(build({ stops: stops(0, 90, 225), oneWay: 'cw' }))).not.toThrow();
+    expect(() =>
+      define(build({ stops: stops(0, 90), oneWay: 'ccw' as unknown as RotaryDef['oneWay'] })),
+    ).toThrow(/unknown oneWay "ccw"/);
+    expect(() =>
+      define(
+        build({
+          stops: stops(0, 90),
+          oneWay: 'cw',
+          spots: [
+            { stop: 'a', x: -15, y: 0, w: 10, h: 10 },
+            { stop: 'b', x: 15, y: 0, w: 10, h: 10 },
+          ],
+        }),
+      ),
+    ).toThrow(/one way only/);
   });
 
   it('rejects angles that do not strictly increase', () => {
@@ -758,13 +781,96 @@ describe('FUEL selector (plan 03-10, C-51, C-52)', () => {
     }
   });
 
-  it('steps clockwise NORMAL, EMERGENCY, OFF, clamps at OFF and steps back', () => {
+  it('turns only clockwise (the real handle): oneWay cw, no click spots', () => {
+    expect(fuel.oneWay).toBe('cw');
+    for (const def of rotaries) {
+      if (def.id !== 'sw.fuel_valve') expect(def.oneWay, def.id).toBeUndefined();
+    }
+  });
+
+  it('steps clockwise NORMAL, EMERGENCY, OFF, then round to NORMAL; a step back stays put', () => {
     expect(stepStop(fuel, 'normal', 1)).toBe('emergency');
     expect(stepStop(fuel, 'emergency', 1)).toBe('off');
-    expect(stepStop(fuel, 'off', 1)).toBe('off');
-    expect(stepStop(fuel, 'off', -1)).toBe('emergency');
-    expect(stepStop(fuel, 'emergency', -1)).toBe('normal');
-    expect(stepStop(fuel, 'normal', -1)).toBe('normal');
+    expect(stepStop(fuel, 'off', 1)).toBe('normal');
+    for (const stop of fuel.stops) expect(stepStop(fuel, stop.id, -1), stop.id).toBe(stop.id);
+  });
+
+  describe('one-way drag', () => {
+    /** Feeds pointer angles one after the other, as the widget does; returns travel and stop. */
+    function drag(from: string, start: number, angles: number[]) {
+      let travel = 0;
+      let previous = start;
+      for (const angle of angles) {
+        travel = oneWayTravel(fuel, from, travel, previous, angle);
+        previous = angle;
+      }
+      return {
+        travel,
+        stop: oneWayStop(fuel, from, travel),
+        pointer: oneWayPointer(fuel, from, travel),
+      };
+    }
+    /** A sweep from `a` to `b` in 5 degree samples, the way round given by the sign of `step`. */
+    function sweep(a: number, b: number, step: number): number[] {
+      const out: number[] = [];
+      for (let x = a; step > 0 ? x <= b : x >= b; x += step) out.push(x);
+      return out;
+    }
+
+    it('reaches: from NORMAL up to OFF, from EMERGENCY up to NORMAL, from OFF up to EMERGENCY', () => {
+      expect(oneWayReach(fuel, 'normal')).toBe(225);
+      expect(oneWayReach(fuel, 'emergency')).toBe(270);
+      expect(oneWayReach(fuel, 'off')).toBe(225);
+    });
+
+    it('a clockwise drag from NORMAL commits EMERGENCY, then OFF', () => {
+      expect(drag('normal', 0, sweep(5, 90, 5)).stop).toBe('emergency');
+      const toOff = drag('normal', 0, sweep(5, 225, 5));
+      expect(toOff.stop).toBe('off');
+      expect(toOff.pointer).toBe(225);
+      // Swinging on past OFF is held at OFF.
+      expect(drag('normal', 0, sweep(5, 330, 5)).stop).toBe('off');
+    });
+
+    it('a counter-clockwise drag from NORMAL never reaches OFF, however far round the left side', () => {
+      for (const end of [-45, -90, -135, -180, -270]) {
+        const result = drag('normal', 0, sweep(-5, end, -5));
+        expect(result.stop, String(end)).toBe('normal');
+        expect(result.travel, String(end)).toBe(0);
+        expect(result.pointer, String(end)).toBe(0);
+      }
+    });
+
+    it('a counter-clockwise drag never changes the stop from any start', () => {
+      for (const stop of fuel.stops) {
+        const result = drag(stop.id, stop.angle, sweep(stop.angle - 5, stop.angle - 200, -5));
+        expect(result.stop, stop.id).toBe(stop.id);
+        expect(result.travel, stop.id).toBe(0);
+      }
+    });
+
+    it('the pointer follows the finger again once it comes back clockwise', () => {
+      const result = drag('normal', 0, [...sweep(-5, -60, -5), ...sweep(-55, -40, 5)]);
+      expect(result.stop).toBe('normal');
+      expect(result.travel).toBe(20);
+      expect(drag('normal', 0, [...sweep(-5, -60, -5), ...sweep(-55, 30, 5)]).stop).toBe(
+        'emergency',
+      );
+    });
+
+    it('from OFF a clockwise drag passes NORMAL (the cycle) and reaches EMERGENCY', () => {
+      expect(drag('off', 225, sweep(230, 360, 5)).stop).toBe('normal');
+      expect(drag('off', 225, sweep(230, 450, 5)).stop).toBe('emergency');
+    });
+
+    it('a release without travel commits the start stop', () => {
+      for (const stop of fuel.stops) expect(oneWayStop(fuel, stop.id, 0)).toBe(stop.id);
+    });
+
+    it('is deterministic and rejects non-finite input', () => {
+      expect(() => oneWayTravel(fuel, 'normal', 0, NaN, 3)).toThrow(RangeError);
+      expect(() => oneWayStop(fuel, 'normal', Infinity)).toThrow(RangeError);
+    });
   });
 
   it('a drag commits the nearest stop: past 135 degrees it is OFF, below 45 it is NORMAL', () => {

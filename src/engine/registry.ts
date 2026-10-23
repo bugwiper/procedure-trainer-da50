@@ -207,6 +207,13 @@ export interface RotaryDef extends ControlBase {
   readonly spots?: readonly RotarySpotDef[];
   /** Absent means `round`; `selector-bar` is the elongated selector knob. Validated at load. */
   readonly skin?: RotarySkin;
+  /**
+   * `cw`: the knob turns only clockwise (the FUEL selector). The stops form a cycle, the last one
+   * is followed by the first; a tap steps to the next stop clockwise, the other tap half does
+   * nothing, a drag is clamped at its start (no counter-clockwise travel). Not combinable with
+   * `spots`, which would set a stop directly. Validated at load.
+   */
+  readonly oneWay?: 'cw';
 }
 
 /** Bus groups of the circuit breakers (UI-SPEC 01.2, Table A1). Re-checked at run time. */
@@ -485,6 +492,16 @@ function checkRotary(def: RotaryDef): void {
     throw new RegistryError(
       `knob "${def.id}" radius ${def.r} does not fit inside its ${def.hit.w} x ${def.hit.h} hit footprint`,
     );
+  }
+  if (def.oneWay !== undefined) {
+    if ((def.oneWay as string) !== 'cw') {
+      throw new RegistryError(`knob "${def.id}" has unknown oneWay "${def.oneWay as string}"`);
+    }
+    if (def.spots !== undefined) {
+      throw new RegistryError(
+        `knob "${def.id}" turns one way only and cannot have click spots, which set a stop directly`,
+      );
+    }
   }
   if (def.spots !== undefined) checkRotarySpots(def, def.spots);
 }
