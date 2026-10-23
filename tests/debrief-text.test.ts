@@ -72,6 +72,25 @@ describe('reasonLines', () => {
     ]);
   });
 
+  it('names steps done before the onset on the missed-steps line only when one was pre-empted', () => {
+    const step = {
+      id: 's',
+      group: 'g',
+      severity: 'critical' as const,
+      credited: false,
+      enteredAt: null,
+    };
+    expect(
+      reasonLines(
+        result({
+          result: 'fail',
+          reasons: [{ kind: 'critical_missed', count: 1 }],
+          steps: [{ ...step, preempted: true }],
+        }),
+      ),
+    ).toEqual(['1 critical step was missed. Steps done before the onset do not count.']);
+  });
+
   it('gives one line per cause in reason order, each cause once', () => {
     expect(
       reasonLines(

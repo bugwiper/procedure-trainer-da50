@@ -55,6 +55,11 @@ export interface StepVerdict {
   readonly credited: boolean;
   /** Log index after which the step became and stayed done; -1 from the start; null when not credited. */
   readonly enteredAt: number | null;
+  /**
+   * R12: present (true) only on a recording with an onset, when the step already held at the onset
+   * and the pilot did not make it false and true again afterwards; absent everywhere else.
+   */
+  readonly preempted?: true;
 }
 
 export interface OrderViolation {
@@ -240,15 +245,33 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
   // R4 and R5: replay in log order, evaluating after every event.
   const state: Record<string, string> = { ...ctx0.baseline };
   const harmful: HarmfulEntry[] = [];
+  // R12: with an onset, a step that holds at the onset was reached before the failure and earns no
+  // credit until the pilot has made it false and true again at or after the onset.
+  const onsetAt = recording.onset?.at ?? 0;
+  const preempted = new Set<string>();
+  let crossed = recording.onset === undefined || recording.onset === null;
+  const cross = (): void => {
+    if (crossed) return;
+    crossed = true;
+    for (const entry of tracked) {
+      if (entry.entered !== null) {
+        preempted.add(entry.step.id);
+        entry.entered = null;
+      }
+    }
+  };
   events.forEach((event, index) => {
+    if (event.t >= onsetAt) cross();
     if (!Object.hasOwn(state, event.id)) {
       throw new Error(`recorded event ${String(index)} names unknown control "${event.id}"`);
     }
     state[event.id] = event.value;
     const ctx: PredicateContext = { ...ctx0, controls: state };
     for (const entry of tracked) {
-      if (!evaluatePredicate(entry.step.done, ctx, env)) entry.entered = null;
-      else entry.entered ??= index;
+      if (!evaluatePredicate(entry.step.done, ctx, env)) {
+        entry.entered = null;
+        preempted.delete(entry.step.id);
+      } else if (!preempted.has(entry.step.id)) entry.entered ??= index;
     }
     // A forbidden action counts when it is entered, even if it is reverted later (A5).
     for (const entry of watched) {
@@ -266,6 +289,8 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
     }
   });
 
+  cross(); // a log that ends before the onset (R12)
+
   // R6: credited means the step holds after the last event.
   const steps: StepVerdict[] = tracked.map(({ group, step, entered }) => ({
     id: step.id,
@@ -273,6 +298,7 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
     severity: step.severity,
     credited: entered !== null,
     enteredAt: entered,
+    ...(preempted.has(step.id) ? { preempted: true as const } : {}),
   }));
 
   // R7: in an ordered group, every pair of credited steps entered against the declared order is
@@ -312,7 +338,6 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
   }
 
   // C-34: the reaction time is measured over the graded events, from the onset (0 without one).
-  const onsetAt = recording.onset?.at ?? 0;
   const first = events.find((event) => event.t >= onsetAt);
   const timing: Timing = {
     onsetAt,

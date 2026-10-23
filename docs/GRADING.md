@@ -26,6 +26,7 @@ The level chosen before the briefing (Easy, Medium or Realistic) is not an input
 
 10. **Outcome (R10).** A scenario can name outcomes: a condition on the quantities that, once it has held for its hold time (0 to 600 s), ends the run by itself. An outcome ends the run as FAIL, whatever the pilot did, and it is the first reason in the list (before the missed steps, the order and the harmful actions). Events recorded after the outcome time are not graded. The hold timer counts only while the condition holds and starts again from zero when it is interrupted. If two outcomes would fire in the same step, the one declared first wins. A run without a declared outcome is graded as before.
 11. **Reaction time and level (R11).** On the level Realistic the debrief shows how long after the onset the first graded action came ("First action N s after the onset.") or that there was none. The time is display only: there is no time limit, nothing in the verdict depends on it, and the level is never an input of `grade`.
+12. **Before the onset (R12).** On a recording with an onset, a step whose target already holds at the onset earns no credit from what was done before it: it is credited only after the pilot has made it false and true again at or after the onset, so a run that does nothing after the onset fails like on the other levels. The debrief adds "Steps done before the onset do not count." to the missed-steps line. Harmful actions are still recorded at any time. Recordings without an onset (Easy, Medium) are unaffected.
 
 Further notes:
 

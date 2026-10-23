@@ -11,10 +11,16 @@ function reasonLine(reason: Reason, result: GradeResult): string {
   switch (reason.kind) {
     case 'outcome':
       return `The failure escalated: ${result.outcome?.text ?? reason.id}.`;
-    case 'critical_missed':
-      return reason.count === 1
-        ? '1 critical step was missed.'
-        : `${String(reason.count)} critical steps were missed.`;
+    case 'critical_missed': {
+      const base =
+        reason.count === 1
+          ? '1 critical step was missed.'
+          : `${String(reason.count)} critical steps were missed.`;
+      // R12: steps done before the onset do not count; say so instead of leaving the pilot guessing.
+      return result.steps.some((step) => step.preempted === true)
+        ? `${base} Steps done before the onset do not count.`
+        : base;
+    }
     case 'order':
       return 'Steps were done in the wrong order.';
     case 'forbidden':

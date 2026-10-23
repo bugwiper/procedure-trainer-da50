@@ -30,6 +30,7 @@ interface SessionHook {
   scenarioId(): string | null;
   result(): { result: string } | null;
   onset(): { at: number; seed: number } | null;
+  now(): number | null;
 }
 type HookHost = { __panel?: PanelHook; __panelSession?: SessionHook };
 
@@ -437,11 +438,18 @@ test('@hooks Realistic starts without a briefing, names nothing, the failure com
   expect(onset.at).toBeGreaterThanOrEqual(window[0] * 1000);
   expect(onset.at).toBeLessThanOrEqual(window[1] * 1000);
 
+  // R12: only actions at or after the onset count, so the golden taps wait for the failure to begin.
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as HookHost).__panelSession?.now() ?? 0), {
+      timeout: window[1] * 1000 + 5000,
+    })
+    .toBeGreaterThanOrEqual(onset.at);
   await goldenTaps(page, hasTouch);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   await expect(page.getByTestId('debrief-level')).toHaveText('Level: Realistic');
   await expect(page.getByTestId('debrief-scenario')).toHaveText(scenario.title);
-  // The reaction time is shown for display; the golden taps came before the onset (5 s at the earliest).
+  // The reaction time is shown for display; the golden taps came after the onset.
   await expect(page.getByTestId('debrief-timing')).toBeVisible();
   await expect(page.getByTestId('debrief-timing')).toHaveText(/ after the onset\.$/);
 });

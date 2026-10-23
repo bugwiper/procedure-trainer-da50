@@ -959,15 +959,77 @@ describe('reaction time from the onset (D-05, C-33, C-34)', () => {
     events,
   });
 
-  it('measures the first action from the onset; the event before the onset is still graded', () => {
+  it('measures the first action from the onset; the event before the onset earns no credit (R12)', () => {
     const result = grade(
       blueprint,
       DA50RG_ENV,
       realistic(10000, [power(4000, 'p60'), cowl(13500, 'open')]),
     );
     expect(result.timing).toEqual({ onsetAt: 10000, firstActionMs: 3500 });
-    expect(result.steps.map((s) => s.credited)).toEqual([true, true]);
+    expect(result.steps.map((s) => s.credited)).toEqual([false, true]);
+    expect(result.steps.map((s) => s.preempted)).toEqual([true, undefined]);
+    expect(result.result).toBe('fail');
+    expect(result.reasons).toEqual([{ kind: 'critical_missed', count: 1 }]);
+  });
+
+  it('actions before the onset credit nothing; the same actions after it pass (R12)', () => {
+    const before = grade(
+      blueprint,
+      DA50RG_ENV,
+      realistic(10000, [power(4000, 'p60'), cowl(6000, 'open')]),
+    );
+    expect(before.result).toBe('fail');
+    expect(before.steps.map((s) => s.credited)).toEqual([false, false]);
+    expect(before.reasons).toEqual([{ kind: 'critical_missed', count: 2 }]);
+    expect(before.timing.firstActionMs).toBeNull();
+    const after = grade(
+      blueprint,
+      DA50RG_ENV,
+      realistic(10000, [power(12000, 'p60'), cowl(14000, 'open')]),
+    );
+    expect(after.result).toBe('pass');
+    expect(after.reasons).toEqual([]);
+    expect(after.steps.every((s) => s.credited && s.preempted === undefined)).toBe(true);
+  });
+
+  it('a step done early is credited when the pilot undoes and redoes it after the onset (R12)', () => {
+    const redone = grade(
+      blueprint,
+      DA50RG_ENV,
+      realistic(10000, [
+        power(4000, 'p60'),
+        power(11000, 'p75'),
+        power(12000, 'p60'),
+        cowl(14000, 'open'),
+      ]),
+    );
+    expect(redone.result).toBe('pass');
+    expect(redone.steps.map((s) => s.preempted)).toEqual([undefined, undefined]);
+  });
+
+  it('an action exactly at the onset counts (R12)', () => {
+    const result = grade(
+      blueprint,
+      DA50RG_ENV,
+      realistic(10000, [power(10000, 'p60'), cowl(10000, 'open')]),
+    );
     expect(result.result).toBe('pass');
+  });
+
+  it('a log that ends before the onset credits nothing (R12)', () => {
+    const result = grade(blueprint, DA50RG_ENV, realistic(10000, [power(4000, 'p60')], 6000));
+    expect(result.steps.map((s) => s.credited)).toEqual([false, false]);
+    expect(result.result).toBe('fail');
+  });
+
+  it('Easy and Medium recordings, with no onset, credit early actions as before (R12)', () => {
+    const plain = grade(blueprint, DA50RG_ENV, {
+      scenarioId: blueprint.id,
+      completedAt: 20000,
+      events: [power(4000, 'p60'), cowl(6000, 'open')],
+    });
+    expect(plain.result).toBe('pass');
+    expect(JSON.stringify(plain)).not.toContain('preempted');
   });
 
   it('is null when nothing happens after the onset', () => {
@@ -990,7 +1052,7 @@ describe('reaction time from the onset (D-05, C-33, C-34)', () => {
   });
 
   it('the same events with and without an onset differ in the timing only', () => {
-    const events = [power(4000, 'p60'), cowl(13500, 'open')];
+    const events = [power(12000, 'p60'), cowl(13500, 'open')];
     const withOnset = grade(blueprint, DA50RG_ENV, realistic(10000, events));
     const without = grade(blueprint, DA50RG_ENV, {
       scenarioId: blueprint.id,
