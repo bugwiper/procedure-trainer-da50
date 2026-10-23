@@ -347,9 +347,18 @@ describe('the pack seam', () => {
     return { provider, calls };
   }
 
-  it('lists the engine pack from its manifest', async () => {
+  it('lists the shipped packs from their manifests', async () => {
     const packs = await VITE_PACKS.listPacks();
     expect(packs).toEqual([
+      {
+        id: 'electrical',
+        title: 'Electrical',
+        free: true,
+        scenarios: [
+          { id: 'elec-altn1-fail', title: 'ALTN 1 FAIL', file: 'elec-altn1-fail' },
+          { id: 'elec-altn2-fail', title: 'ALTN 2 FAIL', file: 'elec-altn2-fail' },
+        ],
+      },
       {
         id: 'engine',
         title: 'Engine',
