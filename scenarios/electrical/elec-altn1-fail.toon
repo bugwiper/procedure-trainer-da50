@@ -9,7 +9,7 @@ source:
   verified: "2026-10-23"
 disclaimer: training-aid
 briefing:
-  situation: "You are in cruise flight when the yellow ALTN 1 FAIL message appears on the primary flight display. The Amps reading has dropped to zero. The engine runs normally and the main bus now draws on the battery."
+  situation: "You are in cruise flight when the yellow ALTN 1 FAIL message appears on the primary flight display. The alternator 1 Amps reading has dropped to zero. The engine runs normally and the main bus now draws on the battery."
 initial:
   quantities:
     alt1_amps: 0

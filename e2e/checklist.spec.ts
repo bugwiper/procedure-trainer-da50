@@ -16,6 +16,7 @@ import { activate } from './support/zoom';
 // types a checklist word, the reference table and the scenario data supply them.
 
 const ALTN1 = 'electrical.elec-altn1-fail';
+const ALTN2 = 'electrical.elec-altn2-fail';
 const FIRE = 'engine.eng-fire-in-flight';
 const OIL = 'engine.eng-oil-temp-green';
 
@@ -262,6 +263,30 @@ test('the Easy briefing of ENG OIL TEMP shows the printed outline with its marke
   await noSidewaysScroll(briefing);
 });
 
+test('the Easy briefing of ALTN 2 FAIL reads like the printed table', async ({
+  page,
+  hasTouch,
+}) => {
+  const table = printedTable('elec-altn2-fail');
+  const briefing = await openBriefing(page, hasTouch, ALTN2);
+
+  const heading = briefing.getByTestId('checklist-heading');
+  await expect(heading).toBeVisible();
+  await expect(heading.getByTestId('checklist-title')).toHaveText(table.heading);
+  await expect(heading.getByTestId('checklist-message')).toHaveText(table.message ?? '');
+
+  const list = briefing.getByTestId('briefing-outline').locator('ul.outline-table').first();
+  await expect(list).toBeVisible();
+  // Three numbered rows (the printed ones), two comment rows, nothing else.
+  expect(rows(table.rows)).toHaveLength(3);
+  await expectTable(list, 'elec-altn2-fail');
+  await expectAlignment(list);
+
+  await expect(briefing).not.toContainText('CRITICAL');
+  await expect(briefing).not.toContainText('Not graded');
+  await noSidewaysScroll(briefing);
+});
+
 test('the debrief of a do-nothing ALTN 1 FAIL run keeps tag, verdict and Not graded in the table', async ({
   page,
   hasTouch,
@@ -310,6 +335,42 @@ test('the debrief of a do-nothing ALTN 1 FAIL run keeps tag, verdict and Not gra
     ).toHaveCount(0);
     await expect(comments.nth(i)).not.toContainText('Not graded');
   }
+  await noSidewaysScroll(debrief);
+});
+
+test('the debrief of a do-nothing ALTN 2 FAIL run keeps tag, verdict and Not graded in the table', async ({
+  page,
+  hasTouch,
+}) => {
+  const table = printedTable('elec-altn2-fail');
+  // Row 1 is graded only when the breaker had popped; this run draws the cause that does not grade it.
+  await forceVariant(page, 'electrical/elec-altn2-fail', 'alternator_dead');
+  const debrief = await doNothing(page, hasTouch, ALTN2);
+  await expect(debrief.getByTestId('checklist-title')).toHaveText(table.heading);
+  await expect(debrief.getByTestId('checklist-message')).toHaveText(table.message ?? '');
+
+  const list = debrief.locator('ul.outline-table').first();
+  await expectTable(list, 'elec-altn2-fail');
+
+  const printedRow = rows(table.rows).find((r) => r.number === 2);
+  const graded = debrief.getByTestId('debrief-row');
+  await expect(graded).toHaveCount(1);
+  await expect(graded.locator('.outline-number')).toHaveText('2');
+  await expect(graded.locator('.outline-text')).toHaveText(printedRow?.item ?? '');
+  await expect(graded.locator('.outline-action')).toHaveText(printedRow?.action ?? '');
+  await expect(graded.locator('.outline-tag')).toHaveText('CRITICAL');
+  await expect(graded.locator('.outline-verdict')).toHaveText('Missed');
+  // Row 3 is the one Not graded line; row 1 is a muted step without tag or verdict in this cause.
+  const monitor = list.locator('li[data-kind="line"]', {
+    has: page.locator('.outline-number', { hasText: /^3$/ }),
+  });
+  await expect(monitor).toHaveCount(1);
+  await expect(monitor).toContainText('Not graded');
+  await expect(list.getByText('Not graded')).toHaveCount(1);
+  const breaker = list.locator('li[data-kind="step"][data-muted="true"]');
+  await expect(breaker).toHaveCount(1);
+  await expect(breaker.locator('.outline-number')).toHaveText('1');
+  await expect(debrief.getByTestId('debrief-variant')).toContainText('Cause:');
   await noSidewaysScroll(debrief);
 });
 
