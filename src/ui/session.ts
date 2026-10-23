@@ -55,6 +55,13 @@ export const LEVEL_NAMES: Readonly<Record<Level, string>> = {
   realistic: 'Realistic',
 };
 
+/** The one line under each level button on the level card: what the level changes. */
+export const LEVEL_HINTS: Readonly<Record<Level, string>> = {
+  easy: 'Checklist and panel steps shown in the briefing.',
+  medium: 'Briefing without the checklist.',
+  realistic: 'No briefing. The failure starts by itself.',
+};
+
 /** The seeds the session draws are unsigned 32-bit integers. */
 const SEED_RANGE = 4_294_967_296;
 

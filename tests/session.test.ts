@@ -19,7 +19,7 @@ import { VITE_PACKS } from '../src/scenario/packs-vite';
 import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
 import { reasonLines } from '../src/ui/debrief-text';
 import { attachClockDriver } from '../src/ui/clock-driver';
-import { RUN_ERROR_PATH, createSession, pickRandom } from '../src/ui/session';
+import { LEVELS, LEVEL_HINTS, RUN_ERROR_PATH, createSession, pickRandom } from '../src/ui/session';
 
 // The session machine (plan 02-06, Table N1; plan 02-11 adds the briefing; SES-01, SES-03, SES-04,
 // SCN-05, D-13, D-14): node environment, a real bridge over the DA50 RG and a fake pack provider built from the real
@@ -1518,5 +1518,15 @@ describe('resetPanel (RESET button)', () => {
     r.session.resetPanel();
     expect(r.bridge.stateOf('lv.power').value).toBe('p50');
     await pending;
+  });
+});
+
+describe('level hints', () => {
+  it('each level has its one short line (the level card prints them under the buttons)', () => {
+    expect(LEVELS.map((level) => LEVEL_HINTS[level])).toEqual([
+      'Checklist and panel steps shown in the briefing.',
+      'Briefing without the checklist.',
+      'No briefing. The failure starts by itself.',
+    ]);
   });
 });

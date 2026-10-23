@@ -373,6 +373,20 @@ test('@hooks Level question: Easy, Medium and Realistic come before any briefing
   await expect(medium).toBeEnabled();
   await expect(realistic).toBeEnabled();
 
+  // Each button carries one short line that says what differs (the owner's wording, exact).
+  await expect(page.getByTestId('level-pick-easy-hint')).toHaveText(
+    'Checklist and panel steps shown in the briefing.',
+  );
+  await expect(page.getByTestId('level-pick-medium-hint')).toHaveText(
+    'Briefing without the checklist.',
+  );
+  await expect(page.getByTestId('level-pick-realistic-hint')).toHaveText(
+    'No briefing. The failure starts by itself.',
+  );
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    page.viewportSize()?.width ?? 0,
+  );
+
   // All three level buttons are real touch targets inside the viewport.
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();

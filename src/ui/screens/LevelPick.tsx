@@ -1,4 +1,4 @@
-import { LEVELS, LEVEL_NAMES } from '../session';
+import { LEVELS, LEVEL_HINTS, LEVEL_NAMES } from '../session';
 import type { Level } from '../session';
 import { Modal } from './Modal';
 
@@ -52,7 +52,10 @@ export function LevelPick({
               onLevel(entry);
             }}
           >
-            {LEVEL_NAMES[entry]}
+            <span>{LEVEL_NAMES[entry]}</span>
+            <span class="level-hint" data-testid={`level-pick-${entry}-hint`}>
+              {LEVEL_HINTS[entry]}
+            </span>
           </button>
         ))}
       </div>
