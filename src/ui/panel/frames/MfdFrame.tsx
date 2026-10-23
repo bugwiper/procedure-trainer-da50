@@ -13,8 +13,9 @@ import type { PanelBridge } from '../../bridge';
 import type { Session } from '../../session';
 import { ArcGauge } from './ArcGauge';
 import type { Band } from './ArcGauge';
+import { AMPS_GAUGE_H, AmpsGauge } from './AmpsGauge';
 import { BarGauge } from './BarGauge';
-import { GLASS_DARK, GREEN, RED, YELLOW, toneOf } from './gauge-alert';
+import { GLASS_DARK, GREEN, RED, YELLOW, textBoxWidth, toneOf } from './gauge-alert';
 
 export interface FrameProps {
   readonly region: Region;
@@ -222,7 +223,9 @@ const FUEL_PRES: GaugeSpec = quantityGauge('Fuel pres', 'fuel_pressure_bar', 1);
 const FUEL_QTY_LH: GaugeSpec = quantityGauge('Fuel qty LH', 'fuel_qty_lh_gal', 1);
 const FUEL_QTY_RH: GaugeSpec = quantityGauge('Fuel qty RH', 'fuel_qty_rh_gal', 1);
 const VOLTS: GaugeSpec = quantityGauge('Volts', 'bus_volts', 1);
+/** The Amps bar has one scale and one band table; alternator 2 reads the same bar (E-19). */
 const AMPS: GaugeSpec = quantityGauge('Amps', 'alt1_amps', 0);
+const AMPS_SECOND: QuantityId = 'alt2_amps';
 
 type Quantities = Readonly<Record<QuantityId, number>>;
 
@@ -250,7 +253,16 @@ const ENGINE_BARS_LEFT: readonly GaugeSpec[] = [
   FUEL_TEMP,
   FUEL_PRES,
 ];
-const ENGINE_BARS_RIGHT: readonly GaugeSpec[] = [VOLTS, AMPS, FUEL_QTY_LH, FUEL_QTY_RH];
+/** The Volts and Amps bars live in the Electrical box (E-18); the fuel bars follow below it. */
+const ENGINE_BARS_RIGHT: readonly GaugeSpec[] = [FUEL_QTY_LH, FUEL_QTY_RH];
+const BOX_TITLE = 'ELECTRICAL';
+const BOX_TITLE_FONT = 8;
+const BOX_STROKE = '#3a424b';
+const BOX_TITLE_FILL = '#aab3bd';
+const BOX_TOP = 172;
+const BOX_PAD_X = 6;
+const VOLTS_H = 33;
+const BOX_BOTTOM_PAD = 4;
 
 /**
  * MFD frame (D-04a): the Map page with a small engine strip, or the full Engine page,
@@ -338,6 +350,78 @@ function MapPage({ w, quantities }: { readonly w: number; readonly quantities: Q
   );
 }
 
+const ELECTRICAL_INNER_Y = BOX_TOP + 10;
+const ELECTRICAL_BOTTOM = ELECTRICAL_INNER_Y + AMPS_GAUGE_H + VOLTS_H + BOX_BOTTOM_PAD;
+
+/**
+ * The Electrical box of the engine page (E-18): a framed box titled ELECTRICAL (cut into the top
+ * edge) holding the two-pointer Amps bar and the Volts bar. Scales, bands and readings come from
+ * the quantity data; the marks are static text (E-20).
+ */
+function ElectricalBox({
+  x,
+  w,
+  quantities,
+}: {
+  readonly x: number;
+  readonly w: number;
+  readonly quantities: Quantities;
+}) {
+  const first = readingOf(AMPS, quantities);
+  const second = quantities[AMPS_SECOND] ?? DA50RG_QUANTITIES.get(AMPS_SECOND)?.base ?? 0;
+  const titleW = textBoxWidth(BOX_TITLE, BOX_TITLE_FONT) + 6;
+  return (
+    <g data-electrical-box>
+      <rect
+        x={x}
+        y={BOX_TOP}
+        width={w}
+        height={ELECTRICAL_BOTTOM - BOX_TOP}
+        rx={3}
+        fill="none"
+        stroke={BOX_STROKE}
+        stroke-width={1}
+      />
+      <rect x={x + 8} y={BOX_TOP - 2} width={titleW} height={4} fill={SCREEN_FILL} />
+      <text
+        data-electrical-title
+        x={x + 11}
+        y={BOX_TOP + 2.5}
+        font-size={BOX_TITLE_FONT}
+        fill={BOX_TITLE_FILL}
+      >
+        {BOX_TITLE}
+      </text>
+      <AmpsGauge
+        label={AMPS.label}
+        min={AMPS.min}
+        max={AMPS.max}
+        bands={AMPS.bands}
+        decimals={AMPS.decimals}
+        first={{ value: first, tone: toneOf(DA50RG_QUANTITIES, AMPS.quantity, first) }}
+        second={{ value: second, tone: toneOf(DA50RG_QUANTITIES, AMPS_SECOND, second) }}
+        x={x + BOX_PAD_X}
+        y={ELECTRICAL_INNER_Y}
+        w={w - 2 * BOX_PAD_X}
+      />
+      <BarGauge
+        label={VOLTS.label}
+        unit={VOLTS.unit}
+        value={readingOf(VOLTS, quantities)}
+        min={VOLTS.min}
+        max={VOLTS.max}
+        bands={VOLTS.bands}
+        decimals={VOLTS.decimals}
+        tone={toneOf(DA50RG_QUANTITIES, VOLTS.quantity, readingOf(VOLTS, quantities))}
+        x={x + BOX_PAD_X}
+        y={ELECTRICAL_INNER_Y + AMPS_GAUGE_H}
+        w={w - 2 * BOX_PAD_X}
+        h={VOLTS_H}
+      />
+    </g>
+  );
+}
+
 function EnginePage({ w, quantities }: { readonly w: number; readonly quantities: Quantities }) {
   const arcs: readonly GaugeSpec[] = [RPM, LOAD, OIL_PRES];
   const colW = (w - 8) / 3;
@@ -380,6 +464,7 @@ function EnginePage({ w, quantities }: { readonly w: number; readonly quantities
           h={33}
         />
       ))}
+      <ElectricalBox x={w / 2 + 8 - BOX_PAD_X} w={barW + 2 * BOX_PAD_X} quantities={quantities} />
       {ENGINE_BARS_RIGHT.map((g, i) => (
         <BarGauge
           key={g.label}
@@ -392,7 +477,7 @@ function EnginePage({ w, quantities }: { readonly w: number; readonly quantities
           decimals={g.decimals}
           tone={toneOf(DA50RG_QUANTITIES, g.quantity, readingOf(g, quantities))}
           x={w / 2 + 8}
-          y={176 + i * 33}
+          y={ELECTRICAL_BOTTOM + 4 + i * 33}
           w={barW}
           h={33}
         />

@@ -141,3 +141,10 @@ export function textBoxWidth(text: string, fontSize: number, mono = false): numb
   for (const ch of text) em += mono ? MONO_EM : (PLACARD_EM[ch] ?? PLACARD_DEFAULT_EM);
   return em * fontSize * WIDTH_MARGIN;
 }
+
+const TONE_RANK: Readonly<Record<GaugeTone, number>> = { none: 0, green: 0, yellow: 1, red: 2 };
+
+/** The worse of two tones: red over yellow over green (the label of a two-pointer gauge). */
+export function worseTone(a: GaugeTone, b: GaugeTone): GaugeTone {
+  return TONE_RANK[b] > TONE_RANK[a] ? b : a;
+}

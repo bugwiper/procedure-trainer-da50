@@ -487,6 +487,8 @@ const GAUGE_REFERENCE: readonly {
   readonly label: string;
   readonly quantity: string;
   readonly decimals: number;
+  /** A second pointer reading another quantity (the Amps bar); the readouts print without unit. */
+  readonly second?: string;
 }[] = [
   { label: 'RPM', quantity: 'rpm', decimals: 0 },
   { label: 'Load', quantity: 'load_pct', decimals: 0 },
@@ -499,7 +501,7 @@ const GAUGE_REFERENCE: readonly {
   { label: 'Fuel qty LH', quantity: 'fuel_qty_lh_gal', decimals: 1 },
   { label: 'Fuel qty RH', quantity: 'fuel_qty_rh_gal', decimals: 1 },
   { label: 'Volts', quantity: 'bus_volts', decimals: 1 },
-  { label: 'Amps', quantity: 'alt1_amps', decimals: 0 },
+  { label: 'Amps', quantity: 'alt1_amps', decimals: 0, second: 'alt2_amps' },
 ];
 const STRIP_LABELS = [
   'RPM',
@@ -593,6 +595,9 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
     if (digits === undefined) throw new Error('no readout');
     return textOf(digits);
   };
+  /** Every readout of a gauge, in drawing order (the Amps bar has two). */
+  const readoutsOf = (gauge: El): string[] =>
+    findElements(gauge, (e) => e.props['class'] === 'glass-digits').map((e) => textOf(e));
   const isArc = (pageName: string, label: string): boolean =>
     pageName === 'engine' && ['RPM', 'Load', 'Oil pres'].includes(label);
 
@@ -603,8 +608,13 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
       const tree = render(pageName, values);
       const labels = pageName === 'map' ? STRIP_LABELS : GAUGE_REFERENCE.map((g) => g.label);
       for (const label of labels) {
-        const { quantity, decimals, def } = refOf(label);
+        const { quantity, decimals, def, second } = refOf(label);
         const shown = (values[quantity] ?? Number.NaN).toFixed(decimals);
+        if (second !== undefined) {
+          const shown2 = (values[second] ?? Number.NaN).toFixed(decimals);
+          expect(readoutsOf(gaugeOf(tree, label)), label).toEqual([shown, shown2]);
+          continue;
+        }
         const expected = isArc(pageName, label) ? shown : `${shown} ${def.unit.toUpperCase()}`;
         expect(readoutOf(gaugeOf(tree, label)), label).toBe(expected);
       }
@@ -616,9 +626,58 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
     for (const g of GAUGE_REFERENCE) {
       const def = DA50RG_QUANTITIES.get(g.quantity);
       const shown = (def?.base ?? Number.NaN).toFixed(g.decimals);
+      if (g.second !== undefined) {
+        const base2 = DA50RG_QUANTITIES.get(g.second)?.base ?? Number.NaN;
+        expect(readoutsOf(gaugeOf(tree, g.label)), g.label).toEqual([
+          shown,
+          base2.toFixed(g.decimals),
+        ]);
+        continue;
+      }
       const expected = isArc('engine', g.label) ? shown : `${shown} ${def?.unit.toUpperCase()}`;
       expect(readoutOf(gaugeOf(tree, g.label)), g.label).toBe(expected);
     }
+  });
+
+  it('the Amps bar has one scale: both quantities carry the same range and band table', () => {
+    const one = DA50RG_QUANTITIES.get('alt1_amps');
+    const two = DA50RG_QUANTITIES.get('alt2_amps');
+    expect(one).toBeDefined();
+    expect(two?.min).toBe(one?.min);
+    expect(two?.max).toBe(one?.max);
+    expect(two?.bands).toEqual(one?.bands);
+  });
+
+  it('the base readings of the Amps bar are the quantity data (the load one alternator carries, and the other)', () => {
+    const tree = render('engine', {});
+    const [first, second] = readoutsOf(gaugeOf(tree, 'Amps'));
+    expect(first).toBe(String(DA50RG_QUANTITIES.get('alt1_amps')?.base));
+    expect(second).toBe(String(DA50RG_QUANTITIES.get('alt2_amps')?.base));
+  });
+
+  it('the engine page holds the Electrical box with the Amps and Volts bars and no bar of them outside it', () => {
+    const tree = render('engine', {});
+    const boxes = findElements(tree, (e) => e.props['data-electrical-box'] !== undefined);
+    expect(boxes).toHaveLength(1);
+    const box = boxes[0];
+    if (box === undefined) throw new Error('no box');
+    const title = findElements(box, (e) => e.props['data-electrical-title'] !== undefined)[0];
+    expect(title === undefined ? '' : textOf(title)).toBe('ELECTRICAL');
+    const inside = findElements(box, (e) => e.props['data-gauge'] !== undefined).map(
+      (e) => e.props['data-gauge'],
+    );
+    expect(inside).toEqual(['Amps', 'Volts']);
+    const all = findElements(tree, (e) =>
+      ['Amps', 'Volts'].includes(String(e.props['data-gauge'])),
+    );
+    expect(all).toHaveLength(2);
+  });
+
+  it('the map strip keeps its Volts bar and has no Electrical box', () => {
+    const tree = render('map', {});
+    expect(findElements(tree, (e) => e.props['data-electrical-box'] !== undefined)).toEqual([]);
+    expect(findElements(tree, (e) => e.props['data-gauge'] === 'Volts')).toHaveLength(1);
+    expect(findElements(tree, (e) => e.props['data-gauge'] === 'Amps')).toEqual([]);
   });
 
   it('formatReading keeps its output when no resolution is given', () => {

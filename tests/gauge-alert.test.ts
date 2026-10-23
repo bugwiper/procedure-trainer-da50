@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
+import { AmpsGauge } from '../src/ui/panel/frames/AmpsGauge';
+import type { AmpsGaugeProps } from '../src/ui/panel/frames/AmpsGauge';
 import { ArcGauge } from '../src/ui/panel/frames/ArcGauge';
 import type { ArcGaugeProps } from '../src/ui/panel/frames/ArcGauge';
 import { BarGauge } from '../src/ui/panel/frames/BarGauge';
@@ -12,6 +14,7 @@ import {
   gaugeAlertStyle,
   textBoxWidth,
   toneOf,
+  worseTone,
 } from '../src/ui/panel/frames/gauge-alert';
 import type { GaugeTone } from '../src/ui/panel/frames/gauge-alert';
 import { expand, findElements, textOf } from './vnode-walk';
@@ -294,5 +297,170 @@ describe('ArcGauge in every tone (C-68, C-70, T-03-31)', () => {
     for (const tone of ['green', 'yellow', 'red', 'none'] as const) {
       expect(strings(tone), tone).toEqual(plain);
     }
+  });
+});
+
+describe('worseTone', () => {
+  it('ranks red over yellow over green, and keeps the first of two equal tones', () => {
+    expect(worseTone('green', 'yellow')).toBe('yellow');
+    expect(worseTone('red', 'yellow')).toBe('red');
+    expect(worseTone('yellow', 'red')).toBe('red');
+    expect(worseTone('green', 'none')).toBe('green');
+    expect(worseTone('green', 'green')).toBe('green');
+  });
+});
+
+describe('AmpsGauge in every tone pair (E-19, E-20)', () => {
+  const def = DA50RG_QUANTITIES.get('alt1_amps');
+  if (def === undefined) throw new Error('no alt1_amps');
+  // One value per colour, from the band data of the quantity, never typed.
+  const sample: Record<'green' | 'yellow' | 'red', number> = { green: 0, yellow: 0, red: 0 };
+  let from = def.min;
+  for (const band of def.bands) {
+    if (band.colour === 'green' || band.colour === 'yellow' || band.colour === 'red') {
+      sample[band.colour] = (from + band.to) / 2;
+    }
+    from = band.to;
+  }
+  const TONES = ['green', 'yellow', 'red'] as const;
+  const bands = def.bands.map((b, i) => ({
+    from: i === 0 ? def.min : (def.bands[i - 1]?.to ?? def.min),
+    to: b.to,
+    color: b.colour === 'green' ? GREEN : b.colour === 'yellow' ? YELLOW : RED,
+  }));
+  const base: AmpsGaugeProps = {
+    label: 'Amps',
+    min: def.min,
+    max: def.max,
+    bands,
+    first: { value: sample.green, tone: 'green' },
+    second: { value: sample.green, tone: 'green' },
+    x: 256,
+    y: 182,
+    w: 203,
+    decimals: 0,
+  };
+  const draw = (a: GaugeTone, b: GaugeTone, patch: Partial<AmpsGaugeProps> = {}): El =>
+    expand(
+      AmpsGauge({
+        ...base,
+        first: { value: sample[a as 'green'], tone: a },
+        second: { value: sample[b as 'green'], tone: b },
+        ...patch,
+      }),
+    );
+  const boxes = (tree: El): El[] =>
+    findElements(tree, (e) => e.props['data-alert-box'] !== undefined);
+  const boxOf = (tree: El, which: string): El | undefined =>
+    boxes(tree).find((b) => b.props['data-alert-box'] === which);
+  const pointer = (tree: El, which: string): El => {
+    const found = findElements(tree, (e) => e.props['data-amps-pointer'] === which)[0];
+    if (found === undefined) throw new Error('no pointer');
+    return found;
+  };
+  const num = (el: El, key: string): number => Number(el.props[key]);
+  const pairs = TONES.flatMap((a) => TONES.map((b) => [a, b] as const));
+
+  it.each(pairs)(
+    'pointer 1 %s, pointer 2 %s: boxes, fills and the label take their own tone',
+    (a, b) => {
+      const tree = draw(a, b);
+      const sa = gaugeAlertStyle(a);
+      const sb = gaugeAlertStyle(b);
+      const sw = gaugeAlertStyle(worseTone(a, b));
+      expect(pointer(tree, '1').props['fill']).toBe(sa.pointerFill);
+      expect(pointer(tree, '2').props['fill']).toBe(sb.pointerFill);
+      expect(boxOf(tree, 'first')?.props['fill']).toBe(sa.boxes ? sa.boxFill : undefined);
+      expect(boxOf(tree, 'second')?.props['fill']).toBe(sb.boxes ? sb.boxFill : undefined);
+      expect(boxOf(tree, 'label')?.props['fill']).toBe(sw.boxes ? sw.boxFill : undefined);
+      expect(tree.props['data-alert']).toBe(sw.boxes ? worseTone(a, b) : undefined);
+      const readouts = findElements(tree, (e) => e.props['class'] === 'glass-digits');
+      expect(readouts.map((r) => r.props['fill'])).toEqual([sa.valueFill, sb.valueFill]);
+      const label = findElements(tree, (e) => e.tag === 'text' && textOf(e) === 'AMPS')[0];
+      expect(label?.props['fill']).toBe(sw.labelFill);
+    },
+  );
+
+  it('a plain pair draws no box and no data-alert', () => {
+    const tree = draw('green', 'green');
+    expect(boxes(tree)).toEqual([]);
+    expect(tree.props['data-alert']).toBeUndefined();
+  });
+
+  it('the strings are the same in every tone pair: AMPS, 1, 2 and the bare numbers (G-0)', () => {
+    const strings = (a: GaugeTone, b: GaugeTone) =>
+      findElements(draw(a, b), (e) => e.tag === 'text' && e.props['class'] !== 'glass-digits').map(
+        (t) => textOf(t),
+      );
+    const plain = strings('green', 'green');
+    expect(plain).toEqual(['AMPS', '1', '2']);
+    for (const [a, b] of pairs) expect(strings(a, b), `${a} ${b}`).toEqual(plain);
+  });
+
+  it('the readouts are bare numbers without a unit', () => {
+    const readouts = findElements(
+      draw('green', 'green'),
+      (e) => e.props['class'] === 'glass-digits',
+    );
+    expect(readouts.map((r) => textOf(r))).toEqual([
+      sample.green.toFixed(0),
+      sample.green.toFixed(0),
+    ]);
+  });
+
+  it('pointer 1 lies above the bar and pointer 2 below it, each with its digit beside it', () => {
+    const tree = draw('green', 'green');
+    const barBands = findElements(tree, (e) => e.tag === 'rect' && e.props['height'] === 7);
+    const barTop = Math.min(...barBands.map((r) => num(r, 'y')));
+    const barBottom = barTop + 7;
+    // Both pointers are triangles starting on the bar edge: 1 goes up from it, 2 goes down.
+    expect(String(pointer(tree, '1').props['d'])).toMatch(
+      new RegExp(` ${barTop - 1} l -?\\d+ -6 `),
+    );
+    expect(String(pointer(tree, '2').props['d'])).toMatch(
+      new RegExp(` ${barBottom + 1} l -?\\d+ 6 `),
+    );
+    const mark = (which: string) =>
+      findElements(tree, (e) => e.props['data-amps-mark'] === which)[0];
+    expect(num(mark('1') ?? tree, 'y')).toBeLessThan(barTop);
+    expect(num(mark('2') ?? tree, 'y')).toBeGreaterThan(barBottom);
+  });
+
+  it('the pointers sit at their value on the one scale', () => {
+    const tree = draw('green', 'red');
+    const startX = (el: El) => Number(/^M ([\d.]+) /.exec(String(el.props['d']))?.[1]);
+    const at = (v: number) => base.x + ((v - def.min) / (def.max - def.min)) * base.w;
+    expect(startX(pointer(tree, '1'))).toBeCloseTo(at(sample.green), 6);
+    expect(startX(pointer(tree, '2'))).toBeCloseTo(at(sample.red), 6);
+  });
+
+  it('each text lies inside its box by the BarGauge geometry rule, and the three boxes do not overlap', () => {
+    const tree = draw('red', 'red');
+    const parts: [string, string][] = [
+      ['first', 'glass'],
+      ['label', 'label'],
+      ['second', 'glass'],
+    ];
+    const texts = findElements(tree, (e) => e.tag === 'text' && e.props['font-size'] === 10);
+    expect(texts).toHaveLength(3);
+    const placed: { left: number; right: number }[] = [];
+    parts.forEach(([which], i) => {
+      const box = boxOf(tree, which);
+      const text = texts[i];
+      if (box === undefined || text === undefined) throw new Error('missing part');
+      const mono = text.props['class'] === 'glass-digits';
+      const need = textBoxWidth(textOf(text), 10, mono);
+      expect(num(box, 'width'), which).toBeGreaterThanOrEqual(need);
+      expect(num(box, 'height')).toBe(14);
+      expect(num(text, 'y')).toBeLessThanOrEqual(num(box, 'y') + num(box, 'height'));
+      expect(num(text, 'y') - 7).toBeGreaterThanOrEqual(num(box, 'y'));
+      placed.push({ left: num(box, 'x'), right: num(box, 'x') + num(box, 'width') });
+    });
+    const [a, b, c] = placed;
+    if (a === undefined || b === undefined || c === undefined) throw new Error('missing');
+    expect(a.right).toBeLessThan(b.left);
+    expect(b.right).toBeLessThan(c.left);
+    expect(a.left).toBeLessThanOrEqual(base.x);
+    expect(c.right).toBeGreaterThanOrEqual(base.x + base.w);
   });
 });
