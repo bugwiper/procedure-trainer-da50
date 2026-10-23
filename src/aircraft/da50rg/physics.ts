@@ -62,7 +62,7 @@ const FUEL_TEMP_PER_PERCENT = 0.15;
 /** An open cowl flap cools the coolant by this many degrees. */
 const COWL_OPEN_COOLANT_DROP = 10;
 
-/** The EMERG FUEL PUMP adds this pressure, with the engine running or not. */
+/** The EMERG FUEL PUMP adds this pressure while it has power, with the engine running or not. */
 const EMERG_PUMP_BAR = 0.3;
 
 /**
@@ -91,8 +91,9 @@ const FUEL_TRANSFER_RH_FLOOR = 1;
 // the full scale and a fuel-feed factor. The feed is high while the engine runs, higher with the
 // EMERG FUEL PUMP on, lower with the pump alone, and zero once the fuel is cut (ENGINE MASTER off
 // or the FUEL selector OFF cuts the engine, so only the pump can still feed; the selector OFF cuts
-// that too). The fire adds heat to the oil, the coolant and the gearbox in proportion to its
-// intensity, at most these many degrees.
+// that too). The pump feeds the fire only while it has power, which the battery gives it through the
+// closed tie relay with ELECT. MASTER on and ESS BUS off. The fire adds heat to the oil, the coolant
+// and the gearbox in proportion to its intensity, at most these many degrees.
 const FIRE_TAU_MS = 30_000;
 const FIRE_FEED_RUNNING = 0.9;
 const FIRE_FEED_RUNNING_PUMP = 1;
@@ -164,6 +165,15 @@ function electrical(inputs: PhysicsInputs) {
   return electricalState(inputs, running(inputs));
 }
 
+/**
+ * The EMERG FUEL PUMP has power: its switch is on, its breaker is in and the main bus is live
+ * (electrical.ts, E-11). With the engine stopped the battery gives it that through the closed tie
+ * relay while ELECT. MASTER is on and ESS BUS off.
+ */
+function pumpPowered(inputs: PhysicsInputs): boolean {
+  return electrical(inputs).emergPump;
+}
+
 /** The full scale of the fire intensity: the top of its one band. */
 const FIRE_FULL = bandTop('fire_intensity', 'unmarked');
 
@@ -175,7 +185,7 @@ function fireShare(inputs: PhysicsInputs): number {
 /** How well fuel feeds the fire: see the constants above. */
 function fireFeed(inputs: PhysicsInputs): number {
   if (fuelCut(inputs)) return 0;
-  const pump = stateOf(inputs, 'sw.emerg_fuel_pump') === 'on';
+  const pump = pumpPowered(inputs);
   if (running(inputs)) return pump ? FIRE_FEED_RUNNING_PUMP : FIRE_FEED_RUNNING;
   return pump ? FIRE_FEED_PUMP_ONLY : 0;
 }
@@ -244,12 +254,11 @@ function fuelTempTarget(inputs: PhysicsInputs): number {
 
 /**
  * Fuel pressure: the engine pump while running, plus the EMERG FUEL PUMP, which also works alone
- * but has no fuel to push with the FUEL selector OFF.
+ * but needs power (a live main bus) and has no fuel to push with the FUEL selector OFF.
  */
 function fuelPressureTarget(inputs: PhysicsInputs): number {
   const engine = running(inputs) ? baseOf('fuel_pressure_bar') : 0;
-  const pump =
-    stateOf(inputs, 'sw.emerg_fuel_pump') === 'on' && !fuelCut(inputs) ? EMERG_PUMP_BAR : 0;
+  const pump = pumpPowered(inputs) && !fuelCut(inputs) ? EMERG_PUMP_BAR : 0;
   return engine + pump;
 }
 

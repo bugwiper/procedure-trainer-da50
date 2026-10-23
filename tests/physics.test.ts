@@ -828,6 +828,85 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
     });
   });
 
+  describe('EMERG FUEL PUMP power (phase 4, E-10, E-11)', () => {
+    const PUMP = { 'sw.emerg_fuel_pump': 'on' };
+    const STOPPED = { 'sw.engine_master': 'off' };
+    const pressure = (
+      controls: Record<string, string>,
+      options: { start?: Record<string, number> } = {},
+    ): number => q(settle(controls, MINUTE, options), 'fuel_pressure_bar');
+
+    it('gives its pressure on a live main bus: the normal state and the battery through the closed tie', () => {
+      expect(pressure({ ...PUMP, ...STOPPED })).toBeGreaterThan(pressure(STOPPED));
+      expect(pressure(PUMP)).toBeGreaterThan(pressure({}));
+    });
+
+    it('gives no pressure with the engine stopped and ELECT. MASTER off, ESS BUS on, its breaker out or the battery empty', () => {
+      const unpowered: Record<string, string>[] = [
+        { 'sw.elect_master': 'off' },
+        { 'sw.ess_bus': 'on' },
+        { 'cb.emerg_pump': 'out' },
+      ];
+      for (const extra of unpowered) {
+        expect(pressure({ ...PUMP, ...STOPPED, ...extra }), JSON.stringify(extra)).toBeCloseTo(
+          pressure({ ...STOPPED, ...extra }),
+          2,
+        );
+      }
+      const empty = { start: { battery_pct: 0 } };
+      expect(pressure({ ...PUMP, ...STOPPED }, empty)).toBeCloseTo(pressure(STOPPED, empty), 2);
+    });
+
+    it('with the engine running it still needs its breaker and the master', () => {
+      expect(pressure({ ...PUMP, 'cb.emerg_pump': 'out' })).toBeCloseTo(pressure({}), 2);
+      expect(pressure({ ...PUMP, 'sw.elect_master': 'off' })).toBeCloseTo(
+        pressure({ 'sw.elect_master': 'off' }),
+        2,
+      );
+    });
+
+    describe('the feed of the fire, read from the model target', () => {
+      const fireModel = DA50RG_PHYSICS.models.find((m) => m.quantity === 'fire_intensity');
+      if (fireModel?.mode !== 'lag') throw new Error('fire_intensity needs a lag model');
+      const feed = (controls: Record<string, string>): number => {
+        const { setup, start } = setupWith(controls, { engine_fire: 1 });
+        const inputs: PhysicsInputs = {
+          controls: setup.baseline,
+          parameters: setup.faultedParameters,
+          quantities: start,
+          flags: {},
+        };
+        const full = DA50RG_QUANTITIES.get('fire_intensity')?.max ?? Number.NaN;
+        return fireModel.target(inputs) / full;
+      };
+
+      it('0.9 running, 1 with the pump on and powered, 0.6 with the pump alone and powered, 0 with the fuel cut', () => {
+        expect(feed({})).toBeCloseTo(0.9, 9);
+        expect(feed(PUMP)).toBeCloseTo(1, 9);
+        expect(feed({ ...PUMP, ...STOPPED })).toBeCloseTo(0.6, 9);
+        expect(feed(STOPPED)).toBe(0);
+        expect(feed({ ...PUMP, 'sw.fuel_valve': 'off' })).toBe(0);
+        expect(feed({ ...PUMP, ...STOPPED, 'sw.fuel_valve': 'off' })).toBe(0);
+      });
+
+      it('with the pump on but unpowered the feed equals the case without the pump', () => {
+        const unpowered: Record<string, string>[] = [
+          { 'sw.elect_master': 'off' },
+          { 'sw.ess_bus': 'on' },
+          { 'cb.emerg_pump': 'out' },
+        ];
+        for (const extra of unpowered) {
+          const label = JSON.stringify(extra);
+          expect(feed({ ...PUMP, ...STOPPED, ...extra }), label).toBe(
+            feed({ ...STOPPED, ...extra }),
+          );
+          expect(feed({ ...PUMP, ...STOPPED, ...extra }), label).toBe(0);
+        }
+        expect(feed({ ...PUMP, 'cb.emerg_pump': 'out' })).toBeCloseTo(0.9, 9);
+      });
+    });
+  });
+
   describe('engine fire (plan 03-08, C-44)', () => {
     const FIRE = { engine_fire: 1 };
     const PUMP = { 'sw.emerg_fuel_pump': 'on' };
