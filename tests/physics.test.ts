@@ -740,6 +740,21 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
       expect(q(after, 'bus_volts')).toBeLessThan(baseOf('bus_volts'));
     });
 
+    it('alternator 2 carries the whole 30 A after ESS BUS on with alternator 1 failed (E-06)', () => {
+      const after = settle({ 'sw.ess_bus': 'on' }, MINUTE, { parameters: failed });
+      expect(q(after, 'alt2_amps')).toBeCloseTo(baseOf('alt1_amps'), 0);
+      nearZero(q(after, 'alt1_amps'), baseOf('alt1_amps'));
+    });
+
+    it('with ESS BUS on and both alternators online each carries half: alternator 2 rises, alternator 1 falls', () => {
+      const after = settle({ 'sw.ess_bus': 'on' }, MINUTE);
+      expect(q(after, 'alt1_amps')).toBeCloseTo(baseOf('alt1_amps') / 2, 0);
+      expect(q(after, 'alt2_amps')).toBeCloseTo(baseOf('alt1_amps') / 2, 0);
+      expect(q(after, 'alt2_amps')).toBeGreaterThan(baseOf('alt2_amps'));
+      expect(q(after, 'alt1_amps')).toBeLessThan(baseOf('alt1_amps'));
+      expect(q(after, 'bus_volts')).toBe(baseOf('bus_volts'));
+    });
+
     it('ALTERNATOR 1 off and cb.alt1 out act like a failed alternator 1', () => {
       const reference = settle({}, MINUTE, { parameters: failed });
       for (const controls of [{ 'sw.alternator_1': 'off' }, { 'cb.alt1': 'out' }] as Record<

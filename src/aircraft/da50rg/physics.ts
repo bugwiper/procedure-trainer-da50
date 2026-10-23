@@ -4,7 +4,7 @@ import type { PhysicsInputs, QuantityModel } from '../../engine/physics';
 import { travelPercent } from '../../engine/predicates';
 import type { DetentLeverDef } from '../../engine/registry';
 import { STEP_MS } from '../../engine/sim';
-import { acuFault, alternatorOnline } from './electrical';
+import { acuFault, electricalState } from './electrical';
 import { DEICE_MAX_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
 import { OIL_TEMP_RISE_RATE_CURVE } from './oil-temp-curve';
@@ -86,17 +86,6 @@ const FUEL_TRANSFER_PER_MIN = 1;
 /** The right tank stops giving at this level. */
 const FUEL_TRANSFER_RH_FLOOR = 1;
 
-/** Alternator 2 current with ESS BUS on (it then also supplies the main bus). */
-const ALT2_ESS_ON_AMPS = 35;
-/** Bus volts on the battery alone: this plus BATTERY_VOLTS_SPAN at a full battery. */
-const BATTERY_VOLTS_FLOOR = 22;
-const BATTERY_VOLTS_SPAN = 4;
-/** The target of a dead bus lies this far below the scale minimum. */
-const DEAD_BUS_UNDERSHOOT_V = 1;
-/** Battery charge per minute with an alternator supply, and the compressed discharge without one. */
-const BATTERY_CHARGE_PER_MIN = 10;
-const BATTERY_DISCHARGE_PER_MIN = 25;
-
 // Engine fire (plan 03-08, C-44): aircraft behaviour, compressed, an instructor-review item (RESEARCH
 // A1). The fire intensity (0 to 100) moves toward the product of the scenario's fire parameter,
 // the full scale and a fuel-feed factor. The feed is high while the engine runs, higher with the
@@ -170,19 +159,9 @@ function loadPercent(inputs: PhysicsInputs): number {
   return running(inputs) ? travelPercent(POWER, stateOf(inputs, 'lv.power')) : 0;
 }
 
-/** Alternator 1 delivers: the shared online rule of electrical.ts (E-04). */
-function alt1Delivers(inputs: PhysicsInputs): boolean {
-  return alternatorOnline(inputs, 1, running(inputs));
-}
-
-/** Alternator 2 runs: the same rule for alternator 2. */
-function alt2Runs(inputs: PhysicsInputs): boolean {
-  return alternatorOnline(inputs, 2, running(inputs));
-}
-
-/** Alternator 2 supplies the main bus only with ESS BUS on. */
-function mainBusSupplied(inputs: PhysicsInputs): boolean {
-  return alt1Delivers(inputs) || (alt2Runs(inputs) && stateOf(inputs, 'sw.ess_bus') === 'on');
+/** The whole electrical state at this step (E-01 to E-11): electrical.ts, one function for all. */
+function electrical(inputs: PhysicsInputs) {
+  return electricalState(inputs, running(inputs));
 }
 
 /** The full scale of the fire intensity: the top of its one band. */
@@ -293,36 +272,6 @@ function fuelBurnPerMinute(inputs: PhysicsInputs): number {
   return fuelFlowGph(inputs) / MINUTES_PER_HOUR;
 }
 
-/** The Amps gauge shows alternator 1 (C-10); it delivers its base current times the output. */
-function alt1AmpsTarget(inputs: PhysicsInputs): number {
-  return alt1Delivers(inputs) ? baseOf('alt1_amps') * parameterOf(inputs, 'alt1_output') : 0;
-}
-
-/** Alternator 2 carries the essential bus; with ESS BUS on it also carries the main bus. */
-function alt2AmpsTarget(inputs: PhysicsInputs): number {
-  if (!alt2Runs(inputs)) return 0;
-  return stateOf(inputs, 'sw.ess_bus') === 'on' ? ALT2_ESS_ON_AMPS : baseOf('alt2_amps');
-}
-
-/** The battery charges with an alternator supply on the main bus, drains without one. */
-function batteryPerMinute(inputs: PhysicsInputs): number {
-  if (stateOf(inputs, 'sw.elect_master') !== 'on') return 0;
-  return mainBusSupplied(inputs) ? BATTERY_CHARGE_PER_MIN : -BATTERY_DISCHARGE_PER_MIN;
-}
-
-/** Main bus voltage: the alternator level, the battery alone, or the scale minimum with the master off. */
-function busVoltsTarget(inputs: PhysicsInputs): number {
-  if (stateOf(inputs, 'sw.elect_master') !== 'on') {
-    const def = DA50RG_QUANTITIES.get('bus_volts');
-    if (def === undefined) throw new Error('physics needs the quantity "bus_volts"');
-    // One volt below the scale: the clamp then lands exactly on the scale minimum (a dead bus),
-    // where a lag toward the minimum itself would stop short at the 0.01 rounding.
-    return def.min - DEAD_BUS_UNDERSHOOT_V;
-  }
-  if (mainBusSupplied(inputs)) return baseOf('bus_volts');
-  return BATTERY_VOLTS_FLOOR + (BATTERY_VOLTS_SPAN * quantityOf(inputs, 'battery_pct')) / 100;
-}
-
 /** The de-ice MAX run lasts 120 s of run time (owner finding G-1). */
 const DEICE_MAX_RUN_MS = 120_000;
 
@@ -388,10 +337,14 @@ export const DA50RG_PHYSICS = definePhysics(
         mode: 'rate',
         perMinute: (inputs) => -fuelTransferPerMinute(inputs),
       },
-      lag('alt1_amps', AMPS_TAU_MS, alt1AmpsTarget),
-      lag('alt2_amps', AMPS_TAU_MS, alt2AmpsTarget),
-      { quantity: 'battery_pct', mode: 'rate', perMinute: batteryPerMinute },
-      lag('bus_volts', VOLTS_TAU_MS, busVoltsTarget),
+      lag('alt1_amps', AMPS_TAU_MS, (inputs) => electrical(inputs).alt1Amps),
+      lag('alt2_amps', AMPS_TAU_MS, (inputs) => electrical(inputs).alt2Amps),
+      {
+        quantity: 'battery_pct',
+        mode: 'rate',
+        perMinute: (inputs) => electrical(inputs).batteryPerMinute,
+      },
+      lag('bus_volts', VOLTS_TAU_MS, (inputs) => electrical(inputs).busVolts),
       // The control unit flags follow the logic in one step (E-07); CAS rules read them as bands.
       lag('alt1_fault', STEP_MS, (inputs) => (acuFault(inputs, 1) ? 1 : 0)),
       lag('alt2_fault', STEP_MS, (inputs) => (acuFault(inputs, 2) ? 1 : 0)),
