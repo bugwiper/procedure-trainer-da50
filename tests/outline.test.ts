@@ -10,8 +10,8 @@ import type { Scenario } from '../src/scenario/schema';
 import { buildOutline, checklistHead, verdictOf } from '../src/ui/outline';
 import type { OutlineBranch, OutlineItem, OutlineOrder, OutlineStep } from '../src/ui/outline';
 import { PRINTED } from './checklist-reference';
-import type { PrintedTable } from './checklist-reference';
-import { ChecklistOutline } from '../src/ui/screens/ChecklistOutline';
+import type { PrintedOutline, PrintedOutlineItem, PrintedTable } from './checklist-reference';
+import { ChecklistHeading, ChecklistOutline } from '../src/ui/screens/ChecklistOutline';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
 
@@ -628,5 +628,112 @@ describe('the printed table of ALTN 1 FAIL', () => {
       expect(comment.props['data-boxed']).toBeUndefined();
     }
     expect(classesOf(tree)).toContain('outline-table');
+  });
+});
+
+describe('the debrief of the printed table', () => {
+  const result = run(ALTN1, []);
+  const items = debriefOf(ALTN1, result);
+  const tree = expand(ChecklistOutline({ items, form: 'table' }));
+  const rows = findElements(
+    tree,
+    (el) =>
+      el.tag === 'li' && (el.props['data-kind'] === 'line' || el.props['data-kind'] === 'step'),
+  );
+  const byClass = (el: El, name: string) => findElements(el, (e) => classesOf(e).includes(name));
+
+  it('keeps the test id, the severity tag and the verdict word of a graded row', () => {
+    const graded = findElements(tree, (el) => el.props['data-testid'] === 'debrief-row');
+    expect(graded.map((r) => [r.props['data-step-id'], r.props['data-verdict']])).toEqual([
+      ['alt1_off', 'Missed'],
+      ['ess_bus_on', 'Missed'],
+    ]);
+    for (const row of graded) {
+      expect(byClass(row, 'outline-tag').map((t) => textOf(t))).toEqual(['CRITICAL']);
+      expect(byClass(row, 'outline-verdict').map((v) => textOf(v))).toEqual(['Missed']);
+      expect(byClass(row, 'outline-number')).toHaveLength(1);
+      expect(byClass(row, 'outline-action')).toHaveLength(1);
+      expect(textOf(row)).not.toContain('Not graded');
+    }
+  });
+
+  it('says Not graded on the rows that are not panel actions, and only there', () => {
+    expect(rows).toHaveLength(4);
+    const notGraded = rows.filter((r) => textOf(r).includes('Not graded'));
+    expect(notGraded.map((r) => textOf(byClass(r, 'outline-number')[0] ?? r))).toEqual(['1', '4']);
+    for (const row of notGraded) expect(byClass(row, 'outline-verdict')).toHaveLength(0);
+  });
+
+  it('gives a comment row no tag, no verdict and no Not graded', () => {
+    const comments = findElements(tree, (el) => el.props['data-kind'] === 'comment');
+    expect(comments).toHaveLength(2);
+    for (const comment of comments) {
+      for (const word of ['CRITICAL', 'Done', 'Missed', 'Not graded']) {
+        expect(textOf(comment)).not.toContain(word);
+      }
+    }
+  });
+});
+
+// The marked outline of ENG OIL TEMP against the printed markers.
+
+const OIL_PRINTED = PRINTED['eng-oil-temp-green'] as PrintedOutline;
+
+/** The printed markers in reading order; the children of items for which `hide` is true are left out. */
+function printedMarkers(
+  list: readonly PrintedOutlineItem[],
+  hide: (item: PrintedOutlineItem) => boolean,
+): (string | undefined)[] {
+  return list.flatMap((item) => [
+    item.marker,
+    ...(item.children === undefined || hide(item) ? [] : printedMarkers(item.children, hide)),
+  ]);
+}
+
+describe('the printed markers of ENG OIL TEMP', () => {
+  const drawn = (tree: El) =>
+    findElements(tree, (el) => el.tag === 'svg' && classesOf(el).includes('outline-marker'));
+
+  it('draws, in the briefing, the printed markers of the items that are shown', () => {
+    const tree = expand(ChecklistOutline({ items: briefingOf(blueprint) }));
+    // The branch that does not apply keeps its own marker and shows no children.
+    const hidden = (item: PrintedOutlineItem) => item.marker === 'diamond_arrow';
+    const expected = printedMarkers(OIL_PRINTED.items, hidden).filter((m) => m !== undefined);
+    expect(drawn(tree).map((el) => el.props['data-marker'])).toEqual(expected);
+    expect(ulDepth(tree)).toBe(listLevels(briefingOf(blueprint)));
+  });
+
+  it('draws, in the debrief, every printed marker and none for the continuation line', () => {
+    const items = debriefOf(blueprint, run(blueprint, GOLDEN));
+    const tree = expand(ChecklistOutline({ items }));
+    const expected = printedMarkers(OIL_PRINTED.items, () => false).filter((m) => m !== undefined);
+    expect(drawn(tree).map((el) => el.props['data-marker'])).toEqual(expected);
+    const without = findElements(
+      tree,
+      (el) => el.tag === 'div' && classesOf(el).includes('outline-row') && drawn(el).length === 0,
+    ).filter((row) => textOf(row).includes('Be prepared for emergency landing'));
+    expect(without).toHaveLength(1);
+    // It lines up with its marked siblings.
+    expect(classesOf(without[0] ?? tree)).toContain('outline-nomarker');
+  });
+
+  it('is aria-hidden display only: a marker has no text and no title', () => {
+    const tree = expand(ChecklistOutline({ items: briefingOf(blueprint) }));
+    for (const marker of drawn(tree)) {
+      expect(marker.props['aria-hidden']).toBe('true');
+      expect(textOf(marker)).toBe('');
+    }
+  });
+
+  it('draws no marker in the table form', () => {
+    const tree = expand(ChecklistOutline({ items: briefingOf(ALTN1), form: 'table' }));
+    expect(drawn(tree)).toHaveLength(0);
+  });
+
+  it('shows the printed heading band only for a scenario that declares a heading', () => {
+    const head = checklistHead(blueprint);
+    const band = expand(ChecklistHeading({ heading: head.heading, message: head.message }));
+    expect(textOf(band)).toBe(`${OIL_PRINTED.heading} ${OIL_PRINTED.message ?? ''}`.trim());
+    expect(ChecklistHeading({ heading: undefined, message: undefined })).toBeNull();
   });
 });

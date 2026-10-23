@@ -566,32 +566,40 @@ body,
   border: 1px solid #6b7580;
 }
 
-/* On narrow screens the action of a table row goes to its own line, right-aligned, and the dotted
-   leader is dropped; nothing scrolls sideways. */
+/* On narrow screens a table row takes up to three lines: the number and the item, the action at the
+   right of its own line (the dotted leader is dropped), then, in the debrief, the tag at the left and
+   the verdict at the right. Nothing scrolls sideways. */
 @media (max-width: 480px) {
   .outline-leader {
     display: none;
   }
 
   .outline-row.outline-trow .outline-text {
-    flex: 1 1 120px;
+    flex: 1 1 calc(100% - 2.25em - 8px);
   }
 
-  .outline-row.outline-trow .outline-tag {
-    order: 3;
-  }
-
-  .outline-row.outline-trow .outline-verdict {
-    order: 4;
-  }
-
-  .outline-row.outline-trow .outline-meta {
-    order: 5;
+  .outline-bare > .outline-trow .outline-text {
+    flex-basis: 100%;
   }
 
   .outline-row.outline-trow .outline-action {
-    order: 6;
+    order: 3;
     flex: 0 0 100%;
+  }
+
+  .outline-row.outline-trow .outline-tag {
+    order: 4;
+    margin-left: 0;
+  }
+
+  .outline-row.outline-trow .outline-verdict {
+    order: 5;
+    margin-left: auto;
+  }
+
+  .outline-row.outline-trow .outline-meta {
+    order: 6;
+    margin-left: auto;
   }
 
   .outline-comment .outline-action {

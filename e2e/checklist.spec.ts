@@ -1,8 +1,12 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { PRINTED } from '../tests/checklist-reference';
-import type { PrintedChecklist, PrintedItem } from '../tests/checklist-reference';
-import { chooseScenario } from './support/session';
+import type {
+  PrintedChecklist,
+  PrintedItem,
+  PrintedOutlineItem,
+} from '../tests/checklist-reference';
+import { chooseScenario, startScenario } from './support/session';
 import { activate } from './support/zoom';
 
 // The checklists as printed (plan 03-14, owner decision 2026-10-23) on the built app: the Easy
@@ -12,6 +16,8 @@ import { activate } from './support/zoom';
 // types a checklist word, the reference table and the scenario data supply them.
 
 const ALTN1 = 'electrical.elec-altn1-fail';
+const FIRE = 'engine.eng-fire-in-flight';
+const OIL = 'engine.eng-oil-temp-green';
 
 /** Pixel slack for sub-pixel layout. */
 const EDGE_PX = 2;
@@ -155,4 +161,186 @@ test('the Easy briefing of ALTN 1 FAIL reads like the printed table', async ({
   await expect(briefing).not.toContainText('Not graded');
   await expect(briefing.locator('svg.outline-marker')).toHaveCount(0);
   await noSidewaysScroll(briefing);
+});
+
+/** The printed markers in reading order; the children of items for which `hide` is true are left out. */
+function printedMarkers(
+  list: readonly PrintedOutlineItem[],
+  hide: (item: PrintedOutlineItem) => boolean,
+): string[] {
+  return list.flatMap((item) => [
+    ...(item.marker === undefined ? [] : [item.marker]),
+    ...(item.children === undefined || hide(item) ? [] : printedMarkers(item.children, hide)),
+  ]);
+}
+
+function printedOutline(id: string): Extract<PrintedChecklist, { form: 'outline' }> {
+  const found = printed(id);
+  if (found.form !== 'outline') throw new Error(`${id} is not an outline`);
+  return found;
+}
+
+/** Does a do-nothing run of the scenario and opens its debrief; the run starts at level Easy. */
+async function doNothing(page: Page, hasTouch: boolean, row: string): Promise<Locator> {
+  await startScenario(page, hasTouch, row);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  const debrief = page.getByTestId('debrief');
+  await expect(debrief).toBeVisible();
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+  return debrief;
+}
+
+test('the Easy briefing of Engine Fire reads like the printed table, boxed reference included', async ({
+  page,
+  hasTouch,
+}) => {
+  const table = printedTable('eng-fire-in-flight');
+  const briefing = await openBriefing(page, hasTouch, FIRE);
+  await expect(briefing.getByTestId('checklist-title')).toHaveText(table.heading);
+  // The printed page has no message tag.
+  await expect(briefing.getByTestId('checklist-message')).toHaveCount(0);
+
+  const list = briefing.getByTestId('briefing-outline').locator('ul.outline-table').first();
+  await expectTable(list, 'eng-fire-in-flight');
+  await expectAlignment(list);
+
+  // Rows 1 to 8 in order, then the one row that is not printed, without a number.
+  const numbers = await list
+    .locator('li[data-kind="line"] .outline-number, li[data-kind="step"] .outline-number')
+    .allTextContents();
+  expect(numbers).toEqual(
+    rows(table.rows).flatMap((r) => (r.number === undefined ? [] : [String(r.number)])),
+  );
+  expect(numbers.map(Number)).toEqual(numbers.map((_, i) => i + 1));
+  const last = list.locator('li[data-kind]').last();
+  await expect(last).toHaveAttribute('data-kind', /^(line|step)$/);
+  await expect(last.locator('.outline-number')).toHaveCount(0);
+
+  // The boxed row: framed, and its reference sits at its right edge.
+  const boxed = list.locator('li[data-boxed="true"]');
+  await expect(boxed).toHaveCount(1);
+  const boxBox = await boxOf(boxed);
+  const refBox = await boxOf(boxed.locator('.outline-action'));
+  expect(boxBox.x + boxBox.width - (refBox.x + refBox.width)).toBeGreaterThanOrEqual(0);
+  expect(boxBox.x + boxBox.width - (refBox.x + refBox.width)).toBeLessThanOrEqual(12);
+  expect(
+    await boxed.locator('.outline-comment').evaluate((el) => getComputedStyle(el).borderTopWidth),
+  ).not.toBe('0px');
+  await noSidewaysScroll(briefing);
+});
+
+test('the Easy briefing of ENG OIL TEMP shows the printed outline with its markers', async ({
+  page,
+  hasTouch,
+}) => {
+  const outline = printedOutline('eng-oil-temp-green');
+  const briefing = await openBriefing(page, hasTouch, OIL);
+  await expect(briefing.getByTestId('checklist-title')).toHaveText(outline.heading);
+  await expect(briefing.getByTestId('checklist-message')).toHaveText(outline.message ?? '');
+
+  const list = briefing.getByTestId('briefing-outline');
+  // The branch that does not apply keeps its marker and shows no children.
+  const hiddenLabels = await list
+    .locator('li[data-status="not_applicable"] > div > .outline-label')
+    .allTextContents();
+  expect(hiddenLabels.length).toBeGreaterThan(0);
+  const expected = printedMarkers(outline.items, (item) => hiddenLabels.includes(item.text));
+  const drawn = await list
+    .locator('svg.outline-marker')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-marker')));
+  expect(drawn).toEqual(expected);
+  await expect(list.locator('svg.outline-marker[aria-hidden="true"]')).toHaveCount(expected.length);
+  // Real list nesting: the deepest printed line is four lists in.
+  await expect(list.locator('ul ul ul')).not.toHaveCount(0);
+  await expect(list.locator('ul.outline-table')).toHaveCount(0);
+
+  // A marker sits before the text of its own row.
+  const first = list.locator('li[data-kind="decision"]').first().locator(':scope > div');
+  const markerBox = await boxOf(first.locator('svg.outline-marker'));
+  const textBox = await boxOf(first.locator('.outline-text'));
+  expect(markerBox.x + markerBox.width).toBeLessThanOrEqual(textBox.x + EDGE_PX);
+  await noSidewaysScroll(briefing);
+});
+
+test('the debrief of a do-nothing ALTN 1 FAIL run keeps tag, verdict and Not graded in the table', async ({
+  page,
+  hasTouch,
+}) => {
+  const table = printedTable('elec-altn1-fail');
+  const debrief = await doNothing(page, hasTouch, ALTN1);
+  await expect(debrief.getByTestId('checklist-title')).toHaveText(table.heading);
+  await expect(debrief.getByTestId('checklist-message')).toHaveText(table.message ?? '');
+
+  const list = debrief.locator('ul.outline-table').first();
+  await expectTable(list, 'elec-altn1-fail');
+
+  const printedRows = rows(table.rows);
+  const graded = debrief.getByTestId('debrief-row');
+  await expect(graded).toHaveCount(2);
+  for (const [i, number] of [2, 3].entries()) {
+    const row = graded.nth(i);
+    const printedRow = printedRows.find((r) => r.number === number);
+    await expect(row.locator('.outline-number')).toHaveText(String(number));
+    await expect(row.locator('.outline-text')).toHaveText(printedRow?.item ?? '');
+    await expect(row.locator('.outline-action')).toHaveText(printedRow?.action ?? '');
+    await expect(row.locator('.outline-tag')).toHaveText('CRITICAL');
+    await expect(row.locator('.outline-verdict')).toHaveText('Missed');
+    await expect(row).toHaveAttribute('data-verdict', 'Missed');
+  }
+  for (const number of [1, 4]) {
+    const row = list.locator('li[data-kind="line"]', {
+      has: page.locator('.outline-number', { hasText: new RegExp(`^${String(number)}$`) }),
+    });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText('Not graded');
+    await expect(row.locator('.outline-verdict')).toHaveCount(0);
+  }
+  const comments = list.locator('li[data-kind="comment"]');
+  await expect(comments).toHaveCount(2);
+  for (let i = 0; i < 2; i += 1) {
+    await expect(
+      comments.nth(i).locator('.outline-verdict, .outline-tag, .outline-meta'),
+    ).toHaveCount(0);
+    await expect(comments.nth(i)).not.toContainText('Not graded');
+  }
+  await noSidewaysScroll(debrief);
+});
+
+test('the debrief of ENG OIL TEMP draws every printed marker', async ({ page, hasTouch }) => {
+  const outline = printedOutline('eng-oil-temp-green');
+  const debrief = await doNothing(page, hasTouch, OIL);
+  const drawn = await debrief
+    .locator('svg.outline-marker')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-marker')));
+  expect(drawn).toEqual(printedMarkers(outline.items, () => false));
+  await noSidewaysScroll(debrief);
+});
+
+test('a 375 px phone does not scroll the briefing or the debrief of Engine Fire sideways', async ({
+  page,
+  hasTouch,
+}) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  const table = printedTable('eng-fire-in-flight');
+  const briefing = await openBriefing(page, hasTouch, FIRE);
+  const list = briefing.getByTestId('briefing-outline').locator('ul.outline-table').first();
+  await expectTable(list, 'eng-fire-in-flight');
+  await noSidewaysScroll(briefing);
+  // The longest action keeps to the right edge of its own line.
+  const listBox = await boxOf(list);
+  const longest = rows(table.rows).reduce((a, b) =>
+    (b.action ?? '').length > (a.action ?? '').length ? b : a,
+  );
+  const action = list.locator('.outline-action', { hasText: longest.action ?? '' });
+  const actionBox = await boxOf(action);
+  expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(listBox.x + listBox.width + EDGE_PX);
+  expect(actionBox.x).toBeGreaterThanOrEqual(listBox.x - EDGE_PX);
+
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  const debrief = page.getByTestId('debrief');
+  await expect(debrief).toBeVisible();
+  await expect(debrief.getByTestId('checklist-title')).toHaveText(table.heading);
+  await noSidewaysScroll(debrief);
 });
