@@ -23,10 +23,19 @@ checklist:
   heading: ALTN 1 FAIL
   message: ALTERNATOR 1 HAS FAILED
 procedure[5]:
-  - kind: line
-    number: 1
-    text: Circuit breaker
-    action: check IN
+  - kind: group
+    id: breaker_check
+    ordered: false
+    steps[1]:
+      - id: alt1_breaker_in
+        severity: critical
+        number: 1
+        text: Circuit breaker
+        action: check IN
+        done:
+          check: state
+          control: cb.alt1
+          is: in
   - kind: group
     id: immediate
     ordered: false
@@ -83,6 +92,20 @@ outcomes[1]:
       quantity: bus_volts
       op: lte
       value: 22.5
+# The causes behind the one message (phase 3.1). The checklist above is the printed one; which of its rows are graded depends on the cause drawn at the start of a run. The weights and the cause texts are instructor-review values.
+variants[2]:
+  - id: alternator_dead
+    weight: 40
+    applies[2]: alt1_off,ess_bus_on
+    debrief: The breaker was in and alternator 1 had failed.
+  - id: breaker_popped
+    weight: 30
+    controls:
+      cb.alt1: out
+    parameters:
+      alt1_output: 1
+    applies[1]: alt1_breaker_in
+    debrief: The alternator 1 circuit breaker had popped. Pushing it in cleared the message.
 # The failure of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
 onset:
   window_s[2]: 2,6

@@ -7,6 +7,7 @@ import { branchStatuses, grade } from '../src/engine/grading';
 import type { GradeResult, Recording } from '../src/engine/grading';
 import { initialQuantities, realisticQuantities } from '../src/engine/predicates';
 import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
+import { resolveVariant } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
 import { parseScenario } from '../src/scenario/parse';
 import type { Scenario } from '../src/scenario/schema';
@@ -704,7 +705,8 @@ describe('Electrical Failure replays (plan 03-07, D-08, D-06, C-39)', () => {
       scenario.procedure.flatMap((node) =>
         node.kind === 'group' ? node.steps.map((step) => step.id) : [],
       );
-    expect(stepIds(elecOrdered)).toEqual(stepIds(electrical));
+    // The shipped file declares variants (phase 3.1); the copy has the steps of its first one.
+    expect(stepIds(elecOrdered)).toEqual(stepIds(resolveVariant(electrical, null, false)));
   });
 
   it('a handled failure recovers: the golden actions never escalate, however long the run lasts', () => {

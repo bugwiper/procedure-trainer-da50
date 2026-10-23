@@ -10,6 +10,7 @@ import { grade } from '../src/engine/grading';
 import type { Recording } from '../src/engine/grading';
 import { realisticQuantities } from '../src/engine/predicates';
 import { MAX_RUN_MS, STEP_MS, onsetFromSeed, simSetup, simulate } from '../src/engine/sim';
+import { variantFromSeed } from '../src/engine/variants';
 import { parseScenario } from '../src/scenario/parse';
 import { OPEN_ACCESS, createPackProvider } from '../src/scenario/packs';
 import type { AccessPolicy } from '../src/scenario/packs';
@@ -1256,5 +1257,94 @@ describe('realistic level (phase 03, D-05)', () => {
     r.session.startRun();
     expect(r.session.recording.value).toBeNull();
     expect(r.session.onset.value).toBeNull();
+  });
+});
+
+describe('variants (phase 3.1, V-05)', () => {
+  const ALTN = readFileSync(join(root, 'scenarios/electrical/elec-altn1-fail.toon'), 'utf8');
+  const parsed = parseScenario(ALTN);
+  if (!parsed.ok) throw new Error('the ALTN 1 FAIL file does not parse');
+  const altn = parsed.value;
+  const MANIFEST_ALTN = `format: 1
+title: Electrical
+free: true
+scenarios[1]:
+  - id: ${altn.id}
+    title: ALTN 1 FAIL
+    file: ${altn.id}
+`;
+  /** The first rng value whose seed draws the given variant. */
+  const drawFor = (id: string): { readonly u: number; readonly seed: number } => {
+    for (let seed = 0; seed < 1000; seed++) {
+      if (variantFromSeed(seed, altn.variants) === id) return { u: seed / 4_294_967_296, seed };
+    }
+    throw new Error(`no seed draws ${id}`);
+  };
+  /** The random pick takes the first value; the variant draw takes the second. */
+  const altnRig = (u: number): Rig =>
+    rig({
+      manifest: MANIFEST_ALTN,
+      files: { [altn.id]: ALTN },
+      rng: (() => {
+        const values = [0, u];
+        let next = 0;
+        return () => values[next++] ?? 0;
+      })(),
+    });
+
+  it('draws the cause by seed on Easy, starts in its state, records it and names it in the result', async () => {
+    const { u, seed } = drawFor('breaker_popped');
+    const r = altnRig(u);
+    await r.session.newSituation();
+    r.session.setLevel('easy');
+    r.session.startRun();
+    expect(r.session.screen.value).toBe('running');
+    expect(r.session.variant.value).toEqual({ id: 'breaker_popped', seed });
+    // The session keeps the file's own scenario; the run used the one the cause made.
+    expect(r.session.scenario.value?.variants).toHaveLength(altn.variants.length);
+    expect(r.bridge.stateOf('cb.alt1').value).toBe('out');
+
+    expect(r.bridge.actuate('cb.alt1', 'in').ok).toBe(true);
+    r.session.complete();
+    const recording = r.session.recording.value;
+    expect(recording?.variant).toEqual({ id: 'breaker_popped', seed });
+    expect(r.session.result.value?.variant).toBe('breaker_popped');
+    expect(r.session.result.value?.result).toBe('pass');
+    if (recording === null) throw new Error('no recording');
+    expect(r.session.result.value).toEqual(grade(altn, DA50RG_ENV, recording));
+  });
+
+  it('the other cause starts with the breaker in and wants the pair', async () => {
+    const { u, seed } = drawFor('alternator_dead');
+    const r = altnRig(u);
+    await r.session.newSituation();
+    r.session.setLevel('easy');
+    r.session.startRun();
+    expect(r.session.variant.value).toEqual({ id: 'alternator_dead', seed });
+    expect(r.bridge.stateOf('cb.alt1').value).toBe('in');
+    r.bridge.actuate('sw.alternator_1', 'off');
+    r.bridge.actuate('sw.ess_bus', 'on');
+    r.session.complete();
+    expect(r.session.result.value?.variant).toBe('alternator_dead');
+    expect(r.session.result.value?.result).toBe('pass');
+  });
+
+  it('a scenario without variants draws none and its recording names none', async () => {
+    const r = await started();
+    expect(r.session.variant.value).toBeNull();
+    r.session.complete();
+    expect(r.session.recording.value).not.toHaveProperty('variant');
+    expect(r.session.result.value).not.toHaveProperty('variant');
+  });
+
+  it('leaving the run clears the variant', async () => {
+    const { u } = drawFor('breaker_popped');
+    const r = altnRig(u);
+    await r.session.newSituation();
+    r.session.setLevel('easy');
+    r.session.startRun();
+    await r.session.newSituation();
+    await r.session.leaveRun();
+    expect(r.session.variant.value).toBeNull();
   });
 });

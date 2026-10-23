@@ -594,6 +594,7 @@ describe('the printed table of ALTN 1 FAIL', () => {
       if (item.kind === 'comment') expect('boxed' in item).toBe(false);
     }
     expect(items.filter((i): i is OutlineStep => i.kind === 'step').map((i) => i.id)).toEqual([
+      'alt1_breaker_in',
       'alt1_off',
       'ess_bus_on',
     ]);
@@ -660,8 +661,17 @@ describe('the debrief of the printed table', () => {
   it('says Not graded on the rows that are not panel actions, and only there', () => {
     expect(rows).toHaveLength(4);
     const notGraded = rows.filter((r) => textOf(r).includes('Not graded'));
-    expect(notGraded.map((r) => textOf(byClass(r, 'outline-number')[0] ?? r))).toEqual(['1', '4']);
+    expect(notGraded.map((r) => textOf(byClass(r, 'outline-number')[0] ?? r))).toEqual(['4']);
     for (const row of notGraded) expect(byClass(row, 'outline-verdict')).toHaveLength(0);
+  });
+
+  it('shows row 1 muted, without tag or verdict, when the drawn cause does not grade it', () => {
+    // The recording names no variant, so it grades as the first one, which does not grade row 1.
+    const first = rows.find((r) => textOf(byClass(r, 'outline-number')[0] ?? r) === '1');
+    expect(first?.props['data-muted']).toBe('true');
+    expect(byClass(first ?? tree, 'outline-tag')).toHaveLength(0);
+    expect(byClass(first ?? tree, 'outline-verdict')).toHaveLength(0);
+    expect(textOf(first ?? tree)).not.toContain('Not graded');
   });
 
   it('gives a comment row no tag, no verdict and no Not graded', () => {

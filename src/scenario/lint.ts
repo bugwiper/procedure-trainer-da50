@@ -34,6 +34,7 @@ import {
 } from '../engine/predicates';
 import type { PredicateContext } from '../engine/predicates';
 import { legalStates } from '../engine/registry';
+import { resolveVariant } from '../engine/variants';
 import { STEP_MS, initSim, simSetup, stepSim } from '../engine/sim';
 import type { SimState } from '../engine/sim';
 import { joinPath, parseScenario } from './parse';
@@ -241,9 +242,20 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
 
   checkChecklist(scenario, add);
 
-  // L5 and L6 evaluate predicates, which needs every reference to resolve first.
-  if (issues.length === 0) checkInitialState(scenario, env, add);
-  if (issues.length === 0) checkRealisticStart(scenario, env, add);
+  // L5 and L6 evaluate predicates, which needs every reference to resolve first. L19: a scenario
+  // with variants has no single start; the start checks run per variant on the scenario it makes.
+  if (issues.length === 0 && scenario.variants.length === 0) {
+    checkInitialState(scenario, env, add);
+    checkRealisticStart(scenario, env, add);
+  }
+  if (issues.length === 0) {
+    scenario.variants.forEach((variant, n) => {
+      const here = (_segments: Segments, message: string): void => {
+        add(['variants', n], `variant "${variant.id}": ${message}`);
+      };
+      checkInitialState(resolveVariant(scenario, variant.id, false), env, here);
+    });
+  }
   return issues;
 }
 

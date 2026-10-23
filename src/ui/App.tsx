@@ -56,6 +56,7 @@ if (import.meta.env.VITE_TEST_HOOKS === '1') {
     result: () => session.result.value,
     now: () => session.clock.value?.now() ?? null,
     onset: () => session.onset.value,
+    variant: () => session.variant.value,
     recording: () => session.recording.value,
   };
 }

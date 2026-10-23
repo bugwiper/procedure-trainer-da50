@@ -13,6 +13,10 @@
 // items; the default). `number` and `action` sit on a line or step, `comment` is a node kind of its
 // own. All of it is additive and optional, the format stays 1, and nothing in it is graded. Checklist
 // text is reproduced as printed, so its cap (MAX_LINE_WORDS) is a layout bound, not a style rule.
+// `variants` (phase 3.1, SCN-09) are the several causes behind one failure message: each has a
+// weight, the faulted control state and parameters of its cause, the ids of the steps and forbidden
+// items that apply in it, and an own-wording cause line for the debrief. The checklist stays the one
+// printed list; the engine resolves a drawn variant into a plain scenario (engine/variants.ts).
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { z } from 'zod';
@@ -225,7 +229,29 @@ export const Onset = z.strictObject({
     .refine(([lo, hi]) => lo <= hi, { message: 'the first second must not exceed the second' }),
   quantities: z.record(z.string(), z.number()).default({}),
   parameters: z.record(nodeId, z.number()).default({}),
+  /** Control state the simulation sets by itself at the onset (the faulted controls of a variant). */
+  controls: z.record(z.string(), z.string()).default({}),
   message_within_s: onsetSecond.optional(),
+});
+
+/** The most variants one scenario declares, and the highest weight of one. */
+export const MAX_VARIANTS = 6;
+export const MAX_WEIGHT = 100;
+
+/**
+ * One cause behind the failure (V-01): drawn by weight at the start of a run on every level and
+ * recorded with it. `controls` and `parameters` are the faulted state of this cause (in force from
+ * t 0 on Easy and Medium, set by the simulation at the onset on Realistic). `applies` names the
+ * steps and forbidden items that apply in this variant; one named by no variant applies in all.
+ * `debrief` is the cause line the debrief prints after the run.
+ */
+export const Variant = z.strictObject({
+  id: nodeId,
+  weight: z.number().int().min(1).max(MAX_WEIGHT),
+  controls: z.record(z.string(), z.string()).default({}),
+  parameters: z.record(nodeId, z.number()).default({}),
+  applies: z.array(nodeId).default([]),
+  debrief: wordsBetween(1, 30),
 });
 
 /** The printed form of a checklist and its heading and message tag (all optional, plan 03-13). */
@@ -264,6 +290,8 @@ export const Scenario = z.strictObject({
   outcomes: z.array(Outcome).max(MAX_OUTCOMES).default([]),
   /** The window in which the failure begins in the level Realistic; absent means no such level. */
   onset: Onset.optional(),
+  /** The several causes behind the failure; empty means one cause, the file as written. */
+  variants: z.array(Variant).max(MAX_VARIANTS).default([]),
 });
 
 /** Table F4: pack manifest. */
@@ -291,5 +319,6 @@ export type Step = z.infer<typeof Step>;
 export type Forbidden = z.infer<typeof Forbidden>;
 export type Outcome = z.infer<typeof Outcome>;
 export type Onset = z.infer<typeof Onset>;
+export type Variant = z.infer<typeof Variant>;
 export type Predicate = z.infer<typeof Predicate>;
 export type Manifest = z.infer<typeof Manifest>;

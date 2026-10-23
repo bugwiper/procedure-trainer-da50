@@ -1,6 +1,6 @@
 import type { GradeResult } from '../../engine/grading';
 import type { Scenario } from '../../scenario/schema';
-import { harmfulLine, reasonLines, timingLine } from '../debrief-text';
+import { causeLine, harmfulLine, reasonLines, timingLine } from '../debrief-text';
 import { buildOutline, checklistHead } from '../outline';
 import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
 import { LEVEL_NAMES } from '../session';
@@ -12,7 +12,7 @@ import { Modal } from './Modal';
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
  * apply muted (the table form and the printed heading follow the scenario, plan 03-14), an order line under every ordered group and the harmful actions in log order
- * (no time). It names the level of the run ("Level: Easy") and, on a meta line before it, the scenario (D-05); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
+ * (no time). It names the level of the run ("Level: Easy") and, on a meta line before it, the scenario (D-05); a scenario with variants adds one line naming the cause that was drawn (V-08); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
@@ -30,6 +30,7 @@ export function Debrief({
   const head = checklistHead(scenario);
   const passed = result.result === 'pass';
   const reasons = reasonLines(result);
+  const cause = causeLine(scenario, result);
 
   return (
     <Modal
@@ -65,6 +66,11 @@ export function Debrief({
       <p class="briefing-meta" data-testid="debrief-level">
         {`Level: ${LEVEL_NAMES[level]}`}
       </p>
+      {cause === null ? null : (
+        <p class="briefing-meta" data-testid="debrief-variant">
+          {cause}
+        </p>
+      )}
       {level === 'realistic' ? (
         <p class="briefing-meta" data-testid="debrief-timing">
           {timingLine(result)}

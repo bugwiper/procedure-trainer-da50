@@ -12,16 +12,26 @@
 // (the base quantities laid over by the scenario's onset quantities, C-61); the session
 // draws a seed with its injected rng, the engine turns it into the onset time (onsetFromSeed) and the
 // onset is recorded run data (the signal `onset`, then Recording.onset), so the run replays.
+// A scenario with variants (phase 3.1) draws one cause on every level with a second seed, taken
+// after the onset seed; the engine resolves it into the scenario the run uses (resolveVariant), the
+// draw is recorded (the signal `variant`, then Recording.variant) and only the debrief names it.
 
 import { signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import type { VirtualClock } from '../engine/clock';
 import type { AircraftEnv } from '../engine/env';
 import { branchStatuses, grade } from '../engine/grading';
-import type { BranchVerdict, GradeResult, RecordedOnset, Recording } from '../engine/grading';
+import type {
+  BranchVerdict,
+  GradeResult,
+  RecordedOnset,
+  RecordedVariant,
+  Recording,
+} from '../engine/grading';
 import { initialQuantities, realisticQuantities } from '../engine/predicates';
 import { Run } from '../engine/run';
 import { onsetFromSeed, simSetup } from '../engine/sim';
+import { resolveVariant, variantFromSeed } from '../engine/variants';
 import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
 import type { Scenario } from '../scenario/schema';
@@ -73,6 +83,8 @@ export interface SessionTestHook {
   now(): number | null;
   /** The onset of the current or last realistic run; null for any other run. */
   onset(): RecordedOnset | null;
+  /** The variant drawn for the current or last run; null for a scenario without variants. */
+  variant(): RecordedVariant | null;
   /** The recording the last completed run was graded from; null until a run completes. */
   recording(): Recording | null;
 }
@@ -128,6 +140,11 @@ export interface Session {
    * from); null for Easy and Medium and outside a run. Run data, kept until the next start.
    */
   readonly onset: ReadonlySignal<RecordedOnset | null>;
+  /**
+   * The variant (cause) drawn for the current or last run, with its seed; null for a scenario
+   * without variants and outside a run. Run data the screens never show before the debrief.
+   */
+  readonly variant: ReadonlySignal<RecordedVariant | null>;
   /** The recording the last run was graded from; null until a run completes, cleared at the next start. */
   readonly recording: ReadonlySignal<Recording | null>;
   /** Free and not busy only: opens one random allowed scenario and shows its briefing. */
@@ -222,6 +239,7 @@ export function createSession(deps: SessionDeps): Session {
   const level = signal<Level>('easy');
   const levelPicked = signal(false);
   const onset = signal<RecordedOnset | null>(null);
+  const variant = signal<RecordedVariant | null>(null);
   const recording = signal<Recording | null>(null);
 
   /** Running only: grades the recorded log at the run clock's time and shows the debrief. */
@@ -234,6 +252,7 @@ export function createSession(deps: SessionDeps): Session {
       completedAt: runClock.now(),
       events: bridge.store.events().map((e) => ({ t: e.t, id: e.id, value: e.value })),
       ...(onset.peek() === null ? {} : { onset: onset.peek() }),
+      ...(variant.peek() === null ? {} : { variant: variant.peek() }),
     };
     recording.value = graded;
     result.value = grade(current, env, graded);
@@ -255,14 +274,21 @@ export function createSession(deps: SessionDeps): Session {
       const seed = Math.floor(rng() * SEED_RANGE);
       drawn = { at: onsetFromSeed(seed, window), seed };
     }
-    const setup = simSetup(env, opened, drawn === null ? {} : { onsetAt: drawn.at });
+    let cause: RecordedVariant | null = null;
+    if (opened.variants.length > 0) {
+      const seed = Math.floor(rng() * SEED_RANGE);
+      cause = { id: variantFromSeed(seed, opened.variants), seed };
+    }
+    // The run uses the scenario its cause makes; the signal and the grade keep the file's own.
+    const used = resolveVariant(opened, cause?.id ?? null, drawn !== null);
+    const setup = simSetup(env, used, drawn === null ? {} : { onsetAt: drawn.at });
     const startQuantities =
       drawn === null
-        ? initialQuantities(opened, env.quantities)
-        : realisticQuantities(opened, env.quantities);
+        ? initialQuantities(used, env.quantities)
+        : realisticQuantities(used, env.quantities);
     bridge.reset(
-      opened.initial.controls,
-      drawn === null ? opened.initial.quantities : (opened.onset?.quantities ?? {}),
+      used.initial.controls,
+      drawn === null ? used.initial.quantities : (used.onset?.quantities ?? {}),
     );
     endRun();
     const current = new Run({ setup, store: bridge.store, start: startQuantities });
@@ -279,6 +305,7 @@ export function createSession(deps: SessionDeps): Session {
     result.value = null;
     recording.value = null;
     onset.value = drawn;
+    variant.value = cause;
     run.value = current;
     clock.value = current.clock;
     onRunStart();
@@ -416,6 +443,7 @@ export function createSession(deps: SessionDeps): Session {
     level,
     levelPicked,
     onset,
+    variant,
     recording,
     async newSituation() {
       if (busy.peek()) return;
@@ -464,6 +492,7 @@ export function createSession(deps: SessionDeps): Session {
       result.value = null;
       recording.value = null;
       onset.value = null;
+      variant.value = null;
       clock.value = null;
       lastRequest = null;
       screen.value = 'free';

@@ -19,6 +19,7 @@ import {
 } from './predicates';
 import type { PredicateContext } from './predicates';
 import { simSetup, simulate } from './sim';
+import { resolveVariant } from './variants';
 
 export interface RecordedEvent {
   readonly t: number;
@@ -32,6 +33,12 @@ export interface RecordedOnset {
   readonly seed: number;
 }
 
+/** The variant a run drew (V-05): its id and the seed that drew it. */
+export interface RecordedVariant {
+  readonly id: string;
+  readonly seed: number;
+}
+
 export interface Recording {
   readonly scenarioId: string;
   readonly completedAt: number;
@@ -41,6 +48,12 @@ export interface Recording {
    * level itself is never an input of grade.
    */
   readonly onset?: RecordedOnset | null;
+  /**
+   * The cause the run drew (phase 3.1): grade replays it, so only the steps and forbidden items
+   * that apply in it are graded. Absent or null means the first variant of the file (V-04), which
+   * keeps every recording written before variants exist grading as before.
+   */
+  readonly variant?: RecordedVariant | null;
   /** In log order; never sorted by t. */
   readonly events: readonly RecordedEvent[];
 }
@@ -120,6 +133,8 @@ export interface GradeResult {
   readonly outcome: OutcomeVerdict | null;
   /** The reaction time from the onset; display only. */
   readonly timing: Timing;
+  /** The id of the variant the recording names; present only when it names one. */
+  readonly variant?: string;
 }
 
 /** R1: the state of the run before the first event. */
@@ -228,10 +243,13 @@ function gradedEvents(
   return end === -1 ? events : events.slice(0, end);
 }
 
-export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording): GradeResult {
-  if (recording.scenarioId !== scenario.id) {
-    throw new Error(`recording is for scenario "${recording.scenarioId}", not "${scenario.id}"`);
+export function grade(original: Scenario, env: AircraftEnv, recording: Recording): GradeResult {
+  if (recording.scenarioId !== original.id) {
+    throw new Error(`recording is for scenario "${recording.scenarioId}", not "${original.id}"`);
   }
+  // Phase 3.1: the rules below run on the scenario the recorded variant makes (V-03, V-04).
+  const named = recording.variant ?? null;
+  const scenario = resolveVariant(original, named?.id ?? null, recording.onset != null);
   const outcome = findOutcome(scenario, env, recording);
   const events = gradedEvents(recording.events, outcome);
   const ctx0 = startContext(scenario, env);
@@ -365,5 +383,6 @@ export function grade(scenario: Scenario, env: AircraftEnv, recording: Recording
     harmful,
     outcome,
     timing,
+    ...(named === null ? {} : { variant: named.id }),
   };
 }

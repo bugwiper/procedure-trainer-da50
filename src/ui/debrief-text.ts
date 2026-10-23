@@ -5,7 +5,7 @@
 // Pure TypeScript, no DOM, no framework, no clock.
 
 import type { GradeResult, HarmfulEntry, Reason } from '../engine/grading';
-import type { Group } from '../scenario/schema';
+import type { Group, Scenario } from '../scenario/schema';
 
 function reasonLine(reason: Reason, result: GradeResult): string {
   switch (reason.kind) {
@@ -69,4 +69,15 @@ export function timingLine(result: GradeResult): string {
   const { firstActionMs } = result.timing;
   if (firstActionMs === null) return 'No action after the onset.';
   return `First action ${(firstActionMs / 1000).toFixed(1)} s after the onset.`;
+}
+
+/**
+ * The cause line of a debrief (V-08): "Cause: " and the own-wording line of the variant the run
+ * drew, or null when the recording names none. Only the debrief shows it; the briefing and the
+ * panel never name the cause.
+ */
+export function causeLine(scenario: Scenario, result: GradeResult): string | null {
+  if (result.variant === undefined) return null;
+  const variant = scenario.variants.find((item) => item.id === result.variant);
+  return variant === undefined ? null : `Cause: ${variant.debrief}`;
 }

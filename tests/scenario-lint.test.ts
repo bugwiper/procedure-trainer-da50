@@ -624,6 +624,7 @@ describe('L14: the realistic level starts clean and shows what the scenario list
       window_s: [2, 6],
       quantities: { oil_temp_c: 114 },
       parameters: {},
+      controls: {},
       message_within_s: 22,
     });
     expect(lintScenario(parsedOf(BLUEPRINT), DA50RG_ENV)).toEqual([]);
