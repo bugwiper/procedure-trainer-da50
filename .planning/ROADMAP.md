@@ -455,7 +455,7 @@ Plans:
 **Depends on**: Phase 3.1
 **Requirements**: SCN-11, PNL-16, CNT-04
 
-**Plans:** 2/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 3/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -469,7 +469,7 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 04-03 — MFD Electrical box (Amps bar with pointers 1 and 2, Volts, alert styling), e2e, and the phase-end documentation (GRADING, owner review, README, todos, requirements)
+- [x] 04-03 — MFD Electrical box (Amps bar with pointers 1 and 2, Volts, alert styling), e2e, and the phase-end documentation (GRADING, owner review, README, todos, requirements)
 
 ### Phase 5: Fuel, tank and engine fidelity and the engine page
 
@@ -529,7 +529,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 2. First Gradable Scenario                            | 13/13          | Complete    | 2026-10-22 |
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
-| 4. Electrical system fidelity                         | 2/3 | In Progress | -          |
+| 4. Electrical system fidelity                         | 3/3 | In Progress | -          |
 | 5. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 6. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
