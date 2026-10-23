@@ -455,7 +455,7 @@ Plans:
 **Depends on**: Phase 3.1
 **Requirements**: SCN-11, PNL-16, CNT-04
 
-**Plans:** 1/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 2/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -465,7 +465,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 04-02 — ALTN 2 FAIL scenario with its printed checklist and four causes, replay tests and e2e; ALTN 1 FAIL checklist checked against the print, briefing corrected to the bus model
+- [x] 04-02 — ALTN 2 FAIL scenario with its printed checklist and four causes, replay tests and e2e; ALTN 1 FAIL checklist checked against the print, briefing corrected to the bus model
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
@@ -529,7 +529,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 2. First Gradable Scenario                            | 13/13          | Complete    | 2026-10-22 |
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
-| 4. Electrical system fidelity                         | 1/3 | In Progress | -          |
+| 4. Electrical system fidelity                         | 2/3 | In Progress | -          |
 | 5. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 6. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
