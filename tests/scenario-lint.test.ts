@@ -3,7 +3,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { defineCasRules } from '../src/engine/cas';
-import { checkScenario, lintScenario, MAX_BRANCH_LEVELS } from '../src/scenario/lint';
+import {
+  checkScenario,
+  lintScenario,
+  MAX_BRANCH_LEVELS,
+  REALISTIC_SHOW_WITHIN_MS,
+} from '../src/scenario/lint';
+import { parseScenario } from '../src/scenario/parse';
 import { colOf, lineOf, MINIMAL, nested, swap } from './scenario-text';
 
 // Lint rules L1 to L8 and L10 to L14 (SCN-02, Table L1) through checkScenario: one failing case per rule, each an
@@ -633,8 +639,21 @@ describe('L14: the realistic level starts clean and shows what the scenario list
     expect(issues[0]?.message).toContain('realistic');
   });
 
-  it('rejects a message that is already active at the realistic start, at the initial controls', () => {
+  it('rejects a message that is already active at the realistic start, at the onset quantities', () => {
+    // The blueprint sets the start reading in its onset block, so that is where the finding points.
     const found = lintScenario(parsedOf(BLUEPRINT), earlyEnv);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      path: 'onset.quantities',
+      message: expect.stringContaining('"eng_oil_temp"') as string,
+    });
+    expect(found[0]?.message).toContain('realistic start');
+  });
+
+  it('rejects a message that the base values fire at the realistic start, at the initial controls', () => {
+    const parsed = parseScenario(WITH_ONSET);
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+    const found = lintScenario(parsed.value, earlyEnv);
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({
       path: 'initial.controls',
@@ -644,10 +663,11 @@ describe('L14: the realistic level starts clean and shows what the scenario list
   });
 
   it('rejects an outcome that holds at the realistic start, at the outcome', () => {
+    // 120 lies below the initial reading (128) and above the Realistic start reading (114).
     const text = swap(
       BLUEPRINT,
       '      op: gte\n      value: 140',
-      '      op: lte\n      value: 100',
+      '      op: lte\n      value: 120',
     );
     const result = checkScenario(text, DA50RG_ENV);
     expect(result.ok).toBe(false);
@@ -670,6 +690,134 @@ describe('L14: the realistic level starts clean and shows what the scenario list
       const first = result.ok ? undefined : result.issues[0];
       expect(first?.path, bad).toMatch(/^onset\.window_s/);
       expect(first?.line, bad).toBe(lineOf(text, 'window_s[2]'));
+    }
+  });
+});
+
+/** The three shipped scenario files. */
+const SHIPPED = [
+  'scenarios/engine/eng-oil-temp-green.toon',
+  'scenarios/electrical/elec-altn1-fail.toon',
+  'scenarios/engine/eng-fire-in-flight.toon',
+].map((file) => `${root}${file}`);
+
+describe('the Realistic setup: L12 on the onset block, L14 on its start, L15 speed and guard (plan 03-11)', () => {
+  const issuesFor = (text: string) => {
+    const result = checkScenario(text, DA50RG_ENV);
+    return result.ok ? [] : result.issues;
+  };
+  const withOnset = (from: string, to: string): string => swap(BLUEPRINT, from, to);
+
+  it('L12 reports an unknown onset parameter at onset.parameters.<id>', () => {
+    const text = withOnset('oil_temp_rate: 3', 'oil_temp_rat: 3');
+    const issues = issuesFor(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'onset.parameters.oil_temp_rat',
+      message: 'unknown parameter "oil_temp_rat"',
+      line: lineOf(text, 'oil_temp_rat'),
+    });
+  });
+
+  it.each([0.5, 11])(
+    'L12 reports an onset parameter outside the range: oil_temp_rate %s',
+    (bad) => {
+      const text = withOnset('oil_temp_rate: 3', `oil_temp_rate: ${String(bad)}`);
+      const issues = issuesFor(text);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toMatchObject({
+        path: 'onset.parameters.oil_temp_rate',
+        message: `${String(bad)} is outside 1..10 of parameter "oil_temp_rate"`,
+        line: lineOf(text, 'oil_temp_rate'),
+      });
+    },
+  );
+
+  it('reports an unknown onset quantity and one outside its range at onset.quantities.<id>', () => {
+    const unknown = withOnset('oil_temp_c: 114', 'oil_temperature: 114');
+    expect(issuesFor(unknown)).toContainEqual(
+      expect.objectContaining({
+        path: 'onset.quantities.oil_temperature',
+        message: 'unknown quantity "oil_temperature"',
+        line: lineOf(unknown, 'oil_temperature'),
+      }),
+    );
+    const outside = withOnset('oil_temp_c: 114', 'oil_temp_c: 400');
+    expect(issuesFor(outside)).toContainEqual(
+      expect.objectContaining({
+        path: 'onset.quantities.oil_temp_c',
+        message: expect.stringContaining('is outside') as string,
+        line: lineOf(outside, 'oil_temp_c: 400'),
+      }),
+    );
+  });
+
+  it('L14 starts from the onset quantities: a start that fires the message is reported there', () => {
+    const text = withOnset('oil_temp_c: 114', 'oil_temp_c: 130');
+    const issues = issuesFor(text);
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        path: 'onset.quantities',
+        message: expect.stringContaining('already active at the realistic start') as string,
+      }),
+    );
+  });
+
+  it('L14 reports an onset quantity that already holds an outcome', () => {
+    const text = withOnset('oil_temp_c: 114', 'oil_temp_c: 145');
+    const issues = issuesFor(text);
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        path: 'outcomes.0.when',
+        message: expect.stringContaining('realistic start') as string,
+      }),
+    );
+  });
+
+  it('L15 speed: the Easy time constant (oil_temp_rate 1) shows the message too late, with the seconds', () => {
+    const text = withOnset('oil_temp_rate: 3', 'oil_temp_rate: 1');
+    const issues = issuesFor(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'annunciations.0',
+      line: lineOf(text, 'annunciations[1]'),
+    });
+    expect(issues[0]?.message).toMatch(/shows \d+\.\d s after the onset/);
+    expect(issues[0]?.message).toContain(`${String(REALISTIC_SHOW_WITHIN_MS / 1000)} s`);
+    const measured = Number(/shows (\d+\.\d) s/.exec(issues[0]?.message ?? '')?.[1]);
+    expect(measured * 1000).toBeGreaterThan(REALISTIC_SHOW_WITHIN_MS);
+  });
+
+  it('L15 guard: a branch decided at the start that reads an onset quantity is reported there', () => {
+    // The pressure check of the blueprint reads oil_pressure_bar; the onset block now sets it too.
+    const text = withOnset(
+      '    oil_temp_c: 114\n',
+      '    oil_temp_c: 114\n    oil_pressure_bar: 5\n',
+    );
+    const issues = issuesFor(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'onset.quantities.oil_pressure_bar',
+      // The line of the new entry, the last one of that key (the initial block has the first).
+      line: text.split('\n').lastIndexOf('    oil_pressure_bar: 5') + 1,
+    });
+    expect(issues[0]?.message).toContain('decided at the start');
+  });
+
+  it('the shipped scenarios pass: the blueprint, ALTN 1 FAIL and Engine Fire', () => {
+    for (const file of SHIPPED) {
+      const result = checkScenario(readFileSync(file, 'utf8'), DA50RG_ENV);
+      expect(result.ok, file).toBe(true);
+    }
+  });
+
+  it('every shipped scenario declares the window 2 to 6 s and still fails a do-nothing run', () => {
+    for (const file of SHIPPED) {
+      const parsed = parseScenario(readFileSync(file, 'utf8'));
+      if (!parsed.ok) throw new Error(`${file} does not parse`);
+      expect(parsed.value.onset?.window_s, file).toEqual([2, 6]);
+      // L11: a run that does nothing must fail, so a critical step is graded at the start.
+      expect(lintScenario(parsed.value, DA50RG_ENV), file).toEqual([]);
     }
   });
 });

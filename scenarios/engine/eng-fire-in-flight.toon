@@ -125,6 +125,6 @@ outcomes[1]:
       quantity: fire_intensity
       op: gte
       value: 85
-# The fire of the level Realistic begins at a random second inside this window; the window is an instructor-review value.
+# The fire of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
 onset:
-  window_s[2]: 5,20
+  window_s[2]: 2,6

@@ -8,8 +8,13 @@
 // L13 checks the named outcomes (D-06): every outcome predicate resolves, the outcome id shares the
 // L4 namespace, and no outcome already holds in the initial state, which would end the run at once.
 // L14 guards the level Realistic (D-05) for a scenario with an onset: simulated without any action
-// from the base values, with the onset at the upper end of its window, the run starts clean (no
-// message active, no outcome holding) and every listed annunciation shows before the run ends.
+// from the Realistic start quantities (the base values laid over by onset.quantities, C-61), the
+// run starts clean (no message active, no outcome holding) and every listed annunciation shows
+// before the run ends. L15 (plan 03-11) makes the level quick: with the onset at the lower and at
+// the upper end of its window every listed annunciation shows no later than
+// REALISTIC_SHOW_WITHIN_MS after the onset, and the Realistic setup is sound (onset.parameters and
+// onset.quantities name known ids inside their ranges, and no branch decided at the start reads a
+// quantity the onset block sets, because grade decides such a branch on the initial state, WR-04).
 // checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
 // the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
@@ -21,6 +26,7 @@ import {
   evaluatePredicate,
   initialQuantities,
   predicateProblems,
+  realisticQuantities,
 } from '../engine/predicates';
 import type { PredicateContext } from '../engine/predicates';
 import { legalStates } from '../engine/registry';
@@ -34,6 +40,13 @@ import type { PathSegment } from './toon-index';
 
 /** How long past the onset the L14 simulation looks for the listed annunciations (T-03-16). */
 const REALISTIC_LOOKAHEAD_MS = 600_000;
+
+/**
+ * L15: the latest a listed annunciation may show after the onset in a do-nothing Realistic run, in
+ * ms. The owner asked for the message "within about 10 seconds" (UAT test 1 of phase 3, 2026-10-23);
+ * the bound adds a margin of 2 s.
+ */
+export const REALISTIC_SHOW_WITHIN_MS = 12_000;
 
 /** Most branch levels on one path through the procedure (UI-SPEC outline cap). */
 export const MAX_BRANCH_LEVELS = 3;
@@ -116,6 +129,31 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
       add(
         path,
         `${String(value)} is outside ${String(def.min)}..${String(def.max)} of parameter "${id}"`,
+      );
+    }
+  }
+
+  // L12 for the Realistic setup (C-64): onset.parameters name known parameters inside their ranges
+  // and onset.quantities known quantities inside theirs.
+  for (const [id, value] of Object.entries(scenario.onset?.parameters ?? {})) {
+    const def = env.physics.parameter(id);
+    const path = ['onset', 'parameters', id];
+    if (def === undefined) add(path, `unknown parameter "${id}"`);
+    else if (value < def.min || value > def.max) {
+      add(
+        path,
+        `${String(value)} is outside ${String(def.min)}..${String(def.max)} of parameter "${id}"`,
+      );
+    }
+  }
+  for (const [id, value] of Object.entries(scenario.onset?.quantities ?? {})) {
+    const def = env.quantities.get(id);
+    const path = ['onset', 'quantities', id];
+    if (def === undefined) add(path, `unknown quantity "${id}"`);
+    else if (value < def.min || value > def.max) {
+      add(
+        path,
+        `${String(value)} is outside ${String(def.min)}..${String(def.max)} of quantity "${id}"`,
       );
     }
   }
@@ -309,12 +347,21 @@ function checkInitialState(
   });
 }
 
+/** The quantities a predicate reads, if it reads any (a quantity or band check). */
+function quantityRead(predicate: Predicate): string | null {
+  return predicate.check === 'quantity' || predicate.check === 'band' ? predicate.quantity : null;
+}
+
 /**
- * L14: the level Realistic of a scenario with an onset (D-05). The run starts at once in the base
- * state and does nothing; the onset sits at the upper end of the window, the latest the failure can
- * begin. No message may be active at the start and no outcome may hold there; every listed
- * annunciation must become active before the run ends or the lookahead (the window cap plus 600 s,
- * below MAX_RUN_MS) is over. The scenario's own initial.quantities do not apply: the level starts
+ * L14 and L15: the level Realistic of a scenario with an onset (D-05). The run starts at once from
+ * the Realistic start quantities (the base values laid over by onset.quantities, C-61) and does
+ * nothing. No message may be active at the start and no outcome may hold there. Two runs follow,
+ * with the onset at the lower and at the upper end of the window: every listed annunciation must
+ * become active before the run ends or the lookahead (the window cap plus 600 s, below MAX_RUN_MS)
+ * is over (L14), and no later than REALISTIC_SHOW_WITHIN_MS after the onset (L15, the owner's
+ * "about 10 s" with a margin). The guard clause of L15: a branch decided at the start must not read
+ * a quantity the onset block sets, because grade decides such a branch on the scenario's initial
+ * state (WR-04 stays open). The scenario's own initial.quantities do not apply: the level starts
  * from the base values (C-31).
  */
 function checkRealisticStart(
@@ -322,26 +369,62 @@ function checkRealisticStart(
   env: AircraftEnv,
   add: (segments: Segments, message: string) => void,
 ): void {
-  if (scenario.onset === undefined) return;
-  const onsetAt = STEP_MS * Math.round((scenario.onset.window_s[1] * 1000) / STEP_MS);
-  const setup = simSetup(env, scenario, { onsetAt });
-  const contextOf = (state: SimState): PredicateContext => ({
+  const onset = scenario.onset;
+  if (onset === undefined) return;
+
+  // L15 guard: branches decided at the start that read a quantity the onset block sets.
+  const set = new Set(Object.keys(onset.quantities));
+  const reported = new Set<string>();
+  const guard = (nodes: readonly ProcedureNode[]): void => {
+    const check = (
+      branch: { readonly decided_at: 'start' | 'run'; readonly when: Predicate },
+      label: string,
+    ): void => {
+      const read = branch.decided_at === 'start' ? quantityRead(branch.when) : null;
+      if (read !== null && set.has(read) && !reported.has(read)) {
+        reported.add(read);
+        add(
+          ['onset', 'quantities', read],
+          `the branch "${label}" is decided at the start and reads "${read}", which the onset block sets; grade decides it on the initial state, so decide it during the run or leave the quantity out`,
+        );
+      }
+    };
+    for (const node of nodes) {
+      if (node.kind === 'branch') {
+        check(node, node.label);
+        guard(node.nodes);
+      } else if (node.kind === 'decision') {
+        for (const branch of node.branches) {
+          check(branch, branch.label);
+          guard(branch.nodes);
+        }
+      }
+    }
+  };
+  guard(scenario.procedure);
+
+  const start = realisticQuantities(scenario, env.quantities);
+  const lowerAt = STEP_MS * Math.round((onset.window_s[0] * 1000) / STEP_MS);
+  const upperAt = STEP_MS * Math.round((onset.window_s[1] * 1000) / STEP_MS);
+  const firstSetup = simSetup(env, scenario, { onsetAt: upperAt });
+  const contextOf = (setup: typeof firstSetup, state: SimState): PredicateContext => ({
     controls: state.controls,
     baseline: setup.baseline,
     quantities: state.quantities,
   });
 
-  let state = initSim(setup, {});
-  const shown = new Set<string>();
-  for (const message of env.cas.active(contextOf(state), env)) {
-    shown.add(message.id);
+  // L14: the clean start, the same for both ends of the window.
+  const state0 = initSim(firstSetup, start);
+  const startPath: Segments =
+    Object.keys(onset.quantities).length > 0 ? ['onset', 'quantities'] : ['initial', 'controls'];
+  for (const message of env.cas.active(contextOf(firstSetup, state0), env)) {
     add(
-      ['initial', 'controls'],
+      startPath,
       `"${message.id}" is already active at the realistic start; the level Realistic must begin without a message`,
     );
   }
   scenario.outcomes.forEach((item, i) => {
-    if (evaluatePredicate(item.when, contextOf(state), env)) {
+    if (evaluatePredicate(item.when, contextOf(firstSetup, state0), env)) {
       add(
         ['outcomes', i, 'when'],
         `outcome "${item.id}" already holds at the realistic start; the run would end at once`,
@@ -349,16 +432,42 @@ function checkRealisticStart(
     }
   });
 
-  const limit = onsetAt + REALISTIC_LOOKAHEAD_MS;
-  while (state.t < limit && state.outcome === null) {
-    state = stepSim(setup, state, []).state;
-    for (const message of env.cas.active(contextOf(state), env)) shown.add(message.id);
-  }
+  /** The time of the first step in which each message is active, in a do-nothing run with this onset. */
+  const firstShown = (onsetAt: number): Map<string, number> => {
+    const setup = simSetup(env, scenario, { onsetAt });
+    const shown = new Map<string, number>();
+    const note = (state: SimState): void => {
+      for (const message of env.cas.active(contextOf(setup, state), env)) {
+        if (!shown.has(message.id)) shown.set(message.id, state.t);
+      }
+    };
+    let state = initSim(setup, start);
+    note(state);
+    const limit = onsetAt + REALISTIC_LOOKAHEAD_MS;
+    while (state.t < limit && state.outcome === null) {
+      state = stepSim(setup, state, []).state;
+      note(state);
+    }
+    return shown;
+  };
+  const lower = firstShown(lowerAt);
+  const upper = firstShown(upperAt);
+
   scenario.annunciations.forEach((id, i) => {
-    if (!shown.has(id)) {
+    const early = lower.get(id);
+    const late = upper.get(id);
+    if (early === undefined || late === undefined) {
       add(
         ['annunciations', i],
         `"${id}" is listed but never becomes active in a realistic run that does nothing; the level Realistic would not show it`,
+      );
+      return;
+    }
+    const afterOnsetMs = Math.max(early - lowerAt, late - upperAt);
+    if (afterOnsetMs > REALISTIC_SHOW_WITHIN_MS) {
+      add(
+        ['annunciations', i],
+        `"${id}" shows ${(afterOnsetMs / 1000).toFixed(1)} s after the onset in a realistic run that does nothing; the level Realistic must show it within ${String(REALISTIC_SHOW_WITHIN_MS / 1000)} s`,
       );
     }
   });
