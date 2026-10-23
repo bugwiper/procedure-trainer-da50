@@ -433,7 +433,7 @@ Plans:
 **Depends on**: Phase 3
 **Requirements**: SCN-09, SCN-10, SES-07
 
-**Plans:** 1/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 2/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -443,7 +443,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 03.1-02 — Re-tripping breaker (trips in the physics), the four ALTN 1 FAIL causes as data, replay tests and an e2e per variant
+- [x] 03.1-02 — Re-tripping breaker (trips in the physics), the four ALTN 1 FAIL causes as data, replay tests and an e2e per variant
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
@@ -514,7 +514,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 1. Deployed Playable Panel                            | 9/9            | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario                            | 13/13          | Complete    | 2026-10-22 |
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
-| 3.1. Scenario variants and run robustness             | 1/3 | In Progress | -          |
+| 3.1. Scenario variants and run robustness             | 2/3 | In Progress | -          |
 | 4. Electrical system fidelity                         | 0/TBD          | Not started | -          |
 | 5. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 6. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
