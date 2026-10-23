@@ -76,8 +76,12 @@ describe('the shipped checklists match the printed wording', () => {
         // `own` marks a row that is not printed; the parsed rows carry no such flag.
         const expected = printed.rows.map((row) => {
           if (row.kind !== 'row') return row;
-          const { own: _own, ...rest } = row;
-          return rest;
+          return {
+            kind: row.kind,
+            ...(row.number === undefined ? {} : { number: row.number }),
+            item: row.item,
+            ...(row.action === undefined ? {} : { action: row.action }),
+          };
         });
         expect(tableRows(scenario.procedure)).toEqual(expected);
       });
