@@ -3,11 +3,12 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
-import { initialQuantities } from '../src/engine/predicates';
+import { initialQuantities, realisticQuantities } from '../src/engine/predicates';
 import { Run } from '../src/engine/run';
 import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
 import { PanelStore } from '../src/engine/store';
 import type { ControlEvent } from '../src/engine/store';
+import { resolveVariant } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
 
 // The run and the action log (plan 03-04; D-03, C-21, C-22, T-03-09, T-03-10): a reaction that
@@ -281,5 +282,85 @@ describe('incremental stepping equals simulate (D-02, C-22)', () => {
       expect(f.run.clock.now()).toBe(n * STEP_MS);
     }
     f.run.dispose();
+  });
+});
+
+describe('a control the simulation sets at the onset (phase 3.1, V-06)', () => {
+  const file = checkScenario(
+    readFileSync(`${root}scenarios/electrical/elec-altn1-fail.toon`, 'utf8'),
+    DA50RG_ENV,
+  );
+  if (!file.ok) throw new Error('the ALTN 1 FAIL file does not pass the scenario check');
+  const popped = resolveVariant(file.scenario, 'breaker_popped', true);
+  const ONSET_AT = 3000;
+  const altSetup = simSetup(DA50RG_ENV, popped, { onsetAt: ONSET_AT });
+  const altStart = realisticQuantities(popped, DA50RG_ENV.quantities);
+  const BREAKER = 'cb.alt1';
+
+  function altFixture(): Fixture {
+    const store = new PanelStore(DA50RG);
+    store.reset(popped.initial.controls);
+    return { store, run: new Run({ setup: altSetup, store, start: altStart }) };
+  }
+
+  const altReplay = (f: Fixture) =>
+    simulate(altSetup, { events: f.store.events(), start: altStart, untilMs: f.run.state.t }).state;
+
+  it('the breaker is in until the onset, then out, as a log event of the simulation', () => {
+    const f = altFixture();
+    steps(f, ONSET_AT / STEP_MS);
+    expect(f.store.get(BREAKER)).toBe('in');
+    expect(f.store.events()).toEqual([]);
+    steps(f, 1);
+    expect(f.store.get(BREAKER)).toBe('out');
+    expect(f.store.events()).toEqual([
+      { seq: 0, t: ONSET_AT + STEP_MS, id: BREAKER, value: 'out', source: 'sim' },
+    ]);
+    steps(f, 100);
+    expect(f.store.events()).toHaveLength(1);
+    expect(f.run.state.controls[BREAKER]).toBe('out');
+  });
+
+  it('live stepping equals the replay at every step, also with a push in the onset step', () => {
+    const f = altFixture();
+    // The pilot pulls the breaker at 1000 and pushes it in again in the very step of the onset.
+    const plan = new Map<number, string>([
+      [10, 'out'],
+      [30, 'in'],
+    ]);
+    for (let n = 1; n <= 200; n++) {
+      const value = plan.get(n - 1);
+      if (value !== undefined)
+        expect(f.store.dispatch(BREAKER, value, f.run.clock.now()).ok).toBe(true);
+      f.run.step();
+      expect(f.run.state, `step ${String(n)}`).toEqual(altReplay(f));
+      expect(f.store.get(BREAKER), `store at step ${String(n)}`).toBe(
+        f.run.state.controls[BREAKER],
+      );
+    }
+    expect(f.store.get(BREAKER)).toBe('out');
+    expect(f.store.events().map((e) => e.source)).toEqual(['user', 'user', 'sim']);
+  });
+
+  it('a push after the onset holds, and a retract of it rebuilds equal to the replay', () => {
+    const f = altFixture();
+    steps(f, ONSET_AT / STEP_MS + 5);
+    expect(f.store.get(BREAKER)).toBe('out');
+    const push = act(f, BREAKER, 'in');
+    steps(f, 20);
+    expect(f.run.state.controls[BREAKER]).toBe('in');
+    expect(f.store.retract(push.seq).ok).toBe(true);
+    expect(f.store.get(BREAKER)).toBe('out');
+    expect(f.run.state).toEqual(altReplay(f));
+    steps(f, 20);
+    expect(f.run.state).toEqual(altReplay(f));
+    expect(f.store.events().map((e) => e.source)).toEqual(['sim']);
+  });
+
+  it('the change of the simulation cannot be retracted', () => {
+    const f = altFixture();
+    steps(f, ONSET_AT / STEP_MS + 2);
+    expect(f.store.retract(0)).toEqual({ ok: false, reason: 'system' });
+    expect(f.store.get(BREAKER)).toBe('out');
   });
 });

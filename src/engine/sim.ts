@@ -9,7 +9,9 @@
 //
 // Reactions (C-20): a control entering a state may start a one-shot reaction with a timer. Step
 // order: (1) the due events apply one by one in log order and, after each, a reaction armed by it
-// whose condition holds starts unless it is already active; (2) an active reaction whose clear
+// whose condition holds starts unless it is already active; (1b) in the step that contains the
+// onset the simulation sets the faulted controls of the scenario (a variant's popped breaker) by
+// itself; the change arms no reaction and is reported in StepResult.injected (V-06); (2) an active reaction whose clear
 // condition holds ends at once; (3) the models run, reading the flags of the active reactions (a
 // lag model may carry a rate that multiplies its step length, C-60); (4) every active timer counts
 // down by STEP_MS and its flag goes off at 0. A reaction is thus in
@@ -57,6 +59,15 @@ export interface SimEvent {
   readonly t: number;
   readonly id: string;
   readonly value: string;
+  /** A change the simulation made itself (a store `sim` event); simulate skips it, it regenerates it. */
+  readonly source?: 'user' | 'sim';
+}
+
+/** A control change the simulation made by itself: the time of the new state, the control and its value. */
+export interface InjectedChange {
+  readonly t: number;
+  readonly id: string;
+  readonly value: string;
 }
 
 /** The simulated state at the start of the step beginning at t. */
@@ -86,6 +97,11 @@ export interface SimSetup {
    * onset time is given, with the parameters of the scenario's onset block (C-59).
    */
   readonly faultedParameters: Readonly<Record<string, number>>;
+  /**
+   * The control state the simulation sets by itself at the onset (the scenario's onset.controls),
+   * only when an onset time is given; empty otherwise.
+   */
+  readonly faultedControls: Readonly<Record<string, string>>;
   /** Before this time the normal parameters are in force; 0 means the failure is there from the start. */
   readonly onsetAt: number;
   /** The scenario's named outcomes, in declared order (C-25). */
@@ -134,6 +150,9 @@ export function simSetup(env: AircraftEnv, scenario: Scenario, options: SimOptio
       ...scenario.parameters,
       ...(options.onsetAt === undefined ? {} : (scenario.onset?.parameters ?? {})),
     }),
+    faultedControls: Object.freeze(
+      options.onsetAt === undefined ? {} : { ...scenario.onset?.controls },
+    ),
     onsetAt: options.onsetAt ?? 0,
     outcomes: scenario.outcomes,
   });
@@ -159,6 +178,8 @@ export interface StepResult {
   readonly state: SimState;
   /** Indexes into the due events that started a reaction in this step, in event order. */
   readonly fired: readonly number[];
+  /** The control changes the simulation made in this step (V-06), in declared order. */
+  readonly injected: readonly InjectedChange[];
 }
 
 /** The flags of the reactions whose timer is running, each true. */
@@ -196,7 +217,9 @@ function lagStep(model: LagModel, inputs: PhysicsInputs): number {
  * unchanged. An event naming a control the state does not have throws Error naming it.
  */
 export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent[]): StepResult {
-  if (state.outcome !== null) return { state, fired: Object.freeze([]) };
+  if (state.outcome !== null) {
+    return { state, fired: Object.freeze([]), injected: Object.freeze([]) };
+  }
   const reactions = setup.env.physics.reactions;
   const controls: Record<string, string> = { ...state.controls };
   let timers: Record<string, number> = { ...state.timers };
@@ -217,6 +240,18 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
     }
     if (started) fired.push(index);
   });
+
+  // (1b) The onset: in the one step whose interval contains it, every faulted control still in
+  // another state is set. The change is a fact of the aircraft, not a pilot action: no reaction is armed.
+  const injected: InjectedChange[] = [];
+  if (state.t <= setup.onsetAt && setup.onsetAt < state.t + STEP_MS) {
+    for (const [id, value] of Object.entries(setup.faultedControls)) {
+      if (!Object.hasOwn(controls, id)) throw new Error(`onset names unknown control "${id}"`);
+      if (controls[id] === value) continue;
+      controls[id] = value;
+      injected.push({ t: state.t + STEP_MS, id, value });
+    }
+  }
 
   // (2) A reaction whose clear condition holds ends at once.
   const kept: Record<string, number> = {};
@@ -289,6 +324,7 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
       outcome,
     }),
     fired: Object.freeze(fired),
+    injected: Object.freeze(injected),
   };
 }
 
@@ -300,15 +336,27 @@ export interface SimInput {
   readonly untilMs: number;
 }
 
+/** A control change the simulation made, with the number of recorded (user) events applied before it. */
+export interface ReplayedChange extends InjectedChange {
+  readonly before: number;
+}
+
 /**
  * Replays a log from the setup's start state in whole steps until the smaller of untilMs and
- * MAX_RUN_MS, or until an outcome fires. Each step is handed the events, in log order, from the first not yet applied up to
- * the first whose time is after the step's start (C-02).
+ * MAX_RUN_MS, or until an outcome fires. Each step is handed the events, in log order, from the
+ * first not yet applied up to the first whose time is after the step's start (C-02). Events of
+ * source `sim` are skipped: the simulation regenerates its own changes and returns them in
+ * `injected`, each with `before`, the number of pilot events applied when it happened (V-06).
  */
-export function simulate(setup: SimSetup, input: SimInput): { readonly state: SimState } {
+export function simulate(
+  setup: SimSetup,
+  input: SimInput,
+): { readonly state: SimState; readonly injected: readonly ReplayedChange[] } {
   let state = initSim(setup, input.start);
   const limit = Math.min(input.untilMs, MAX_RUN_MS);
+  const injected: ReplayedChange[] = [];
   let next = 0;
+  let applied = 0;
   while (state.t < limit && state.outcome === null) {
     const from = next;
     for (;;) {
@@ -316,7 +364,11 @@ export function simulate(setup: SimSetup, input: SimInput): { readonly state: Si
       if (event === undefined || event.t > state.t) break;
       next += 1;
     }
-    state = stepSim(setup, state, input.events.slice(from, next)).state;
+    const due = input.events.slice(from, next).filter((event) => event.source !== 'sim');
+    applied += due.length;
+    const result = stepSim(setup, state, due);
+    state = result.state;
+    for (const change of result.injected) injected.push({ ...change, before: applied });
   }
-  return { state };
+  return { state, injected };
 }

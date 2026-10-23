@@ -21,6 +21,7 @@ import {
 } from '../src/engine/sim';
 import type { SimEvent, SimState } from '../src/engine/sim';
 import { PanelStore } from '../src/engine/store';
+import { resolveVariant } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
 import { parseScenario } from '../src/scenario/parse';
 import { MINIMAL } from './scenario-text';
@@ -931,5 +932,84 @@ describe('the Realistic setup (plan 03-11, C-58 to C-61, C-65)', () => {
       });
       expect(run.state, `step ${String(n)}`).toEqual(replay.state);
     }
+  });
+});
+
+describe('faulted controls at the onset (phase 3.1, V-06)', () => {
+  const file = checkScenario(
+    readFileSync(new URL('../scenarios/electrical/elec-altn1-fail.toon', import.meta.url), 'utf8'),
+    DA50RG_ENV,
+  );
+  if (!file.ok) throw new Error('the ALTN 1 FAIL file does not pass the scenario check');
+  const popped = resolveVariant(file.scenario, 'breaker_popped', true);
+  const ONSET_AT = 3000;
+  const altSetup = simSetup(DA50RG_ENV, popped, { onsetAt: ONSET_AT });
+  const altStart = realisticQuantities(popped, DA50RG_ENV.quantities);
+  const BREAKER = 'cb.alt1';
+
+  it('the setup carries the onset controls only when an onset time is given', () => {
+    expect(altSetup.faultedControls).toEqual({ [BREAKER]: 'out' });
+    expect(simSetup(DA50RG_ENV, popped).faultedControls).toEqual({});
+  });
+
+  it('sets the control in the one step that contains the onset, and reports it once', () => {
+    let state = initSim(altSetup, altStart);
+    const reported: { at: number; id: string; value: string }[] = [];
+    while (state.t < ONSET_AT + 1000) {
+      const result = stepSim(altSetup, state, []);
+      for (const change of result.injected) reported.push({ at: state.t, ...change });
+      if (state.t < ONSET_AT) expect(state.controls[BREAKER]).toBe('in');
+      state = result.state;
+      if (state.t > ONSET_AT) expect(state.controls[BREAKER]).toBe('out');
+    }
+    expect(reported).toEqual([{ at: ONSET_AT, t: ONSET_AT + STEP_MS, id: BREAKER, value: 'out' }]);
+  });
+
+  it('an onset between two step boundaries lands in the step that contains it', () => {
+    const odd = simSetup(DA50RG_ENV, popped, { onsetAt: 3050 });
+    const state = initSim(odd, altStart);
+    const before = stepSim(odd, { ...state, t: 2900 }, []);
+    expect(before.injected).toEqual([]);
+    const at = stepSim(odd, { ...state, t: 3000 }, []);
+    expect(at.injected).toHaveLength(1);
+  });
+
+  it('does not set a control that is already in that state, and pilot pushes afterwards stay', () => {
+    const pulled = { ...initSim(altSetup, altStart), t: ONSET_AT };
+    const sameState = { ...pulled, controls: { ...pulled.controls, [BREAKER]: 'out' } };
+    expect(stepSim(altSetup, sameState, []).injected).toEqual([]);
+    // After the onset step the simulation never sets it again: the pilot's push holds.
+    let state = initSim(altSetup, altStart);
+    while (state.t <= ONSET_AT) state = stepSim(altSetup, state, []).state;
+    const pushed = stepSim(altSetup, state, [{ t: state.t, id: BREAKER, value: 'in' }]);
+    expect(pushed.injected).toEqual([]);
+    expect(pushed.state.controls[BREAKER]).toBe('in');
+  });
+
+  it('simulate skips events of source sim, regenerates the change and says where it happened', () => {
+    const push = { t: 5000, id: BREAKER, value: 'in' };
+    const pilot = simulate(altSetup, { events: [push], start: altStart, untilMs: 8000 });
+    expect(pilot.injected).toEqual([
+      { t: ONSET_AT + STEP_MS, id: BREAKER, value: 'out', before: 0 },
+    ]);
+    const withSim = simulate(altSetup, {
+      events: [{ t: ONSET_AT + STEP_MS, id: BREAKER, value: 'out', source: 'sim' }, push],
+      start: altStart,
+      untilMs: 8000,
+    });
+    expect(withSim).toEqual(pilot);
+    expect(pilot.state.controls[BREAKER]).toBe('in');
+    // An event due in the very step of the onset counts as applied before the change.
+    const early = simulate(altSetup, {
+      events: [{ t: ONSET_AT, id: 'sw.alternator_1', value: 'off' }],
+      start: altStart,
+      untilMs: 4000,
+    });
+    expect(early.injected[0]?.before).toBe(1);
+  });
+
+  it('a scenario without faulted controls changes nothing and reports nothing', () => {
+    const result = simulate(setup, { events: [], start, untilMs: 5000 });
+    expect(result.injected).toEqual([]);
   });
 });

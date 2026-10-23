@@ -254,6 +254,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
         add(['variants', n], `variant "${variant.id}": ${message}`);
       };
       checkInitialState(resolveVariant(scenario, variant.id, false), env, here);
+      checkRealisticStart(resolveVariant(scenario, variant.id, true), env, here);
     });
   }
   return issues;

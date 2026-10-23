@@ -160,3 +160,68 @@ describe('grade replays the recorded variant', () => {
     }
   });
 });
+
+describe('grade on Realistic: the simulation pops the breaker at the onset (V-06)', () => {
+  const ONSET = { at: 3000, seed: 1 };
+  const realistic = (
+    variant: string,
+    events: Recording['events'],
+    completedAt = 60_000,
+  ): Recording => ({ ...recording(variant, events, completedAt), onset: ONSET });
+
+  it('a push after the onset passes and is entered at its own event', () => {
+    const result = grade(
+      ALTN,
+      DA50RG_ENV,
+      realistic('breaker_popped', [{ t: 5000, id: 'cb.alt1', value: 'in' }]),
+    );
+    expect(result.result).toBe('pass');
+    expect(result.steps).toEqual([
+      {
+        id: 'alt1_breaker_in',
+        group: 'breaker_check',
+        severity: 'critical',
+        credited: true,
+        enteredAt: 0,
+      },
+    ]);
+  });
+
+  it('a push only before the onset fails: the breaker pops at the onset (R12)', () => {
+    const result = grade(
+      ALTN,
+      DA50RG_ENV,
+      realistic('breaker_popped', [
+        { t: 500, id: 'cb.alt1', value: 'out' },
+        { t: 800, id: 'cb.alt1', value: 'in' },
+      ]),
+    );
+    expect(result.result).toBe('fail');
+    expect(result.reasons).toEqual([{ kind: 'critical_missed', count: 1 }]);
+  });
+
+  it('a do-nothing run fails and the pair is not what this cause wants', () => {
+    expect(grade(ALTN, DA50RG_ENV, realistic('breaker_popped', [])).result).toBe('fail');
+    const pair = realistic('breaker_popped', [
+      { t: 5000, id: 'sw.alternator_1', value: 'off' },
+      { t: 6000, id: 'sw.ess_bus', value: 'on' },
+    ]);
+    expect(grade(ALTN, DA50RG_ENV, pair).result).toBe('fail');
+  });
+
+  it('alternator_dead on Realistic: the pair after the onset passes, nothing fails', () => {
+    const pair = realistic('alternator_dead', [
+      { t: 5000, id: 'sw.alternator_1', value: 'off' },
+      { t: 6000, id: 'sw.ess_bus', value: 'on' },
+    ]);
+    expect(grade(ALTN, DA50RG_ENV, pair).result).toBe('pass');
+    expect(grade(ALTN, DA50RG_ENV, realistic('alternator_dead', [])).result).toBe('fail');
+  });
+
+  it('the replay is deterministic', () => {
+    const rec = realistic('breaker_popped', [{ t: 5000, id: 'cb.alt1', value: 'in' }]);
+    expect(JSON.stringify(grade(ALTN, DA50RG_ENV, rec))).toBe(
+      JSON.stringify(grade(ALTN, DA50RG_ENV, rec)),
+    );
+  });
+});

@@ -19,7 +19,8 @@ import {
 } from './predicates';
 import type { PredicateContext } from './predicates';
 import { simSetup, simulate } from './sim';
-import { resolveVariant } from './variants';
+import type { ReplayedChange } from './sim';
+import { canInject, resolveVariant } from './variants';
 
 export interface RecordedEvent {
   readonly t: number;
@@ -203,34 +204,40 @@ export function branchStatuses(scenario: Scenario, env: AircraftEnv): BranchVerd
 }
 
 /**
- * R10: the outcome the recording runs into. The simulation is the one of the live run, started from
- * the scenario's start quantities (the base values with a recorded onset) and replayed to the end
- * of the recording; a scenario without outcomes needs no simulation.
+ * R10 and the simulated changes (V-06): what the simulation of the recording gives. The simulation is the one of the live
+ * run, started from the scenario's start quantities (the base values with a recorded onset) and
+ * replayed to the end of the recording. It yields the outcome the recording runs into (R10) and the
+ * control changes the simulation made by itself, each with the number of recorded events applied
+ * before it. A scenario with neither outcomes nor such changes needs no simulation.
  */
-function findOutcome(
+function replaySim(
   scenario: Scenario,
   env: AircraftEnv,
   recording: Recording,
-): OutcomeVerdict | null {
-  if (scenario.outcomes.length === 0) return null;
+): { readonly outcome: OutcomeVerdict | null; readonly injected: readonly ReplayedChange[] } {
+  if (scenario.outcomes.length === 0 && !canInject(scenario))
+    return { outcome: null, injected: [] };
   // C-33: with an onset the run starts from the Realistic setup of the scenario (the base values
   // laid over by its onset quantities, C-61) and the parameters, with those of its onset block,
   // switch at `at`; without one it starts from the scenario's initial quantities with the
   // parameters from t 0.
   const onset = recording.onset ?? null;
-  const { state } = simulate(simSetup(env, scenario, onset === null ? {} : { onsetAt: onset.at }), {
-    events: recording.events,
-    start:
-      onset === null
-        ? initialQuantities(scenario, env.quantities)
-        : realisticQuantities(scenario, env.quantities),
-    untilMs: recording.completedAt,
-  });
-  if (state.outcome === null) return null;
+  const { state, injected } = simulate(
+    simSetup(env, scenario, onset === null ? {} : { onsetAt: onset.at }),
+    {
+      events: recording.events,
+      start:
+        onset === null
+          ? initialQuantities(scenario, env.quantities)
+          : realisticQuantities(scenario, env.quantities),
+      untilMs: recording.completedAt,
+    },
+  );
+  if (state.outcome === null) return { outcome: null, injected };
   const { id, t } = state.outcome;
   const declared = scenario.outcomes.find((item) => item.id === id);
   if (declared === undefined) throw new Error(`the simulation fired unknown outcome "${id}"`);
-  return { id, text: declared.text, t };
+  return { outcome: { id, text: declared.text, t }, injected };
 }
 
 /** R10: the events up to the first one after the outcome time; all of them without an outcome. */
@@ -250,7 +257,7 @@ export function grade(original: Scenario, env: AircraftEnv, recording: Recording
   // Phase 3.1: the rules below run on the scenario the recorded variant makes (V-03, V-04).
   const named = recording.variant ?? null;
   const scenario = resolveVariant(original, named?.id ?? null, recording.onset != null);
-  const outcome = findOutcome(scenario, env, recording);
+  const { outcome, injected } = replaySim(scenario, env, recording);
   const events = gradedEvents(recording.events, outcome);
   const ctx0 = startContext(scenario, env);
   const { branches, groups } = walkProcedure(scenario, ctx0, env);
@@ -289,19 +296,41 @@ export function grade(original: Scenario, env: AircraftEnv, recording: Recording
       }
     }
   };
-  events.forEach((event, index) => {
-    if (event.t >= onsetAt) cross();
-    if (!Object.hasOwn(state, event.id)) {
-      throw new Error(`recorded event ${String(index)} names unknown control "${event.id}"`);
-    }
-    state[event.id] = event.value;
+  // V-06: a change the simulation made by itself (a faulted control at the onset) is applied at the
+  // place it happened, before the recorded event with index `before`. It is not an action of the
+  // pilot: it creates no harmful entry, a step it makes true is entered at the last event before
+  // it, and like an event at or after the onset it crosses the onset (R12).
+  const evaluateAll = (enteredAt: number): void => {
     const ctx: PredicateContext = { ...ctx0, controls: state };
     for (const entry of tracked) {
       if (!evaluatePredicate(entry.step.done, ctx, env)) {
         entry.entered = null;
         preempted.delete(entry.step.id);
-      } else if (!preempted.has(entry.step.id)) entry.entered ??= index;
+      } else if (!preempted.has(entry.step.id)) entry.entered ??= enteredAt;
     }
+  };
+  let nextChange = 0;
+  const applyChanges = (upTo: number): void => {
+    for (;;) {
+      const change = injected[nextChange];
+      if (change === undefined || change.before > upTo) return;
+      nextChange += 1;
+      cross();
+      state[change.id] = change.value;
+      evaluateAll(change.before - 1);
+      const ctx: PredicateContext = { ...ctx0, controls: state };
+      for (const entry of watched) entry.active = evaluatePredicate(entry.item.trigger, ctx, env);
+    }
+  };
+  events.forEach((event, index) => {
+    applyChanges(index);
+    if (event.t >= onsetAt) cross();
+    if (!Object.hasOwn(state, event.id)) {
+      throw new Error(`recorded event ${String(index)} names unknown control "${event.id}"`);
+    }
+    state[event.id] = event.value;
+    evaluateAll(index);
+    const ctx: PredicateContext = { ...ctx0, controls: state };
     // A forbidden action counts when it is entered, even if it is reverted later (A5).
     for (const entry of watched) {
       const now = evaluatePredicate(entry.item.trigger, ctx, env);
@@ -317,6 +346,7 @@ export function grade(original: Scenario, env: AircraftEnv, recording: Recording
       entry.active = now;
     }
   });
+  applyChanges(events.length);
 
   cross(); // a log that ends before the onset (R12)
 

@@ -677,3 +677,59 @@ describe('frozen events (WR-07)', () => {
     expect(store.get('sw.engine_master')).toBe('on');
   });
 });
+
+describe('inject: a change made by the simulation (V-06)', () => {
+  const GUARD_SW = 'sw.deice_alternate';
+
+  it('appends an event of source sim, calls the dispatch listeners and changes the state', () => {
+    const store = plainStore();
+    const seen: unknown[] = [];
+    store.subscribe((e) => seen.push(e));
+    const event = store.inject('sw.engine_master', 'on', 5);
+    expect(event).toEqual({ seq: 0, t: 5, id: 'sw.engine_master', value: 'on', source: 'sim' });
+    expect(Object.isFrozen(event)).toBe(true);
+    expect(seen).toEqual([event]);
+    expect(store.get('sw.engine_master')).toBe('on');
+    expect(store.events()).toEqual([event]);
+  });
+
+  it('appends nothing for a control already in that state', () => {
+    const store = plainStore();
+    expect(store.inject('sw.engine_master', 'off', 1)).toBeNull();
+    expect(store.events()).toEqual([]);
+  });
+
+  it('throws RangeError for an unknown control or an illegal state', () => {
+    const store = plainStore();
+    expect(() => store.inject('sw.nothing', 'on', 1)).toThrow(RangeError);
+    expect(() => store.inject('sw.engine_master', 'sideways', 1)).toThrow(RangeError);
+    expect(() => store.inject('sw.engine_master', 'on', -1)).toThrow(RangeError);
+    expect(store.events()).toEqual([]);
+  });
+
+  it('is not blocked by a closed guard', () => {
+    const store = interlockStore();
+    expect(store.isBlocked(GUARD_SW)).toBe(true);
+    expect(store.inject(GUARD_SW, 'on', 1)?.source).toBe('sim');
+    expect(store.get(GUARD_SW)).toBe('on');
+  });
+
+  it('refuses a retract of its own event and numbers the next event after it', () => {
+    const store = plainStore();
+    store.inject('sw.engine_master', 'on', 1);
+    expect(store.retract(0)).toEqual({ ok: false, reason: 'system' });
+    expect(store.get('sw.engine_master')).toBe('on');
+    const next = store.dispatch('lv.flaps', 'down', 2);
+    expect(next.ok && next.event.seq).toBe(1);
+    // The pilot's newest event retracts; the change of the simulation stays in the log.
+    expect(store.retract(1).ok).toBe(true);
+    expect(store.events().map((e) => e.source)).toEqual(['sim']);
+  });
+
+  it('checks not-last before system', () => {
+    const store = plainStore();
+    store.inject('sw.engine_master', 'on', 1);
+    store.dispatch('lv.flaps', 'down', 2);
+    expect(store.retract(0)).toEqual({ ok: false, reason: 'not-last' });
+  });
+});
