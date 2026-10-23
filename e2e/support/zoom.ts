@@ -45,11 +45,14 @@ export async function backgroundPoint(page: Page, regionId: string): Promise<Poi
     };
     let found: { x: number; y: number } | null = null;
     let bestClearance = 1.5;
-    const steps = 48;
-    for (let i = 0; i < steps; i++) {
-      for (let j = 0; j < steps; j++) {
-        const x = box.left + (0.1 + (0.8 * (i + 0.5)) / steps) * box.width;
-        const y = box.top + (0.1 + (0.8 * (j + 0.5)) / steps) * box.height;
+    // At least 48 samples per axis and a sample every 0.5 px where the region is small (at most 300 per axis): on a portrait phone the
+    // session buttons are 4 px apart, so the gap between them is found only by a fine grid.
+    const stepsX = Math.min(300, Math.max(48, Math.ceil((0.8 * box.width) / 0.5)));
+    const stepsY = Math.min(300, Math.max(48, Math.ceil((0.8 * box.height) / 0.5)));
+    for (let i = 0; i < stepsX; i++) {
+      for (let j = 0; j < stepsY; j++) {
+        const x = box.left + (0.1 + (0.8 * (i + 0.5)) / stepsX) * box.width;
+        const y = box.top + (0.1 + (0.8 * (j + 0.5)) / stepsY) * box.height;
         if (x < 2 || y < 2 || x > screenW - 2 || y > screenH - 2) continue;
         const underButton =
           button !== undefined &&
