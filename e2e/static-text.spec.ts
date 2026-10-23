@@ -115,7 +115,7 @@ test('typing a code on the transponder changes no printed text but its readout (
   // The name and the key legends are in the gate; the readout is the recorded exception.
   for (const legend of ['TRANSPONDER', 'CLR', '0', '7']) expect(before, legend).toContain(legend);
   const readout = page.locator('[data-glass="readout"]');
-  await expect(readout).toHaveText('1200');
+  await expect(readout).toHaveText('7000');
   for (const key of ['7', '7', '0', '0']) {
     await activate(page.locator(`[data-detent="kp.squawk:${key}"]`), hasTouch);
   }

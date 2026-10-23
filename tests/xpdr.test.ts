@@ -124,7 +124,7 @@ describe('key press factory (C-15, C-16)', () => {
     expect(press('7').press?.(PRESS_INFO)).toBeNull();
     expect(press('0').press?.(PRESS_INFO)).toBeNull();
     expect(store.events()).toHaveLength(0);
-    expect(store.get(SQUAWK_ID)).toBe('1200');
+    expect(store.get(SQUAWK_ID)).toBe('7000');
     const seq = press('0').press?.(PRESS_INFO);
     expect(seq).toBe(0);
     expect(store.get(SQUAWK_ID)).toBe('7700');
@@ -164,9 +164,9 @@ describe('key press factory (C-15, C-16)', () => {
 });
 
 describe('registry checks of the code-entry kind (C-19)', () => {
-  it('loads the shipped kp.squawk with the default 1200', () => {
+  it('loads the shipped kp.squawk with the default 7000', () => {
     const def = squawkDef();
-    expect(def.default).toBe('1200');
+    expect(def.default).toBe('7000');
     expect(def.digits).toBe(4);
     expect(DA50RG.get(SQUAWK_ID)?.region).toBe('transponder');
   });
@@ -290,7 +290,7 @@ describe('grading a committed code (D-11)', () => {
     expect(
       credited([
         { t: 5000, id: SQUAWK_ID, value: '7700' },
-        { t: 6000, id: SQUAWK_ID, value: '1200' },
+        { t: 6000, id: SQUAWK_ID, value: '7000' },
       ]),
     ).toBe(false);
   });

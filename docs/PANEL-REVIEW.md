@@ -227,7 +227,7 @@ Trainer part, not an aircraft part (owner decision D-11, plan 03-03): a simplifi
 
 | Id | Placard | Assumed kind | Assumed keys and default | Centre (tol) | What is uncertain | Photos | File to change |
 |----|---------|--------------|--------------------------|--------------|-------------------|--------|----------------|
-| `kp.squawk` | TRANSPONDER | code-entry, hit 252 x 140 | keys 0 to 7 and CLR (every key 44 units square), four digits, default 1200 | 480, 1000 (8) | the whole position is an assumption inside the pilot legroom and not a fidelity item; the key layout (two rows of four digits, CLR tall at the right) is a planner choice | none | `controls/squawk.ts` |
+| `kp.squawk` | TRANSPONDER | code-entry, hit 252 x 140 | keys 0 to 7 and CLR (every key 44 units square), four digits, default 7000 | 480, 1000 (8) | the whole position is an assumption inside the pilot legroom and not a fidelity item; the key layout (two rows of four digits, CLR tall at the right) is a planner choice | none | `controls/squawk.ts` |
 
 ## Shell and placards (static art, no region)
 

@@ -29,10 +29,10 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('panel')).toBeVisible();
 });
 
-test('@hooks the transponder rests on 1200 and shows it', async ({ page }) => {
-  expect(await squawk(page)).toBe('1200');
-  await expect(readout(page)).toHaveText('1200');
-  await expect(page.locator(`[data-control-id="${SQUAWK}"]`)).toHaveAttribute('data-state', '1200');
+test('@hooks the transponder rests on 7000 and shows it', async ({ page }) => {
+  expect(await squawk(page)).toBe('7000');
+  await expect(readout(page)).toHaveText('7000');
+  await expect(page.locator(`[data-control-id="${SQUAWK}"]`)).toHaveAttribute('data-state', '7000');
 });
 
 test('@hooks four digit taps commit 7700 as one event, and no key tap zooms', async ({
@@ -45,7 +45,7 @@ test('@hooks four digit taps commit 7700 as one event, and no key tap zooms', as
   // The two 7 taps follow each other at once, without the pair wait: a key never pairs or zooms.
   await activate(key(page, '7'), hasTouch);
   await expect(readout(page)).toHaveText('7---');
-  expect(await squawk(page), 'a partial entry never reaches the store').toBe('1200');
+  expect(await squawk(page), 'a partial entry never reaches the store').toBe('7000');
   expect(await events(page)).toHaveLength(0);
 
   await activate(key(page, '7'), hasTouch);
@@ -92,7 +92,7 @@ test('@hooks typing the committed code again records no second event', async ({
   hasTouch,
 }) => {
   await zoomIntoRegion(page, hasTouch, 'transponder');
-  for (const name of ['1', '2', '0', '0']) await activate(key(page, name), hasTouch);
-  await expect(readout(page)).toHaveText('1200');
+  for (const name of ['7', '0', '0', '0']) await activate(key(page, name), hasTouch);
+  await expect(readout(page)).toHaveText('7000');
   expect(await events(page)).toHaveLength(0);
 });

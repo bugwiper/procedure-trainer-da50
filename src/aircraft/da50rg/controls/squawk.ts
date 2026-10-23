@@ -32,7 +32,7 @@ export const SQUAWK_CONTROLS: readonly ControlSpec[] = [
     hit: { w: 252, h: 140 },
     digits: 4,
     alphabet: '01234567',
-    default: '1200',
+    default: '7000',
     keys: [
       digitKey('0', 0, ROW_1),
       digitKey('1', 1, ROW_1),
