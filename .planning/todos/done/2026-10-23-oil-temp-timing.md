@@ -22,3 +22,7 @@ The Realistic run behaves as described, with these timing corrections:
 - A correct handling (POWER down, cowl flap open) must still bring the oil temperature back down and clear the message in reasonable time; the golden recovery recordings keep passing.
 - The do-nothing outcome times in the recordings change (42.6 s today); that is expected for Easy and Medium, update the pinned values and the golden fixtures with the reason, and record the new values in docs/GRADING.md (instructor review item 1 and 4).
 - Lint L15 (message within 12 s of the onset at both window ends) must follow the new 20 s: the message-within bound for ENG OIL TEMP moves (scenario-level or per scenario value), not the other two scenarios.
+
+## Done (2026-10-23)
+
+Implemented as a rate curve over the oil temperature (`src/aircraft/da50rg/oil-temp-curve.ts`), a finer scale for the oil temperature reading, the plain lag kept for a falling temperature, and the lint L15 bound per scenario (`onset.message_within_s`, 22 for ENG OIL TEMP). Measured: Realistic yellow 0.8 to 1.2 s and red with the message 19.6 to 20.1 s after the onset, the outcome 186.6 s after the start of red; Easy and Medium outcome at 173.2 s. The aircraft parameter `oil_temp_rate` is gone. The golden recordings carry no outcome time and did not change. Values and the measured timeline are in `docs/GRADING.md`, instructor review of phase 3, items 1, 4 and 5.
