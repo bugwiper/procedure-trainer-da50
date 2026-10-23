@@ -77,8 +77,6 @@ export function toneOf(quantities: QuantitySet, id: QuantityId, value: number): 
 export const BOX_RADIUS = 2;
 export const BOX_EXTRA_H = 4;
 export const BOX_PAD = 3;
-/** The tighter side padding used on the 130 wide map strip. */
-export const BOX_PAD_TIGHT = 2;
 
 /**
  * Advance of one character in em, letter spacing of 0.06 em included, measured once in Chromium

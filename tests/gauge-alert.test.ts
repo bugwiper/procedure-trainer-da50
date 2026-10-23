@@ -171,6 +171,20 @@ describe('BarGauge in every tone (C-68, T-03-31)', () => {
     expect(labelRight).toBeLessThan(Number(value.props['x']));
   });
 
+  it('the padding is 3 when the pair fits and shrinks so the boxes stay apart on a tight strip', () => {
+    const [wideLabel] = boxes(expand(BarGauge({ ...props, tone: 'red' })));
+    expect(Number(wideLabel?.props['x'])).toBe(props.x - 3);
+    // COOLANT TEMP is the widest label of the 130 wide map strip: the estimate fits with 5 or so
+    // units to spare, which the full padding would use up.
+    const tight = expand(BarGauge({ ...props, label: 'Coolant temp', value: 85, tone: 'yellow' }));
+    const [label, value] = boxes(tight);
+    if (label === undefined || value === undefined) throw new Error('missing boxes');
+    expect(Number(label.props['x'])).toBeGreaterThan(props.x - 3);
+    expect(Number(label.props['x']) + Number(label.props['width'])).toBeLessThan(
+      Number(value.props['x']),
+    );
+  });
+
   it('the label and the digits are the same strings in every tone (G-0)', () => {
     const strings = (tone?: GaugeTone) => texts(draw(tone)).map((t) => textOf(t));
     const plain = strings();

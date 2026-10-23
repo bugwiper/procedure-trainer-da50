@@ -1,3 +1,6 @@
+import { BOX_EXTRA_H, BOX_PAD, BOX_RADIUS, gaugeAlertStyle, textBoxWidth } from './gauge-alert';
+import type { GaugeTone } from './gauge-alert';
+
 /** A coloured band of a gauge scale, in the gauge's own units. */
 export interface Band {
   readonly from: number;
@@ -17,11 +20,18 @@ export interface ArcGaugeProps {
   readonly r: number;
   /** Digits after the point in the readout; absent keeps formatReading. */
   readonly decimals?: number;
+  /** The band colour of the live value; yellow and red box the texts. Absent is green (C-68). */
+  readonly tone?: GaugeTone;
 }
 
 /** Sweep of the scale, centred on straight up. */
 const SWEEP_DEG = 240;
 const TICK_COUNT = 4;
+const LABEL_FONT = 10;
+const READOUT_FONT = 14;
+/** Cap line of the text above its baseline, in em, and the gap a box leaves above it. */
+const CAP_EM = 0.7;
+const BOX_ABOVE_CAP = 1;
 
 /** Angle in degrees from straight up, clockwise, of a value on the scale. */
 function angleOf(v: number, min: number, max: number): number {
@@ -66,13 +76,45 @@ export function ArcGauge({
   cy,
   r,
   decimals,
+  tone = 'green',
 }: ArcGaugeProps) {
+  const style = gaugeAlertStyle(tone);
+  const labelText = label.toUpperCase();
+  const readout = readoutText(value, decimals);
+  const labelBaseline = cy - r - 9;
+  const readoutBaseline = cy + 22;
+  const labelW = textBoxWidth(labelText, LABEL_FONT) + 2 * BOX_PAD;
+  const readoutW = textBoxWidth(readout, READOUT_FONT, true) + 2 * BOX_PAD;
   const needleAngle = angleOf(value, min, max);
   const ticks = Array.from({ length: TICK_COUNT + 1 }, (_, i) =>
     angleOf(min + ((max - min) * i) / TICK_COUNT, min, max),
   );
   return (
-    <g data-gauge={label} pointer-events="none">
+    <g data-gauge={label} data-alert={style.boxes ? tone : undefined} pointer-events="none">
+      {style.boxes ? (
+        <rect
+          data-alert-box="label"
+          x={cx - labelW / 2}
+          y={labelBaseline - CAP_EM * LABEL_FONT - BOX_ABOVE_CAP}
+          width={labelW}
+          height={LABEL_FONT + BOX_EXTRA_H}
+          rx={BOX_RADIUS}
+          fill={style.boxFill}
+          pointer-events="none"
+        />
+      ) : null}
+      {style.boxes ? (
+        <rect
+          data-alert-box="value"
+          x={cx - readoutW / 2}
+          y={readoutBaseline - CAP_EM * READOUT_FONT - BOX_ABOVE_CAP}
+          width={readoutW}
+          height={READOUT_FONT + BOX_EXTRA_H}
+          rx={BOX_RADIUS}
+          fill={style.boxFill}
+          pointer-events="none"
+        />
+      ) : null}
       {bands.map((b) => (
         <path
           key={`${b.from}-${b.to}`}
@@ -104,7 +146,7 @@ export function ArcGauge({
         y1={cy}
         x2={cx}
         y2={cy - r + 4}
-        stroke="#ffffff"
+        stroke={style.pointerFill}
         stroke-width={2.5}
         stroke-linecap="round"
         transform={`rotate(${needleAngle.toFixed(2)} ${cx} ${cy})`}
@@ -113,24 +155,24 @@ export function ArcGauge({
       <circle cx={cx} cy={cy} r={4} fill="#3a424b" stroke="#aab3bd" pointer-events="none" />
       <text
         x={cx}
-        y={cy - r - 9}
+        y={labelBaseline}
         text-anchor="middle"
-        font-size={10}
-        fill="#aab3bd"
+        font-size={LABEL_FONT}
+        fill={style.labelFill}
         pointer-events="none"
       >
-        {label.toUpperCase()}
+        {labelText}
       </text>
       <text
         class="glass-digits"
         x={cx}
-        y={cy + 22}
+        y={readoutBaseline}
         text-anchor="middle"
-        font-size={14}
-        fill="#ffffff"
+        font-size={READOUT_FONT}
+        fill={style.valueFill}
         pointer-events="none"
       >
-        {readoutText(value, decimals)}
+        {readout}
       </text>
       <text
         x={cx}

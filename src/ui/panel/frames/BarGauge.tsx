@@ -1,13 +1,6 @@
 import { readoutText } from './ArcGauge';
 import type { Band } from './ArcGauge';
-import {
-  BOX_EXTRA_H,
-  BOX_PAD,
-  BOX_PAD_TIGHT,
-  BOX_RADIUS,
-  gaugeAlertStyle,
-  textBoxWidth,
-} from './gauge-alert';
+import { BOX_EXTRA_H, BOX_PAD, BOX_RADIUS, gaugeAlertStyle, textBoxWidth } from './gauge-alert';
 import type { GaugeTone } from './gauge-alert';
 
 export interface BarGaugeProps {
@@ -58,8 +51,9 @@ export function BarGauge({
   const valueText = `${readoutText(value, decimals)} ${unit.toUpperCase()}`;
   const labelW = textBoxWidth(labelText, FONT);
   const valueW = textBoxWidth(valueText, FONT, true);
-  // The tight padding only when the pair would not fit the gauge width with the normal one.
-  const pad = labelW + valueW + 4 * BOX_PAD > w ? BOX_PAD_TIGHT : BOX_PAD;
+  // The side padding shrinks (to 2 on the 130 wide map strip, to 0 at most) when the pair would
+  // not fit the gauge width with the full one, so the two boxes never touch while the texts fit.
+  const pad = Math.max(0, Math.min(BOX_PAD, (w - labelW - valueW - 1) / 2));
   const boxY = y + BASELINE - CAP_EM * FONT - BOX_ABOVE_CAP;
   const boxH = FONT + BOX_EXTRA_H;
   return (

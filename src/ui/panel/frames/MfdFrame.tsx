@@ -357,6 +357,7 @@ function EnginePage({ w, quantities }: { readonly w: number; readonly quantities
           max={g.max}
           bands={g.bands}
           decimals={g.decimals}
+          tone={toneOf(DA50RG_QUANTITIES, g.quantity, readingOf(g, quantities))}
           cx={4 + colW * (i + 0.5)}
           cy={112}
           r={52}

@@ -27,8 +27,11 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('panel')).toBeVisible();
 });
 
-/** The alert marks of one bar gauge: boxes, their texts and the pointer, as drawn. */
-async function expectAlert(gauge: Locator, tone: Tone): Promise<void> {
+/**
+ * The alert marks of one gauge, as drawn: boxes, their texts and the pointer (the marker of a bar,
+ * the needle of an arc; an arc has a third, plain text for its unit).
+ */
+async function expectAlert(gauge: Locator, tone: Tone, kind: 'bar' | 'arc' = 'bar'): Promise<void> {
   const look = LOOK[tone];
   await expect(gauge).toHaveAttribute('data-alert', tone);
   const boxes = gauge.locator('[data-alert-box]');
@@ -37,9 +40,13 @@ async function expectAlert(gauge: Locator, tone: Tone): Promise<void> {
   await expect(boxes.nth(1)).toHaveAttribute('data-alert-box', 'value');
   for (const i of [0, 1]) await expect(boxes.nth(i)).toHaveAttribute('fill', look.box);
   const texts = gauge.locator(':scope > text');
-  await expect(texts).toHaveCount(2);
+  await expect(texts).toHaveCount(kind === 'bar' ? 2 : 3);
   for (const i of [0, 1]) await expect(texts.nth(i)).toHaveAttribute('fill', look.text);
-  await expect(gauge.locator(':scope > path')).toHaveAttribute('fill', look.pointer);
+  if (kind === 'bar') {
+    await expect(gauge.locator(':scope > path')).toHaveAttribute('fill', look.pointer);
+  } else {
+    await expect(gauge.locator(':scope > line[transform]')).toHaveAttribute('stroke', look.pointer);
+  }
 }
 
 /**
@@ -76,9 +83,14 @@ async function expectBoxesHoldTheirText(gauge: Locator): Promise<void> {
     expect(text.capLine, 'cap line').toBeGreaterThanOrEqual(box.top);
     expect(text.baseline, 'baseline').toBeLessThanOrEqual(box.bottom);
   }
-  const [label, value] = geometry;
-  if (label === undefined || value === undefined) throw new Error('missing boxes');
-  expect(label.box.right, 'label box right edge').toBeLessThan(value.box.left);
+  const [a, b] = geometry;
+  if (a === undefined || b === undefined) throw new Error('missing boxes');
+  const apart =
+    a.box.right <= b.box.left ||
+    b.box.right <= a.box.left ||
+    a.box.bottom <= b.box.top ||
+    b.box.bottom <= a.box.top;
+  expect(apart, 'the two boxes do not overlap').toBe(true);
 }
 
 test('the oil temperature is red-boxed on the map strip at the start of an Easy run, a green gauge is plain', async ({
@@ -118,4 +130,35 @@ test('the oil temperature bar on the engine page is red, then yellow after the c
   await expect(oilTemp).toHaveAttribute('data-alert', 'yellow', { timeout: 20_000 });
   await expectAlert(oilTemp, 'yellow');
   await expectBoxesHoldTheirText(oilTemp);
+});
+
+test('with ENGINE MASTER off the oil pressure arc turns red while the RPM arc stays plain', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, ROW);
+  await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
+  await expect(page.getByTestId('mfd-engine-page')).toBeVisible();
+  const oilPres = gaugeOf(page, 'Oil pres');
+  const rpm = gaugeOf(page, 'RPM');
+  await expect(oilPres).not.toHaveAttribute('data-alert', /.*/);
+
+  await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
+  await expect(page.locator('[data-control-id="sw.engine_master"]')).toHaveAttribute(
+    'data-state',
+    'off',
+  );
+
+  await expect(oilPres).toHaveAttribute('data-alert', 'red', { timeout: 10_000 });
+  await expectAlert(oilPres, 'red', 'arc');
+  await expectBoxesHoldTheirText(oilPres);
+  // The engine spins down towards 0 rpm, which lies in the green band of the RPM scale: the arc
+  // keeps its plain look all the way.
+  await expect
+    .poll(async () => Number(await rpm.locator('text.glass-digits').textContent()), {
+      timeout: 15_000,
+    })
+    .toBeLessThan(300);
+  await expect(rpm).not.toHaveAttribute('data-alert', /.*/);
+  await expect(rpm.locator('[data-alert-box]')).toHaveCount(0);
 });
