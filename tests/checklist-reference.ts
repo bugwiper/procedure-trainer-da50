@@ -66,9 +66,36 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
       { kind: 'comment', text: 'Leave icing conditions.' },
     ],
   },
+  'eng-fire-in-flight': {
+    form: 'table',
+    heading: 'ENGINE FIRE IN FLIGHT',
+    rows: [
+      { kind: 'row', number: 1, item: 'ECS circulating air', action: 'FRESH AIR' },
+      { kind: 'row', number: 2, item: 'ECS shut-off', action: 'PULL' },
+      { kind: 'comment', text: 'Select appropriate emergency landing area' },
+      { kind: 'row', number: 3, item: 'Engine master', action: 'OFF' },
+      { kind: 'row', number: 4, item: 'Fuel valve', action: 'OFF' },
+      { kind: 'row', number: 5, item: 'Electric master', action: 'OFF' },
+      { kind: 'row', number: 6, item: 'Airspeed', action: 'AS REQUIRED / CONSIDER HIGHER' },
+      { kind: 'row', number: 7, item: 'Emergency front windows', action: 'OPEN as necessary' },
+      { kind: 'comment', text: 'Carry Out:' },
+      {
+        kind: 'comment',
+        text: 'EMERGENCY LANDING (ENGINE OFF)',
+        boxed: true,
+        reference: '(page 9)',
+      },
+      { kind: 'comment', text: 'After standstill and when engine stopped:' },
+      { kind: 'row', number: 8, item: 'Doors', action: 'OPEN' },
+      { kind: 'comment', text: 'Evacuate' },
+      // The one row that is not printed: the optional squawk step stays graded (C-76).
+      { kind: 'row', item: 'Transponder: squawk 7700', own: true },
+    ],
+  },
 };
 
 /** The scenario file of each reference entry, relative to the repository root. */
 export const PRINTED_FILES: Readonly<Record<string, string>> = {
   'elec-altn1-fail': 'scenarios/electrical/elec-altn1-fail.toon',
+  'eng-fire-in-flight': 'scenarios/engine/eng-fire-in-flight.toon',
 };

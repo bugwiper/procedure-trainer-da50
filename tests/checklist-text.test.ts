@@ -73,7 +73,22 @@ describe('the shipped checklists match the printed wording', () => {
     if (printed.form === 'table') {
       it(`${id}: every row and comment in reading order`, () => {
         const scenario = load(file ?? '');
-        expect(tableRows(scenario.procedure)).toEqual(printed.rows);
+        // `own` marks a row that is not printed; the parsed rows carry no such flag.
+        const expected = printed.rows.map((row) => {
+          if (row.kind !== 'row') return row;
+          const { own: _own, ...rest } = row;
+          return rest;
+        });
+        expect(tableRows(scenario.procedure)).toEqual(expected);
+      });
+
+      it(`${id}: only an unnumbered last row may be an own addition`, () => {
+        const own = printed.rows.filter((row) => row.kind === 'row' && row.own === true);
+        expect(own.length).toBeLessThanOrEqual(1);
+        for (const row of own) {
+          expect(row.kind === 'row' && row.number).toBeUndefined();
+          expect(printed.rows.at(-1)).toBe(row);
+        }
       });
     }
   }

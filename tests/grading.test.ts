@@ -734,7 +734,10 @@ describe('Engine Fire replays (plan 03-08, D-08, D-06, C-48)', () => {
     expect(checkScenario(FIRE, DA50RG_ENV).ok).toBe(true);
     expect(checkScenario(FIRE_ORDERED, DA50RG_ENV).ok).toBe(true);
     // The copy merges the three shut-down groups into one.
-    expect(fireOrdered.procedure).toHaveLength(fire.procedure.length - 2);
+    // (The shipped file also carries the printed comment rows, plan 03-13, so groups are counted.)
+    const groups = (scenario: typeof fire) =>
+      scenario.procedure.filter((node) => node.kind === 'group');
+    expect(groups(fireOrdered)).toHaveLength(groups(fire).length - 2);
   });
 
   it('grades every panel step of the checklist: five critical steps and the optional squawk', () => {
