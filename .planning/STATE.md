@@ -4,16 +4,16 @@ current_phase: 03
 current_phase_name: Reactive Scenarios and Initial Pack
 current_plan: 10
 status: executing
-stopped_at: Completed 03-11-PLAN.md
-last_updated: "2026-10-23T09:48:33.128Z"
+stopped_at: Completed 03-12-PLAN.md
+last_updated: "2026-10-23T10:05:25.904Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 03 execution started
-state_head: d71a39411442134ddca01adeea9d2c7f5775c9e0
+state_head: 04f1fa7ab914f62f43c69d106c494b7599b3e213
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 88
-  completed_plans: 85
+  completed_plans: 86
   percent: 17
 ---
 
@@ -135,6 +135,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 03 P08 | 12min | 2 tasks | 12 files |
 | Phase 03 P09 | 20 min | 3 tasks | 9 files |
 | Phase 03 P11 | 24 min | 3 tasks | 21 files |
+| Phase 03 P12 | 25 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -221,6 +222,7 @@ Recent decisions affecting current work:
 - [Phase 03]: Plan 03-09: the phase 3 instructor-review list is one place (docs/GRADING.md, ten items with the values chosen); the owner list in docs/PANEL-REVIEW.md points to it
 - [Phase 03]: Plan 03-09: the WebKit failure of the load-error retry case (desktop-webkit, phone-webkit) is recorded, not fixed; WebKit is not a gate
 - [Phase 03]: 03-11: the Realistic setup is scenario data in the onset block (quantities, parameters); the oil temperature rises faster through the aircraft parameter oil_temp_rate, one start function realisticQuantities serves session, grade and lint, lint L15 bounds the message at 12 s
+- [Phase 03]: Gauge alert tone comes from the quantity data's own band lookup (toneOf over QuantitySet.bandOf); bars and arcs share one rule, green draws the tree unchanged (03-12, C-67, C-70)
 
 ### Pending Todos
 
@@ -256,6 +258,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-23T09:43:29.510Z
-Stopped at: Completed 03-11-PLAN.md
+Last session: 2026-10-23T10:05:25.433Z
+Stopped at: Completed 03-12-PLAN.md
 Resume file: None
