@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Reactive Scenarios and Initial Pack
 current_plan: 10
-status: executing
-stopped_at: Completed 03-13-PLAN.md
-last_updated: "2026-10-23T10:17:28.482Z"
+status: verifying
+stopped_at: Completed 03-14-PLAN.md
+last_updated: "2026-10-23T10:34:20.608Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 03 execution started
-state_head: a5f561832fec6d66b7ebe6a75467e2a0d8964bcf
+state_head: 328d8a9a428f9c2b74c2dbc4817926b9cb5fba47
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 88
-  completed_plans: 87
+  completed_plans: 88
   percent: 17
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 Phase: 03 (Reactive Scenarios and Initial Pack) — EXECUTING
 Current Plan: 10
 Total Plans in Phase: 10
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
 Last activity: 2026-10-22 — Phase 03 execution started
 
@@ -137,6 +137,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 03 P11 | 24 min | 3 tasks | 21 files |
 | Phase 03 P12 | 25 min | 3 tasks | 7 files |
 | Phase 03 P13 | 50 min | 3 tasks | 16 files |
+| Phase 03 P14 | 35 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -226,6 +227,7 @@ Recent decisions affecting current work:
 - [Phase 03]: Gauge alert tone comes from the quantity data's own band lookup (toneOf over QuantitySet.bandOf); bars and arcs share one rule, green draws the tree unchanged (03-12, C-67, C-70)
 - [Phase 03]: 03-13: a checklist is the procedure itself (rows are line and step nodes, printed full-width rows are comment nodes); the printed wording is pinned by an independent reference table in tests/
 - [Phase 03]: 03-13: L16 numbering resumes after a higher number and keeps the expected one after a repeat; a marker in the table form is an L17 issue at its own key
+- [Phase 03]: 03-14: checklists render as printed tables and a marked outline in the Easy briefing and the debrief; the briefing source reads document and issue first, then section and check date
 
 ### Pending Todos
 
@@ -261,6 +263,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-23T10:17:28.018Z
-Stopped at: Completed 03-13-PLAN.md
+Last session: 2026-10-23T10:34:20.154Z
+Stopped at: Completed 03-14-PLAN.md
 Resume file: None
