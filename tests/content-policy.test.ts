@@ -29,9 +29,18 @@ describe('content policy document', () => {
     '## 6. Responsibility and legal status',
     '## 7. Panel artwork',
     '## 8. Corrections and error reports',
-    '### Verbatim checklist step lines: limit',
+    '### Verbatim checklist text',
   ])('has the heading line "%s"', (heading) => {
     expect(lines).toContain(heading);
+  });
+
+  it('states the owner decision of 2026-10-23: checklist text is reproduced exactly as printed', () => {
+    const text = lines.join('\n');
+    expect(text).toContain('2026-10-23');
+    expect(text).toContain('reproduced exactly as printed');
+    // The word limit of the earlier rule is gone; photographs of checklists still never go in.
+    expect(text).not.toMatch(/at most 12 words/);
+    expect(text).toMatch(/photographs of printed checklists/);
   });
 
   it('is linked from the README', () => {

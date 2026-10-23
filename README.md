@@ -69,7 +69,7 @@ Scenarios are hand-written TOON text files under `scenarios/<pack>/`, with one `
 
 ## Content policy
 
-Read the [Content policy](docs/CONTENT-POLICY.md) before adding any scenario, procedure text or artwork. It exists to keep AFM-derived material out of this public repository beyond a small, well-defined limit.
+Read the [Content policy](docs/CONTENT-POLICY.md) before adding any scenario, procedure text or artwork. It exists to keep AFM-derived material out of this public repository beyond a well-defined limit: checklist text is reproduced exactly as printed (owner decision 2026-10-23), while photographs, scans, the AFM files and the manual's prose stay out and all other text is in own words.
 
 The [Panel review list](docs/PANEL-REVIEW.md) lists every label, position, colour and default of the panel that is still an assumption, so the owner and contributors can check and correct them after a render. The [Panel label table](docs/PANEL-LABELS.md) lists the static placard text of every control and lamp with the open questions.
 
