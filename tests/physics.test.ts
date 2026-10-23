@@ -478,10 +478,21 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
       expect(q(settle({ 'sw.engine_master': 'off' }, 10 * MINUTE), 'fuel_qty_lh_gal')).toBe(start);
     });
 
-    it('the burn is about a tenth of a gallon a minute at cruise', () => {
-      const burned = baseOf('fuel_qty_lh_gal') - q(settle({}, 10 * MINUTE), 'fuel_qty_lh_gal');
-      expect(burned / 10).toBeGreaterThan(0.05);
-      expect(burned / 10).toBeLessThan(0.2);
+    it('the burn is in gallons per hour: 10.1 gph at 60 % load and 11.8 gph at 75 % (owner points)', () => {
+      const gph = (power: string): number => {
+        const burned =
+          baseOf('fuel_qty_lh_gal') -
+          q(settle({ 'lv.power': power }, 10 * MINUTE), 'fuel_qty_lh_gal');
+        return (burned / 10) * 60;
+      };
+      expect(gph('p60')).toBeCloseTo(10.1, 2);
+      expect(gph('p75')).toBeCloseTo(11.8, 2);
+      // The cruise load (70 %) lies on the same line, between the two readings.
+      const cruise =
+        ((baseOf('fuel_qty_lh_gal') - q(settle({}, 10 * MINUTE), 'fuel_qty_lh_gal')) / 10) * 60;
+      expect(cruise).toBeGreaterThan(10.1);
+      expect(cruise).toBeLessThan(11.8);
+      expect(cruise).toBeCloseTo(10.1 + ((11.8 - 10.1) * (70 - 60)) / (75 - 60), 2);
     });
 
     it('FUEL TRANS on moves fuel from the right tank to the left one', () => {

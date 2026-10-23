@@ -49,8 +49,22 @@ const COWL_OPEN_COOLANT_DROP = 10;
 /** The EMERG FUEL PUMP adds this pressure, with the engine running or not. */
 const EMERG_PUMP_BAR = 0.3;
 
-/** Fuel burned from the left tank at the cruise load, gallons per minute (not compressed). */
-const FUEL_BURN_CRUISE_PER_MIN = 0.1;
+/**
+ * Fuel flow while the engine runs, US gallons per hour, linear in the load (POWER travel in
+ * percent): burn = BASE + PER_PERCENT * load. Fitted to two readings of the owner (first live test,
+ * 2026-10-23): 10.1 gph at 60 % load and 11.8 gph at 75 % load. Tunable data: change a reading
+ * here and the line follows (the owner tunes these during the beta). The burn leaves the left tank
+ * at real time (not compressed); the model takes gallons per minute, so the flow is divided by
+ * MINUTES_PER_HOUR. The MFD has no fuel flow readout; if one is added it reads this value in gph.
+ */
+const FUEL_FLOW_LOW_POINT = { loadPercent: 60, gph: 10.1 };
+const FUEL_FLOW_HIGH_POINT = { loadPercent: 75, gph: 11.8 };
+const FUEL_FLOW_PER_PERCENT_GPH =
+  (FUEL_FLOW_HIGH_POINT.gph - FUEL_FLOW_LOW_POINT.gph) /
+  (FUEL_FLOW_HIGH_POINT.loadPercent - FUEL_FLOW_LOW_POINT.loadPercent);
+const FUEL_FLOW_BASE_GPH =
+  FUEL_FLOW_LOW_POINT.gph - FUEL_FLOW_PER_PERCENT_GPH * FUEL_FLOW_LOW_POINT.loadPercent;
+const MINUTES_PER_HOUR = 60;
 /** FUEL TRANS moves this much from the right tank to the left one, gallons per minute. */
 const FUEL_TRANSFER_PER_MIN = 1;
 /** The right tank stops giving at this level. */
@@ -259,9 +273,15 @@ function fuelTransferPerMinute(inputs: PhysicsInputs): number {
   return FUEL_TRANSFER_PER_MIN;
 }
 
-/** Fuel burn from the left tank, in proportion to the POWER load while running. */
+/** Fuel flow in US gallons per hour: linear in the POWER load while running, 0 with the engine stopped. */
+function fuelFlowGph(inputs: PhysicsInputs): number {
+  if (!running(inputs)) return 0;
+  return FUEL_FLOW_BASE_GPH + FUEL_FLOW_PER_PERCENT_GPH * loadPercent(inputs);
+}
+
+/** The same flow in gallons per minute, the unit of the rate model of the tank. */
 function fuelBurnPerMinute(inputs: PhysicsInputs): number {
-  return (FUEL_BURN_CRUISE_PER_MIN * loadPercent(inputs)) / CRUISE_PERCENT;
+  return fuelFlowGph(inputs) / MINUTES_PER_HOUR;
 }
 
 /** The Amps gauge shows alternator 1 (C-10); it delivers its base current times the output. */

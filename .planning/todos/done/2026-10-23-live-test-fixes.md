@@ -16,3 +16,7 @@ In the real aircraft the fuel selector turns only clockwise, so NORMAL to OFF is
 ## 3. Fuel flow in gph
 
 The owner reads fuel flow in US gallons per hour (gph), as displayed and written in the AFM: about 10.1 gph at 60 % load and about 11.8 gph at 75 %. The model has `FUEL_BURN_CRUISE_PER_MIN = 0.1` gal/min (6 gph at cruise) in `src/aircraft/da50rg/physics.ts`, so it is too low. Express the burn in gph as a tunable data constant and fit both owner points. The owner will tune more values during the beta (all physics constants are data and parameters, not code paths).
+
+## Resolved
+
+Closed 2026-10-23. 1. `sw.fuel_valve` carries the new rotary option `oneWay: 'cw'` (NORMAL 0, EMERGENCY 90, OFF 225, clockwise order confirmed by the AFM schematic of the fuel valve): a right-half tap steps clockwise and OFF is followed by NORMAL, the left half does nothing, a drag is clamped at its start. Still for the owner: the OFF angle (the schematic puts OFF at the bottom, 180) and whether EMERGENCY to NORMAL may pass OFF (the AFM text says it does not; Q-15 in `docs/PANEL-LABELS.md`). 2. `kp.squawk` rests on 7000. 3. Fuel flow is a line in gph through the two owner points (`FUEL_FLOW_LOW_POINT`, `FUEL_FLOW_HIGH_POINT` in `physics.ts`); the MFD has no fuel flow readout yet.

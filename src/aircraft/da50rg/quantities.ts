@@ -9,8 +9,12 @@ import { defineQuantities } from '../../engine/quantities';
 // have no gauge (hidden quantities); the Amps gauge shows alternator 1 (C-10).
 // Data only: facts and numbers, no AFM wording.
 
-/** Fuel burns fractions of a gallon per step; the default scale of 0.01 would round that away. */
-const FUEL_SCALE = 100_000;
+/**
+ * Fuel burns fractions of a gallon per step (about 0.0003 gal at 11 gph and 100 ms); the default
+ * scale of 0.01 would round that away, and 1e-5 would still skew the flow by a percent or more.
+ * 1e-7 keeps the quantisation error of a step below 0.02 % of the burn.
+ */
+const FUEL_SCALE = 10_000_000;
 
 export const DA50RG_QUANTITIES = defineQuantities([
   {
