@@ -20,3 +20,7 @@ Plan 01.1-35 gave `PanelStore` (`src/engine/store.ts`) a log-level retract: `ret
 2. A reaction that is armed by an event and later undone by a retract must not leave its timer running: either the reaction consumes the event only when it fires, or the reaction layer listens to `onRetract` and cancels what the removed event armed. Decide this with the reaction design; the store offers `onRetract(listener)` for it.
 3. Sequence numbers are positions in the current log: after a retract the next accepted event takes the same seq again, so a reaction must not keep a seq as a long-lived key without the watermark check.
 4. The debrief and the grading read the log only (`events()`); a retracted tap never happened and is not in it.
+
+## Closed
+
+Done in phase 3 by plan 03-04 (2026-10-22): `Run` in `src/engine/run.ts` calls `store.markConsumed` with the seq of the newest event that started a reaction, so `retract` refuses it with `consumed`; a retract of an event the simulation had already applied rebuilds the run by replay (`simulate` over the remaining log), so the live quantities, timers and flags equal a run that never had the event, and a retract of an event not yet applied causes nothing. Checks 1 to 4 above are pinned in `tests/run.test.ts` and `tests/sim.test.ts`.

@@ -521,9 +521,10 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
   };
   const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
 
-  it('has Phase 2: owner review as the last section and keeps Round 5 and Round 4', () => {
+  it('has Phase 3: owner review as the last section after Phase 2 and keeps Round 5 and Round 4', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Phase 2: owner review');
+    expect(headings[headings.length - 1]).toBe('## Phase 3: owner review');
+    expect(headings[headings.length - 2]).toBe('## Phase 2: owner review');
     expect(headings).toContain('## Round 5: morning review');
     expect(headings).toContain('## Round 4: morning review');
   });
@@ -626,7 +627,10 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
 // Plan 02-13: the phase 2 section is the owner's one list for the first gradable scenario.
 describe('phase 2 owner review (plan 02-13)', () => {
   const at = review.search(/^## Phase 2: owner review/m);
-  const section = at === -1 ? '' : review.slice(at);
+  const rest = at === -1 ? '' : review.slice(at);
+  const next = rest.slice(3).search(/^## /m);
+  // The section ends at the next heading (the phase 3 review follows it).
+  const section = next === -1 ? rest : rest.slice(0, next + 3);
 
   it('has the section', () => {
     expect(at).toBeGreaterThan(-1);
@@ -660,5 +664,38 @@ describe('phase 2 owner review (plan 02-13)', () => {
       .map(Number);
     expect(numbers.length).toBeGreaterThanOrEqual(10);
     expect(numbers).toEqual(numbers.map((_, i) => i + 1));
+  });
+});
+
+// Plan 03-09: the phase 3 section is the owner's one list for the reactive scenarios.
+describe('phase 3 owner review (plan 03-09)', () => {
+  const at = review.search(/^## Phase 3: owner review/m);
+  const section = at === -1 ? '' : review.slice(at);
+
+  it('has the section and points to the grading values', () => {
+    expect(at).toBeGreaterThan(-1);
+    expect(section).toContain('GRADING.md');
+    expect(section).toMatch(/nothing was pushed/i);
+  });
+
+  it('has no unfilled item and quotes no private material', () => {
+    expect(section).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b/i);
+    expect(section).not.toMatch(/\.input\//);
+  });
+
+  it('numbers its items from 1 without a gap', () => {
+    const numbers = section
+      .split('\n')
+      .map((line) => /^(\d+)\. /.exec(line)?.[1])
+      .filter((n): n is string => n !== undefined)
+      .map(Number);
+    expect(numbers.length).toBeGreaterThanOrEqual(10);
+    expect(numbers).toEqual(numbers.map((_, i) => i + 1));
+  });
+
+  it('each phase 3 item points to GRADING.md or names the control rows it covers', () => {
+    expect(section).toContain('sw.fuel_valve');
+    expect(section).toContain('lv.ecs_shutoff');
+    expect(section).toMatch(/225 degree/);
   });
 });

@@ -7,9 +7,9 @@ source: 01.1-21 and 01.1-22 (de-ice unit rebuild), owner findings G-1 in 01.1-OW
 
 The de-ice unit is rebuilt in phase 01.1 as a panel: every control moves and is recorded, the three lamps follow the mode toggle. The behaviour below was deliberately not built there. Reason for the deferral: no engine clock and no reaction layer exist before the scenario phases, and the engine rule in CLAUDE.md forbids real timers in the engine or the UI (tick events with an injected clock only). A timer built into the panel phase would be thrown away.
 
-## To build in the engine phase
+## To build in the engine phase (item 1 done, items 2 to 4 and the ELT note stay open)
 
-1. **120 s MAX run.** Pressing `btn.deice_max` while `sw.deice_mode` is HIGH sets the flag `deice.max_active` for 120 s of the engine's virtual clock (tick events, never `setTimeout`). While the flag is set the top amber lamp `lt.deice_max` is lit. After 120 s the flag clears and MAX is ignored until the button is pressed again. Leaving HIGH clears the flag at once. The lamp logic is already derived from the flag (`src/aircraft/da50rg/indicators.ts`); nothing sets it yet, so the top lamp never lights. A press alone must light nothing (T-01.1-42): the lamps read the mode toggle and the flag, never the button.
+1. **120 s MAX run. DONE in phase 3 (plan 03-04), run-only.** Pressing `btn.deice_max` while `sw.deice_mode` is HIGH starts the reaction `deice_max` in the fixed-step simulation: the flag `DEICE_MAX_ACTIVE` is set for 120 s of the run's virtual clock and the top amber lamp `lt.deice_max` is lit; leaving HIGH clears it at once; a press alone on NORM lights nothing (T-01.1-42). It works only during a scenario run: on the free panel nothing is simulated, so the lamp stays dark there (see `2026-10-22-free-panel-simulation.md`). The 120 s itself is from the owner's finding G-1, not a measurement (instructor-review item 10 in `docs/GRADING.md`).
 2. **ANNUN-TEST self-test.** The lower position of `sw.deice_ice_light` is the lamp test of the system. Which lamps it lights is not known; define it with the scenarios.
 3. **WIND SHIELD spray.** `btn.deice_windshield` is a momentary button with no effect; the spray (and any scenario that needs it) comes with the engine.
 4. **ICE LIGHT effect.** The upper position of `sw.deice_ice_light` has no effect yet.
