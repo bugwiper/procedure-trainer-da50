@@ -11,6 +11,7 @@ import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { interpolate } from '../src/engine/curve';
 import { PhysicsError, definePhysics } from '../src/engine/physics';
 import type {
+  TripSpec,
   PhysicsInputs,
   PhysicsSpec,
   QuantityModel,
@@ -910,5 +911,60 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
     it('EMERGENCY reads like NORMAL for every quantity', () => {
       expect(settle({ 'sw.fuel_valve': 'emergency' }, MINUTE)).toEqual(settle({}, MINUTE));
     });
+  });
+});
+
+describe('definePhysics trips (phase 3.1, V-09)', () => {
+  const GOOD_TRIP: TripSpec = {
+    id: 'alt1_breaker',
+    control: 'cb.alt1',
+    to: 'out',
+    delayMs: 2 * STEP_MS,
+    when: () => true,
+  };
+  const withTrip = (overrides: Partial<TripSpec>): PhysicsSpec =>
+    spec({ trips: [{ ...GOOD_TRIP, ...overrides }] });
+
+  it('accepts a valid trip, none at all, and freezes what it keeps', () => {
+    const physics = definePhysics(spec({ trips: [GOOD_TRIP] }), env);
+    expect(physics.trips).toHaveLength(1);
+    expect(Object.isFrozen(physics.trips)).toBe(true);
+    expect(Object.isFrozen(physics.trips[0])).toBe(true);
+    expect(definePhysics(spec(), env).trips).toEqual([]);
+  });
+
+  it('accepts the shortest and the longest legal delay', () => {
+    expect(() => definePhysics(withTrip({ delayMs: STEP_MS }), env)).not.toThrow();
+    expect(() => definePhysics(withTrip({ delayMs: MAX_RUN_MS }), env)).not.toThrow();
+  });
+
+  it('throws for an unknown control, an illegal state, a bad delay, a bad or duplicate id', () => {
+    expect(() => definePhysics(withTrip({ control: 'cb.nope' }), env)).toThrow(/cb\.nope/);
+    expect(() => definePhysics(withTrip({ to: 'half' }), env)).toThrow(/half/);
+    for (const delayMs of [0, STEP_MS - 1, MAX_RUN_MS + 1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => definePhysics(withTrip({ delayMs }), env), String(delayMs)).toThrow(
+        PhysicsError,
+      );
+    }
+    for (const id of ['Alt', '1alt', 'alt-1', '']) {
+      expect(() => definePhysics(withTrip({ id }), env), id).toThrow(PhysicsError);
+    }
+    expect(() => definePhysics(spec({ trips: [GOOD_TRIP, GOOD_TRIP] }), env)).toThrow(
+      /duplicate trip id "alt1_breaker"/,
+    );
+  });
+
+  it('the shipped trips pass their own validation and name registry controls', () => {
+    expect(DA50RG_PHYSICS.trips.map((t) => t.id)).toContain('alt1_breaker');
+    expect(DA50RG_PHYSICS.parameter('alt1_short')).toEqual({
+      id: 'alt1_short',
+      min: 0,
+      max: 1,
+      normal: 0,
+    });
+    for (const trip of DA50RG_PHYSICS.trips) {
+      expect(DA50RG.get(trip.control), trip.id).toBeDefined();
+      expect(trip.delayMs, trip.id).toBeGreaterThanOrEqual(STEP_MS);
+    }
   });
 });

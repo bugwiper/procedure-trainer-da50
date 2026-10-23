@@ -124,7 +124,7 @@ function stateOf(inputs: PhysicsInputs, id: string): string {
   return state;
 }
 
-function parameterOf(inputs: PhysicsInputs, id: string): number {
+function parameterOf(inputs: Pick<PhysicsInputs, 'parameters'>, id: string): number {
   const value = Object.hasOwn(inputs.parameters, id) ? inputs.parameters[id] : undefined;
   if (value === undefined) throw new Error(`physics reads parameter "${id}" which is not set`);
   return value;
@@ -335,6 +335,10 @@ function busVoltsTarget(inputs: PhysicsInputs): number {
 /** The de-ice MAX run lasts 120 s of run time (owner finding G-1). */
 const DEICE_MAX_RUN_MS = 120_000;
 
+// A shorted alternator 1 pops its breaker again soon after the pilot pushes it in (phase 3.1,
+// V-09). The 2 s are an instructor-review value, not an AFM figure.
+const ALT1_SHORT_REPOP_MS = 2_000;
+
 const lag = (
   quantity: string,
   tauMs: number,
@@ -366,6 +370,8 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'oil_cooling', min: 0.2, max: 1, normal: 1 },
       // 1 is the normal output of alternator 1; 0 is a failed alternator (the electrical scenario).
       { id: 'alt1_output', min: 0, max: 1, normal: 1 },
+      // 0 is alternator 1 without a short; above 0 it has one and its breaker pops again (trips).
+      { id: 'alt1_short', min: 0, max: 1, normal: 0 },
       // 0 is no fire; 1 is a fire that burns while fuel feeds it (the Engine Fire scenario).
       { id: 'engine_fire', min: 0, max: 1, normal: 0 },
     ],
@@ -393,6 +399,15 @@ export const DA50RG_PHYSICS = definePhysics(
       { quantity: 'battery_pct', mode: 'rate', perMinute: batteryPerMinute },
       lag('bus_volts', VOLTS_TAU_MS, busVoltsTarget),
       lag('fire_intensity', FIRE_TAU_MS, fireTarget),
+    ],
+    trips: [
+      {
+        id: 'alt1_breaker',
+        control: 'cb.alt1',
+        to: 'out',
+        delayMs: ALT1_SHORT_REPOP_MS,
+        when: (inputs) => parameterOf(inputs, 'alt1_short') > 0,
+      },
     ],
     reactions: [
       // D-04, SCN-06: pressing MAX with the de-ice mode on HIGH lights the top amber lamp for 120 s

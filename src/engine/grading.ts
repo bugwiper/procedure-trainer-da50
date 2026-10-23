@@ -215,7 +215,7 @@ function replaySim(
   env: AircraftEnv,
   recording: Recording,
 ): { readonly outcome: OutcomeVerdict | null; readonly injected: readonly ReplayedChange[] } {
-  if (scenario.outcomes.length === 0 && !canInject(scenario))
+  if (scenario.outcomes.length === 0 && !canInject(scenario, env))
     return { outcome: null, injected: [] };
   // C-33: with an onset the run starts from the Realistic setup of the scenario (the base values
   // laid over by its onset quantities, C-61) and the parameters, with those of its onset block,

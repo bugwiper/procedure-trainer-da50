@@ -1013,3 +1013,81 @@ describe('faulted controls at the onset (phase 3.1, V-06)', () => {
     expect(result.injected).toEqual([]);
   });
 });
+
+describe('a trip of the aircraft: a shorted alternator pops its breaker again (phase 3.1, V-09)', () => {
+  const BREAKER = 'cb.alt1';
+  const trip = DA50RG_PHYSICS.trips.find((item) => item.id === 'alt1_breaker');
+  if (trip === undefined) throw new Error('the aircraft has no trip alt1_breaker');
+  const N = trip.delayMs / STEP_MS;
+  const shortedScenario = (alt1Short: number) => ({
+    ...scenario,
+    outcomes: [],
+    initial: { ...scenario.initial, controls: { ...scenario.initial.controls, [BREAKER]: 'out' } },
+    parameters: { ...scenario.parameters, alt1_short: alt1Short },
+  });
+  const tripSetup = (alt1Short: number) => simSetup(DA50RG_ENV, shortedScenario(alt1Short));
+  const tripStart = initialQuantities(scenario, DA50RG_ENV.quantities);
+  const push = (value: string): SimEvent => ({ t: 0, id: BREAKER, value });
+
+  /** Steps with the given events due at the given step index (0-based); returns the states and changes. */
+  function walkTrip(alt1Short: number, count: number, at: ReadonlyMap<number, SimEvent[]>) {
+    const setupWith = tripSetup(alt1Short);
+    let state = initSim(setupWith, tripStart);
+    const states: SimState[] = [];
+    const changes: { step: number; t: number; id: string; value: string }[] = [];
+    for (let i = 0; i < count; i++) {
+      const result = stepSim(setupWith, state, at.get(i) ?? []);
+      state = result.state;
+      states.push(state);
+      for (const change of result.injected) changes.push({ step: i + 1, ...change });
+    }
+    return { states, changes };
+  }
+
+  it('pops exactly delayMs after the step that applied the push', () => {
+    const { states, changes } = walkTrip(1, N + 10, new Map([[3, [push('in')]]]));
+    expect(changes).toEqual([{ step: 3 + N, t: (3 + N) * STEP_MS, id: BREAKER, value: 'out' }]);
+    expect(states[3 + N - 2]?.controls[BREAKER]).toBe('in');
+    expect(states[3 + N - 1]?.controls[BREAKER]).toBe('out');
+    expect(states[3 + N - 1]?.trips).toEqual({});
+    expect(states[3]?.trips).toEqual({ alt1_breaker: STEP_MS });
+  });
+
+  it('does not pop without the short, and an out breaker arms nothing', () => {
+    const calm = walkTrip(0, 3 * N, new Map([[0, [push('in')]]]));
+    expect(calm.changes).toEqual([]);
+    expect(calm.states.at(-1)?.controls[BREAKER]).toBe('in');
+    expect(calm.states.every((state) => Object.keys(state.trips).length === 0)).toBe(true);
+    const idle = walkTrip(1, 3 * N, new Map());
+    expect(idle.changes).toEqual([]);
+  });
+
+  it('a pull inside the delay resets the timer; a second push pops after a full delay again', () => {
+    const { changes, states } = walkTrip(
+      1,
+      40 + N,
+      new Map([
+        [0, [push('in')]],
+        [5, [push('out')]],
+        [10, [push('in')]],
+      ]),
+    );
+    expect(states[5]?.trips).toEqual({});
+    expect(changes).toEqual([{ step: 10 + N, t: (10 + N) * STEP_MS, id: BREAKER, value: 'out' }]);
+  });
+
+  it('an unknown trip control throws naming the trip', () => {
+    const odd = definePhysics(
+      {
+        parameters: [],
+        models: [],
+        trips: [{ id: 'ghost', control: 'cb.alt1', to: 'out', delayMs: STEP_MS, when: () => true }],
+      },
+      { registry: DA50RG, quantities: DA50RG_QUANTITIES },
+    );
+    const bare = { ...tripSetup(1), env: { ...DA50RG_ENV, physics: odd } };
+    const state = initSim(bare, tripStart);
+    const missing = { ...state, controls: {} };
+    expect(() => stepSim(bare, missing, [])).toThrow(/ghost/);
+  });
+});

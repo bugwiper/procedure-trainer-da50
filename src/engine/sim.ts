@@ -11,7 +11,8 @@
 // order: (1) the due events apply one by one in log order and, after each, a reaction armed by it
 // whose condition holds starts unless it is already active; (1b) in the step that contains the
 // onset the simulation sets the faulted controls of the scenario (a variant's popped breaker) by
-// itself; the change arms no reaction and is reported in StepResult.injected (V-06); (2) an active reaction whose clear
+// itself; the change arms no reaction and is reported in StepResult.injected (V-06); (1c) a trip
+// of the aircraft whose condition has held for its delay sets its control the same way (V-09); (2) an active reaction whose clear
 // condition holds ends at once; (3) the models run, reading the flags of the active reactions (a
 // lag model may carry a rate that multiplies its step length, C-60); (4) every active timer counts
 // down by STEP_MS and its flag goes off at 0. A reaction is thus in
@@ -79,6 +80,8 @@ export interface SimState {
   readonly flags: Readonly<Record<string, boolean>>;
   /** Remaining run time in ms of every active reaction, keyed by reaction id (C-20). */
   readonly timers: Readonly<Record<string, number>>;
+  /** Elapsed ms of every trip whose condition holds now, keyed by trip id (V-09). */
+  readonly trips: Readonly<Record<string, number>>;
   /** Held time in ms of every outcome predicate that holds now, keyed by outcome id (C-25). */
   readonly holds: Readonly<Record<string, number>>;
   /** The outcome that ended the run (id and the run time it fired at), or null while none did. */
@@ -169,6 +172,7 @@ export function initSim(setup: SimSetup, start: Readonly<Record<string, number>>
     quantities: Object.freeze({ ...setup.env.quantities.baseValues(), ...start }),
     flags: Object.freeze({}),
     timers: Object.freeze({}),
+    trips: Object.freeze({}),
     holds: Object.freeze({}),
     outcome: null,
   });
@@ -253,6 +257,27 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
     }
   }
 
+  // (1c) The trips (V-09): the parameters in force are computed once for the step. A trip whose
+  // control is not yet in its state and whose condition holds counts STEP_MS; when the delay is
+  // reached the control is set, reported like a change of the onset, and the timer is removed. A
+  // trip that does not hold, or whose control is there already, has no timer.
+  const parameters = state.t >= setup.onsetAt ? setup.faultedParameters : setup.normalParameters;
+  const tripTimers: Record<string, number> = {};
+  for (const trip of setup.env.physics.trips) {
+    if (!Object.hasOwn(controls, trip.control)) {
+      throw new Error(`trip "${trip.id}" names unknown control "${trip.control}"`);
+    }
+    if (controls[trip.control] === trip.to || !trip.when({ controls, parameters })) continue;
+    const elapsed =
+      (Object.hasOwn(state.trips, trip.id) ? (state.trips[trip.id] ?? 0) : 0) + STEP_MS;
+    if (elapsed >= trip.delayMs) {
+      controls[trip.control] = trip.to;
+      injected.push({ t: state.t + STEP_MS, id: trip.control, value: trip.to });
+    } else {
+      tripTimers[trip.id] = elapsed;
+    }
+  }
+
   // (2) A reaction whose clear condition holds ends at once.
   const kept: Record<string, number> = {};
   for (const reaction of reactions) {
@@ -264,7 +289,7 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
   // (3) The models, reading the flags of the active reactions.
   const inputs: PhysicsInputs = {
     controls,
-    parameters: state.t >= setup.onsetAt ? setup.faultedParameters : setup.normalParameters,
+    parameters,
     quantities: state.quantities,
     flags: activeFlags(setup, timers),
   };
@@ -320,6 +345,7 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
       quantities: Object.freeze(quantities),
       flags: Object.freeze(activeFlags(setup, counted)),
       timers: Object.freeze(counted),
+      trips: Object.freeze(tripTimers),
       holds: Object.freeze(holds),
       outcome,
     }),

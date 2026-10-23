@@ -79,17 +79,36 @@ export interface ReactionSpec {
   readonly clearsWhen: (controls: Readonly<Record<string, string>>) => boolean;
 }
 
+/**
+ * A control the simulation sets by itself (phase 3.1, V-09): once `when` has held for `delayMs` of
+ * run time in a row, `control` is set to `to`, unless it is there already. The timer counts from
+ * the step that made `when` true and resets when it stops holding. The change is a fact of the
+ * aircraft (a shorted alternator pops its breaker again), not a pilot action: it arms no reaction.
+ */
+export interface TripSpec {
+  readonly id: string;
+  readonly control: string;
+  /** The state the simulation sets. */
+  readonly to: string;
+  readonly delayMs: number;
+  /** Read over the controls and the parameters in force at the step. */
+  readonly when: (inputs: Pick<PhysicsInputs, 'controls' | 'parameters'>) => boolean;
+}
+
 export interface PhysicsSpec {
   readonly parameters: readonly ParameterDef[];
   readonly models: readonly QuantityModel[];
   /** One-shot reactions; none when absent. */
   readonly reactions?: readonly ReactionSpec[];
+  /** Controls the simulation trips; none when absent. */
+  readonly trips?: readonly TripSpec[];
 }
 
 export interface Physics {
   readonly parameters: readonly ParameterDef[];
   readonly models: readonly QuantityModel[];
   readonly reactions: readonly ReactionSpec[];
+  readonly trips: readonly TripSpec[];
   /** Map-backed, so a prototype key such as "constructor" never resolves. */
   parameter(id: string): ParameterDef | undefined;
   /** The normal value of every parameter, keyed by id. */
@@ -179,6 +198,29 @@ export function definePhysics(spec: PhysicsSpec, env: PredicateEnv): Physics {
     }
   }
 
+  const tripIds = new Set<string>();
+  for (const trip of spec.trips ?? []) {
+    if (!QUANTITY_ID_PATTERN.test(trip.id)) {
+      throw new PhysicsError(`trip id "${trip.id}" does not match ${QUANTITY_ID_PATTERN.source}`);
+    }
+    if (tripIds.has(trip.id)) throw new PhysicsError(`duplicate trip id "${trip.id}"`);
+    tripIds.add(trip.id);
+    const control = env.registry.get(trip.control);
+    if (control === undefined) {
+      throw new PhysicsError(`trip "${trip.id}" sets unknown control "${trip.control}"`);
+    }
+    if (!legalStates(control).includes(trip.to)) {
+      throw new PhysicsError(
+        `trip "${trip.id}" sets state "${trip.to}" which is not legal for control "${trip.control}"`,
+      );
+    }
+    if (!(Number.isFinite(trip.delayMs) && trip.delayMs >= STEP_MS && trip.delayMs <= MAX_RUN_MS)) {
+      throw new PhysicsError(
+        `trip "${trip.id}" needs a finite delayMs from ${String(STEP_MS)} to ${String(MAX_RUN_MS)} (got ${String(trip.delayMs)})`,
+      );
+    }
+  }
+
   const parameters = Object.freeze(spec.parameters.map((d) => Object.freeze({ ...d })));
   const byId = new Map(parameters.map((d) => [d.id, d]));
   const normal: Record<string, number> = {};
@@ -191,6 +233,7 @@ export function definePhysics(spec: PhysicsSpec, env: PredicateEnv): Physics {
     reactions: Object.freeze(
       (spec.reactions ?? []).map((r) => Object.freeze({ ...r, on: Object.freeze({ ...r.on }) })),
     ),
+    trips: Object.freeze((spec.trips ?? []).map((t) => Object.freeze({ ...t }))),
     parameter: (id: string) => byId.get(id),
     normalParameters: () => normal,
   });

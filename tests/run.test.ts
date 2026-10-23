@@ -364,3 +364,74 @@ describe('a control the simulation sets at the onset (phase 3.1, V-06)', () => {
     expect(f.store.get(BREAKER)).toBe('out');
   });
 });
+
+describe('a shorted alternator pops its breaker again (phase 3.1, V-09)', () => {
+  const BREAKER = 'cb.alt1';
+  const shorted = {
+    ...scenario,
+    outcomes: [],
+    initial: { ...scenario.initial, controls: { ...scenario.initial.controls, [BREAKER]: 'out' } },
+    parameters: { ...scenario.parameters, alt1_short: 1 },
+  };
+  const shortSetup = simSetup(DA50RG_ENV, shorted);
+  const shortStart = initialQuantities(scenario, DA50RG_ENV.quantities);
+  const DELAY_STEPS = 20;
+
+  function shortFixture(): Fixture {
+    const store = new PanelStore(DA50RG);
+    store.reset(shorted.initial.controls);
+    return { store, run: new Run({ setup: shortSetup, store, start: shortStart }) };
+  }
+  const shortReplay = (f: Fixture) =>
+    simulate(shortSetup, {
+      events: f.store.events(),
+      start: shortStart,
+      untilMs: f.run.state.t,
+    }).state;
+
+  it('the pop is a sim event in the log, and live stepping equals the replay at every step', () => {
+    const f = shortFixture();
+    act(f, BREAKER, 'in');
+    for (let n = 1; n <= DELAY_STEPS + 10; n++) {
+      f.run.step();
+      expect(f.run.state, `step ${String(n)}`).toEqual(shortReplay(f));
+      expect(f.store.get(BREAKER), `store at step ${String(n)}`).toBe(
+        f.run.state.controls[BREAKER],
+      );
+    }
+    expect(f.store.events().map((e) => [e.id, e.value, e.source, e.t])).toEqual([
+      [BREAKER, 'in', 'user', 0],
+      [BREAKER, 'out', 'sim', DELAY_STEPS * STEP_MS],
+    ]);
+    expect(f.store.get(BREAKER)).toBe('out');
+    f.run.dispose();
+  });
+
+  it('a retract of the push before the delay leaves nothing armed', () => {
+    const a = shortFixture();
+    const pushed = act(a, BREAKER, 'in');
+    steps(a, 5);
+    expect(a.run.state.trips).not.toEqual({});
+    expect(a.store.retract(pushed.seq).ok).toBe(true);
+    expect(a.run.state.trips).toEqual({});
+    const b = shortFixture();
+    steps(b, 5);
+    expect(a.run.state).toEqual(b.run.state);
+    steps(a, 2 * DELAY_STEPS);
+    expect(a.store.events()).toEqual([]);
+    expect(a.store.get(BREAKER)).toBe('out');
+    a.run.dispose();
+    b.run.dispose();
+  });
+
+  it('a retract after the pop is refused: the push is not the newest event, the pop is the simulation', () => {
+    const f = shortFixture();
+    const pushed = act(f, BREAKER, 'in');
+    steps(f, DELAY_STEPS + 1);
+    const log = f.store.events();
+    expect(log).toHaveLength(2);
+    expect(f.store.retract(pushed.seq)).toMatchObject({ ok: false, reason: 'not-last' });
+    expect(f.store.retract(1)).toMatchObject({ ok: false, reason: 'system' });
+    f.run.dispose();
+  });
+});

@@ -29,8 +29,12 @@ export function variantFromSeed(seed: number, variants: Scenario['variants']): s
   return last.id;
 }
 
-/** True when a run of this (resolved) scenario has the simulation set a control at the onset. */
-export function canInject(scenario: Scenario): boolean {
+/**
+ * True when a run of this (resolved) scenario on this aircraft can have the simulation set a
+ * control: at the onset, or by a trip of the aircraft's physics (V-09).
+ */
+export function canInject(scenario: Scenario, env: AircraftEnv): boolean {
+  if (env.physics.trips.length > 0) return true;
   return scenario.onset !== undefined && Object.keys(scenario.onset.controls).length > 0;
 }
 
