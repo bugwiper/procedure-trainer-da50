@@ -66,7 +66,12 @@ const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {
       ]),
     ),
   ),
-  'parameter id': unique(scenarios.flatMap((s) => Object.keys(s.parameters))),
+  'parameter id': unique(
+    scenarios.flatMap((s) => [
+      ...Object.keys(s.parameters),
+      ...Object.keys(s.onset?.parameters ?? {}),
+    ]),
+  ),
   'CAS id': CAS_IDS,
   'CAS message': CAS_IDS.flatMap((id) => {
     const text = DA50RG_CAS.get(id)?.text;
@@ -107,6 +112,12 @@ describe('the blueprint principle', () => {
     }
     expect(THRESHOLDS.length).toBeGreaterThan(0);
     expect(APPLICATION.length).toBeGreaterThan(20);
+  });
+
+  it('the parameter ids include the keys of every onset block of the shipped scenarios (plan 03-11)', () => {
+    const onsetKeys = unique(scenarios.flatMap((s) => Object.keys(s.onset?.parameters ?? {})));
+    expect(onsetKeys.length).toBeGreaterThan(0);
+    for (const key of onsetKeys) expect(SCENARIO_LITERALS['parameter id']).toContain(key);
   });
 
   it.each(Object.entries(SCENARIO_LITERALS))(

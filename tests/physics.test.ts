@@ -16,7 +16,7 @@ import type {
   ReactionSpec,
 } from '../src/engine/physics';
 import { baselineOf, initialQuantities, travelPercent } from '../src/engine/predicates';
-import { MAX_RUN_MS, STEP_MS, simSetup, simulate } from '../src/engine/sim';
+import { MAX_RUN_MS, STEP_MS, initSim, simSetup, simulate, stepSim } from '../src/engine/sim';
 import type { SimEvent } from '../src/engine/sim';
 import { checkScenario } from '../src/scenario/lint';
 
@@ -263,6 +263,21 @@ describe('DA50 oil temperature model (Table P1)', () => {
     expect(DEGRADED).toBeLessThan(def?.normal ?? Number.NaN);
   });
 
+  it('the rate parameter is declared 1 to 10 with the normal value 1 and the lag reads it', () => {
+    const def = DA50RG_PHYSICS.parameter('oil_temp_rate');
+    expect(def).toEqual({ id: 'oil_temp_rate', min: 1, max: 10, normal: 1 });
+    expect(model.rate).toBeTypeOf('function');
+    const at = (value: number): number =>
+      model.rate?.({
+        controls: base,
+        parameters: { oil_temp_rate: value },
+        quantities: DA50RG_QUANTITIES.baseValues(),
+        flags: {},
+      }) ?? Number.NaN;
+    expect(at(1)).toBe(1);
+    expect(at(3)).toBe(3);
+  });
+
   const setup = simSetup(DA50RG_ENV, scenario);
   const start = initialQuantities(scenario, DA50RG_ENV.quantities);
   const after = (events: SimEvent[], ms: number): number =>
@@ -285,6 +300,75 @@ describe('DA50 oil temperature model (Table P1)', () => {
     expect(after(off, 60_000)).toBeLessThan(after([], 60_000));
     expect(after(off, 60_000)).toBeLessThan(START_TEMP);
   });
+});
+
+describe('the rate of a lag model (plan 03-11, C-60)', () => {
+  /** A one-quantity aircraft whose only model is the lag of the oil temperature toward 140. */
+  const lagWith = (rate?: (inputs: PhysicsInputs) => number) => {
+    const physics = definePhysics(
+      {
+        parameters: [{ id: 'speed', min: 1, max: 10, normal: 1 }],
+        models: [
+          {
+            quantity: OIL_TEMP,
+            mode: 'lag',
+            tauMs: 60_000,
+            target: () => 140,
+            ...(rate === undefined ? {} : { rate }),
+          },
+        ],
+      },
+      env,
+    );
+    return simSetup({ ...DA50RG_ENV, physics }, scenario);
+  };
+  const begin = (setup: ReturnType<typeof lagWith>) => initSim(setup, { [OIL_TEMP]: 90 });
+  const oilAfter = (setup: ReturnType<typeof lagWith>, steps: number): number => {
+    let state = begin(setup);
+    for (let i = 0; i < steps; i++) state = stepSim(setup, state, []).state;
+    return state.quantities[OIL_TEMP] ?? Number.NaN;
+  };
+
+  it('a rate of 1 follows the same trajectory, bit for bit, as a model without a rate', () => {
+    const plain = lagWith();
+    const one = lagWith(() => 1);
+    let a = begin(plain);
+    let b = begin(one);
+    for (let i = 0; i < 600; i++) {
+      a = stepSim(plain, a, []).state;
+      b = stepSim(one, b, []).state;
+      expect(b.quantities, `step ${String(i + 1)}`).toEqual(a.quantities);
+    }
+  });
+
+  it('a rate of 2 after N steps equals a rate of 1 after 2N steps within the rounding', () => {
+    // Every step rounds to 0.01 (WR-01) and the slow run rounds twice as often, so the two differ
+    // by the accumulated rounding: a fraction of a degree on a rise of 50, never a visible amount.
+    const tolerance = 0.25;
+    const fast = lagWith(() => 2);
+    const slow = lagWith(() => 1);
+    for (const n of [50, 150, 300]) {
+      expect(Math.abs(oilAfter(fast, n) - oilAfter(slow, 2 * n))).toBeLessThanOrEqual(tolerance);
+    }
+  });
+
+  it('the rate is read from the physics inputs: a parameter changes the speed of the rise', () => {
+    const byParameter = lagWith((inputs) => inputs.parameters['speed'] ?? Number.NaN);
+    expect(oilAfter(byParameter, 100)).toBe(
+      oilAfter(
+        lagWith(() => 1),
+        100,
+      ),
+    );
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    'a rate of %s throws an Error naming the quantity',
+    (bad) => {
+      const setup = lagWith(() => bad);
+      expect(() => stepSim(setup, begin(setup), [])).toThrow(new RegExp(OIL_TEMP));
+    },
+  );
 });
 
 describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () => {

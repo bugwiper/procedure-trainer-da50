@@ -1078,6 +1078,21 @@ describe('reaction time from the onset (D-05, C-33, C-34)', () => {
     expect(ignored.timing).toEqual({ onsetAt, firstActionMs: null });
   });
 
+  it('a Realistic do-nothing recording has the outcome time of simulate from the Realistic start', () => {
+    const [lo, hi] = blueprint.onset?.window_s ?? [Number.NaN, Number.NaN];
+    for (const second of [lo, hi]) {
+      const onsetAt = STEP_MS * Math.round((second * 1000) / STEP_MS);
+      const graded = grade(blueprint, DA50RG_ENV, realistic(onsetAt, [], 600000));
+      const simulated = simulate(simSetup(DA50RG_ENV, blueprint, { onsetAt }), {
+        events: [],
+        start: realisticQuantities(blueprint, DA50RG_ENV.quantities),
+        untilMs: 600000,
+      }).state.outcome;
+      expect(simulated).not.toBeNull();
+      expect(graded.outcome?.t, `onset ${String(onsetAt)}`).toBe(simulated?.t);
+    }
+  });
+
   it('actions after the outcome are not graded and do not set the reaction time', () => {
     const outcome = grade(blueprint, DA50RG_ENV, realistic(20000, [], 600000)).outcome;
     if (outcome === null) throw new Error('the ignored run did not escalate');

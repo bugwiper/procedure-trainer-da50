@@ -4,8 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_PHYSICS } from '../src/aircraft/da50rg/physics';
+import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { definePhysics } from '../src/engine/physics';
-import { initialQuantities } from '../src/engine/predicates';
+import { PredicateError, initialQuantities, realisticQuantities } from '../src/engine/predicates';
 import { Run } from '../src/engine/run';
 import {
   MAX_RUN_MS,
@@ -683,5 +684,171 @@ describe('seeded onset (D-05, C-32)', () => {
       state = stepSim(realistic, state, []).state;
     }
     expect(shownAfter).toBe(true);
+  });
+});
+
+describe('the Realistic setup (plan 03-11, C-58 to C-61, C-65)', () => {
+  const onset = scenario.onset;
+  if (onset === undefined) throw new Error('the blueprint declares no onset');
+  const [lo, hi] = onset.window_s;
+  const atOf = (second: number): number => STEP_MS * Math.round((second * 1000) / STEP_MS);
+  const band = (id: string) => DA50RG_QUANTITIES.get(OIL_TEMP)?.bands.find((b) => b.id === id);
+  const greenTop = band('green')?.to ?? Number.NaN;
+  const message = scenario.annunciations[0] ?? '';
+  const realisticStart = realisticQuantities(scenario, DA50RG_ENV.quantities);
+
+  /** The ids of the CAS messages active in a state of a run of this setup. */
+  const activeIds = (setupOf: ReturnType<typeof simSetup>, state: SimState): string[] =>
+    DA50RG_ENV.cas
+      .active(
+        { controls: state.controls, baseline: setupOf.baseline, quantities: state.quantities },
+        DA50RG_ENV,
+      )
+      .map((m) => m.id);
+
+  it('a do-nothing Easy run ends in the named outcome at 42600 ms, the value of the phase 3 verification', () => {
+    const { state } = simulate(simSetup(DA50RG_ENV, scenario), {
+      events: [],
+      start,
+      untilMs: MAX_RUN_MS,
+    });
+    expect(state.outcome?.t).toBe(42_600);
+  });
+
+  describe('simSetup folds the onset parameters in only when an onset time is given (C-59)', () => {
+    it('without onsetAt the faulted record is the normal record overlaid with the scenario parameters', () => {
+      const plain = simSetup(DA50RG_ENV, scenario);
+      expect(plain.faultedParameters).toEqual({
+        ...DA50RG_ENV.physics.normalParameters(),
+        ...scenario.parameters,
+      });
+    });
+
+    it('with onsetAt it is overlaid with the onset parameters as well, whatever the time', () => {
+      for (const onsetAt of [0, atOf(lo), atOf(hi)]) {
+        const timed = simSetup(DA50RG_ENV, scenario, { onsetAt });
+        expect(timed.faultedParameters, String(onsetAt)).toEqual({
+          ...DA50RG_ENV.physics.normalParameters(),
+          ...scenario.parameters,
+          ...onset.parameters,
+        });
+        expect(timed.normalParameters).toEqual(DA50RG_ENV.physics.normalParameters());
+      }
+      expect(Object.keys(onset.parameters).length).toBeGreaterThan(0);
+    });
+
+    it('a scenario without an onset block is untouched by an onset time', () => {
+      const bare = { ...scenario, onset: undefined };
+      expect(simSetup(DA50RG_ENV, bare, { onsetAt: 1000 }).faultedParameters).toEqual(
+        simSetup(DA50RG_ENV, bare).faultedParameters,
+      );
+    });
+  });
+
+  describe('realisticQuantities (C-61)', () => {
+    it('is the base values laid over by the onset quantities, not by the initial ones', () => {
+      expect(realisticStart).toEqual({
+        ...DA50RG_ENV.quantities.baseValues(),
+        ...onset.quantities,
+      });
+      expect(realisticStart[OIL_TEMP]).not.toBe(start[OIL_TEMP]);
+    });
+
+    it('gives exactly the base values for a scenario without onset quantities or without an onset', () => {
+      const empty = { ...scenario, onset: { ...onset, quantities: {} } };
+      expect(realisticQuantities(empty, DA50RG_ENV.quantities)).toEqual(
+        DA50RG_ENV.quantities.baseValues(),
+      );
+      const bare = { ...scenario, onset: undefined };
+      expect(realisticQuantities(bare, DA50RG_ENV.quantities)).toEqual(
+        DA50RG_ENV.quantities.baseValues(),
+      );
+    });
+
+    it('throws PredicateError for an unknown quantity id', () => {
+      const bad = { ...scenario, onset: { ...onset, quantities: { no_such_quantity: 1 } } };
+      expect(() => realisticQuantities(bad, DA50RG_ENV.quantities)).toThrow(PredicateError);
+    });
+  });
+
+  describe.each([
+    ['the lower', lo],
+    ['the upper', hi],
+  ])('the timeline at %s end of the window', (_name, second) => {
+    const onsetAt = atOf(second);
+    const realistic = simSetup(DA50RG_ENV, scenario, { onsetAt });
+
+    it('is clean before the onset; yellow within 3 s and the message within 10 s of it', () => {
+      let state = initSim(realistic, realisticStart);
+      let yellowAt: number | null = null;
+      let messageAt: number | null = null;
+      while (state.t < onsetAt + 12_000 && state.outcome === null) {
+        if (state.t <= onsetAt) {
+          expect(activeIds(realistic, state), `t ${String(state.t)}`).toEqual([]);
+          expect(quantity(state.quantities, OIL_TEMP), `t ${String(state.t)}`).toBeLessThanOrEqual(
+            greenTop,
+          );
+        }
+        state = stepSim(realistic, state, []).state;
+        if (yellowAt === null && quantity(state.quantities, OIL_TEMP) > greenTop) {
+          yellowAt = state.t - onsetAt;
+        }
+        if (messageAt === null && activeIds(realistic, state).includes(message)) {
+          messageAt = state.t - onsetAt;
+        }
+      }
+      expect(yellowAt).not.toBeNull();
+      expect(yellowAt ?? Number.NaN).toBeLessThanOrEqual(3000);
+      expect(messageAt).not.toBeNull();
+      expect(messageAt ?? Number.NaN).toBeLessThanOrEqual(10_000);
+    });
+
+    it('POWER p60 with the cowl open clears the message within 10 s and no outcome follows for 120 s', () => {
+      let state = initSim(realistic, realisticStart);
+      while (!activeIds(realistic, state).includes(message)) {
+        state = stepSim(realistic, state, []).state;
+      }
+      const shownAt = state.t;
+      const handled: SimEvent[] = [
+        { t: shownAt, id: 'lv.power', value: 'p60' },
+        { t: shownAt, id: 'lv.cowl_flap', value: 'open' },
+      ];
+      state = stepSim(realistic, state, handled).state;
+      let goneAt: number | null = null;
+      while (state.t < shownAt + 120_000) {
+        expect(state.outcome, `t ${String(state.t)}`).toBeNull();
+        if (goneAt === null && !activeIds(realistic, state).includes(message)) {
+          goneAt = state.t - shownAt;
+        }
+        state = stepSim(realistic, state, []).state;
+      }
+      expect(goneAt).not.toBeNull();
+      expect(goneAt ?? Number.NaN).toBeLessThanOrEqual(10_000);
+    });
+  });
+
+  it('a live Run over a store equals simulate at every step for 40 s of a Realistic start', () => {
+    const onsetAt = atOf(lo);
+    const realistic = simSetup(DA50RG_ENV, scenario, { onsetAt });
+    const store = new PanelStore(DA50RG);
+    store.reset(scenario.initial.controls);
+    const run = new Run({ setup: realistic, store, start: realisticStart });
+    const plan = new Map<number, [string, string]>([
+      [120, ['lv.power', 'p60']],
+      [135, ['lv.cowl_flap', 'open']],
+    ]);
+    for (let n = 1; n <= 400; n++) {
+      const action = plan.get(n - 1);
+      if (action !== undefined) {
+        expect(store.dispatch(action[0], action[1], run.clock.now()).ok).toBe(true);
+      }
+      run.step();
+      const replay = simulate(realistic, {
+        events: store.events(),
+        start: realisticStart,
+        untilMs: n * STEP_MS,
+      });
+      expect(run.state, `step ${String(n)}`).toEqual(replay.state);
+    }
   });
 });

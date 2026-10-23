@@ -172,6 +172,59 @@ describe('parseScenario', () => {
   });
 });
 
+describe('the Realistic setup in the onset block (plan 03-11, C-58)', () => {
+  const WITH_ONSET = `${MINIMAL}onset:
+  window_s[2]: 2,6
+  quantities:
+    oil_temp_c: 114
+  parameters:
+    oil_temp_rate: 3
+`;
+
+  it('accepts onset quantities and parameters and keeps their values', () => {
+    const result = parseScenario(WITH_ONSET);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.onset).toEqual({
+      window_s: [2, 6],
+      quantities: { oil_temp_c: 114 },
+      parameters: { oil_temp_rate: 3 },
+    });
+  });
+
+  it('defaults both to empty when only the window is given', () => {
+    const result = parseScenario(`${MINIMAL}onset:\n  window_s[2]: 5,20\n`);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.onset).toEqual({ window_s: [5, 20], quantities: {}, parameters: {} });
+  });
+
+  it('rejects a non-numeric quantity or parameter at the line of the key', () => {
+    for (const [from, to, key] of [
+      ['oil_temp_c: 114', 'oil_temp_c: hot', 'oil_temp_c: hot'],
+      ['oil_temp_rate: 3', 'oil_temp_rate: fast', 'oil_temp_rate: fast'],
+    ] as const) {
+      const text = swap(WITH_ONSET, from, to);
+      const issues = issuesOf(text);
+      expect(issues, key).toHaveLength(1);
+      expect(issues[0]?.path).toMatch(/^onset\.(quantities|parameters)\./);
+      expect(issues[0]?.line).toBe(lineOf(text, key));
+    }
+  });
+
+  it('rejects an unknown key inside onset at the key itself', () => {
+    const text = swap(WITH_ONSET, '  parameters:', '  paramters:');
+    const issues = issuesOf(text);
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        path: 'onset.paramters',
+        line: lineOf(text, 'paramters:'),
+        col: colOf(text, 'paramters:', 'paramters'),
+      }),
+    );
+  });
+});
+
 describe('parseManifest', () => {
   const manifest = [
     'format: 1',
