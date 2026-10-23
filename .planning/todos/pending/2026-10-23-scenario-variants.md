@@ -30,3 +30,10 @@ One failure message can have several causes with different correct actions, and 
 ## Placement
 
 This fits next to the physics fidelity phase (the buses and the ALT 1 / ALT 2 model make the causes real) and should come before more scenarios are added, so new scenarios are written in the variant form from the start. Both go together in one phase after the base work, or the variant mechanism comes first as its own small phase.
+
+## Also in this phase: run robustness from the phase 3 code review
+
+Owner decision 2026-10-23: both findings go into phase 3.1 (the phase touches run and replay anyway). Source: `.planning/phases/03-reactive-scenarios-and-initial-pack/03-REVIEW.md`.
+
+- **WR-03 (`src/ui/clock-driver.ts`):** `frame()` schedules the next animation frame only after `run.step()`. A throw from a step listener (the grading in `completeRun`, a sim error, `markConsumed`) ends the frame loop until the page is reloaded and freezes the display. Fix: schedule the next frame first or catch the error, surface it (not silent), and keep the loop alive or stop the run cleanly; add a unit test with a throwing listener.
+- **WR-05 (`src/engine/sim.ts`, `src/engine/run.ts`):** `simulate()` is capped at 30 minutes (`MAX_RUN_MS`) but a live run is not. After minute 30 the replay can differ from what the pilot saw, and a retract leaves `sim.t` and the clock offset for good. Fix: end the live run cleanly at the cap or apply the same cap to both, and add a test that live and replay agree at and after the cap, with and without a retract.
