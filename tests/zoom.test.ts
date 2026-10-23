@@ -902,10 +902,11 @@ describe('HTML chrome type scale (UI-SPEC Typography)', () => {
 // and the local button rectangles (UI-SPEC "Session Control Area", Table Z1) are typed in by hand.
 describe('session area zoom (plan 02-10)', () => {
   const REGION: Rect = { x: 1300, y: 780, w: 820, h: 480 };
-  /** New, choose, close and the four choose rows, as global rectangles. */
+  /** New, choose, reset, close and the four choose rows, as global rectangles. */
   const SESSION_TARGETS: readonly Rect[] = [
     { x: 1335, y: 800, w: 750, h: 120 },
     { x: 1335, y: 940, w: 750, h: 120 },
+    { x: 1335, y: 1080, w: 750, h: 120 },
     { x: 1335, y: 800, w: 750, h: 80 },
     { x: 1335, y: 890, w: 750, h: 80 },
     { x: 1335, y: 980, w: 750, h: 80 },

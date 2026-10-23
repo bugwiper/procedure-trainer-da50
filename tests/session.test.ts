@@ -549,6 +549,24 @@ describe('leave-run confirm (U-03, T-02-24)', () => {
     expect(r.session.result.value).toBeNull();
   });
 
+  it('RESET during a run asks first, then leaveRun resets the panel and leaves nothing open', async () => {
+    const r = await started();
+    r.session.clock.value?.advance(1234);
+    r.bridge.actuate('lv.power', 'p50');
+    r.bridge.actuate('lv.cowl_flap', 'open');
+
+    r.session.resetPanel();
+    expect(r.session.confirm.value).toBe('reset');
+    expect(r.session.screen.value).toBe('running');
+    expect(r.bridge.store.events()).toHaveLength(2);
+    r.session.keepGoing();
+    expect(r.session.screen.value).toBe('running');
+
+    r.session.resetPanel();
+    await r.session.leaveRun();
+    expectOriginalPanel(r);
+  });
+
   it('leaveRun does nothing without a pending confirm or outside a run', async () => {
     const r = await started();
     r.bridge.actuate('lv.power', 'p50');
@@ -1436,5 +1454,69 @@ describe('the 30-minute cap (WR-05, V-14)', () => {
     expect(r.session.result.value).toEqual(grade(scenario, DA50RG_ENV, recording));
     run.step();
     expect(run.clock.now()).toBe(MAX_RUN_MS);
+  });
+});
+
+function expectOriginalPanel(r: Rig): void {
+  expect(r.session.screen.value).toBe('free');
+  expect(r.session.confirm.value).toBeNull();
+  expect(r.session.scenario.value).toBeNull();
+  expect(r.session.briefing.value).toBeNull();
+  expect(r.session.result.value).toBeNull();
+  expect(r.session.recording.value).toBeNull();
+  expect(r.session.clock.value).toBeNull();
+  expect(r.session.run.value).toBeNull();
+  expect(r.bridge.stateOf('lv.power').value).toBe('p70');
+  expect(r.bridge.stateOf('lv.cowl_flap').value).toBe('closed');
+  expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
+  expect(r.bridge.flags.value).toEqual({});
+  expect(r.bridge.store.events()).toEqual([]);
+}
+
+describe('resetPanel (RESET button)', () => {
+  it('on the free panel it resets at once, without a confirm', () => {
+    const r = rig();
+    r.bridge.actuate('lv.power', 'p50');
+    r.bridge.actuate('lv.cowl_flap', 'open');
+    r.session.resetPanel();
+    expectOriginalPanel(r);
+  });
+
+  it('from the briefing it closes the briefing and resets', async () => {
+    const r = rig();
+    r.bridge.actuate('lv.power', 'p50');
+    await r.session.newSituation();
+    expect(r.session.screen.value).toBe('briefing');
+    r.session.resetPanel();
+    expectOriginalPanel(r);
+  });
+
+  it('from the choose list it closes the list', async () => {
+    const r = rig();
+    await r.session.openChooser();
+    expect(r.session.screen.value).toBe('choosing');
+    r.session.resetPanel();
+    expectOriginalPanel(r);
+    expect(r.session.choices.value).toEqual([]);
+  });
+
+  it('from the debrief it closes the debrief, clears the grade and resets', async () => {
+    const r = await started();
+    r.bridge.actuate('lv.power', 'p50');
+    r.session.complete();
+    expect(r.session.screen.value).toBe('debrief');
+    expect(r.session.result.value).not.toBeNull();
+    r.session.resetPanel();
+    expectOriginalPanel(r);
+  });
+
+  it('is ignored while a load runs', async () => {
+    const r = rig();
+    r.bridge.actuate('lv.power', 'p50');
+    const pending = r.session.newSituation();
+    expect(r.session.busy.value).toBe(true);
+    r.session.resetPanel();
+    expect(r.bridge.stateOf('lv.power').value).toBe('p50');
+    await pending;
   });
 });

@@ -11,7 +11,7 @@ import {
   zoomIntoRegion,
 } from './support/zoom';
 import type { Point } from './support/zoom';
-import { shippedScenarios } from './support/session';
+import { startScenario, shippedScenarios } from './support/session';
 
 // SES-01 (phase 02, plan 10): the session area in the co-pilot legroom is as safe to use as every
 // other region. Zoomed into it, the Full panel button covers no session button (U-07); a double
@@ -22,8 +22,15 @@ import { shippedScenarios } from './support/session';
 // the e2e project has no DOM lib.
 interface PanelHook {
   events(): { id: string; value: string }[];
+  state(): Record<string, string>;
+  quantities(): Record<string, number>;
 }
-type HookHost = { __panel?: PanelHook };
+interface SessionHook {
+  screen(): string;
+  scenarioId(): string | null;
+  now(): number | null;
+}
+type HookHost = { __panel?: PanelHook; __panelSession?: SessionHook };
 
 const AREA = 'scenario_area';
 const NEW_SITUATION = '[data-session-hit="session.new"]';
@@ -130,4 +137,65 @@ test('@hooks a double tap on CHOOSE SITUATION lists once and picks no row', asyn
   );
   await expect(dialogs(page)).toHaveCount(0);
   expect(await events(page)).toEqual([]);
+});
+
+// RESET returns the panel to its original state: registry defaults, base quantities, no run, no
+// log. On the free panel it acts at once; during a run it goes through the leave-run confirm.
+const RESET = '[data-session-hit="session.reset"]';
+const ENGINE_ROW = 'engine.eng-oil-temp-green';
+
+function panelState(page: Page) {
+  return page.evaluate(() => {
+    const host = globalThis as HookHost;
+    return {
+      state: host.__panel?.state() ?? {},
+      quantities: host.__panel?.quantities() ?? {},
+      events: host.__panel?.events() ?? [],
+      screen: host.__panelSession?.screen() ?? 'no hook',
+      scenarioId: host.__panelSession?.scenarioId() ?? null,
+      now: host.__panelSession?.now() ?? null,
+    };
+  });
+}
+
+test('@hooks RESET on the free panel puts the changed controls back at once', async ({
+  page,
+  hasTouch,
+}) => {
+  const original = await panelState(page);
+  await activate(page.locator('[data-detent="lv.cowl_flap:open"]'), hasTouch);
+  await expect(page.locator('[data-control-id="lv.cowl_flap"]')).toHaveAttribute(
+    'data-state',
+    'open',
+  );
+  await activate(page.locator(RESET), hasTouch);
+  await expect(page.getByTestId('leave-run-modal')).toHaveCount(0);
+  await expect(page.locator('[data-control-id="lv.cowl_flap"]')).toHaveAttribute(
+    'data-state',
+    original.state['lv.cowl_flap'] ?? '',
+  );
+  expect(await panelState(page)).toEqual(original);
+});
+
+test('@hooks RESET during a run asks first, then the panel equals its defaults and no run is left', async ({
+  page,
+  hasTouch,
+}) => {
+  const original = await panelState(page);
+  await startScenario(page, hasTouch, ENGINE_ROW);
+  await activate(page.locator('[data-detent="lv.power:p50"]'), hasTouch);
+  await expect(page.locator('[data-control-id="lv.power"]')).toHaveAttribute('data-state', 'p50');
+
+  await activate(page.locator(RESET), hasTouch);
+  await expect(page.getByTestId('leave-run-modal')).toBeVisible();
+  // Keep going leaves the run alone.
+  await activate(page.getByTestId('leave-keep'), hasTouch);
+  await expect(page.getByTestId('leave-run-modal')).toHaveCount(0);
+  expect((await panelState(page)).screen).toBe('running');
+
+  await activate(page.locator(RESET), hasTouch);
+  await activate(page.getByTestId('leave-leave'), hasTouch);
+  await expect(page.getByTestId('leave-run-modal')).toHaveCount(0);
+  await expect(page.getByTestId('procedure-complete')).toHaveCount(0);
+  expect(await panelState(page)).toEqual(original);
 });
