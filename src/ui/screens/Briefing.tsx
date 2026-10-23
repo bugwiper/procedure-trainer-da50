@@ -1,15 +1,18 @@
 import { DISCLAIMERS } from '../../scenario/disclaimers';
-import { buildOutline } from '../outline';
+import { buildOutline, checklistHead } from '../outline';
 import type { Briefed, Level } from '../session';
-import { ChecklistOutline } from './ChecklistOutline';
+import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
 import { Modal } from './Modal';
 
 /**
  * The briefing (SES-01, SCN-07, PLT-04, D-04, D-14, D-24; UI-SPEC "Briefing"; phase 02.1): scenario
  * title, situation, the disclaimer line, the checklist, the exam
- * note and, last, the source and revision, over the unchanged panel. On Easy the checklist lists the
+ * note and, last, the source (document and issue, then the section and the check date), over the
+ * unchanged panel. On Easy the checklist lists the
  * panel steps of the branches that apply as plain lines, without tag or verdict; a branch that does
- * not apply keeps its label and no children. On Medium no checklist is shown. The panel takes the
+ * not apply keeps its label and no children. The checklist is laid out as printed (plan 03-14): a
+ * heading band with the printed title and message tag, then numbered table rows or the marked
+ * outline, as the scenario declares. On Medium no checklist is shown. The panel takes the
  * scenario's initial state only at Start run. It sits on the shared modal shell: Escape is Back to
  * panel, a backdrop tap does nothing. All scenario text is rendered as text children.
  */
@@ -27,6 +30,7 @@ export function Briefing({
   const { scenario } = briefed;
   const { source } = scenario;
   const outline = buildOutline(scenario, briefed.branches, 'briefing');
+  const head = checklistHead(scenario);
 
   return (
     <Modal
@@ -69,15 +73,16 @@ export function Briefing({
       {level !== 'easy' || outline.length === 0 ? null : (
         <section class="briefing-outline" data-testid="briefing-outline">
           <h3 class="briefing-label">Checklist</h3>
-          <ChecklistOutline items={outline} />
+          <ChecklistHeading heading={head.heading} message={head.message} />
+          <ChecklistOutline items={outline} form={head.form} />
         </section>
       )}
       <p class="briefing-meta briefing-exam" data-testid="briefing-exam">
         Exam mode: no hints. When you are done, press Procedure complete.
       </p>
       <div class="briefing-source" data-testid="briefing-source">
-        <p class="briefing-meta">{`Source: ${source.section}, issue ${source.issue}`}</p>
-        <p class="briefing-meta">{`${source.document}, checked ${source.verified}`}</p>
+        <p class="briefing-meta">{`Source: ${source.document}, ${source.issue}`}</p>
+        <p class="briefing-meta">{`${source.section}, checked ${source.verified}`}</p>
       </div>
     </Modal>
   );

@@ -305,8 +305,8 @@ test('@hooks the Easy briefing shows the checklist with the panel steps and the 
   const source = page.getByTestId('briefing-source');
   // The source lines are the file's own words and its checked date (never typed here).
   const { section, issue, document, verified } = blueprint().source;
-  await expect(source).toContainText(`Source: ${section}, issue ${issue}`);
-  await expect(source).toContainText(`${document}, checked ${verified}`);
+  await expect(source).toContainText(`Source: ${document}, ${issue}`);
+  await expect(source).toContainText(`${section}, checked ${verified}`);
   await expect(page.getByTestId('briefing-disclaimer')).toHaveText(
     'Training aid only. Not a replacement for the AFM or for instruction.',
   );

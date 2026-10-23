@@ -439,6 +439,166 @@ body,
   }
 }
 
+/* The printed checklist (plan 03-14, owner decision 2026-10-23). The heading band carries the printed
+   title and message tag. Outline form: a 24 px marker slot in front of an item; an item without a marker
+   keeps its text in line with marked siblings. */
+.checklist-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 12px;
+  row-gap: 2px;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  background: #2a3038;
+  min-width: 0;
+}
+
+.checklist-title {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+
+.checklist-message {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  color: #aab3bd;
+  overflow-wrap: anywhere;
+}
+
+.outline-marker {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 16px;
+  align-self: center;
+  color: #e6e9ed;
+}
+
+.outline-marker + .outline-text,
+.outline-marker + .outline-label {
+  flex: 1 1 120px;
+}
+
+.outline-row.outline-nomarker {
+  padding-left: 36px;
+}
+
+/* Table form: the number and the item at the left, the desired action at the right with a dotted
+   leader between; a row that is not numbered keeps its text in line with the numbered ones. */
+.outline-row.outline-trow {
+  column-gap: 8px;
+}
+
+.outline-bare > .outline-trow {
+  padding-left: calc(2.25em + 8px);
+}
+
+.outline-number {
+  order: 1;
+  flex: 0 0 2.25em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.outline-row.outline-trow .outline-text {
+  order: 2;
+  flex: 0 1 auto;
+}
+
+.outline-leader {
+  order: 3;
+  flex: 1 1 16px;
+  min-width: 12px;
+  height: 0;
+  border-bottom: 2px dotted #5b6670;
+  position: relative;
+  top: -0.25em;
+}
+
+.outline-action {
+  order: 4;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  text-align: right;
+  overflow-wrap: anywhere;
+  letter-spacing: 0.02em;
+}
+
+.outline-row.outline-trow .outline-tag {
+  order: 5;
+  min-width: 0;
+  margin-left: 12px;
+}
+
+.outline-row.outline-trow .outline-verdict {
+  order: 6;
+  margin-left: 0;
+}
+
+.outline-row.outline-trow .outline-meta {
+  order: 7;
+  margin-left: 12px;
+}
+
+/* A comment row spans the whole width; a boxed one is framed and keeps its reference at the right. */
+.outline-comment {
+  justify-content: space-between;
+}
+
+.outline-comment .outline-text {
+  flex: 1 1 auto;
+}
+
+.outline-comment .outline-action {
+  flex: 0 0 auto;
+}
+
+.outline-boxed {
+  margin: 4px 0;
+  padding: 4px 8px;
+  border: 1px solid #6b7580;
+}
+
+/* On narrow screens the action of a table row goes to its own line, right-aligned, and the dotted
+   leader is dropped; nothing scrolls sideways. */
+@media (max-width: 480px) {
+  .outline-leader {
+    display: none;
+  }
+
+  .outline-row.outline-trow .outline-text {
+    flex: 1 1 120px;
+  }
+
+  .outline-row.outline-trow .outline-tag {
+    order: 3;
+  }
+
+  .outline-row.outline-trow .outline-verdict {
+    order: 4;
+  }
+
+  .outline-row.outline-trow .outline-meta {
+    order: 5;
+  }
+
+  .outline-row.outline-trow .outline-action {
+    order: 6;
+    flex: 0 0 100%;
+  }
+
+  .outline-comment .outline-action {
+    flex: 0 1 auto;
+  }
+}
+
 /* About overlay over the whole stage (D-16); long policy text scrolls by finger. */
 .about {
   position: fixed;

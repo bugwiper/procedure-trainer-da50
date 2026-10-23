@@ -1,8 +1,8 @@
 import type { GradeResult } from '../../engine/grading';
 import type { Scenario } from '../../scenario/schema';
 import { harmfulLine, reasonLines, timingLine } from '../debrief-text';
-import { buildOutline } from '../outline';
-import { ChecklistOutline } from './ChecklistOutline';
+import { buildOutline, checklistHead } from '../outline';
+import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
 import { LEVEL_NAMES } from '../session';
 import type { Level } from '../session';
 import { Modal } from './Modal';
@@ -11,7 +11,7 @@ import { Modal } from './Modal';
  * The debrief (SES-04, D-16, D-25): PASS or FAIL, one reason line per cause and the checklist
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
- * apply muted, an order line under every ordered group and the harmful actions in log order
+ * apply muted (the table form and the printed heading follow the scenario, plan 03-14), an order line under every ordered group and the harmful actions in log order
  * (no time). It names the level of the run ("Level: Easy") and, on a meta line before it, the scenario (D-05); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
@@ -27,6 +27,7 @@ export function Debrief({
   readonly onClose: () => void;
 }) {
   const outline = buildOutline(scenario, result.branches, 'debrief', result);
+  const head = checklistHead(scenario);
   const passed = result.result === 'pass';
   const reasons = reasonLines(result);
 
@@ -70,7 +71,8 @@ export function Debrief({
         </p>
       ) : null}
       <h3 class="debrief-heading">Steps</h3>
-      <ChecklistOutline items={outline} />
+      <ChecklistHeading heading={head.heading} message={head.message} />
+      <ChecklistOutline items={outline} form={head.form} />
       <h3 class="debrief-heading" data-testid="debrief-harmful-heading">
         {`Harmful actions (${String(result.harmful.length)})`}
       </h3>

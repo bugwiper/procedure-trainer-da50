@@ -7,8 +7,10 @@ import { branchStatuses, grade } from '../src/engine/grading';
 import type { GradeResult, StepVerdict } from '../src/engine/grading';
 import { MAX_BRANCH_LEVELS, checkScenario } from '../src/scenario/lint';
 import type { Scenario } from '../src/scenario/schema';
-import { buildOutline, verdictOf } from '../src/ui/outline';
+import { buildOutline, checklistHead, verdictOf } from '../src/ui/outline';
 import type { OutlineBranch, OutlineItem, OutlineOrder, OutlineStep } from '../src/ui/outline';
+import { PRINTED } from './checklist-reference';
+import type { PrintedTable } from './checklist-reference';
 import { ChecklistOutline } from '../src/ui/screens/ChecklistOutline';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { El, Tree } from './vnode-walk';
@@ -544,5 +546,87 @@ describe('no flat step list', () => {
     const source = readFileSync(join(root, 'src/ui/screens/Debrief.tsx'), 'utf8');
     expect(source).toContain('ChecklistOutline');
     expect(source).toContain('buildOutline');
+  });
+});
+
+// The printed table (plan 03-14, owner decision 2026-10-23): the view model and the renderer of the
+// shipped ALTN 1 FAIL file against the independent printed reference of tests/checklist-reference.ts.
+
+const ALTN1 = load(readFileSync(join(root, 'scenarios/electrical/elec-altn1-fail.toon'), 'utf8'));
+const ALTN1_PRINTED = PRINTED['elec-altn1-fail'] as PrintedTable;
+
+/** The class names of an element of the expanded tree. */
+function classesOf(el: El): string[] {
+  const value = el.props['class'];
+  return typeof value === 'string' ? value.split(' ') : [];
+}
+
+describe('the printed table of ALTN 1 FAIL', () => {
+  const items = briefingOf(ALTN1);
+
+  it('names the form, the printed heading and the message tag from the data', () => {
+    expect(checklistHead(ALTN1)).toEqual({
+      form: 'table',
+      heading: ALTN1_PRINTED.heading,
+      ...(ALTN1_PRINTED.message === undefined ? {} : { message: ALTN1_PRINTED.message }),
+    });
+    // A scenario without a checklist block is an unadorned outline with no heading keys.
+    expect(checklistHead(pocket)).toEqual({ form: 'outline' });
+  });
+
+  it('lists the rows in the printed order with their numbers, texts and actions', () => {
+    const shown = items.map((item) => {
+      if (item.kind === 'comment') return { kind: 'comment', text: item.text };
+      if (item.kind !== 'line' && item.kind !== 'step') throw new Error(`unexpected ${item.kind}`);
+      return { kind: 'row', number: item.number, item: item.text, action: item.action };
+    });
+    const printed = ALTN1_PRINTED.rows.map((row) =>
+      row.kind === 'comment'
+        ? { kind: 'comment', text: row.text }
+        : { kind: 'row', number: row.number, item: row.item, action: row.action },
+    );
+    expect(shown).toEqual(printed);
+  });
+
+  it('carries no marker and no boxed comment, and keeps the graded steps as steps', () => {
+    for (const item of items) {
+      expect('marker' in item).toBe(false);
+      if (item.kind === 'comment') expect('boxed' in item).toBe(false);
+    }
+    expect(items.filter((i): i is OutlineStep => i.kind === 'step').map((i) => i.id)).toEqual([
+      'alt1_off',
+      'ess_bus_on',
+    ]);
+  });
+
+  it('renders number, text, leader and action per row and comment rows without a number', () => {
+    const tree = expand(ChecklistOutline({ items, form: 'table' }));
+    const rows = findElements(
+      tree,
+      (el) =>
+        el.tag === 'li' && (el.props['data-kind'] === 'line' || el.props['data-kind'] === 'step'),
+    );
+    expect(rows).toHaveLength(4);
+    const cell = (row: El, name: string) => findElements(row, (el) => classesOf(el).includes(name));
+    for (const [i, row] of rows.entries()) {
+      const printed = ALTN1_PRINTED.rows.filter((r) => r.kind === 'row')[i];
+      expect(textOf(cell(row, 'outline-number')[0] ?? row)).toBe(String(printed?.number));
+      expect(cell(row, 'outline-text')).toHaveLength(1);
+      const leader = cell(row, 'outline-leader');
+      expect(leader).toHaveLength(1);
+      expect(leader[0]?.props['aria-hidden']).toBe('true');
+      expect(textOf(cell(row, 'outline-action')[0] ?? row)).toBe(printed?.action);
+    }
+    const comments = findElements(tree, (el) => el.props['data-kind'] === 'comment');
+    expect(comments.map((c) => textOf(c))).toEqual(
+      ALTN1_PRINTED.rows.flatMap((r) => (r.kind === 'comment' ? [r.text] : [])),
+    );
+    for (const comment of comments) {
+      expect(findElements(comment, (el) => classesOf(el).includes('outline-number'))).toHaveLength(
+        0,
+      );
+      expect(comment.props['data-boxed']).toBeUndefined();
+    }
+    expect(classesOf(tree)).toContain('outline-table');
   });
 });
