@@ -13,3 +13,7 @@ In phase 3 the simulation and the de-ice MAX run exist only during a scenario ru
 2. **A bounded rebuild on retract.** The rebuild by replay (`simulate` over the remaining log) is capped at the maximum run length (30 minutes of run time). A free panel has no natural end, so either the log is cut at a bound or the state is checkpointed periodically.
 3. **A rule for the end state after a debrief.** Closing the debrief keeps the end state of the panel (U-10). With a free-panel simulation the quantities after a run must either continue from the end state of the run or fall back to the base values; decide which, and what happens to a lit MAX lamp and to the flags.
 4. **Grading is unaffected.** The free panel is not graded; the level is never an input of `grade`.
+
+## Placement (2026-10-23)
+
+Owner decision: this goes into Phase 5 (fuel, tank and engine fidelity and the engine page), because the free panel then needs the whole simulated engine page. Reason from the owner's alternator test in the normal checklist: ESS BUS on makes alternator 2 Amps rise and alternator 1 Amps fall, ESS BUS off the reverse; today this shows only inside a scenario run.

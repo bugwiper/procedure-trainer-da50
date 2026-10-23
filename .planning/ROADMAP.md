@@ -473,7 +473,7 @@ Plans:
 
 ### Phase 5: Fuel, tank and engine fidelity and the engine page
 
-**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. Source: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md.
+**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. The simulation also runs on the free panel (outside a scenario run), so the normal-checklist walks work there, for example the alternator test with ESS BUS on and off (owner decision 2026-10-23). Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and 2026-10-22-free-panel-simulation.md.
 **Depends on**: Phase 4
 **Requirements**: TBD (to be defined when the phase is planned)
 
