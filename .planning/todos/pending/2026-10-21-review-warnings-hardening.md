@@ -22,3 +22,12 @@ CR-01 (right and middle mouse buttons operated knobs and lever handles) and WR-0
 ## Info items (housekeeping, IN-01 to IN-07 in the review)
 
 Event timestamps are dispatch time, not the pointer time (matters once hold durations are graded; decide before Phase 3 consumes durations); module-level zoom state in `zoom.ts`; placards and the temperature triangle drop silently on an unresolved reference (`PanelShell.tsx`); `?regions=1` is reachable in production; 28 px footer targets; duplicated geometry; a gauge division. Read the exact list in `01.1-REVIEW.md`.
+
+## From the phase 3.1 verification (2026-10-23), all low
+
+- Run-error dialog: "Try again" only dismisses it (`failRun` sets `lastRequest = null`, so `retryLoad` takes the dismiss branch). Rename the button or make it start the same situation again.
+- `limitLine` is driven by `completedAt >= MAX_RUN_MS`: an outcome that fires exactly at minute 30 also prints the limit line. No shipped scenario comes near it.
+- `onset.controls` is ignored on Easy and Medium when a scenario uses it without variants; lint L12 checks only names and states. Reject or apply it there.
+- Lint L18 (a start-decided branch must not read a variant-set control) only looks at `when.control`; predicates without a control field (quantity, band) are not covered. Fine while variants set only controls.
+- `canInject` is true for the whole aircraft once it has a trip, so `grade` simulates every scenario; `stepSim` throws on an unknown control in a recorded event (earlier than before, same input would have thrown later).
+- A double-tap undo later than 2 s after push-in on the shorted cause does nothing (the sim pop is not retractable, so the earlier event is "not-last"); documented design, check that it feels right.

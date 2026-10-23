@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels** (INSERTED) - All circuit breakers, G1000 NXi PFD and MFD with softkeys, audio and autopilot panels, backup EFIS (completed 2026-10-21)
 - [x] **Phase 2: First Gradable Scenario** - Oil Temp High runs end to end: start, briefing, operate the panel, "Procedure complete", PASS/FAIL debrief (completed 2026-10-22)
 - [x] **Phase 3: Reactive Scenarios and Initial Pack** - Scripted reactions and escalation; Oil Temp High, Electrical Failure and Engine Fire all playable (completed 2026-10-23)
-- [ ] **Phase 3.1: Scenario variants and run robustness** (INSERTED) - Several causes behind one failure drawn by seed, a breaker that re-trips, a run that survives a throwing listener and agrees with its replay at the 30-minute cap
+- [x] **Phase 3.1: Scenario variants and run robustness** (INSERTED) - Several causes behind one failure drawn by seed, a breaker that re-trips, a run that survives a throwing listener and agrees with its replay at the 30-minute cap (completed 2026-10-23)
 - [ ] **Phase 4: Electrical system fidelity** - Bus model with bus tie relay, ALT 1 and ALT 2 behaviour, ESS BUS path, combined amps gauge, ALTN 2 FAIL scenario, ALTN checklist fidelity
 - [ ] **Phase 5: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim and the real engine page layout
 - [ ] **Phase 6: Windscreen and failure cues** - A windscreen area above the panel with static cues (fire, smoke, iced windscreen later), the onset cue declared in scenario data and checked by lint
@@ -433,7 +433,7 @@ Plans:
 **Depends on**: Phase 3
 **Requirements**: SCN-09, SCN-10, SES-07
 
-**Plans:** 3/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 3/3 plans complete (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -514,7 +514,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 1. Deployed Playable Panel                            | 9/9            | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario                            | 13/13          | Complete    | 2026-10-22 |
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
-| 3.1. Scenario variants and run robustness             | 3/3 | In Progress | -          |
+| 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 0/TBD          | Not started | -          |
 | 5. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 6. Windscreen and failure cues                        | 0/TBD          | Not started | -          |

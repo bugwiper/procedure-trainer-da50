@@ -35,8 +35,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-06**: Scripted reactions: timers, ramps, triggers on user actions, and escalation to named outcomes (e.g. engine failure if oil temp exceeds red line)
 - [x] **SCN-07**: Each scenario carries source, revision and disclaimer metadata
 - [x] **SCN-08**: Engine uses a virtual, pausable clock so grading and replay are deterministic
-- [ ] **SCN-09**: A scenario can declare several causes (variants) behind one failure, each with its own start state, parameters and applying steps; one is drawn by seed on every level, recorded with the run, replayed by the grader and named in the debrief after the run
-- [ ] **SCN-10**: The simulation can change a control by itself (a circuit breaker that pops at the onset, or pops again when pushed in while the fault is present), identically in the live run and in every replay
+- [x] **SCN-09**: A scenario can declare several causes (variants) behind one failure, each with its own start state, parameters and applying steps; one is drawn by seed on every level, recorded with the run, replayed by the grader and named in the debrief after the run
+- [x] **SCN-10**: The simulation can change a control by itself (a circuit breaker that pops at the onset, or pops again when pushed in while the fault is present), identically in the live run and in every replay
 
 ### Session & Debrief
 
@@ -46,7 +46,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SES-04**: Debrief shows PASS/FAIL (a missed critical step fails), per-step verdicts, order violations and harmful actions
 - [ ] **SES-05**: A "Further actions" section offers non-panel actions as a fixed list, e.g. monitor oil pressure, declare MAYDAY, brief passengers, plus a graded landing-decision ladder (continue flight / safety landing on suitable field / emergency landing on next field / outlanding if necessary)
 - [ ] **SES-06**: User can retry the scenario or move to the next situation
-- [ ] **SES-07**: A running scenario survives a failing step listener (the error is shown and the run ends cleanly) and a run that reaches the 30-minute cap ends exactly as its replay does
+- [x] **SES-07**: A running scenario survives a failing step listener (the error is shown and the run ends cleanly) and a run that reaches the 30-minute cap ends exactly as its replay does
 
 ### Content
 
@@ -131,9 +131,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLT-03 | Phase 2 | Complete |
 | PLT-04 | Phase 2 | Complete |
 | SCN-06 | Phase 3 | Complete |
-| SCN-09 | Phase 3.1 | Pending |
-| SCN-10 | Phase 3.1 | Pending |
-| SES-07 | Phase 3.1 | Pending |
+| SCN-09 | Phase 3.1 | Complete |
+| SCN-10 | Phase 3.1 | Complete |
+| SES-07 | Phase 3.1 | Complete |
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |
