@@ -26,3 +26,7 @@ Five diagrams: normal operations, alternator 1 fail, alternator 2 fail, essentia
 - The shipped model already matches the AFM for alternator 2: it feeds the main bus only with ESS BUS on. The caution rule uses the alternator 1 current (<= 2.5 A) instead of the control unit's voltage and fault logic; review when the bus model is built.
 - Today only `alt1_output`, the alternator 2 current and the battery are modeled, and the main bus loss outcome is a voltage threshold.
 - Gauges: one ammeter gauge with two needles, one fuel gauge with two tanks (the MFD and quantity data change).
+
+## Engine page layout (owner photo of the real page, 2026-10-23)
+
+The real engine page, from the owner's full-page photo (private, `.input/mfd-engine-page-full.webp`): arc gauges Load % and RPM; bars Oil Pres, Oil Temp, Coolant Temp, Gearbox Temp; Rudder Trim; a Fuel box with a combined left and right quantity bar, Fuel Temp (both tanks), Fuel Press, FFlow GPH and a Fuel Calculator (gallons remain, gallons used, endurance, range); Electrical with a combined Amps bar (both alternators) and Volts; Oxygen PSI; De-Ice US gal with endurance; Total Service hours. The fuel and electrical combined gauges and the new quantities (fuel flow, fuel calculator, oxygen, de-ice quantity, rudder trim, total service) belong to this phase. Only the alert styling (yellow and red label boxes and pointers) is pulled forward into the phase 3 gap closure.

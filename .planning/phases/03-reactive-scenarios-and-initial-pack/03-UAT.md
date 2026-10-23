@@ -73,7 +73,7 @@ note: "Owner: order does not matter in these scenarios; Engine Fire steps are al
 
 total: 12
 passed: 10
-issues: 2
+issues: 3
 pending: 0
 skipped: 0
 blocked: 0
@@ -119,4 +119,23 @@ blocked: 0
     - "Verbatim checklist text from the official checklist for all three scenarios"
     - "Update docs/CONTENT-POLICY.md, .claude/CLAUDE.md convention and the lint or tests that cap step lines at 10 words"
     - "Briefing and debrief outline renders it as a table"
+  debug_session: ""
+- truth: "A gauge value in the yellow band gets a yellow box behind its label and its numeric value with black text and a yellow pointer on the bar; a value in the red band gets a red label box with white text and a red pointer"
+  status: failed
+  reason: "User reported (after test 12, with photos of the real engine page: Oil Pres in yellow, Fuel Qty in red): the real display marks an out-of-range value with a coloured box and a pointer in the band colour; the trainer does not"
+  severity: minor
+  test: 1
+  root_cause: "MfdFrame/ArcGauge/BarGauge colour the band but do not restyle the label, the value box or the pointer by the current band."
+  artifacts:
+    - path: "src/ui/panel/frames/BarGauge.tsx"
+      issue: "label box, value box and pointer do not follow the live band"
+    - path: "src/ui/panel/frames/ArcGauge.tsx"
+      issue: "same for the arc gauges, if the real page does it there too (check the photo)"
+    - path: ".input/mfd-oil-pres-yellow.png, .input/mfd-fuel-qty-red.png, .input/mfd-engine-page-full.webp"
+      issue: "owner photos, private, not committed"
+  missing:
+    - "Yellow: label and value on a yellow box, black text, yellow pointer. Red: label box red, white text, red pointer. Green: unchanged."
+    - "Driven by the live quantity band (derived from the simulated value); no text changes, only colours (rule G-0 holds)"
+    - "Unit tests on the pure band-to-style mapping and an e2e check on the oil temperature run"
+    - "The full engine page layout (combined gauges, fuel flow, fuel calculator, oxygen, de-ice, rudder trim) is NOT part of this gap: it goes to the physics fidelity phase"
   debug_session: ""
