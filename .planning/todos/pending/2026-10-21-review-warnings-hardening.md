@@ -31,3 +31,7 @@ Event timestamps are dispatch time, not the pointer time (matters once hold dura
 - Lint L18 (a start-decided branch must not read a variant-set control) only looks at `when.control`; predicates without a control field (quantity, band) are not covered. Fine while variants set only controls.
 - `canInject` is true for the whole aircraft once it has a trip, so `grade` simulates every scenario; `stepSim` throws on an unknown control in a recorded event (earlier than before, same input would have thrown later).
 - A double-tap undo later than 2 s after push-in on the shorted cause does nothing (the sim pop is not retractable, so the earlier event is "not-last"); documented design, check that it feels right.
+
+## phone-portrait project (iPhone 15, 375 px), found 2026-10-23
+
+The Playwright project `phone-portrait` is not part of the usual gates (desktop, phone and tablet chromium). Run on the level-card change it showed four failing cases: `e2e/scenario.spec.ts:94` (footer is 56 px, expected under 52), `scenario.spec.ts:245` (a pack that cannot be loaded), `e2e/session-area.spec.ts:58` and `:71` (zoom and background-tap cases). The footer check does not involve the level card, so they most likely predate it, but nobody confirmed this against the earlier commit. Check them on commit 765e168 first; if they predate, decide whether `phone-portrait` joins the gates (it is a real phone size) and fix or retire the cases.
