@@ -37,3 +37,7 @@ Owner decision 2026-10-23: both findings go into phase 3.1 (the phase touches ru
 
 - **WR-03 (`src/ui/clock-driver.ts`):** `frame()` schedules the next animation frame only after `run.step()`. A throw from a step listener (the grading in `completeRun`, a sim error, `markConsumed`) ends the frame loop until the page is reloaded and freezes the display. Fix: schedule the next frame first or catch the error, surface it (not silent), and keep the loop alive or stop the run cleanly; add a unit test with a throwing listener.
 - **WR-05 (`src/engine/sim.ts`, `src/engine/run.ts`):** `simulate()` is capped at 30 minutes (`MAX_RUN_MS`) but a live run is not. After minute 30 the replay can differ from what the pilot saw, and a retract leaves `sim.t` and the clock offset for good. Fix: end the live run cleanly at the cap or apply the same cap to both, and add a test that live and replay agree at and after the cap, with and without a retract.
+
+## Resolved
+
+Phase 3.1 (2026-10-23, plans 03.1-01 to 03.1-03). Scenario variants (`variants`, `onset.controls`), the draw by seed on every level, the recorded variant, the cause line in the debrief, the re-tripping breaker (a trip in the aircraft's physics) and lint L18 to L21 are built; ALTN 1 FAIL ships four causes. WR-03 (a throwing step listener) and WR-05 (the 30-minute cap) are fixed with tests. The rules are R13 to R15 and "Variants for authors" in `docs/GRADING.md`. What remains: variants for ENG OIL TEMP and ENGINE FIRE are in `.planning/todos/pending/2026-10-23-variants-oil-temp-and-fire.md`.

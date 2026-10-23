@@ -521,10 +521,11 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
   };
   const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
 
-  it('has Phase 3: owner review as the last section after Phase 2 and keeps Round 5 and Round 4', () => {
+  it('has Phase 3.1: owner review as the last section after Phase 3 and Phase 2 and keeps Round 5 and Round 4', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Phase 3: owner review');
-    expect(headings[headings.length - 2]).toBe('## Phase 2: owner review');
+    expect(headings[headings.length - 1]).toBe('## Phase 3.1: owner review');
+    expect(headings[headings.length - 2]).toBe('## Phase 3: owner review');
+    expect(headings[headings.length - 3]).toBe('## Phase 2: owner review');
     expect(headings).toContain('## Round 5: morning review');
     expect(headings).toContain('## Round 4: morning review');
   });
@@ -670,7 +671,9 @@ describe('phase 2 owner review (plan 02-13)', () => {
 // Plan 03-09: the phase 3 section is the owner's one list for the reactive scenarios.
 describe('phase 3 owner review (plan 03-09)', () => {
   const at = review.search(/^## Phase 3: owner review/m);
-  const section = at === -1 ? '' : review.slice(at);
+  const rest = at === -1 ? '' : review.slice(at + 1);
+  const next = rest.search(/^## /m);
+  const section = at === -1 ? '' : review.slice(at, next === -1 ? undefined : at + 1 + next);
 
   it('has the section and points to the grading values', () => {
     expect(at).toBeGreaterThan(-1);
@@ -697,5 +700,28 @@ describe('phase 3 owner review (plan 03-09)', () => {
     expect(section).toContain('sw.fuel_valve');
     expect(section).toContain('lv.ecs_shutoff');
     expect(section).toMatch(/180 degree/);
+  });
+});
+
+describe('phase 3.1 owner review (plan 03.1-03)', () => {
+  const at = review.search(/^## Phase 3.1: owner review/m);
+  const section = at === -1 ? '' : review.slice(at);
+
+  it('has the section, points to the grading rules and says nothing was pushed', () => {
+    expect(at).toBeGreaterThan(-1);
+    expect(section).toContain('GRADING.md');
+    expect(section).toMatch(/nothing was pushed/i);
+  });
+
+  it('has no unfilled item, quotes no private material and numbers its items without a gap', () => {
+    expect(section).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b/i);
+    expect(section).not.toMatch(/\.input\//);
+    const numbers = section
+      .split('\n')
+      .map((line) => /^(\d+)\. /.exec(line)?.[1])
+      .filter((n): n is string => n !== undefined)
+      .map(Number);
+    expect(numbers.length).toBeGreaterThanOrEqual(5);
+    expect(numbers).toEqual(numbers.map((_, i) => i + 1));
   });
 });

@@ -6,7 +6,7 @@ The code is `src/engine/grading.ts` (the function `grade`), `src/engine/predicat
 
 ## What goes in and what comes out
 
-`grade` receives three things: the scenario file as read by the parser, the aircraft (its controls, named quantities and physics), and the recording of the run. The recording is the list of control actions the pilot performed, in the order they happened, each with the time it happened, the control and the new position. A run on the Realistic level also records the onset (the second at which the failure began and the seed it came from). Nothing else is read: no clock, no random number, no screen state. The same inputs always give the same result, down to the last character of its JSON text.
+`grade` receives three things: the scenario file as read by the parser, the aircraft (its controls, named quantities and physics), and the recording of the run. The recording is the list of control actions the pilot performed, in the order they happened, each with the time it happened, the control and the new position. A run on the Realistic level also records the onset (the second at which the failure began and the seed it came from). A scenario with variants also records the variant the run drew (its id and the seed, R13). Nothing else is read: no clock, no random number, no screen state. The same inputs always give the same result, down to the last character of its JSON text.
 
 The result holds the verdict (`pass` or `fail`), the reasons for a fail, one entry per graded step, the status of every branch of the checklist, the order violations and the harmful actions.
 
@@ -27,11 +27,48 @@ The level chosen before the briefing (Easy, Medium or Realistic) is not an input
 10. **Outcome (R10).** A scenario can name outcomes: a condition on the quantities that, once it has held for its hold time (0 to 600 s), ends the run by itself. An outcome ends the run as FAIL, whatever the pilot did, and it is the first reason in the list (before the missed steps, the order and the harmful actions). Events recorded after the outcome time are not graded. The hold timer counts only while the condition holds and starts again from zero when it is interrupted. If two outcomes would fire in the same step, the one declared first wins. A run without a declared outcome is graded as before.
 11. **Reaction time and level (R11).** On the level Realistic the debrief shows how long after the onset the first graded action came ("First action N s after the onset.") or that there was none. The time is display only: there is no time limit, nothing in the verdict depends on it, and the level is never an input of `grade`.
 12. **Before the onset (R12).** On a recording with an onset, a step whose target already holds at the onset earns no credit from what was done before it: it is credited only after the pilot has made it false and true again at or after the onset, so a run that does nothing after the onset fails like on the other levels. The debrief adds "Steps done before the onset do not count." to the missed-steps line. Harmful actions are still recorded at any time. Recordings without an onset (Easy, Medium) are unaffected.
+13. **Variants (R13).** A scenario file can declare variants, several causes behind one failure message (see "Variants for authors"). A run draws one by seed on every level, and the recording names it. `grade` resolves the recorded variant into a plain scenario first (the cause's faulted controls and parameters laid over, only the steps and forbidden items that apply in it kept) and then applies every rule above to that scenario. A step that does not apply in the drawn variant is not graded and is not missed; the debrief shows its row muted as "Not graded". A recording that names no variant grades as the first variant of the file, so every recording made before variants existed keeps its result. The result carries the variant id, and the debrief names the cause only after the run, in one line ("Cause: ..."). Nothing before the run names it.
+14. **Controls set by the simulation (R14).** Some control changes are made by the aircraft, not by the pilot: the faulted controls of a variant on Realistic (set at the onset, so the start stays clean) and a trip of the aircraft's physics, for example a shorted alternator 1 that pops its circuit breaker again 2 s after the pilot pushed it in. These changes are events of the source `sim`. They are not in the recording: every replay regenerates them with the same arithmetic and `grade` merges them into the log at the place they happened. They are never harmful actions, the pilot cannot retract them (a retract of the pilot's tap before the delay leaves nothing armed), and a step is credited from the state after them like after any other action.
+15. **The 30-minute cap (R15).** A run ends at 30 minutes of run time (`MAX_RUN_MS`) if no outcome and no declaration ended it earlier. The live run and the replay share the cap: the run completes there, is graded as of the cap by the same rules, and the debrief adds one line, "The run reached the 30 minute limit." It is a normal graded ending, not a separate fail reason; a run that did everything required passes at the cap.
 
 Further notes:
 
 - A step that is already true at the starting point would be credited by a run that does nothing. The file check of the validation command rejects such a step (lint rule L5). It also rejects a file in which no critical step is graded at the start (lint rule L11). So a run that does nothing always fails in a shipped scenario.
 - A tap that was taken back with the double tap gesture is removed from the log before grading, so retracted actions do not exist for the grader.
+
+## Variants for authors
+
+A variant is one cause behind the failure message the scenario shows. The checklist stays the one printed checklist; the variants say which of its rows are graded for which cause. The format stays 1 (the fields are new and optional, a file without `variants` is unchanged). This section is written so the Phase 7 authoring guide can lift it.
+
+```
+variants[2]:
+  - id: alternator_dead
+    weight: 60
+    applies[2]: alt1_off,ess_bus_on
+    debrief: The breaker was in and alternator 1 had failed.
+  - id: breaker_popped
+    weight: 40
+    controls:
+      cb.alt1: out
+    parameters:
+      alt1_output: 1
+    applies[1]: alt1_breaker_in
+    debrief: The alternator 1 circuit breaker had popped. Pushing it in cleared the message.
+```
+
+- **`id` and `weight`.** The id is unique in the file. The weight is a whole number from 1 to 100; a run draws a variant by seed, in proportion to the weights, on every level. At most 6 variants per scenario.
+- **The first variant is the default.** It is the cause a recording without a variant is graded as (R13), and the one the shipped tests treat as the base case. Put the common cause first.
+- **`controls` and `parameters`.** The faulted state of the cause: control positions (a legal position of a known control) and physics parameters (known, inside their range) laid over the scenario. On Easy and Medium they hold from the start. On Realistic the controls are set by the simulation at the onset and the start is clean; a scenario may also list controls under `onset.controls` for the same purpose without a variant.
+- **`applies`.** The ids of the steps and forbidden items that apply in this variant. An item named by no variant applies in all of them; an item named by at least one applies only in those. Every id must exist, and appears once per variant.
+- **`debrief`.** The cause line, 1 to 30 words in own wording. The debrief prints it after the run as "Cause: ..."; nothing names the cause before. The printed checklist text of the briefing and the debrief stays exactly as printed in every variant.
+- **Re-tripping and other aircraft behaviour** is not written in the scenario file. A parameter such as `alt1_short` switches on an effect in the aircraft's physics (R14); the file only names the parameter.
+
+The check `npm run validate` adds these rules for a scenario with variants (each is reported with file, line and column):
+
+- L18: variant ids are unique; controls, states and parameters exist and are legal; `applies` names real steps and forbidden items; no branch decided at the start reads a control a variant sets.
+- L19: the start checks of the single-cause scenario (L5, L6, L10, L11, L13, L14, L15) run for every variant, on Easy and, with an onset, on Realistic.
+- L20: in every variant a run that does nothing fails and the run that does exactly the applying steps passes, on Easy and, with an onset, on Realistic at both ends of the onset window.
+- L21: a step that applies in one variant must not trigger a forbidden item of another variant at its start.
 
 ## Golden recordings
 
@@ -53,6 +90,8 @@ Electrical Failure (ALTN 1 FAIL, scenario `elec-altn1-fail`, times in ms): `elec
 Engine Fire (scenario `eng-fire-in-flight`, times in ms): `fire-golden` (2000 squawk 7700; 4000 fresh air; 5500 ECS SHUTOFF pulled; 7000 ENGINE MASTER off; 8500 FUEL selector off; 10000 ELECT. MASTER off) PASS with the optional squawk step done; `fire-golden-long` the same over 600 000 ms, PASS, never escalates; `fire-no-squawk` the same without the squawk, still PASS because that step is optional; `fire-do-nothing` FAIL with the five critical steps missed; `fire-do-nothing-long` ends with the outcome `fire_spreads`; `fire-forbidden` (the golden actions plus the EMERG FUEL PUMP switched on at 3000) FAIL because the pump fails the run; `fire-wrong-order` (the shutdown steps in reverse) PASS on the real file and `fire-wrong-order-ordered` on the synthetic copy FAIL with three order violations and one order reason.
 
 Further cases in the tests: power at 65 percent credits the power step and 70 percent does not; power reduced and then raised again to the baseline is not credited; the same scenario with the item not marked as failing the run grades the `forbidden` recording PASS and only reports the action; an order violation in a group that is not order-critical is listed but keeps the PASS; steps in a branch that does not apply are not graded; a forbidden item whose condition does not hold at the start is never reported.
+
+The table is unchanged by phase 3.1: a recording without a variant grades as the first variant, so all 23 recordings keep their results. The cases of the variants (all four causes of ALTN 1 FAIL, the re-trip, the cap) are in `tests/variants.test.ts`, `tests/run.test.ts` and `tests/sim.test.ts`.
 
 ## Instructor review (phase 2 UAT, 2026-10-22)
 
@@ -83,3 +122,14 @@ Phase 3 made the quantities move and added two scenarios. Every value below was 
 ### Instructor answers (2026-10-23)
 
 Items 2, 4, 5, 6 and 8 are accepted as built. Items 1, 9 and 10 are accepted for the beta; the instructor tunes the values while using the trainer, so the constants must stay data. The fuel burn of item 1 was brought in line with the owner's readings of fuel flow in gallons per hour (10.1 gph at 60 percent load, 11.8 gph at 75 percent). Item 3 (bus model) is answered with the wiring diagrams of the type-rating documents; the findings are in `.planning/todos/pending/2026-10-23-physics-fidelity-phase.md`. Item 7 is answered with the official ALTN 1 FAIL, ALTN 2 FAIL and Engine Fire checklists; the gaps are in `.planning/todos/pending/2026-10-23-checklist-fidelity.md`. Fixes from the first live test (fuel selector bounded arc, squawk default 7000, fuel flow in gph) are done, see `.planning/todos/done/2026-10-23-live-test-fixes.md`, and the Realistic-level cue problem in `.planning/todos/pending/2026-10-23-realistic-level-visual-cues.md`.
+
+## Instructor review (phase 3.1, 2026-10-23)
+
+Phase 3.1 added scenario variants and made ALTN 1 FAIL a scenario with four causes. All values were chosen by default and are instructor-review values; each is a data edit in the file named. The same items are listed for the owner in [PANEL-REVIEW.md](PANEL-REVIEW.md), section "Phase 3.1: owner review".
+
+1. **The four causes and their weights.** In `scenarios/electrical/elec-altn1-fail.toon`: `alternator_dead` 40 (the breaker is in, the alternator has failed), `breaker_popped` 30 (the breaker has popped, the alternator is fine), `alternator_shorted` 15 (the alternator has a short and its breaker has popped) and `breaker_popped_dead` 15 (the breaker has popped and the alternator is dead too). The weights are guesses of how common each cause is.
+2. **The re-trip delay.** With the short, the breaker pops again 2 s after the pilot pushed it in while the short is present (`ALT1_SHORT_REPOP_MS` in `src/aircraft/da50rg/physics.ts`). The 2 s is not a measurement.
+3. **Required steps per cause.** `alternator_dead`, `alternator_shorted` and `breaker_popped_dead`: ALTERNATOR 1 off and ESS BUS on. `breaker_popped`: the breaker pushed in (row 1) and nothing else; the message clears by itself. In the two causes with a popped breaker and a dead or shorted alternator, pushing the breaker in is neither required nor harmful.
+4. **Later steps are ungraded when the breaker was the cause.** In `breaker_popped`, ALTERNATOR 1 off and ESS BUS on are not graded (the debrief shows the rows muted as "Not graded"), and in the other three causes row 1 is not graded. The forbidden items (ALTERNATOR 2 off, ELECT. MASTER off) apply in every cause.
+5. **The cause wording.** The four debrief lines are in own wording: "The breaker was in and alternator 1 had failed.", "The alternator 1 circuit breaker had popped. Pushing it in cleared the message.", "Alternator 1 had a short and its circuit breaker had popped. Pushing the breaker in only popped it again, so the alternator had to be switched off." and "The alternator 1 circuit breaker had popped and the alternator was dead as well. Pushing the breaker in did not help." The briefing never names the cause.
+6. **The 30-minute cap.** A run ends at 30 minutes and is graded as of then, with the line "The run reached the 30 minute limit." (R15). No scenario of the pack takes that long; the cap is a safety limit for a forgotten run.
