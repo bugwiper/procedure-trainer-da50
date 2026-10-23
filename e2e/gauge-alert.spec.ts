@@ -78,8 +78,11 @@ async function expectBoxesHoldTheirText(gauge: Locator): Promise<void> {
   });
   expect(geometry).toHaveLength(2);
   for (const { box, text } of geometry) {
-    expect(text.left, 'text left').toBeGreaterThanOrEqual(box.left);
-    expect(text.right, 'text right').toBeLessThanOrEqual(box.right);
+    // The box width is an estimate; glyph widths differ between macOS and the Linux CI runner
+    // by under a unit, so the text may touch the box edge within FONT_SLACK.
+    const FONT_SLACK = 1;
+    expect(text.left, 'text left').toBeGreaterThanOrEqual(box.left - FONT_SLACK);
+    expect(text.right, 'text right').toBeLessThanOrEqual(box.right + FONT_SLACK);
     expect(text.capLine, 'cap line').toBeGreaterThanOrEqual(box.top);
     expect(text.baseline, 'baseline').toBeLessThanOrEqual(box.bottom);
   }
