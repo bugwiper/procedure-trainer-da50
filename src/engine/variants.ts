@@ -7,7 +7,11 @@
 // used, so the draw agrees bit for bit in node and every browser.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
-import type { ProcedureNode, Scenario } from '../scenario/schema';
+import type { Predicate, ProcedureNode, Scenario } from '../scenario/schema';
+import type { AircraftEnv } from './env';
+import { evaluatePredicate } from './predicates';
+import type { PredicateContext } from './predicates';
+import { legalStates } from './registry';
 import { mulberry32 } from './sim';
 
 /** The id of the variant a seed draws: the first mulberry32 value times the weight total, cumulative. */
@@ -97,4 +101,34 @@ export function resolveVariant(
     forbidden: scenario.forbidden.filter((item) => keeps(item.id)),
     variants: [],
   };
+}
+
+/** One panel action: set `control` to `state`. */
+export interface PanelAction {
+  readonly control: string;
+  readonly state: string;
+}
+
+/**
+ * The panel action that makes a step's predicate true (used by lint to build the solution of a
+ * variant and to test whether one variant's step is harmful in another): the first legal state of
+ * the predicate's control, in declared order, for which the predicate holds with every other
+ * control as in `context`. It may be the state the control is in already. Null for a predicate that
+ * reads no control (a quantity or band check) or when no legal state makes it true.
+ */
+export function actionFor(
+  predicate: Predicate,
+  context: PredicateContext,
+  env: AircraftEnv,
+): PanelAction | null {
+  if (predicate.check === 'quantity' || predicate.check === 'band') return null;
+  const def = env.registry.get(predicate.control);
+  if (def === undefined) return null;
+  for (const state of legalStates(def)) {
+    const controls = { ...context.controls, [predicate.control]: state };
+    if (evaluatePredicate(predicate, { ...context, controls }, env)) {
+      return { control: predicate.control, state };
+    }
+  }
+  return null;
 }

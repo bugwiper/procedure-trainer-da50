@@ -1,7 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { parseManifest } from '../../src/scenario/parse';
+import { variantFromSeed } from '../../src/engine/variants';
+import { parseManifest, parseScenario } from '../../src/scenario/parse';
 import { activate } from './zoom';
 
 // Shared e2e helpers for starting one named scenario through CHOOSE SITUATION (plan 03-01). Test
@@ -100,4 +101,26 @@ export function quantityOf(page: Page, id: string): Promise<number> {
     (quantityId) => (globalThis as HookHost).__panel?.quantities()[quantityId] ?? Number.NaN,
     id,
   );
+}
+
+/**
+ * Forces the cause a scenario with variants draws (phase 3.1): reads the shipped file `file`
+ * (under scenarios/, without `.toon`, for example "pack/scenario") in node, searches the first
+ * integer seed for which `variantFromSeed` gives `id`, stubs `Math.random` with that seed
+ * before any page script runs and reloads. Call it once per test, after the first `goto`, before
+ * the scenario is started. The same value feeds every draw of the session (pick, onset, cause).
+ */
+export async function forceVariant(page: Page, file: string, id: string): Promise<void> {
+  const parsed = parseScenario(readFileSync(new URL(`${file}.toon`, SCENARIO_DIR), 'utf8'));
+  if (!parsed.ok) throw new Error(`${file} does not parse`);
+  let seed = 0;
+  while (variantFromSeed(seed, parsed.value.variants) !== id) {
+    seed += 1;
+    if (seed > 100_000) throw new Error(`no seed draws the variant "${id}" in ${file}`);
+  }
+  await page.addInitScript((value: number) => {
+    Math.random = () => value / 4_294_967_296;
+  }, seed);
+  await page.reload();
+  await expect(page.getByTestId('panel')).toBeVisible();
 }

@@ -1036,3 +1036,113 @@ describe('L16 and L17: a checklist as printed (plan 03-13)', () => {
     expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
   });
 });
+
+// Variants (phase 3.1, SCN-09): L12 for onset.controls and L18 to L21, each with one failing case
+// made by text replacement of the shipped ALTN 1 FAIL file.
+describe('variants: L12, L18 to L21', () => {
+  const ALTN = readFileSync(`${root}scenarios/electrical/elec-altn1-fail.toon`, 'utf8');
+
+  /** The shipped file with one exact text replaced; the text must be there exactly once. */
+  function edited(from: string, to: string): string {
+    expect(ALTN.split(from).length - 1, `"${from}" in the shipped file`).toBe(1);
+    return ALTN.replace(from, to);
+  }
+
+  /** The issues of an edited file whose message contains the text, located at a line and column. */
+  function found(text: string, part: string) {
+    const hits = issuesOf(text).filter((issue) => issue.message.includes(part));
+    expect(
+      hits.map((h) => h.message),
+      `an issue containing "${part}"`,
+    ).not.toEqual([]);
+    for (const hit of hits) {
+      expect(hit.line).toBeGreaterThan(0);
+      expect(hit.col).toBeGreaterThan(0);
+    }
+    return hits;
+  }
+
+  it('passes the shipped file with its variants', () => {
+    expect(checkScenario(ALTN, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('L12: onset.controls names a known control in a legal state', () => {
+    const at = 'onset:\n  window_s[2]: 2,6';
+    found(edited(at, `${at}\n  controls:\n    cb.nothing: out`), 'unknown control "cb.nothing"');
+    found(edited(at, `${at}\n  controls:\n    cb.alt1: sideways`), 'is not a state of control');
+  });
+
+  it('L18: a variant id is unique', () => {
+    found(edited('  - id: breaker_popped', '  - id: alternator_dead'), 'duplicate variant id');
+  });
+
+  it('L18: controls name a known control in a legal state', () => {
+    const hits = found(edited('      cb.alt1: out', '      cb.nothing: out'), 'unknown control');
+    // The issue sits on the key inside the variant, not at the top of the file.
+    expect(
+      lineOf(edited('      cb.alt1: out', '      cb.nothing: out'), '      cb.nothing: out'),
+    ).toBe(hits[0]?.line);
+    found(edited('      cb.alt1: out', '      cb.alt1: sideways'), 'is not a state of control');
+  });
+
+  it('L18: parameters name a known parameter inside its range', () => {
+    found(edited('      alt1_output: 1', '      alt1_nothing: 1'), 'unknown parameter');
+    found(edited('      alt1_output: 1', '      alt1_output: 7'), 'is outside');
+  });
+
+  it('L18: applies names a step or forbidden item, each once', () => {
+    found(edited('applies[1]: alt1_breaker_in', 'applies[1]: no_such_step'), 'names no step');
+    found(
+      edited('applies[2]: alt1_off,ess_bus_on', 'applies[2]: alt1_off,alt1_off'),
+      'is listed twice',
+    );
+  });
+
+  it('L18: a branch decided at the start must not read a control a variant sets', () => {
+    const last = '  - kind: comment\n    text: Leave icing conditions.\n';
+    const branch = [
+      '  - kind: branch',
+      '    label: "If open:"',
+      '    when:',
+      '      check: state',
+      '      control: cb.alt1',
+      '      is: out',
+      '    decided_at: start',
+      '',
+    ].join('\n');
+    const text = edited(last, last + branch).replace('procedure[5]:', 'procedure[6]:');
+    found(text, 'which a variant sets');
+  });
+
+  it('L19: the start checks run per variant and name it', () => {
+    const text = edited(
+      '    applies[2]: alt1_off,ess_bus_on',
+      '    controls:\n      sw.alternator_1: off\n    applies[2]: alt1_off,ess_bus_on',
+    );
+    const hits = found(text, 'already satisfied in the initial state');
+    expect(hits[0]?.message).toContain('variant "alternator_dead"');
+    expect(hits[0]?.path).toBe('variants.0');
+  });
+
+  it('L20 and L21: a step that is harmful in another variant breaks the solution and the pairing', () => {
+    // Alternator 1 OFF now counts as a harmful, run-failing action in every variant.
+    const text = edited(
+      '      control: sw.alternator_2\n      is: off',
+      '      control: sw.alternator_1\n      is: off',
+    );
+    const solution = found(text, 'the solution does not pass');
+    expect(solution[0]?.message).toContain('variant "alternator_dead"');
+    const pairing = found(text, 'makes the forbidden item');
+    expect(pairing[0]?.message).toContain('"alt1_off"');
+    expect(pairing[0]?.message).toContain('variant "breaker_popped"');
+  });
+
+  it('L20: a step with no panel action cannot be solved', () => {
+    const text = ALTN.replace(
+      /(- id: ess_bus_on[\s\S]*?done:\n)\s+check: state\n\s+control: sw.ess_bus\n\s+is: on\n/,
+      '$1          check: quantity\n          quantity: bus_volts\n          op: gte\n          value: 99\n',
+    );
+    expect(text).not.toBe(ALTN);
+    found(text, 'has no panel action');
+  });
+});

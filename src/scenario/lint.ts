@@ -19,12 +19,22 @@
 // to run 1, 2, 3 in document order (rows without a number are free); L17 keeps the two forms apart
 // (table: numbers, actions and comments, no decision, branch or marker; outline: markers, no
 // number, action, comment or boxed).
+// Variants (phase 3.1, SCN-09): L18 checks the references of a variant (unique ids, known controls,
+// states and parameters, `applies` naming real steps and forbidden items, once each) and that no
+// branch decided at the start reads a control a variant sets (grade decides it on the base start).
+// L19 runs the start checks (L5, L6, L10, L11, L13, L14, L15) per variant on the scenario it makes,
+// in the Easy form and, with an onset, the Realistic form. L20 grades a do-nothing recording (it must
+// fail) and the solution of the variant (it must pass) per variant, in the Easy form and, with an
+// onset, in the Realistic form at both ends of the window. L21 keeps the variants apart: no step
+// that applies in one variant makes a forbidden item of another variant true at its start.
 // checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
 // the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { MAX_CAS_CHIPS } from '../engine/cas';
 import type { AircraftEnv } from '../engine/env';
+import { grade } from '../engine/grading';
+import type { Recording } from '../engine/grading';
 import {
   baselineOf,
   evaluatePredicate,
@@ -34,12 +44,13 @@ import {
 } from '../engine/predicates';
 import type { PredicateContext } from '../engine/predicates';
 import { legalStates } from '../engine/registry';
-import { resolveVariant } from '../engine/variants';
+import { actionFor, resolveVariant } from '../engine/variants';
+import type { PanelAction } from '../engine/variants';
 import { STEP_MS, initSim, simSetup, stepSim } from '../engine/sim';
 import type { SimState } from '../engine/sim';
 import { joinPath, parseScenario } from './parse';
 import type { ScenarioIssue } from './parse';
-import type { ProcedureNode, Predicate, Scenario } from './schema';
+import type { ProcedureNode, Predicate, Scenario, Step } from './schema';
 import { indexToon, locate } from './toon-index';
 import type { PathSegment } from './toon-index';
 
@@ -154,6 +165,14 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
       );
     }
   }
+  for (const [id, state] of Object.entries(scenario.onset?.controls ?? {})) {
+    const def = env.registry.get(id);
+    const path = ['onset', 'controls', id];
+    if (def === undefined) add(path, `unknown control "${id}"`);
+    else if (!legalStates(def).includes(state)) {
+      add(path, `"${state}" is not a state of control "${id}"`);
+    }
+  }
   for (const [id, value] of Object.entries(scenario.onset?.quantities ?? {})) {
     const def = env.quantities.get(id);
     const path = ['onset', 'quantities', id];
@@ -241,6 +260,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
   });
 
   checkChecklist(scenario, add);
+  checkVariantReferences(scenario, env, add);
 
   // L5 and L6 evaluate predicates, which needs every reference to resolve first. L19: a scenario
   // with variants has no single start; the start checks run per variant on the scenario it makes.
@@ -257,7 +277,284 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
       checkRealisticStart(resolveVariant(scenario, variant.id, true), env, here);
     });
   }
+  if (issues.length === 0 && scenario.variants.length > 0) checkVariantRuns(scenario, env, add);
   return issues;
+}
+
+/** The ids of every step in the procedure, in document order, with the path of each. */
+function stepPaths(
+  nodes: readonly ProcedureNode[],
+  path: Segments = ['procedure'],
+): Map<string, Segments> {
+  const found = new Map<string, Segments>();
+  nodes.forEach((node, i) => {
+    const here = [...path, i];
+    switch (node.kind) {
+      case 'line':
+      case 'comment':
+        return;
+      case 'group':
+        node.steps.forEach((step, j) => found.set(step.id, [...here, 'steps', j]));
+        return;
+      case 'branch':
+        for (const [id, at] of stepPaths(node.nodes, [...here, 'nodes'])) found.set(id, at);
+        return;
+      case 'decision':
+        node.branches.forEach((branch, j) => {
+          for (const [id, at] of stepPaths(branch.nodes, [...here, 'branches', j, 'nodes'])) {
+            found.set(id, at);
+          }
+        });
+        return;
+    }
+  });
+  return found;
+}
+
+/**
+ * L18: the references of the variants. Ids are unique; `controls` name known controls in legal
+ * states; `parameters` name known parameters inside their range; `applies` names steps and
+ * forbidden items, each once per variant. A branch decided at the start must not read a control a
+ * variant sets: grade decides such a branch on the base start.
+ */
+function checkVariantReferences(
+  scenario: Scenario,
+  env: AircraftEnv,
+  add: (segments: Segments, message: string) => void,
+): void {
+  if (scenario.variants.length === 0) return;
+  const known = new Set([
+    ...stepPaths(scenario.procedure).keys(),
+    ...scenario.forbidden.map((f) => f.id),
+  ]);
+  const ids = new Set<string>();
+  const setControls = new Set<string>();
+  scenario.variants.forEach((variant, n) => {
+    const base: Segments = ['variants', n];
+    if (ids.has(variant.id)) {
+      add([...base, 'id'], `duplicate variant id "${variant.id}"`);
+    }
+    ids.add(variant.id);
+    for (const [id, state] of Object.entries(variant.controls)) {
+      setControls.add(id);
+      const def = env.registry.get(id);
+      const path = [...base, 'controls', id];
+      if (def === undefined) add(path, `unknown control "${id}"`);
+      else if (!legalStates(def).includes(state)) {
+        add(path, `"${state}" is not a state of control "${id}"`);
+      }
+    }
+    for (const [id, value] of Object.entries(variant.parameters)) {
+      const def = env.physics.parameter(id);
+      const path = [...base, 'parameters', id];
+      if (def === undefined) add(path, `unknown parameter "${id}"`);
+      else if (value < def.min || value > def.max) {
+        add(
+          path,
+          `${String(value)} is outside ${String(def.min)}..${String(def.max)} of parameter "${id}"`,
+        );
+      }
+    }
+    const named = new Set<string>();
+    variant.applies.forEach((id, k) => {
+      const path = [...base, 'applies', k];
+      if (!known.has(id)) add(path, `"${id}" names no step or forbidden item`);
+      else if (named.has(id)) add(path, `"${id}" is listed twice`);
+      named.add(id);
+    });
+  });
+
+  const guard = (nodes: readonly ProcedureNode[], path: Segments): void => {
+    const check = (
+      branch: { readonly decided_at: 'start' | 'run'; readonly when: Predicate },
+      at: Segments,
+    ): void => {
+      const control = 'control' in branch.when ? branch.when.control : null;
+      if (branch.decided_at === 'start' && control !== null && setControls.has(control)) {
+        add(
+          [...at, 'when'],
+          `this branch is decided at the start and reads "${control}", which a variant sets; grade decides it on the base start, so decide it during the run`,
+        );
+      }
+    };
+    nodes.forEach((node, i) => {
+      const here = [...path, i];
+      if (node.kind === 'branch') {
+        check(node, here);
+        guard(node.nodes, [...here, 'nodes']);
+      } else if (node.kind === 'decision') {
+        node.branches.forEach((branch, j) => {
+          const at = [...here, 'branches', j];
+          check(branch, at);
+          guard(branch.nodes, [...at, 'nodes']);
+        });
+      }
+    });
+  };
+  guard(scenario.procedure, ['procedure']);
+}
+
+/** Time between two actions of a built solution, and the margin after the last one. */
+const SOLUTION_GAP_MS = 1000;
+const SOLUTION_TAIL_MS = 5000;
+
+/**
+ * L20 and L21: what a run of each variant does. L20: a recording that does nothing fails, and the
+ * solution (the critical and standard steps that apply, their actions one second apart in declared
+ * order) passes, in the Easy form and, with an onset, in the Realistic form: the onset at both ends
+ * of the window and every action after the upper end. A step whose predicate has no panel action
+ * is reported (the solution cannot be built). L21: a step that applies in one variant must not make
+ * a forbidden item of another variant true at that variant's start.
+ */
+function checkVariantRuns(
+  scenario: Scenario,
+  env: AircraftEnv,
+  add: (segments: Segments, message: string) => void,
+): void {
+  const onset = scenario.onset;
+  const windowAt = (second: number): number => STEP_MS * Math.round((second * 1000) / STEP_MS);
+  const lowerAt = onset === undefined ? 0 : windowAt(onset.window_s[0]);
+  const upperAt = onset === undefined ? 0 : windowAt(onset.window_s[1]);
+
+  scenario.variants.forEach((variant, n) => {
+    const where: Segments = ['variants', n];
+    const report = (message: string): void => {
+      add(where, `variant "${variant.id}": ${message}`);
+    };
+    const easy = resolveVariant(scenario, variant.id, false);
+    const forms: { readonly label: string; readonly onsetAt: number | null }[] = [
+      { label: 'Easy', onsetAt: null },
+      ...(onset === undefined
+        ? []
+        : [
+            { label: 'Realistic with the onset at the lower end', onsetAt: lowerAt },
+            { label: 'Realistic with the onset at the upper end', onsetAt: upperAt },
+          ]),
+    ];
+    const baseline = baselineOf(easy, env.registry);
+    const context: PredicateContext = {
+      controls: baseline,
+      baseline,
+      quantities: initialQuantities(easy, env.quantities),
+    };
+    const recordingOf = (
+      onsetAt: number | null,
+      events: Recording['events'],
+      completedAt: number,
+    ): Recording => ({
+      scenarioId: scenario.id,
+      completedAt,
+      variant: { id: variant.id, seed: 0 },
+      ...(onsetAt === null ? {} : { onset: { at: onsetAt, seed: 0 } }),
+      events,
+    });
+
+    // The solution: the critical and standard steps that are graded at the start of this variant.
+    const nothing = grade(scenario, env, recordingOf(null, [], SOLUTION_TAIL_MS));
+    const graded = new Set(
+      nothing.steps.filter((step) => step.severity !== 'optional').map((step) => step.id),
+    );
+    const steps = [...resolveSteps(easy)].filter((step) => graded.has(step.id));
+    const actions: PanelAction[] = [];
+    const accumulated = { ...baseline };
+    let buildable = true;
+    for (const step of steps) {
+      const action = actionFor(step.done, { ...context, controls: accumulated }, env);
+      if (action === null) {
+        report(
+          `step "${step.id}" has no panel action that makes it true; the solution cannot be built`,
+        );
+        buildable = false;
+        continue;
+      }
+      if (accumulated[action.control] !== action.state) {
+        accumulated[action.control] = action.state;
+        actions.push(action);
+      }
+    }
+
+    for (const form of forms) {
+      const doNothing = grade(
+        scenario,
+        env,
+        recordingOf(form.onsetAt, [], (form.onsetAt === null ? 0 : upperAt) + SOLUTION_TAIL_MS),
+      );
+      if (doNothing.result === 'pass') {
+        report(`a run that does nothing passes (${form.label})`);
+      }
+      if (!buildable) continue;
+      const first = form.onsetAt === null ? 0 : upperAt;
+      const events = actions.map((action, k) => ({
+        t: first + SOLUTION_GAP_MS * (k + 1),
+        id: action.control,
+        value: action.state,
+      }));
+      const done = grade(
+        scenario,
+        env,
+        recordingOf(
+          form.onsetAt,
+          events,
+          first + SOLUTION_GAP_MS * (events.length + 1) + SOLUTION_TAIL_MS,
+        ),
+      );
+      if (done.result !== 'pass') {
+        report(
+          `the solution does not pass (${form.label}): ${done.reasons.map((r) => r.kind).join(', ')}`,
+        );
+      }
+    }
+  });
+
+  // L21: a step of variant V applied to the start of variant W must not trigger W's forbidden items.
+  scenario.variants.forEach((own, n) => {
+    const mine = resolveVariant(scenario, own.id, false);
+    scenario.variants.forEach((other) => {
+      if (other.id === own.id) return;
+      const theirs = resolveVariant(scenario, other.id, false);
+      const baseline = baselineOf(theirs, env.registry);
+      const context: PredicateContext = {
+        controls: baseline,
+        baseline,
+        quantities: initialQuantities(theirs, env.quantities),
+      };
+      for (const step of resolveSteps(mine)) {
+        const action = actionFor(step.done, context, env);
+        if (action === null) continue;
+        const after: PredicateContext = {
+          ...context,
+          controls: { ...baseline, [action.control]: action.state },
+        };
+        for (const item of theirs.forbidden) {
+          const watched = item.when === undefined || evaluatePredicate(item.when, context, env);
+          if (
+            watched &&
+            !evaluatePredicate(item.trigger, context, env) &&
+            evaluatePredicate(item.trigger, after, env)
+          ) {
+            add(
+              ['variants', n],
+              `variant "${own.id}": step "${step.id}" makes the forbidden item "${item.id}" true in variant "${other.id}"`,
+            );
+          }
+        }
+      }
+    });
+  });
+}
+
+/** Every step of a scenario's groups in document order, including those under branches. */
+function resolveSteps(scenario: Scenario): Step[] {
+  const steps: Step[] = [];
+  const visit = (nodes: readonly ProcedureNode[]): void => {
+    for (const node of nodes) {
+      if (node.kind === 'group') steps.push(...node.steps);
+      else if (node.kind === 'branch') visit(node.nodes);
+      else if (node.kind === 'decision') for (const branch of node.branches) visit(branch.nodes);
+    }
+  };
+  visit(scenario.procedure);
+  return steps;
 }
 
 /**

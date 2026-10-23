@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { shippedScenarios, startScenario } from './support/session';
+import { forceVariant, shippedScenarios, startScenario } from './support/session';
 import { activate, activateAt, afterPairWindow, leaveZoom, zoomIntoRegion } from './support/zoom';
 
 // CNT-01 (phase 03): the shipped pack as the pilot meets it on the built panel. CHOOSE SITUATION
@@ -35,6 +35,8 @@ test('@hooks CHOOSE SITUATION lists every shipped scenario', async ({ page, hasT
 });
 
 test('@hooks ALTN 1 FAIL: the golden run grades PASS', async ({ page, hasTouch }) => {
+  // The cause is drawn by seed; this run is the one with the breaker in and a dead alternator.
+  await forceVariant(page, 'electrical/elec-altn1-fail', 'alternator_dead');
   await startScenario(page, hasTouch, 'electrical.elec-altn1-fail', 'easy');
 
   // The yellow caution shows from the start.

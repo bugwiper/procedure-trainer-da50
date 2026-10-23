@@ -341,6 +341,7 @@ describe('the Realistic setup in the onset block (plan 03-11, C-58)', () => {
       window_s: [2, 6],
       quantities: { oil_temp_c: 114 },
       parameters: { oil_temp_rate: 3 },
+      controls: {},
     });
   });
 
@@ -348,7 +349,12 @@ describe('the Realistic setup in the onset block (plan 03-11, C-58)', () => {
     const result = parseScenario(`${MINIMAL}onset:\n  window_s[2]: 5,20\n`);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.onset).toEqual({ window_s: [5, 20], quantities: {}, parameters: {} });
+    expect(result.value.onset).toEqual({
+      window_s: [5, 20],
+      quantities: {},
+      parameters: {},
+      controls: {},
+    });
   });
 
   it('rejects a non-numeric quantity or parameter at the line of the key', () => {

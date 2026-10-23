@@ -6,7 +6,7 @@ import type {
   PrintedItem,
   PrintedOutlineItem,
 } from '../tests/checklist-reference';
-import { chooseScenario, startScenario } from './support/session';
+import { chooseScenario, forceVariant, startScenario } from './support/session';
 import { activate } from './support/zoom';
 
 // The checklists as printed (plan 03-14, owner decision 2026-10-23) on the built app: the Easy
@@ -267,6 +267,8 @@ test('the debrief of a do-nothing ALTN 1 FAIL run keeps tag, verdict and Not gra
   hasTouch,
 }) => {
   const table = printedTable('elec-altn1-fail');
+  // Row 1 is graded only when the breaker had popped; this run draws the cause that does not grade it.
+  await forceVariant(page, 'electrical/elec-altn1-fail', 'alternator_dead');
   const debrief = await doNothing(page, hasTouch, ALTN1);
   await expect(debrief.getByTestId('checklist-title')).toHaveText(table.heading);
   await expect(debrief.getByTestId('checklist-message')).toHaveText(table.message ?? '');
@@ -287,14 +289,19 @@ test('the debrief of a do-nothing ALTN 1 FAIL run keeps tag, verdict and Not gra
     await expect(row.locator('.outline-verdict')).toHaveText('Missed');
     await expect(row).toHaveAttribute('data-verdict', 'Missed');
   }
-  for (const number of [1, 4]) {
-    const row = list.locator('li[data-kind="line"]', {
-      has: page.locator('.outline-number', { hasText: new RegExp(`^${String(number)}$`) }),
-    });
-    await expect(row).toHaveCount(1);
-    await expect(row).toContainText('Not graded');
-    await expect(row.locator('.outline-verdict')).toHaveCount(0);
-  }
+  // Row 4 is the one Not graded line; row 1 is a muted step without tag or verdict in this cause.
+  const monitor = list.locator('li[data-kind="line"]', {
+    has: page.locator('.outline-number', { hasText: /^4$/ }),
+  });
+  await expect(monitor).toHaveCount(1);
+  await expect(monitor).toContainText('Not graded');
+  await expect(monitor.locator('.outline-verdict')).toHaveCount(0);
+  await expect(list.getByText('Not graded')).toHaveCount(1);
+  const breaker = list.locator('li[data-kind="step"][data-muted="true"]');
+  await expect(breaker).toHaveCount(1);
+  await expect(breaker.locator('.outline-number')).toHaveText('1');
+  await expect(breaker.locator('.outline-tag, .outline-verdict, .outline-meta')).toHaveCount(0);
+  await expect(debrief.getByTestId('debrief-variant')).toContainText('Cause:');
   const comments = list.locator('li[data-kind="comment"]');
   await expect(comments).toHaveCount(2);
   for (let i = 0; i < 2; i += 1) {
