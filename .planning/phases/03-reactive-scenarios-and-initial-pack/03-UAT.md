@@ -8,10 +8,10 @@ updated: 2026-10-23T00:00:00Z
 
 ## Current Test
 
-number: 11
-name: The MAX run works only during a run
+number: 12
+name: Order of the new procedures
 expected: |
-  MAX on HIGH in a run lights the top amber lamp for 120 s, goes out when HIGH is left; dark on the free panel.
+  Say where the real sequence matters (Electrical Failure and Engine Fire are unordered now).
 awaiting: user response
 
 ## Tests
@@ -66,7 +66,7 @@ note: "Owner: passes, but checklist formatting is not right yet (see gap). Trans
 
 ### 11. The MAX run only during a run
 expected: MAX on HIGH lights the top amber lamp for 120 s in a run, dark on the free panel.
-result: [pending]
+result: pass
 
 ### 12. Order of the new procedures
 expected: Say where the real sequence matters (Electrical and Engine Fire are unordered now).
@@ -75,9 +75,9 @@ result: [pending]
 ## Summary
 
 total: 12
-passed: 8
+passed: 9
 issues: 2
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 

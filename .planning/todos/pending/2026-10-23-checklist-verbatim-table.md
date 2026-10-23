@@ -22,3 +22,23 @@ Checklists must reproduce the official checklist 1:1: no rephrasing, no paraphra
 3. Briefing (Easy) and debrief render the table (`src/ui/outline.ts`, `src/ui/screens/ChecklistOutline.tsx`).
 4. Update `docs/CONTENT-POLICY.md`, the convention lines in `.claude/CLAUDE.md`, and any test or lint that caps a step line at 10 words or forbids AFM wording; keep the private-photo rule (photos stay in `.input/`).
 5. Related: the optional squawk step in Engine Fire is unrealistic (ELECT. MASTER off kills the transponder); keep it as a blueprint until the scenarios are refined in later phases.
+
+## ENG OIL TEMP checklist (supplied by the owner as a photo, 2026-10-23)
+
+This one is not a numbered table but a bulleted decision tree with its own symbols, so the format needs a second form next to the numbered table (a nested outline with the printed symbols). Title ENG OIL TEMP, caution OIL TEMPERATURE HIGH. Text as printed, with its structure:
+
+- Check oil pressure
+  - If too low:
+    - Reduce power
+    - Open cowl flap
+    - Be prepared for loss of oil and engine failure
+    - Be prepared for emergency landing (continuation line without an arrow)
+  - If in green range:
+    - Reduce power
+    - Open cowl flap
+    - Increase airspeed
+    - Check oil temp in green range
+      - If not returning to green range:
+        - land at nearest suitable airfield
+
+The printed bullets differ per level (arrow, diamond with arrow, double arrow, circle, square); keep them as the printed markers if they render in the panel font, otherwise pick equivalent glyphs and list them for the owner. The shipped scenario already has two branches (oil pressure too low, in green range), so the grading structure exists; the display structure must follow this tree.
