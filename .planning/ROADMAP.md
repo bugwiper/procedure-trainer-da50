@@ -433,7 +433,7 @@ Plans:
 **Depends on**: Phase 3
 **Requirements**: SCN-09, SCN-10, SES-07
 
-**Plans:** 2/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 3/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -447,7 +447,7 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 03.1-03 — Run robustness (WR-03 throwing step listener, WR-05 30-minute cap) and the phase-end documentation
+- [x] 03.1-03 — Run robustness (WR-03 throwing step listener, WR-05 30-minute cap) and the phase-end documentation
 
 ### Phase 4: Electrical system fidelity
 
@@ -514,7 +514,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 1. Deployed Playable Panel                            | 9/9            | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario                            | 13/13          | Complete    | 2026-10-22 |
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
-| 3.1. Scenario variants and run robustness             | 2/3 | In Progress | -          |
+| 3.1. Scenario variants and run robustness             | 3/3 | In Progress | -          |
 | 4. Electrical system fidelity                         | 0/TBD          | Not started | -          |
 | 5. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 6. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
