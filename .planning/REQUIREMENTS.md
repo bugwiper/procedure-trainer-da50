@@ -32,7 +32,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-03**: A scenario defines initial panel state, annunciations and the displayed checklist
 - [x] **SCN-04**: Actions can be critical-required, standard-required, optional or forbidden, placed in ordered or unordered groups
 - [x] **SCN-05**: Actions are matched on resulting control/aircraft state, not on raw clicks
-- [ ] **SCN-06**: Scripted reactions: timers, ramps, triggers on user actions, and escalation to named outcomes (e.g. engine failure if oil temp exceeds red line)
+- [x] **SCN-06**: Scripted reactions: timers, ramps, triggers on user actions, and escalation to named outcomes (e.g. engine failure if oil temp exceeds red line)
 - [x] **SCN-07**: Each scenario carries source, revision and disclaimer metadata
 - [x] **SCN-08**: Engine uses a virtual, pausable clock so grading and replay are deterministic
 
@@ -127,7 +127,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SES-04 | Phase 2 | Complete |
 | PLT-03 | Phase 2 | Complete |
 | PLT-04 | Phase 2 | Complete |
-| SCN-06 | Phase 3 | Pending |
+| SCN-06 | Phase 3 | Complete |
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |

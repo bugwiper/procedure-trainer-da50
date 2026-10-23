@@ -305,7 +305,7 @@ Plans:
   3. The "New situation" flow offers Oil Temp High, Electrical Failure and Engine Fire, each with its own initial state, annunciations and procedure, and each passes golden, do-nothing, wrong-order and forbidden-action replay tests and registry validation.
   4. User can enter a squawk code (e.g. 7700) in a simplified transponder section, and the entered code counts as graded panel state.
 
-**Plans:** 9/10 plans executed
+**Plans:** 10/10 plans executed
 
 Plans:
 **Wave 1**
@@ -332,7 +332,7 @@ Plans:
 - [x] 03-08-PLAN.md — Engine Fire in flight grading every panel step of AFM 03-33 (CIRCULATING AIR, ECS SHUTOFF, ENGINE MASTER, FUEL selector, ELECT. MASTER), hidden fire quantity with the fuel cut, OIL PRES warning, optional squawk 7700 step, replay tests
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 03-09-PLAN.md — GRADING.md, CLAUDE.md, README, owner review list, todos, instructor-review list; final gates with the owner check
+- [x] 03-09-PLAN.md — GRADING.md, CLAUDE.md, README, owner review list, todos, instructor-review list; final gates with the owner check
 
 **UI hint**: yes
 
@@ -374,6 +374,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Deployed Playable Panel | 9/9 | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario | 13/13 | Complete    | 2026-10-22 |
-| 3. Reactive Scenarios and Initial Pack | 9/10 | In Progress | - |
+| 3. Reactive Scenarios and Initial Pack | 10/10 | In Progress | - |
 | 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
 | 5. Offline PWA and Real-Device Hardening | 0/TBD | Not started | - |
