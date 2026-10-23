@@ -18,7 +18,8 @@ import { Briefing } from './screens/Briefing';
 import { LevelPick } from './screens/LevelPick';
 import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
 import { Debrief } from './screens/Debrief';
-import { createSession } from './session';
+import { RUN_ERROR_PATH, createSession } from './session';
+import type { LoadFailure } from './session';
 import type { Level } from './session';
 
 const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
@@ -45,6 +46,9 @@ const detachClockDriver = attachClockDriver({
   now: () => performance.now(),
   hidden: () => document.hidden,
   blocked: () => anyModalOpen.peek(),
+  onError: (error) => {
+    session.failRun(error);
+  },
 });
 import.meta.hot?.dispose(detachClockDriver);
 
@@ -85,6 +89,12 @@ const openAbout = () => {
 const closeAbout = () => {
   aboutOpen.value = false;
   releaseModal('about');
+};
+
+/** The message of a run that stopped because of an error (WR-03); nothing for a load failure. */
+const runErrorProps = (failure: LoadFailure | null): { runError?: string } => {
+  const first = failure?.issues[0];
+  return first?.path === RUN_ERROR_PATH ? { runError: first.message } : {};
 };
 
 const closeDebrief = () => {
@@ -224,6 +234,7 @@ export function App() {
       ) : null}
       {session.loadFailure.value !== null ? (
         <LoadError
+          {...runErrorProps(session.loadFailure.value)}
           onRetry={() => {
             void session.retryLoad();
           }}

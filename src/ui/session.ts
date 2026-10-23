@@ -167,6 +167,11 @@ export interface Session {
    * defaults and the quantities to their base values, then performs the action that was asked for.
    */
   leaveRun(): Promise<void>;
+  /**
+   * A step of the run threw (WR-03): ends the run without a grade, resets the panel as leaving a
+   * run does and shows the error through the load-failure message. Does nothing without a run.
+   */
+  failRun(error: unknown): void;
   /** Repeats the failed request (a random pick again, or the same chosen entry). */
   retryLoad(): Promise<void>;
   /** Closes the load-error message; the area returns to the free panel. */
@@ -195,6 +200,9 @@ export function pickRandom<T>(items: readonly T[], rng: () => number): T {
   if (item === undefined) throw new RangeError('rng returned a value outside [0, 1)');
   return item;
 }
+
+/** The issue path that marks a load failure as an error during a run (WR-03). */
+export const RUN_ERROR_PATH = '(run)';
 
 const failure = (reason: LoadFailure['reason'], message: string): LoadFailure => ({
   ok: false,
@@ -502,6 +510,39 @@ export function createSession(deps: SessionDeps): Session {
       screen.value = 'free';
       if (pending === 'new') await runRandom();
       else await runList();
+    },
+    failRun(error) {
+      if (run.peek() === null || screen.peek() !== 'running') {
+        console.error(error);
+        return;
+      }
+      const text = error instanceof Error ? error.message : String(error);
+      bridge.reset({});
+      bridge.setTimeSource(null);
+      bridge.setFlags({});
+      endRun();
+      scenario.value = null;
+      briefing.value = null;
+      result.value = null;
+      recording.value = null;
+      onset.value = null;
+      variant.value = null;
+      clock.value = null;
+      confirm.value = null;
+      lastRequest = null;
+      screen.value = 'free';
+      loadFailure.value = {
+        ok: false,
+        reason: 'invalid',
+        issues: [
+          {
+            path: RUN_ERROR_PATH,
+            message: `The run stopped because of an error: ${text}`,
+            line: 1,
+            col: 1,
+          },
+        ],
+      };
     },
     async retryLoad() {
       const request = lastRequest;

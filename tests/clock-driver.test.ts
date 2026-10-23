@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { STEP_MS } from '../src/engine/sim';
 import { MAX_FRAME_STEP_MS, attachClockDriver } from '../src/ui/clock-driver';
 import type { ClockDriverSession, Steppable } from '../src/ui/clock-driver';
@@ -20,7 +20,7 @@ function fakeRun() {
   return run;
 }
 
-function rig() {
+function rig(onError?: (error: unknown) => void) {
   const screen = signal<Screen>('running');
   const first = fakeRun();
   const run = signal<Steppable | null>(first);
@@ -42,6 +42,7 @@ function rig() {
     now: () => time,
     hidden: () => hidden,
     blocked: () => blocked,
+    ...(onError === undefined ? {} : { onError }),
   });
   return {
     screen,
@@ -165,5 +166,39 @@ describe('attachClockDriver', () => {
     expect(r.hasPendingFrame()).toBe(false);
     r.frame(200);
     expect(r.first.steps).toBe(0);
+  });
+  it('a step that throws goes to onError and the loop keeps stepping (WR-03)', () => {
+    const errors: unknown[] = [];
+    const r = rig((error) => errors.push(error));
+    let calls = 0;
+    r.run.value = {
+      step() {
+        calls += 1;
+        if (calls === 1) throw new Error('listener failed');
+      },
+    };
+    r.frame(100);
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as Error).message).toBe('listener failed');
+    expect(r.hasPendingFrame()).toBe(true);
+    r.frame(100);
+    expect(calls).toBe(2);
+    expect(errors).toHaveLength(1);
+  });
+
+  it('without onError a throwing step is logged, not thrown, and the loop goes on', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const r = rig();
+    r.run.value = {
+      step() {
+        throw new Error('boom');
+      },
+    };
+    expect(() => {
+      r.frame(100);
+    }).not.toThrow();
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(r.hasPendingFrame()).toBe(true);
+    logged.mockRestore();
   });
 });

@@ -18,7 +18,8 @@ import { createPanelBridge } from '../src/ui/bridge';
 import { VITE_PACKS } from '../src/scenario/packs-vite';
 import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
 import { reasonLines } from '../src/ui/debrief-text';
-import { createSession, pickRandom } from '../src/ui/session';
+import { attachClockDriver } from '../src/ui/clock-driver';
+import { RUN_ERROR_PATH, createSession, pickRandom } from '../src/ui/session';
 
 // The session machine (plan 02-06, Table N1; plan 02-11 adds the briefing; SES-01, SES-03, SES-04,
 // SCN-05, D-13, D-14): node environment, a real bridge over the DA50 RG and a fake pack provider built from the real
@@ -1346,5 +1347,72 @@ scenarios[1]:
     await r.session.newSituation();
     await r.session.leaveRun();
     expect(r.session.variant.value).toBeNull();
+  });
+});
+
+describe('a failing step (WR-03, V-13)', () => {
+  /** The real session with the real driver on a fake frame scheduler. */
+  function driven(r: Rig) {
+    let time = 0;
+    let pending: (() => void) | null = null;
+    attachClockDriver({
+      session: r.session,
+      raf: (callback) => {
+        pending = callback;
+        return 1;
+      },
+      cancelRaf: () => {
+        pending = null;
+      },
+      now: () => time,
+      hidden: () => false,
+      blocked: () => false,
+      onError: (error) => {
+        r.session.failRun(error);
+      },
+    });
+    return (dt: number) => {
+      time += dt;
+      const frame = pending;
+      pending = null;
+      frame?.();
+    };
+  }
+
+  it('a throwing step listener ends the run without a grade, shows the error, and the next run steps', async () => {
+    const r = await started();
+    const frame = driven(r);
+    const first = r.session.run.value;
+    if (first === null) throw new Error('no run');
+    first.onStep(() => {
+      throw new Error('listener failed');
+    });
+    frame(100);
+    expect(r.session.screen.value).toBe('free');
+    expect(r.session.run.value).toBeNull();
+    expect(r.session.result.value).toBeNull();
+    expect(r.session.clock.value).toBeNull();
+    const failed = r.session.loadFailure.value;
+    expect(failed?.issues[0]?.path).toBe(RUN_ERROR_PATH);
+    expect(failed?.issues[0]?.message).toBe('The run stopped because of an error: listener failed');
+    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
+
+    r.session.dismissFailure();
+    await r.session.newSituation();
+    r.session.startRun();
+    const next = r.session.run.value;
+    expect(next).not.toBe(first);
+    frame(300);
+    expect(next?.clock.now()).toBe(300);
+    expect(r.session.screen.value).toBe('running');
+  });
+
+  it('failRun with no run does nothing', () => {
+    const r = rig();
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    r.session.failRun(new Error('x'));
+    expect(r.session.loadFailure.value).toBeNull();
+    expect(r.session.screen.value).toBe('free');
+    logged.mockRestore();
   });
 });

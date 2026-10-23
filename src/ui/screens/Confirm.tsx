@@ -45,9 +45,12 @@ export function LeaveConfirm({
 export function LoadError({
   onRetry,
   onBack,
+  runError,
 }: {
   readonly onRetry: () => void;
   readonly onBack: () => void;
+  /** Set when a run stopped because of an error (WR-03): the text replaces the load wording. */
+  readonly runError?: string;
 }) {
   return (
     <Modal
@@ -79,9 +82,13 @@ export function LoadError({
       }
     >
       <h2 id="load-error-title" class="modal-title modal-title-error">
-        This situation could not be loaded.
+        {runError ?? 'This situation could not be loaded.'}
       </h2>
-      <p class="modal-body">Check your connection, then try again.</p>
+      <p class="modal-body">
+        {runError === undefined
+          ? 'Check your connection, then try again.'
+          : 'The panel is back at its defaults.'}
+      </p>
     </Modal>
   );
 }
