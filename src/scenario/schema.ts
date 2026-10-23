@@ -36,6 +36,22 @@ export const MAX_LINE_WORDS = 20;
 
 const lineWords = wordsBetween(1, MAX_LINE_WORDS);
 
+/**
+ * The printed marker in front of an outline item (plan 03-13): the arrow of a heading line, the
+ * diamond variants of a condition, the double arrow of an action, the circle and the square of the
+ * nested levels. A name only; the renderer draws it.
+ */
+export const MARKERS = [
+  'arrow',
+  'diamond',
+  'diamond_arrow',
+  'double_arrow',
+  'circle',
+  'square',
+] as const;
+
+const marker = z.enum(MARKERS).optional();
+
 /** The row number printed at the left of a checklist table row. */
 const rowNumber = z.number().int().min(1).max(99);
 
@@ -94,6 +110,7 @@ export const Step = z.strictObject({
   /** Printed row number (table form) and desired action (right-hand column). */
   number: rowNumber.optional(),
   action: lineWords.optional(),
+  marker,
   done: Predicate,
 });
 
@@ -102,6 +119,7 @@ const Line = z.strictObject({
   text: lineWords,
   number: rowNumber.optional(),
   action: lineWords.optional(),
+  marker,
 });
 
 /** A full-width printed row between checklist rows; `action` is a right-hand reference such as a page. */
@@ -128,6 +146,7 @@ const decidedAt = z.enum(['start', 'run']).default('start');
 /** A branch without `kind`, as written inside a decision. */
 export const BranchObject = z.strictObject({
   label: branchLabel,
+  marker,
   when: Predicate,
   decided_at: decidedAt,
   get nodes() {
@@ -139,6 +158,7 @@ export const BranchObject = z.strictObject({
 const BranchNode = z.strictObject({
   kind: z.literal('branch'),
   label: branchLabel,
+  marker,
   when: Predicate,
   decided_at: decidedAt,
   get nodes() {
@@ -149,6 +169,7 @@ const BranchNode = z.strictObject({
 const Decision = z.strictObject({
   kind: z.literal('decision'),
   text: lineWords,
+  marker,
   get branches() {
     return z.array(BranchObject).min(1);
   },

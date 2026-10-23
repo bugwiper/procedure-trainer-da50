@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_TEXT_LENGTH, parseManifest, parseScenario } from '../src/scenario/parse';
-import { MAX_LINE_WORDS } from '../src/scenario/schema';
+import { MARKERS, MAX_LINE_WORDS } from '../src/scenario/schema';
 import { colOf, lineOf, MINIMAL, swap } from './scenario-text';
 
 // Parser errors of an author (SCN-01): every issue names its line and column. Each case edits the
@@ -238,6 +238,62 @@ describe('a checklist as printed (plan 03-13)', () => {
         col: colOf(text, 'boxd', 'boxd'),
       }),
     );
+  });
+
+  it('accepts exactly the six marker names on a line, a step, a decision and both branch shapes', () => {
+    expect(MARKERS).toEqual([
+      'arrow',
+      'diamond',
+      'diamond_arrow',
+      'double_arrow',
+      'circle',
+      'square',
+    ]);
+    const decision = (marker: string): string =>
+      [
+        '  - kind: decision',
+        `    marker: ${marker}`,
+        '    text: Check',
+        '    branches[1]:',
+        `      - marker: ${marker}`,
+        '        label: "If more:"',
+        '        when:',
+        '          check: state',
+        '          control: lv.cowl_flap',
+        '          is: closed',
+      ].join('\n');
+    const branch = (marker: string): string =>
+      [
+        '  - kind: branch',
+        `    marker: ${marker}`,
+        '    label: "If less:"',
+        '    when:',
+        '      check: state',
+        '      control: lv.cowl_flap',
+        '      is: closed',
+      ].join('\n');
+    for (const marker of MARKERS) {
+      expect(parseScenario(withLine(`    marker: ${marker}`)).ok, `line ${marker}`).toBe(true);
+      const step = swap(
+        MINIMAL,
+        'text: Reduce power',
+        `text: Reduce power\n        marker: ${marker}`,
+      );
+      expect(parseScenario(step).ok, `step ${marker}`).toBe(true);
+      expect(parseScenario(withNode(decision(marker))).ok, `decision ${marker}`).toBe(true);
+      expect(parseScenario(withNode(branch(marker))).ok, `branch ${marker}`).toBe(true);
+    }
+  });
+
+  it('rejects any other marker word at the key', () => {
+    const text = withLine('    marker: star');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'procedure.1.marker',
+      line: lineOf(text, 'marker: star'),
+      col: colOf(text, 'marker: star', 'marker'),
+    });
   });
 
   it('accepts the two forms and rejects any other at the key', () => {

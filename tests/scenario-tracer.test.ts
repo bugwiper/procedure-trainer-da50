@@ -42,7 +42,7 @@ describe('the blueprint scenario', () => {
     expect(scenario.id).toBe('eng-oil-temp-green');
     expect(scenario.title).toBe('ENG OIL TEMP');
     expect(scenario.source.section).toBe('AFM 03-08 ENG OIL TEMP');
-    expect(scenario.source.issue).toBe('018');
+    expect(scenario.source.issue).toBe('Edition 4.1, 2022-10-05');
     expect(scenario.disclaimer).toBe('training-aid');
     expect(scenario.annunciations).toEqual(['eng_oil_temp']);
   });
@@ -59,7 +59,14 @@ describe('the blueprint scenario', () => {
     expect(decision.text).toBe('Check oil pressure');
     expect(decision.branches.map((b) => b.label)).toEqual(['If too low:', 'If in green range:']);
     const [low, green] = decision.branches;
-    expect(low?.nodes).toEqual([]);
+    // The four printed lines of the oil pressure too low branch: shown, never graded (D-08, C-77).
+    expect(low?.nodes.map((n) => n.kind)).toEqual(['line', 'line', 'line', 'line']);
+    expect(low?.nodes.map((n) => (n.kind === 'line' ? n.text : null))).toEqual([
+      'Reduce power',
+      'Open cowl flap',
+      'Be prepared for loss of oil and engine failure',
+      'Be prepared for emergency landing',
+    ]);
     expect(low?.decided_at).toBe('start');
     const nodes = green?.nodes ?? [];
     expect(nodes.map((n) => n.kind)).toEqual(['group', 'line', 'line', 'branch']);
@@ -169,7 +176,12 @@ describe('parseScenario on author errors', () => {
 
   it('returns an issue for a 21-word step text (the checklist cap is 20 words)', () => {
     const words = Array.from({ length: 21 }, (_, i) => `w${String(i)}`).join(' ');
-    const result = parseScenario(swap('text: Reduce power', `text: ${words}`));
+    const result = parseScenario(
+      swap(
+        '                marker: double_arrow\n                text: Reduce power',
+        `                marker: double_arrow\n                text: ${words}`,
+      ),
+    );
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);

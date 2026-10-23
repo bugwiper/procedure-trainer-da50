@@ -193,9 +193,15 @@ describe('buildOutline, briefing form', () => {
       'Increase airspeed',
       'Check oil temp in green range',
       'If not returning to green range:',
-      'Land at nearest suitable airfield',
+      'land at nearest suitable airfield',
     ]);
     expect(branchByLabel(briefingOf(blueprint), 'If too low:').status).toBe('not_applicable');
+  });
+
+  it('hides the four printed lines of the too low branch of the blueprint in the briefing', () => {
+    const tooLow = branchByLabel(briefingOf(blueprint), 'If too low:');
+    expect(tooLow.children).toEqual([]);
+    expect(textsOf(briefingOf(blueprint))).not.toContain('Be prepared for emergency landing');
   });
 
   it('needs no grade result, and the debrief form refuses to build without one', () => {
@@ -206,6 +212,26 @@ describe('buildOutline, briefing form', () => {
 
   it('refuses a branch list that misses a path of the procedure', () => {
     expect(() => buildOutline(pocket, [], 'briefing')).toThrow('no branch status');
+  });
+});
+
+describe('buildOutline, debrief form of the blueprint', () => {
+  it('lists the four printed lines of the too low branch muted and not graded', () => {
+    const outline = debriefOf(blueprint, run(blueprint, GOLDEN));
+    const tooLow = branchByLabel(outline, 'If too low:');
+    expect(tooLow.status).toBe('not_applicable');
+    expect(tooLow.children.map((c) => (c.kind === 'line' ? c.text : null))).toEqual([
+      'Reduce power',
+      'Open cowl flap',
+      'Be prepared for loss of oil and engine failure',
+      'Be prepared for emergency landing',
+    ]);
+    for (const child of tooLow.children) {
+      expect(child).toMatchObject({ kind: 'line', muted: true });
+    }
+    // The graded steps of the branch that applies are the only step rows.
+    const steps = everyItem(outline).filter((i): i is OutlineStep => i.kind === 'step');
+    expect(steps.map((s) => s.id)).toEqual(['reduce_power', 'open_cowl_flap']);
   });
 });
 

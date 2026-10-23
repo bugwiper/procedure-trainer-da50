@@ -1,12 +1,12 @@
-# ENG OIL TEMP with oil pressure in the green range (format 1 blueprint). Step and checklist lines are short checklist wording; all other text is own wording. The oil cooling is degraded under parameters; the oil temperature model itself is aircraft data.
+# ENG OIL TEMP with oil pressure in the green range (format 1 blueprint). The checklist (heading, message, lines, labels and markers) is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decision 2026-10-23); all other text is own wording. The four lines of the oil pressure too low branch are shown only and are not graded (D-08). The oil cooling is degraded under parameters; the oil temperature model itself is aircraft data.
 format: 1
 id: eng-oil-temp-green
 title: ENG OIL TEMP
 source:
-  document: "AFM DA 50 C, Doc 9.01.01-E"
-  issue: "018"
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
   section: AFM 03-08 ENG OIL TEMP
-  verified: "2026-10-22"
+  verified: "2026-10-23"
 disclaimer: training-aid
 briefing:
   situation: "You are in cruise flight when the red ENG OIL TEMP message appears on the primary flight display. The oil temperature reading is high. The oil pressure is indicated in the green range and the engine otherwise runs smoothly."
@@ -20,16 +20,35 @@ initial:
 parameters:
   oil_cooling: 0.55
 annunciations[1]: eng_oil_temp
+checklist:
+  form: outline
+  heading: ENG OIL TEMP
+  message: OIL TEMPERATURE HIGH
 procedure[1]:
   - kind: decision
+    marker: arrow
     text: Check oil pressure
     branches[2]:
-      - label: "If too low:"
+      - marker: diamond_arrow
+        label: "If too low:"
         when:
           check: band
           quantity: oil_pressure_bar
           in[2]: low_red,low_yellow
-      - label: "If in green range:"
+        nodes[4]:
+          - kind: line
+            marker: double_arrow
+            text: Reduce power
+          - kind: line
+            marker: double_arrow
+            text: Open cowl flap
+          - kind: line
+            marker: double_arrow
+            text: Be prepared for loss of oil and engine failure
+          - kind: line
+            text: Be prepared for emergency landing
+      - marker: diamond
+        label: "If in green range:"
         when:
           check: band
           quantity: oil_pressure_bar
@@ -41,6 +60,7 @@ procedure[1]:
             steps[2]:
               - id: reduce_power
                 severity: critical
+                marker: double_arrow
                 text: Reduce power
                 done:
                   check: travel_rel
@@ -49,16 +69,20 @@ procedure[1]:
                   delta: -10
               - id: open_cowl_flap
                 severity: critical
+                marker: double_arrow
                 text: Open cowl flap
                 done:
                   check: state
                   control: lv.cowl_flap
                   is: open
           - kind: line
+            marker: double_arrow
             text: Increase airspeed
           - kind: line
+            marker: double_arrow
             text: Check oil temp in green range
           - kind: branch
+            marker: circle
             label: "If not returning to green range:"
             decided_at: run
             when:
@@ -67,7 +91,8 @@ procedure[1]:
               in[3]: low_yellow,high_yellow,high_red
             nodes[1]:
               - kind: line
-                text: Land at nearest suitable airfield
+                marker: square
+                text: land at nearest suitable airfield
 forbidden[1]:
   - id: power_increased
     text: Increase power

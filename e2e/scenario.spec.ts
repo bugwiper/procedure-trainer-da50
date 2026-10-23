@@ -303,8 +303,10 @@ test('@hooks the Easy briefing shows the checklist with the panel steps and the 
   await expect(page.getByRole('dialog', { name: 'ENG OIL TEMP' })).toBeVisible();
   await expect(page.getByTestId('briefing-situation')).not.toBeEmpty();
   const source = page.getByTestId('briefing-source');
-  await expect(source).toContainText('Source: AFM 03-08 ENG OIL TEMP, issue 018');
-  await expect(source).toContainText('AFM DA 50 C, Doc 9.01.01-E, checked 2026-10-22');
+  // The source lines are the file's own words and its checked date (never typed here).
+  const { section, issue, document, verified } = blueprint().source;
+  await expect(source).toContainText(`Source: ${section}, issue ${issue}`);
+  await expect(source).toContainText(`${document}, checked ${verified}`);
   await expect(page.getByTestId('briefing-disclaimer')).toHaveText(
     'Training aid only. Not a replacement for the AFM or for instruction.',
   );
@@ -654,7 +656,7 @@ test('@hooks the debrief shows the outline with verdicts, Not graded and the bra
       .locator(':scope > div'),
   ).toContainText('Not graded');
   await expect(
-    debrief.locator('li[data-kind="line"]', { hasText: 'Land at nearest suitable airfield' }),
+    debrief.locator('li[data-kind="line"]', { hasText: 'land at nearest suitable airfield' }),
   ).toContainText('Not graded');
   // Nesting is real list nesting, and long lines never scroll the card sideways.
   await expect(debrief.locator('ul ul ul ul')).not.toHaveCount(0);

@@ -875,7 +875,7 @@ describe('branch applicability (D-23, D-25)', () => {
     const nested = load(
       swap(
         BLUEPRINT,
-        '            nodes[1]:\n              - kind: line\n                text: Land at nearest suitable airfield',
+        '            nodes[1]:\n              - kind: line\n                marker: square\n                text: land at nearest suitable airfield',
         [
           '            nodes[1]:',
           '              - kind: group',

@@ -5,7 +5,7 @@ import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { checkScenario } from '../src/scenario/lint';
 import type { ProcedureNode, Scenario } from '../src/scenario/schema';
 import { PRINTED, PRINTED_FILES } from './checklist-reference';
-import type { PrintedItem } from './checklist-reference';
+import type { PrintedItem, PrintedOutlineItem } from './checklist-reference';
 
 // The shipped scenario files carry the printed checklists word for word (plan 03-13, T-03-33). An
 // independent walker reads rows, steps and comment nodes in reading order from the parsed scenario
@@ -58,6 +58,45 @@ function tableRows(nodes: readonly ProcedureNode[]): PrintedItem[] {
   return rows;
 }
 
+/** A nested outline: text or label, marker and children; a group lists its steps at its level. */
+function outlineItems(nodes: readonly ProcedureNode[]): PrintedOutlineItem[] {
+  const withChildren = (
+    text: string,
+    marker: string | undefined,
+    children: readonly ProcedureNode[],
+  ): PrintedOutlineItem => ({
+    text,
+    ...(marker === undefined ? {} : { marker }),
+    ...(children.length === 0 ? {} : { children: outlineItems(children) }),
+  });
+  const items: PrintedOutlineItem[] = [];
+  for (const node of nodes) {
+    switch (node.kind) {
+      case 'line':
+        items.push(withChildren(node.text, node.marker, []));
+        break;
+      case 'group':
+        for (const step of node.steps) items.push(withChildren(step.text, step.marker, []));
+        break;
+      case 'branch':
+        items.push(withChildren(node.label, node.marker, node.nodes));
+        break;
+      case 'decision':
+        items.push({
+          text: node.text,
+          ...(node.marker === undefined ? {} : { marker: node.marker }),
+          children: node.branches.map((branch) =>
+            withChildren(branch.label, branch.marker, branch.nodes),
+          ),
+        });
+        break;
+      case 'comment':
+        throw new Error('an outline checklist holds no comment row');
+    }
+  }
+  return items;
+}
+
 describe('the shipped checklists match the printed wording', () => {
   for (const [id, printed] of Object.entries(PRINTED)) {
     const file = PRINTED_FILES[id];
@@ -69,6 +108,13 @@ describe('the shipped checklists match the printed wording', () => {
       expect(scenario.checklist?.heading).toBe(printed.heading);
       expect(scenario.checklist?.message).toBe(printed.message);
     });
+
+    if (printed.form === 'outline') {
+      it(`${id}: every line, label and marker in the printed tree`, () => {
+        const scenario = load(file ?? '');
+        expect(outlineItems(scenario.procedure)).toEqual(printed.items);
+      });
+    }
 
     if (printed.form === 'table') {
       it(`${id}: every row and comment in reading order`, () => {

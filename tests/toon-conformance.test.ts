@@ -17,7 +17,7 @@ describe('decoder behaviour the scenario files rely on (@toon-format/toon 4.4.0)
     const text = readFileSync(join(root, 'scenarios/engine/eng-oil-temp-green.toon'), 'utf8');
     const doc = decode(text) as Record<string, unknown>;
     expect(doc['format']).toBe(1);
-    expect((doc['source'] as Record<string, unknown>)['issue']).toBe('018');
+    expect((doc['source'] as Record<string, unknown>)['issue']).toBe('Edition 4.1, 2022-10-05');
     const initial = doc['initial'] as { controls: Record<string, unknown> };
     expect(Object.keys(initial.controls)).toContain('lv.power');
     expect(initial.controls['lv.power']).toBe('p75');

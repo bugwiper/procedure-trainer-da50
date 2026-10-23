@@ -972,4 +972,33 @@ describe('L16 and L17: a checklist as printed (plan 03-13)', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0]?.path).toBe('procedure.0.steps.0.number');
   });
+
+  it('L17: a marker in the table form, at its key, on a line and on a step', () => {
+    const line = swap(TABLE, '    number: 3', '    number: 3\n    marker: arrow');
+    const a = issuesOf(line);
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({
+      path: 'procedure.1.marker',
+      line: lineOf(line, 'marker: arrow'),
+      col: colOf(line, 'marker: arrow', 'marker'),
+    });
+    expect(a[0]?.message).toContain('marker');
+
+    const step = swap(TABLE, '        number: 1', '        number: 1\n        marker: square');
+    const b = issuesOf(step);
+    expect(b).toHaveLength(1);
+    expect(b[0]).toMatchObject({
+      path: 'procedure.0.steps.0.marker',
+      line: lineOf(step, 'marker: square'),
+    });
+  });
+
+  it('L17: a marker in the default (outline) form is fine', () => {
+    const text = swap(
+      MINIMAL,
+      'text: Increase airspeed',
+      'text: Increase airspeed\n    marker: double_arrow',
+    );
+    expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
+  });
 });

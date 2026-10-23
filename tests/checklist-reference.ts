@@ -92,10 +92,51 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
       { kind: 'row', item: 'Transponder: squawk 7700', own: true },
     ],
   },
+  'eng-oil-temp-green': {
+    form: 'outline',
+    heading: 'ENG OIL TEMP',
+    message: 'OIL TEMPERATURE HIGH',
+    items: [
+      {
+        text: 'Check oil pressure',
+        marker: 'arrow',
+        children: [
+          {
+            text: 'If too low:',
+            marker: 'diamond_arrow',
+            children: [
+              { text: 'Reduce power', marker: 'double_arrow' },
+              { text: 'Open cowl flap', marker: 'double_arrow' },
+              { text: 'Be prepared for loss of oil and engine failure', marker: 'double_arrow' },
+              // A continuation line of the printed page: no marker.
+              { text: 'Be prepared for emergency landing' },
+            ],
+          },
+          {
+            text: 'If in green range:',
+            marker: 'diamond',
+            children: [
+              { text: 'Reduce power', marker: 'double_arrow' },
+              { text: 'Open cowl flap', marker: 'double_arrow' },
+              { text: 'Increase airspeed', marker: 'double_arrow' },
+              { text: 'Check oil temp in green range', marker: 'double_arrow' },
+              {
+                text: 'If not returning to green range:',
+                marker: 'circle',
+                // Lower case l, as printed.
+                children: [{ text: 'land at nearest suitable airfield', marker: 'square' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 };
 
 /** The scenario file of each reference entry, relative to the repository root. */
 export const PRINTED_FILES: Readonly<Record<string, string>> = {
   'elec-altn1-fail': 'scenarios/electrical/elec-altn1-fail.toon',
   'eng-fire-in-flight': 'scenarios/engine/eng-fire-in-flight.toon',
+  'eng-oil-temp-green': 'scenarios/engine/eng-oil-temp-green.toon',
 };

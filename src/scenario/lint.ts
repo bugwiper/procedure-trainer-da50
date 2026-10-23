@@ -250,7 +250,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
  * nodes where they stand) the numbers present are 1, 2, 3 and so on; a gap, a repeat or a start
  * other than 1 is reported at the number, with the expected and the found number; counting resumes
  * after a higher number and keeps the expected one after a repeat, so one slip is one issue. L17: the table form has no decision, branch or
- * marker; the outline form (the default) has no number, action, comment node or boxed.
+ * marker (a marker is reported at its own key as well); the outline form (the default) has no number, action, comment node or boxed.
  */
 function checkChecklist(
   scenario: Scenario,
@@ -271,6 +271,11 @@ function checkChecklist(
     // A gap or a late start resumes after the found number; a repeat keeps the expected one.
     if (number > expected) expected = number + 1;
   };
+  const noMarker = (path: Segments, marker: string | undefined): void => {
+    if (table && marker !== undefined) {
+      add([...path, 'marker'], 'a marker is for the outline form; this checklist is a table');
+    }
+  };
   const outlineOnly = (path: Segments, keys: Record<string, unknown>, what: string): void => {
     for (const [key, value] of Object.entries(keys)) {
       if (value !== undefined) {
@@ -284,6 +289,7 @@ function checkChecklist(
       switch (node.kind) {
         case 'line':
           numbered(here, node.number);
+          noMarker(here, node.marker);
           if (!table) outlineOnly(here, { number: node.number, action: node.action }, 'outline');
           return;
         case 'comment':
@@ -294,16 +300,20 @@ function checkChecklist(
           node.steps.forEach((step, j) => {
             const at = [...here, 'steps', j];
             numbered(at, step.number);
+            noMarker(at, step.marker);
             if (!table) outlineOnly(at, { number: step.number, action: step.action }, 'outline');
           });
           return;
         case 'branch':
           if (table) add(here, 'a branch is for the outline form; this checklist is a table');
+          noMarker(here, node.marker);
           visit([...here, 'nodes'], node.nodes);
           return;
         case 'decision':
           if (table) add(here, 'a decision is for the outline form; this checklist is a table');
+          noMarker(here, node.marker);
           node.branches.forEach((branch, j) => {
+            noMarker([...here, 'branches', j], branch.marker);
             visit([...here, 'branches', j, 'nodes'], branch.nodes);
           });
           return;
