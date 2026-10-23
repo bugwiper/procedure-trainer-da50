@@ -14,6 +14,7 @@ import type { Session } from '../../session';
 import { ArcGauge } from './ArcGauge';
 import type { Band } from './ArcGauge';
 import { BarGauge } from './BarGauge';
+import { GLASS_DARK, GREEN, RED, YELLOW, toneOf } from './gauge-alert';
 
 export interface FrameProps {
   readonly region: Region;
@@ -160,10 +161,6 @@ export function GlassHeader({ title }: { readonly title?: string }) {
   );
 }
 
-const GREEN = '#2fd36f';
-const YELLOW = '#f2c230';
-const RED = '#f0443c';
-
 interface GaugeSpec {
   readonly label: string;
   readonly unit: string;
@@ -234,7 +231,7 @@ function readingOf(g: GaugeSpec, quantities: Quantities): number {
   return quantities[g.quantity] ?? g.value;
 }
 
-export const SCREEN_FILL = '#05080b';
+export const SCREEN_FILL = GLASS_DARK;
 const STRIP_W = 150;
 const STRIP_GAUGES: readonly GaugeSpec[] = [
   RPM,
@@ -311,6 +308,7 @@ function MapPage({ w, quantities }: { readonly w: number; readonly quantities: Q
             max={g.max}
             bands={g.bands}
             decimals={g.decimals}
+            tone={toneOf(DA50RG_QUANTITIES, g.quantity, readingOf(g, quantities))}
             x={12}
             y={34 + i * 38}
             w={STRIP_W - 20}
@@ -374,6 +372,7 @@ function EnginePage({ w, quantities }: { readonly w: number; readonly quantities
           max={g.max}
           bands={g.bands}
           decimals={g.decimals}
+          tone={toneOf(DA50RG_QUANTITIES, g.quantity, readingOf(g, quantities))}
           x={16}
           y={176 + i * 33}
           w={barW}
@@ -390,6 +389,7 @@ function EnginePage({ w, quantities }: { readonly w: number; readonly quantities
           max={g.max}
           bands={g.bands}
           decimals={g.decimals}
+          tone={toneOf(DA50RG_QUANTITIES, g.quantity, readingOf(g, quantities))}
           x={w / 2 + 8}
           y={176 + i * 33}
           w={barW}
