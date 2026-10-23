@@ -27,12 +27,11 @@ const CHOOSE_ROW_TOPS = [110, 200, 290, 380] as const;
 export const SESSION_LAYOUT = {
   /** Size of the region in panel units. */
   region: { w: 820, h: 480 },
-  /** Main view: NEW SITUATION, CHOOSE SITUATION and a free slot reserved below them. */
+  /** Main view: NEW SITUATION, CHOOSE SITUATION and RESET (the former free slot, y 300 to 440). */
   main: {
     new: { x: BUTTON_X, y: 20, w: BUTTON_W, h: 120 },
     choose: { x: BUTTON_X, y: 160, w: BUTTON_W, h: 120 },
-    /** Reserved, y 300 to 440. */
-    freeSlot: { x: BUTTON_X, y: 300, w: BUTTON_W, h: 140 },
+    reset: { x: BUTTON_X, y: 300, w: BUTTON_W, h: 120 },
   },
   /** Choose view: a close button on top and at most four situation rows below it. */
   choose: {
@@ -50,17 +49,22 @@ export function labelBaseline(r: LocalRect): number {
 }
 
 /**
- * Global rectangles of every session button of both views (new, choose, close and the choose rows),
+ * Global rectangles of every session button of both views (new, choose, reset, close and the choose rows),
  * moved by the origin of the region scenario_area. A conservative superset like controlFootprints:
- * the Full panel corner chooser avoids all of them in either view. The reserved free slot is not a
- * button and is left out.
+ * the Full panel corner chooser avoids all of them in either view.
  */
 export function sessionFootprints(regionBounds: {
   readonly x: number;
   readonly y: number;
 }): Rect[] {
   const { main, choose } = SESSION_LAYOUT;
-  const locals: readonly LocalRect[] = [main.new, main.choose, choose.close, ...choose.rows];
+  const locals: readonly LocalRect[] = [
+    main.new,
+    main.choose,
+    main.reset,
+    choose.close,
+    ...choose.rows,
+  ];
   return locals.map((r) => ({
     x: regionBounds.x + r.x,
     y: regionBounds.y + r.y,

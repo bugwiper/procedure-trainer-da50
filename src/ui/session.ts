@@ -59,7 +59,7 @@ export const LEVEL_NAMES: Readonly<Record<Level, string>> = {
 const SEED_RANGE = 4_294_967_296;
 
 /** What a session button asked for while a run was live; the confirm holds it (U-03). */
-export type PendingAction = 'new' | 'choose';
+export type PendingAction = 'new' | 'choose' | 'reset';
 
 /** One row of the choose view: a scenario of an allowed pack, titled from the pack manifest. */
 export interface Choice extends ScenarioRef {
@@ -154,6 +154,12 @@ export interface Session {
    * scenario text is loaded) and shows the choose view; no entry opens the empty message.
    */
   openChooser(): Promise<void>;
+  /**
+   * RESET: the panel back to its original state, no run, no scenario, no briefing or debrief.
+   * During a run it asks first (the leave-run confirm, then leaveRun resets); on every other
+   * screen it resets at once. Ignored while a load runs.
+   */
+  resetPanel(): void;
   /** Choosing only: back to the free panel. */
   closeChooser(): void;
   /** Choosing and not busy only: opens the briefing of that entry (`key` names the pressed row). */
@@ -243,6 +249,28 @@ export function createSession(deps: SessionDeps): Session {
   const endRun = (): void => {
     run.peek()?.dispose();
     run.value = null;
+  };
+  /**
+   * The free panel as at page load: registry defaults, base quantities, no flags, no log, no run,
+   * scenario, result or open view. Level and levelPicked are display state of the next briefing.
+   */
+  const toFreePanel = (): void => {
+    bridge.reset({});
+    bridge.setTimeSource(null);
+    endRun();
+    scenario.value = null;
+    briefing.value = null;
+    result.value = null;
+    recording.value = null;
+    onset.value = null;
+    variant.value = null;
+    clock.value = null;
+    confirm.value = null;
+    choices.value = [];
+    empty.value = false;
+    loadFailure.value = null;
+    lastRequest = null;
+    screen.value = 'free';
   };
   const level = signal<Level>('easy');
   const levelPicked = signal(false);
@@ -479,6 +507,14 @@ export function createSession(deps: SessionDeps): Session {
       if (screen.peek() !== 'free') return;
       await runList();
     },
+    resetPanel() {
+      if (busy.peek()) return;
+      if (screen.peek() === 'running') {
+        confirm.value = 'reset';
+        return;
+      }
+      toFreePanel();
+    },
     closeChooser() {
       if (screen.peek() !== 'choosing' || busy.peek()) return;
       choices.value = [];
@@ -497,22 +533,10 @@ export function createSession(deps: SessionDeps): Session {
     async leaveRun() {
       const pending = confirm.peek();
       if (pending === null || screen.peek() !== 'running') return;
-      confirm.value = null;
       // The run is dropped, never graded: no result, no clock, the panel at its defaults (U-03).
-      bridge.reset({});
-      bridge.setTimeSource(null);
-      endRun();
-      scenario.value = null;
-      briefing.value = null;
-      result.value = null;
-      recording.value = null;
-      onset.value = null;
-      variant.value = null;
-      clock.value = null;
-      lastRequest = null;
-      screen.value = 'free';
+      toFreePanel();
       if (pending === 'new') await runRandom();
-      else await runList();
+      else if (pending === 'choose') await runList();
     },
     failRun(error) {
       if (run.peek() === null || screen.peek() !== 'running') {

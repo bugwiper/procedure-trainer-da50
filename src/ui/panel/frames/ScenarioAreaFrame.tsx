@@ -5,8 +5,8 @@ import { SessionButton } from '../widgets/SessionButton';
 import type { FrameProps } from './MfdFrame';
 
 /**
- * The session area in the co-pilot legroom (D-14, region scenario_area). Main view: NEW SITUATION
- * and CHOOSE SITUATION at their SESSION_LAYOUT rectangles. Choose view (state choosing): CLOSE LIST
+ * The session area in the co-pilot legroom (D-14, region scenario_area). Main view: NEW SITUATION,
+ * CHOOSE SITUATION and RESET at their SESSION_LAYOUT rectangles. Choose view (state choosing): CLOSE LIST
  * and up to four rows, one per scenario of an allowed pack, titled from the pack manifest. Trainer
  * content, not an aircraft control: it is drawn only when a session is passed, and nothing here
  * touches the store. The text follows the session state, never a control state (U-06).
@@ -94,6 +94,16 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
         held={busyKey === 'session.choose'}
         onActivate={idle(() => {
           void session.openChooser();
+        })}
+      />
+      <SessionButton
+        key="session.reset"
+        id="session.reset"
+        rect={SESSION_LAYOUT.main.reset}
+        label="RESET"
+        ariaLabel="Reset the panel to its original state"
+        onActivate={idle(() => {
+          session.resetPanel();
         })}
       />
     </g>

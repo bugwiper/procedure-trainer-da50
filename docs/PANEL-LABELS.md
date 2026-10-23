@@ -139,6 +139,16 @@ A simplified transponder for the squawk code (phase 03, owner decision D-11). It
 |----|-----------------|-------------------|-------|--------------|
 | `kp.squawk` (new in plan 03-03) | TRANSPONDER; the key legends 0 1 2 3 4 5 6 7 and CLR | none; the readout shows the code (the recorded exception to G-0.1) | owner decision D-11, temporary | `controls/squawk.ts` |
 
+## Session area (trainer part, region `scenario_area`)
+
+The session pad in the co-pilot legroom is trainer content, not an aircraft part, and has no registry control. Its button text is static caps text; nothing on it changes with a state (only the rim while a press is pending).
+
+| Id | Static label(s) | Position placards | Basis | File to edit |
+|----|-----------------|-------------------|-------|--------------|
+| `session.new` | NEW SITUATION | none | existing, phase 02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx` |
+| `session.choose` | CHOOSE SITUATION | none | existing, phase 02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx` |
+| `session.reset` | RESET | none; third button under CHOOSE SITUATION, same size and press behaviour | owner request (2026-10-23), new trainer part | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
+
 ## Environmental control
 
 The plate sits above the throttle. Its four controls carry a box title each and pictograms instead of words (owner finding). Q-05 asks whether the remaining names are real.
