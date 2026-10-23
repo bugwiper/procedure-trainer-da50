@@ -20,3 +20,6 @@ The owner reads fuel flow in US gallons per hour (gph), as displayed and written
 ## Resolved
 
 Closed 2026-10-23. 1. `sw.fuel_valve` carries the new rotary option `oneWay: 'cw'` (NORMAL 0, EMERGENCY 90, OFF 225, clockwise order confirmed by the AFM schematic of the fuel valve): a right-half tap steps clockwise and OFF is followed by NORMAL, the left half does nothing, a drag is clamped at its start. Still for the owner: the OFF angle (the schematic puts OFF at the bottom, 180) and whether EMERGENCY to NORMAL may pass OFF (the AFM text says it does not; Q-15 in `docs/PANEL-LABELS.md`). 2. `kp.squawk` rests on 7000. 3. Fuel flow is a line in gph through the two owner points (`FUEL_FLOW_LOW_POINT`, `FUEL_FLOW_HIGH_POINT` in `physics.ts`); the MFD has no fuel flow readout yet.
+
+
+Corrected 2026-10-23 after the second live test. Item 1: the handle turns both ways but cannot be turned through the left sector between NORMAL and OFF; `oneWay` is replaced by the rotary option `arc` (NORMAL 0, EMERGENCY 90, OFF 180, taps step without wrapping, a drag is held inside the arc). New: the propeller speed follows the propeller set curve of the POWER lever (`src/aircraft/da50rg/prop-curve.ts`, read from the owner photo, approximate; cruise 1995 rpm).

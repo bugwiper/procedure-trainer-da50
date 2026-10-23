@@ -1,9 +1,11 @@
+import { interpolate } from '../../engine/curve';
 import { definePhysics } from '../../engine/physics';
 import type { PhysicsInputs, QuantityModel } from '../../engine/physics';
 import { travelPercent } from '../../engine/predicates';
 import type { DetentLeverDef } from '../../engine/registry';
 import { DEICE_MAX_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
+import { PROP_SPEED_CURVE } from './prop-curve';
 import { DA50RG_QUANTITIES } from './quantities';
 
 // DA50 RG physics (D-01, D-02, D-10, D-12, C-03, C-05, C-09): how the named quantities move during
@@ -37,8 +39,7 @@ const AMPS_TAU_MS = 1_500;
 const VOLTS_TAU_MS = 1_000;
 
 // Effects of the POWER load, per percent of travel away from the cruise load. The engine speed
-// rises 200 rpm from cruise to POWER 100 % (2300 rpm, inside green).
-const RPM_PER_PERCENT = 20 / 3;
+// is not among them: it follows the propeller set curve (prop-curve.ts).
 const OIL_PRESSURE_PER_PERCENT = 0.01;
 const COOLANT_PER_PERCENT = 0.3;
 const GEARBOX_PER_PERCENT = 0.3;
@@ -216,10 +217,14 @@ function oilTempTarget(inputs: PhysicsInputs): number {
   return AMBIENT_C + (HEAT_BASE + HEAT_PER_LOAD * load) / cooling + fire;
 }
 
-/** Engine speed: rises with the load; 0 with the engine off. */
+/**
+ * Engine speed: the propeller set curve at the POWER lever position (the propeller is governed, so
+ * the lever alone sets the speed; it falls first, then rises); 0 with the engine off. At the
+ * registry default lever the curve gives the base value, the equilibrium of C-09.
+ */
 function rpmTarget(inputs: PhysicsInputs): number {
   if (!running(inputs)) return 0;
-  return baseOf('rpm') + (loadPercent(inputs) - CRUISE_PERCENT) * RPM_PER_PERCENT;
+  return interpolate(PROP_SPEED_CURVE, loadPercent(inputs));
 }
 
 function oilPressureTarget(inputs: PhysicsInputs): number {

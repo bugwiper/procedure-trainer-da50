@@ -5,7 +5,9 @@ import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { DA50RG_CAS } from '../src/aircraft/da50rg/cas';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_PHYSICS } from '../src/aircraft/da50rg/physics';
+import { PROP_SPEED_CURVE } from '../src/aircraft/da50rg/prop-curve';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
+import { interpolate } from '../src/engine/curve';
 import { PhysicsError, definePhysics } from '../src/engine/physics';
 import type {
   PhysicsInputs,
@@ -13,7 +15,7 @@ import type {
   QuantityModel,
   ReactionSpec,
 } from '../src/engine/physics';
-import { baselineOf, initialQuantities } from '../src/engine/predicates';
+import { baselineOf, initialQuantities, travelPercent } from '../src/engine/predicates';
 import { MAX_RUN_MS, STEP_MS, simSetup, simulate } from '../src/engine/sim';
 import type { SimEvent } from '../src/engine/sim';
 import { checkScenario } from '../src/scenario/lint';
@@ -388,6 +390,64 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
       expect(q(full, 'rpm')).toBeGreaterThan(q(cruise, 'rpm'));
       expect(q(full, 'rpm')).toBeLessThanOrEqual(bandTop('rpm', 'high_yellow'));
       expect(q(full, 'load_pct')).toBeGreaterThan(q(cruise, 'load_pct'));
+    });
+
+    describe('propeller speed follows the propeller set curve of the POWER lever', () => {
+      const power = DA50RG.get('lv.power');
+      if (power?.kind !== 'detent-lever') throw new Error('no POWER lever');
+      /** Lever positions to settle at: the curve vertices that are detents, plus the ends. */
+      const levers = power.detents.map((d) => ({ id: d.id, percent: travelPercent(power, d.id) }));
+
+      it('the table is the one read from the owner photo (approximate, the owner may refine it)', () => {
+        expect(PROP_SPEED_CURVE.map((p) => [p.x, p.y])).toEqual([
+          [0, 2150],
+          [7, 1915],
+          [13, 1780],
+          [25, 1750],
+          [35, 1785],
+          [50, 1880],
+          [64.5, 1945],
+          [70, 1995],
+          [90, 2300],
+          [100, 2340],
+        ]);
+      });
+
+      it('the base value is the curve at the registry default lever (the cruise anchor)', () => {
+        expect(baseOf('rpm')).toBe(
+          interpolate(PROP_SPEED_CURVE, travelPercent(power, power.default)),
+        );
+        expect(baseOf('rpm')).toBe(1995);
+      });
+
+      it('settles on the curve at every lever detent', () => {
+        for (const lever of levers) {
+          const settled = q(settle({ 'lv.power': lever.id }, MINUTE), 'rpm');
+          expect(settled, lever.id).toBeCloseTo(interpolate(PROP_SPEED_CURVE, lever.percent), 0);
+        }
+      });
+
+      it('falls first and rises later: the minimum lies at 25 %, the ends are higher', () => {
+        const rpmAt = (id: string) => q(settle({ 'lv.power': id }, MINUTE), 'rpm');
+        expect(rpmAt('p25')).toBeLessThan(rpmAt('p0'));
+        expect(rpmAt('p25')).toBeLessThan(rpmAt('p70'));
+        expect(rpmAt('p25')).toBeLessThan(rpmAt('p100'));
+        expect(rpmAt('p0')).toBeGreaterThan(rpmAt('p10'));
+      });
+
+      it('the speed lags toward the curve with the 2 s time constant and is 0 with the engine stopped', () => {
+        const early = q(settle({ 'lv.power': 'p100' }, 2_000), 'rpm');
+        // One time constant: about 63 % of the way from the cruise value to the new target.
+        const share = (early - baseOf('rpm')) / (2340 - baseOf('rpm'));
+        expect(share).toBeGreaterThan(0.55);
+        expect(share).toBeLessThan(0.7);
+        for (const stopped of [{ 'sw.engine_master': 'off' }, { 'sw.fuel_valve': 'off' }] as Record<
+          string,
+          string
+        >[]) {
+          expect(q(settle(stopped, MINUTE), 'rpm')).toBeLessThan(1);
+        }
+      });
     });
 
     it('load follows the POWER travel and oil pressure rises a little with the load', () => {

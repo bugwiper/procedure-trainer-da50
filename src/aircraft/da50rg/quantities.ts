@@ -22,7 +22,8 @@ export const DA50RG_QUANTITIES = defineQuantities([
     unit: 'rpm',
     min: 0,
     max: 2500,
-    base: 2100,
+    // The propeller set curve at the cruise lever (70 %), read from a photo (prop-curve.ts).
+    base: 1995,
     bands: [
       { id: 'green', colour: 'green', to: 2300 },
       { id: 'high_yellow', colour: 'yellow', to: 2340 },
