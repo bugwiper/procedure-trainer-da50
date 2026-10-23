@@ -67,15 +67,16 @@ export const KNOB_CONTROLS: readonly ControlSpec[] = [
   },
   // FUEL selector (owner decision 2026-10-22, RESEARCH Open Question 3): an elongated red knob at
   // the bottom left of the pedestal, next to the throttle, with a small white line at its pointing
-  // end. Forward is NORMAL (the in-flight default), 90 degrees clockwise EMERGENCY, 225 degrees
-  // clockwise OFF. The real knob sits behind the throttle where the trim wheel is; it is drawn at
-  // the bottom left of the pedestal by owner decision. The OFF angle 225 is owner-unverified
-  // (docs/PANEL-LABELS.md, docs/PANEL-REVIEW.md). The three position words are static art of the
-  // selector-bar look, so the knob is nameless. The real handle turns only clockwise (owner,
-  // first live test; the AFM schematic shows NORMAL at the top, EMERGENCY at the right, OFF at the
-  // bottom, the same clockwise order): `oneWay: 'cw'`. No click spots: a tap on the right half
-  // steps one stop clockwise (OFF is followed by NORMAL), the left half does nothing, a drag
-  // commits the nearest stop clockwise of its start and is clamped there.
+  // end. Forward is NORMAL (the in-flight default), 90 degrees clockwise EMERGENCY, 180 degrees
+  // clockwise OFF (owner, second live test; the AFM schematic draws NORMAL at the top, EMERGENCY at
+  // the right and OFF at the bottom). The real knob sits behind the throttle where the trim wheel
+  // is; it is drawn at the bottom left of the pedestal by owner decision. The three position words
+  // are static art of the selector-bar look, so the knob is nameless. The handle turns both ways
+  // but cannot be turned through the left sector between NORMAL and OFF, so the order is NORMAL,
+  // EMERGENCY, OFF along one bounded arc (`arc`) and NORMAL to OFF always passes EMERGENCY. No
+  // click spots: a tap on the right half steps one stop clockwise, the left half one back, and a
+  // tap past the end of the arc does nothing; a drag is clamped to the arc and snaps to the
+  // nearest stop.
   {
     id: 'sw.fuel_valve',
     kind: 'rotary',
@@ -95,9 +96,9 @@ export const KNOB_CONTROLS: readonly ControlSpec[] = [
     stops: [
       { id: 'normal', label: 'NORMAL', angle: 0 },
       { id: 'emergency', label: 'EMERGENCY', angle: 90 },
-      { id: 'off', label: 'OFF', angle: 225 },
+      { id: 'off', label: 'OFF', angle: 180 },
     ],
     default: 'normal',
-    oneWay: 'cw',
+    arc: { min: 0, max: 180 },
   },
 ];

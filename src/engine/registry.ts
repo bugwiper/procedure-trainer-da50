@@ -208,12 +208,14 @@ export interface RotaryDef extends ControlBase {
   /** Absent means `round`; `selector-bar` is the elongated selector knob. Validated at load. */
   readonly skin?: RotarySkin;
   /**
-   * `cw`: the knob turns only clockwise (the FUEL selector). The stops form a cycle, the last one
-   * is followed by the first; a tap steps to the next stop clockwise, the other tap half does
-   * nothing, a drag is clamped at its start (no counter-clockwise travel). Not combinable with
-   * `spots`, which would set a stop directly. Validated at load.
+   * Bounded travel (the FUEL selector): the handle turns in both directions but only between
+   * `min` and `max` (degrees, the angles of the stops), and cannot swing through the blocked
+   * sector outside. A drag is clamped to the arc and snaps to the nearest stop; a tap steps one
+   * stop towards the tapped side and does nothing at the end of the arc (no wrap, no toggle). All
+   * stops lie inside the arc. Not combinable with `spots`, which would set a stop directly.
+   * Validated at load.
    */
-  readonly oneWay?: 'cw';
+  readonly arc?: { readonly min: number; readonly max: number };
 }
 
 /** Bus groups of the circuit breakers (UI-SPEC 01.2, Table A1). Re-checked at run time. */
@@ -493,13 +495,21 @@ function checkRotary(def: RotaryDef): void {
       `knob "${def.id}" radius ${def.r} does not fit inside its ${def.hit.w} x ${def.hit.h} hit footprint`,
     );
   }
-  if (def.oneWay !== undefined) {
-    if ((def.oneWay as string) !== 'cw') {
-      throw new RegistryError(`knob "${def.id}" has unknown oneWay "${def.oneWay as string}"`);
+  if (def.arc !== undefined) {
+    const { min, max } = def.arc;
+    if (!Number.isFinite(min) || !Number.isFinite(max) || !(max > min) || max - min >= 360) {
+      throw new RegistryError(
+        `knob "${def.id}" arc ${min}..${max} must be finite and span more than 0 and less than 360 degrees`,
+      );
+    }
+    if (first !== undefined && last !== undefined && (first.angle < min || last.angle > max)) {
+      throw new RegistryError(
+        `knob "${def.id}" has a stop outside its arc ${min}..${max} (stops ${first.angle}..${last.angle})`,
+      );
     }
     if (def.spots !== undefined) {
       throw new RegistryError(
-        `knob "${def.id}" turns one way only and cannot have click spots, which set a stop directly`,
+        `knob "${def.id}" has an arc and cannot have click spots, which set a stop directly`,
       );
     }
   }

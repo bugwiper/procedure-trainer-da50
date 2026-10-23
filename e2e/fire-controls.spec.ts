@@ -54,7 +54,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('panel')).toBeVisible();
 });
 
-test('FUEL selector turns only clockwise: right-half taps step NORMAL, EMERGENCY, OFF, NORMAL; a left-half tap does nothing', async ({
+test('FUEL selector: taps step one stop towards the tapped side and stop at the ends of the arc', async ({
   page,
   hasTouch,
 }) => {
@@ -70,37 +70,28 @@ test('FUEL selector turns only clockwise: right-half taps step NORMAL, EMERGENCY
   const printed = await knob.locator('text').allTextContents();
   expect([...printed].sort()).toEqual(['EMERGENCY', 'NORMAL', 'OFF']);
 
-  // A left-half tap on NORMAL does not turn the knob back (and never reaches OFF).
-  await tapHalf(page, 'left', hasTouch);
-  await expect(knob).toHaveAttribute('data-state', 'normal');
-  await afterPairWindow(page);
-
-  await tapHalf(page, 'right', hasTouch);
-  await expect(knob).toHaveAttribute('data-state', 'emergency');
-  await expect(panel).toHaveAttribute('viewBox', regionView ?? '');
-  expect(await knob.locator('text').allTextContents()).toEqual(printed);
-
-  await afterPairWindow(page);
-  await tapHalf(page, 'left', hasTouch);
-  await expect(knob).toHaveAttribute('data-state', 'emergency');
-
-  await afterPairWindow(page);
-  await tapHalf(page, 'right', hasTouch);
-  await expect(knob).toHaveAttribute('data-state', 'off');
-  await expect(panel).toHaveAttribute('viewBox', regionView ?? '');
-  expect(await knob.locator('text').allTextContents()).toEqual(printed);
-
-  // A left-half tap on OFF does not go back to EMERGENCY; the next right-half tap comes round to NORMAL.
-  await afterPairWindow(page);
-  await tapHalf(page, 'left', hasTouch);
-  await expect(knob).toHaveAttribute('data-state', 'off');
-  await afterPairWindow(page);
-  await tapHalf(page, 'right', hasTouch);
-  await expect(knob).toHaveAttribute('data-state', 'normal');
-  expect(await knob.locator('text').allTextContents()).toEqual(printed);
+  // Each tap acts alone: the pair window passes between two taps, so none is read as a double tap.
+  const steps: ['right' | 'left', string][] = [
+    // A left-half tap on NORMAL passes over the end of the arc and does nothing (no wrap to OFF).
+    ['left', 'normal'],
+    ['right', 'emergency'],
+    ['left', 'normal'],
+    ['right', 'emergency'],
+    ['right', 'off'],
+    // A right-half tap on OFF does nothing either (no wrap to NORMAL).
+    ['right', 'off'],
+    ['left', 'emergency'],
+  ];
+  for (const [half, expected] of steps) {
+    await tapHalf(page, half, hasTouch);
+    await expect(knob).toHaveAttribute('data-state', expected);
+    await expect(panel).toHaveAttribute('viewBox', regionView ?? '');
+    expect(await knob.locator('text').allTextContents()).toEqual(printed);
+    await afterPairWindow(page);
+  }
 });
 
-test('FUEL selector: a mouse drag round the left side never reaches OFF, a clockwise drag does', async ({
+test('FUEL selector: a mouse drag cannot be turned through the left sector and always passes EMERGENCY', async ({
   page,
   hasTouch,
 }, testInfo) => {
@@ -121,16 +112,30 @@ test('FUEL selector: a mouse drag round the left side never reaches OFF, a clock
       });
     }
     await page.mouse.up();
+    await afterPairWindow(page);
   }
 
   await expect(knob).toHaveAttribute('data-state', 'normal');
-  // Counter-clockwise: up-left, left, down-left (towards the OFF position at 225 degrees).
-  await dragThrough([315, 270, 225]);
+  // Towards the blocked side from NORMAL: up-left, left, down-left, down. The knob stays at NORMAL.
+  await dragThrough([315, 270, 225, 180]);
   await expect(knob).toHaveAttribute('data-state', 'normal');
-  await afterPairWindow(page);
-  // Clockwise: up, right, down, down-left.
-  await dragThrough([0, 90, 180, 225]);
+  // Up, right: EMERGENCY.
+  await dragThrough([0, 90]);
+  await expect(knob).toHaveAttribute('data-state', 'emergency');
+  // Up, right, down: from EMERGENCY on to OFF.
+  await dragThrough([0, 90, 180]);
   await expect(knob).toHaveAttribute('data-state', 'off');
+  // Towards the blocked side from OFF: down-left, left, up-left. The knob stays at OFF.
+  await dragThrough([180, 225, 270, 315]);
+  await expect(knob).toHaveAttribute('data-state', 'off');
+  // Back round the arc to NORMAL: down, right, up.
+  await dragThrough([180, 90, 0]);
+  await expect(knob).toHaveAttribute('data-state', 'normal');
+  // Straight from NORMAL to OFF along the arc, then straight back.
+  await dragThrough([0, 45, 90, 135, 180]);
+  await expect(knob).toHaveAttribute('data-state', 'off');
+  await dragThrough([180, 135, 90, 45, 0]);
+  await expect(knob).toHaveAttribute('data-state', 'normal');
 });
 
 test('ECS SHUTOFF pulls by its marker and the in marker pushes it back', async ({

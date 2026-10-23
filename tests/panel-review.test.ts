@@ -696,6 +696,6 @@ describe('phase 3 owner review (plan 03-09)', () => {
   it('each phase 3 item points to GRADING.md or names the control rows it covers', () => {
     expect(section).toContain('sw.fuel_valve');
     expect(section).toContain('lv.ecs_shutoff');
-    expect(section).toMatch(/225 degree/);
+    expect(section).toMatch(/180 degree/);
   });
 });

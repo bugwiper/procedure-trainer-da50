@@ -9,10 +9,9 @@ import {
   MIN_RADIUS,
   angleOf,
   nearestStop,
-  oneWayPointer,
-  oneWayReach,
-  oneWayStop,
-  oneWayTravel,
+  arcDragStep,
+  arcPointer,
+  arcStop,
   stepStop,
   stopAngle,
   tapStop,
@@ -188,11 +187,11 @@ describe('DA50RG knobs (Table K1)', () => {
     expect(read('sw.instr_light')).toEqual(dimmerStops);
     expect(read('sw.flood_light')).toEqual(dimmerStops);
     expect(read('sw.env_fan')).toEqual(fanStops);
-    // The FUEL selector (owner decision 2026-10-22; the 225 degree OFF angle is owner-unverified).
+    // The FUEL selector (owner decision 2026-10-22; OFF at 180 degrees, owner 2026-10-23).
     expect(read('sw.fuel_valve')).toEqual([
       ['normal', 'NORMAL', 0],
       ['emergency', 'EMERGENCY', 90],
-      ['off', 'OFF', 225],
+      ['off', 'OFF', 180],
     ]);
   });
 
@@ -353,23 +352,48 @@ describe('rotary registry invariants', () => {
     ).toThrow(RegistryError);
   });
 
-  it('accepts oneWay cw, rejects an unknown direction and rejects it together with click spots', () => {
-    expect(() => define(build({ stops: stops(0, 90, 225), oneWay: 'cw' }))).not.toThrow();
+  it('accepts a valid arc and rejects a stop outside it, a bad span and click spots', () => {
     expect(() =>
-      define(build({ stops: stops(0, 90), oneWay: 'ccw' as unknown as RotaryDef['oneWay'] })),
-    ).toThrow(/unknown oneWay "ccw"/);
+      define(build({ stops: stops(0, 90, 180), arc: { min: 0, max: 180 } })),
+    ).not.toThrow();
+    expect(() =>
+      define(build({ stops: stops(0, 90, 180), arc: { min: -10, max: 200 } })),
+    ).not.toThrow();
+    expect(() => define(build({ stops: stops(0, 90, 180), arc: { min: 0, max: 150 } }))).toThrow(
+      /stop outside its arc/,
+    );
+    expect(() => define(build({ stops: stops(0, 90, 180), arc: { min: 10, max: 200 } }))).toThrow(
+      /stop outside its arc/,
+    );
+    expect(() => define(build({ stops: stops(0, 90), arc: { min: 90, max: 0 } }))).toThrow(
+      /span more than 0/,
+    );
+    expect(() => define(build({ stops: stops(0, 90), arc: { min: 0, max: 360 } }))).toThrow(
+      /span more than 0/,
+    );
+    expect(() => define(build({ stops: stops(0, 90), arc: { min: 0, max: NaN } }))).toThrow(
+      /finite/,
+    );
     expect(() =>
       define(
         build({
           stops: stops(0, 90),
-          oneWay: 'cw',
+          arc: { min: 0, max: 90 },
           spots: [
             { stop: 'a', x: -15, y: 0, w: 10, h: 10 },
             { stop: 'b', x: 15, y: 0, w: 10, h: 10 },
           ],
         }),
       ),
-    ).toThrow(/one way only/);
+    ).toThrow(/arc and cannot have click spots/);
+  });
+
+  it('a two-stop knob with an arc clamps instead of toggling', () => {
+    const two = define(build({ stops: stops(0, 90), arc: { min: 0, max: 90 } })).get('sw.k');
+    if (two?.kind !== 'rotary') throw new Error('not a rotary');
+    expect(stepStop(two, 'a', -1)).toBe('a');
+    expect(stepStop(two, 'a', 1)).toBe('b');
+    expect(stepStop(two, 'b', 1)).toBe('b');
   });
 
   it('rejects angles that do not strictly increase', () => {
@@ -781,34 +805,34 @@ describe('FUEL selector (plan 03-10, C-51, C-52)', () => {
     }
   });
 
-  it('turns only clockwise (the real handle): oneWay cw, no click spots', () => {
-    expect(fuel.oneWay).toBe('cw');
+  it('turns both ways on one bounded arc from NORMAL (0) to OFF (180); no other knob has an arc', () => {
+    expect(fuel.arc).toEqual({ min: 0, max: 180 });
+    expect(fuel.stops.map((s) => s.angle)).toEqual([0, 90, 180]);
     for (const def of rotaries) {
-      if (def.id !== 'sw.fuel_valve') expect(def.oneWay, def.id).toBeUndefined();
+      if (def.id !== 'sw.fuel_valve') expect(def.arc, def.id).toBeUndefined();
     }
   });
 
-  it('steps clockwise NORMAL, EMERGENCY, OFF, then round to NORMAL; a step back stays put', () => {
+  it('taps step one stop towards the tapped side and do nothing past either end', () => {
     expect(stepStop(fuel, 'normal', 1)).toBe('emergency');
     expect(stepStop(fuel, 'emergency', 1)).toBe('off');
-    expect(stepStop(fuel, 'off', 1)).toBe('normal');
-    for (const stop of fuel.stops) expect(stepStop(fuel, stop.id, -1), stop.id).toBe(stop.id);
+    expect(stepStop(fuel, 'off', 1)).toBe('off');
+    expect(stepStop(fuel, 'off', -1)).toBe('emergency');
+    expect(stepStop(fuel, 'emergency', -1)).toBe('normal');
+    expect(stepStop(fuel, 'normal', -1)).toBe('normal');
   });
 
-  describe('one-way drag', () => {
-    /** Feeds pointer angles one after the other, as the widget does; returns travel and stop. */
-    function drag(from: string, start: number, angles: number[]) {
-      let travel = 0;
-      let previous = start;
+  describe('bounded drag', () => {
+    /** Feeds pointer angles one after the other, as the widget does; returns position and stop. */
+    function drag(angles: number[]) {
+      let pos: number | null = null;
+      let previous = angles[0] ?? 0;
       for (const angle of angles) {
-        travel = oneWayTravel(fuel, from, travel, previous, angle);
+        pos = arcDragStep(fuel, pos, previous, angle);
         previous = angle;
       }
-      return {
-        travel,
-        stop: oneWayStop(fuel, from, travel),
-        pointer: oneWayPointer(fuel, from, travel),
-      };
+      if (pos === null) throw new Error('no samples');
+      return { pos, stop: arcStop(fuel, pos), pointer: arcPointer(fuel, pos) };
     }
     /** A sweep from `a` to `b` in 5 degree samples, the way round given by the sign of `step`. */
     function sweep(a: number, b: number, step: number): number[] {
@@ -817,59 +841,64 @@ describe('FUEL selector (plan 03-10, C-51, C-52)', () => {
       return out;
     }
 
-    it('reaches: from NORMAL up to OFF, from EMERGENCY up to NORMAL, from OFF up to EMERGENCY', () => {
-      expect(oneWayReach(fuel, 'normal')).toBe(225);
-      expect(oneWayReach(fuel, 'emergency')).toBe(270);
-      expect(oneWayReach(fuel, 'off')).toBe(225);
-    });
-
-    it('a clockwise drag from NORMAL commits EMERGENCY, then OFF', () => {
-      expect(drag('normal', 0, sweep(5, 90, 5)).stop).toBe('emergency');
-      const toOff = drag('normal', 0, sweep(5, 225, 5));
+    it('a clockwise drag from NORMAL passes EMERGENCY and reaches OFF; past OFF it is held', () => {
+      expect(drag(sweep(0, 90, 5)).stop).toBe('emergency');
+      const toOff = drag(sweep(0, 180, 5));
       expect(toOff.stop).toBe('off');
-      expect(toOff.pointer).toBe(225);
-      // Swinging on past OFF is held at OFF.
-      expect(drag('normal', 0, sweep(5, 330, 5)).stop).toBe('off');
+      expect(toOff.pointer).toBe(180);
+      expect(drag(sweep(0, 330, 5)).stop).toBe('off');
+      expect(drag(sweep(0, 330, 5)).pointer).toBe(180);
     });
 
-    it('a counter-clockwise drag from NORMAL never reaches OFF, however far round the left side', () => {
-      for (const end of [-45, -90, -135, -180, -270]) {
-        const result = drag('normal', 0, sweep(-5, end, -5));
+    it('a drag toward the blocked side from NORMAL stays at NORMAL, however far round the left', () => {
+      for (const end of [-45, -90, -135, -180, -270, -340]) {
+        const result = drag(sweep(0, end, -5));
         expect(result.stop, String(end)).toBe('normal');
-        expect(result.travel, String(end)).toBe(0);
         expect(result.pointer, String(end)).toBe(0);
       }
     });
 
-    it('a counter-clockwise drag never changes the stop from any start', () => {
-      for (const stop of fuel.stops) {
-        const result = drag(stop.id, stop.angle, sweep(stop.angle - 5, stop.angle - 200, -5));
-        expect(result.stop, stop.id).toBe(stop.id);
-        expect(result.travel, stop.id).toBe(0);
+    it('a drag toward the blocked side from OFF stays at OFF, however far round the left', () => {
+      for (const end of [225, 270, 315, 360, 450]) {
+        const result = drag(sweep(180, end, 5));
+        expect(result.stop, String(end)).toBe('off');
+        expect(result.pointer, String(end)).toBe(180);
       }
     });
 
-    it('the pointer follows the finger again once it comes back clockwise', () => {
-      const result = drag('normal', 0, [...sweep(-5, -60, -5), ...sweep(-55, -40, 5)]);
-      expect(result.stop).toBe('normal');
-      expect(result.travel).toBe(20);
-      expect(drag('normal', 0, [...sweep(-5, -60, -5), ...sweep(-55, 30, 5)]).stop).toBe(
-        'emergency',
-      );
+    it('a drag from NORMAL to OFF passes EMERGENCY (the arc is followed, never the left sector)', () => {
+      const path = sweep(0, 180, 5);
+      const seen = new Set<string>();
+      let pos: number | null = null;
+      let previous = 0;
+      for (const angle of path) {
+        pos = arcDragStep(fuel, pos, previous, angle);
+        previous = angle;
+        seen.add(arcStop(fuel, pos));
+      }
+      expect([...seen]).toEqual(['normal', 'emergency', 'off']);
     });
 
-    it('from OFF a clockwise drag passes NORMAL (the cycle) and reaches EMERGENCY', () => {
-      expect(drag('off', 225, sweep(230, 360, 5)).stop).toBe('normal');
-      expect(drag('off', 225, sweep(230, 450, 5)).stop).toBe('emergency');
+    it('the pointer follows the finger again once it comes back into the arc', () => {
+      const result = drag([...sweep(0, -60, -5), ...sweep(-55, 0, 5), ...sweep(5, 95, 5)]);
+      expect(result.stop).toBe('emergency');
+      expect(result.pointer).toBe(95);
+      const rest = drag([...sweep(0, -60, -5), ...sweep(-55, 0, 5)]);
+      expect(rest.stop).toBe('normal');
     });
 
-    it('a release without travel commits the start stop', () => {
-      for (const stop of fuel.stops) expect(oneWayStop(fuel, stop.id, 0)).toBe(stop.id);
+    it('the first sample places the pointer on the arc from its absolute angle', () => {
+      expect(drag([90]).stop).toBe('emergency');
+      expect(drag([180]).stop).toBe('off');
+      // In the blocked sector the half next to an end belongs to that end.
+      expect(drag([300]).stop).toBe('normal');
+      expect(drag([230]).stop).toBe('off');
     });
 
     it('is deterministic and rejects non-finite input', () => {
-      expect(() => oneWayTravel(fuel, 'normal', 0, NaN, 3)).toThrow(RangeError);
-      expect(() => oneWayStop(fuel, 'normal', Infinity)).toThrow(RangeError);
+      expect(() => arcDragStep(fuel, 0, NaN, 3)).toThrow(RangeError);
+      expect(() => arcPointer(fuel, Infinity)).toThrow(RangeError);
+      expect(() => arcDragStep(knob('sw.env_fan'), null, 0, 0)).toThrow(/no arc/);
     });
   });
 
