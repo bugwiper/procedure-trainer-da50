@@ -4,31 +4,18 @@ verified: 2026-10-22T13:40:00Z
 status: passed
 score: 5/5 must-haves verified
 covered_files:
-  - .planning/phases/02-first-gradable-scenario/02-01-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-01-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-02-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-02-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-03-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-03-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-04-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-04-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-05-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-05-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-06-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-06-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-07-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-07-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-08-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-08-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-09-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-09-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-10-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-10-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-11-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-11-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-12-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-12-SUMMARY.md
-  - .planning/phases/02-first-gradable-scenario/02-13-PLAN.md
   - .planning/phases/02-first-gradable-scenario/02-13-SUMMARY.md
   - docs/GRADING.md
   - scenarios/engine/eng-oil-temp-green.toon

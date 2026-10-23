@@ -23,8 +23,8 @@ plan_head_after: 978ea439e4c4c7bed65dec99269be037329c3998
 tech-stack:
   added: []
   patterns:
-    - "Living-document gate: the old format word is assembled from letters at run time so the test file never contains it"
-    - "CLAUDE.md stack section and research/STACK.md are edited in step"
+    - 'Living-document gate: the old format word is assembled from letters at run time so the test file never contains it'
+    - 'CLAUDE.md stack section and research/STACK.md are edited in step'
 
 key-files:
   created:
@@ -32,10 +32,6 @@ key-files:
   modified:
     - .claude/CLAUDE.md
     - .planning/research/STACK.md
-    - .planning/research/ARCHITECTURE.md
-    - .planning/research/PITFALLS.md
-    - .planning/research/FEATURES.md
-    - .planning/research/SUMMARY.md
     - .planning/PROJECT.md
     - .planning/ROADMAP.md
     - .planning/REQUIREMENTS.md
@@ -44,28 +40,28 @@ key-files:
     - .planning/todos/pending/2026-10-21-breaker-effects-and-avionics-functions.md
 
 key-decisions:
-  - "Scenario files are TOON, parser @toon-format/toon 4.4.0 pinned exactly; schema errors get line and column from an own path-to-line index; authoring feedback is npm run validate plus the Vitest check, no editor schema support"
+  - 'Scenario files are TOON, parser @toon-format/toon 4.4.0 pinned exactly; schema errors get line and column from an own path-to-line index; authoring feedback is npm run validate plus the Vitest check, no editor schema support'
 
 patterns-established:
-  - "TOON pitfalls recorded in the stack documents: exact pin and conformance test, strict decoding, quoted numeric-looking strings, full-line comments only, no tabular rows or root arrays, never format scenario files with the library encoder"
+  - 'TOON pitfalls recorded in the stack documents: exact pin and conformance test, strict decoding, quoted numeric-looking strings, full-line comments only, no tabular rows or root arrays, never format scenario files with the library encoder'
 
 requirements-completed: [SCN-01]
 
 coverage:
   - id: D1
-    description: "Every living document names TOON as the scenario format and carries no wording of the earlier format; CLAUDE.md and STACK.md name the exact parser pin 4.4.0"
+    description: 'Every living document names TOON as the scenario format and carries no wording of the earlier format; CLAUDE.md and STACK.md name the exact parser pin 4.4.0'
     requirement: SCN-01
     verification:
       - kind: unit
-        ref: "tests/docs-format.test.ts#living documents name TOON as the scenario format"
+        ref: 'tests/docs-format.test.ts#living documents name TOON as the scenario format'
         status: pass
     human_judgment: false
   - id: D2
-    description: "REQUIREMENTS.md SCN-01 reads Scenarios are TOON files validated against a schema, with line-numbered errors; roadmap criteria 2.5 and 4.4 say TOON"
+    description: 'REQUIREMENTS.md SCN-01 reads Scenarios are TOON files validated against a schema, with line-numbered errors; roadmap criteria 2.5 and 4.4 say TOON'
     requirement: SCN-01
     verification:
       - kind: unit
-        ref: "tests/docs-format.test.ts#REQUIREMENTS.md SCN-01 says TOON files"
+        ref: 'tests/docs-format.test.ts#REQUIREMENTS.md SCN-01 says TOON files'
         status: pass
     human_judgment: false
 
