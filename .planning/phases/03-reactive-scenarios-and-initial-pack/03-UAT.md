@@ -1,5 +1,5 @@
 ---
-status: testing
+status: complete
 phase: 03-reactive-scenarios-and-initial-pack
 source: 03-01-SUMMARY.md to 03-10-SUMMARY.md, docs/PANEL-REVIEW.md "Phase 3: owner review"
 started: 2026-10-23T00:00:00Z
@@ -8,11 +8,7 @@ updated: 2026-10-23T00:00:00Z
 
 ## Current Test
 
-number: 12
-name: Order of the new procedures
-expected: |
-  Say where the real sequence matters (Electrical Failure and Engine Fire are unordered now).
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -70,14 +66,15 @@ result: pass
 
 ### 12. Order of the new procedures
 expected: Say where the real sequence matters (Electrical and Engine Fire are unordered now).
-result: [pending]
+result: pass
+note: "Owner: order does not matter in these scenarios; Engine Fire steps are all hardware actions (ECS shut-off works with ELECT. MASTER off). Keep unordered. ALTN 1 FAIL may become a branching scenario with several causes (see scenario variants todo)." 
 
 ## Summary
 
 total: 12
-passed: 9
+passed: 10
 issues: 2
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 

@@ -11,6 +11,8 @@ Checklists must reproduce the official checklist 1:1: no rephrasing, no paraphra
 
 ## Format (blueprint)
 
+- The numbering is optional: the official document has checklists with numbers and checklists without (for example the ENG OIL TEMP tree). A checklist row with no number simply prints no number.
+
 - Each checklist row has a number, an item and a desired action. Number and item are left-aligned, the desired action is right-aligned (like the printed checklist, with dotted leaders if it looks right).
 - Between two consecutive numbers a comment row may span the whole line, for example the "Carry out: EMERGENCY LANDING (ENGINE OFF)" line, or "Select appropriate emergency landing area".
 - Rows that are not panel actions (airspeed, front windows, doors) stay visible in the table but are not graded.
