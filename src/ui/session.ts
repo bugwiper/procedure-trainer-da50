@@ -30,7 +30,7 @@ import type {
 } from '../engine/grading';
 import { initialQuantities, realisticQuantities } from '../engine/predicates';
 import { Run } from '../engine/run';
-import { onsetFromSeed, simSetup } from '../engine/sim';
+import { MAX_RUN_MS, onsetFromSeed, simSetup } from '../engine/sim';
 import { resolveVariant, variantFromSeed } from '../engine/variants';
 import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
@@ -308,8 +308,11 @@ export function createSession(deps: SessionDeps): Session {
       bridge.setQuantities(state.quantities);
       bridge.setFlags(state.flags);
       // D-06: a run whose state carries a named outcome ends by itself, graded as FAIL. The run
-      // clock stands at the outcome time, which is what complete() records as completedAt.
-      if (state.outcome !== null && screen.peek() === 'running') completeRun();
+      // clock stands at the outcome time, which is what complete() records as completedAt. The
+      // 30-minute cap ends a run the same way, without an outcome (WR-05, V-14).
+      if ((state.outcome !== null || state.t >= MAX_RUN_MS) && screen.peek() === 'running') {
+        completeRun();
+      }
     });
     bridge.setTimeSource(() => current.clock.now());
     scenario.value = opened;

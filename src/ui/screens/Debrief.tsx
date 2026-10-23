@@ -1,6 +1,6 @@
 import type { GradeResult } from '../../engine/grading';
 import type { Scenario } from '../../scenario/schema';
-import { causeLine, harmfulLine, reasonLines, timingLine } from '../debrief-text';
+import { causeLine, harmfulLine, limitLine, reasonLines, timingLine } from '../debrief-text';
 import { buildOutline, checklistHead } from '../outline';
 import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
 import { LEVEL_NAMES } from '../session';
@@ -12,18 +12,21 @@ import { Modal } from './Modal';
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
  * apply muted (the table form and the printed heading follow the scenario, plan 03-14), an order line under every ordered group and the harmful actions in log order
- * (no time). It names the level of the run ("Level: Easy") and, on a meta line before it, the scenario (D-05); a scenario with variants adds one line naming the cause that was drawn (V-08); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
+ * (no time). It names the level of the run ("Level: Easy") and, on a meta line before it, the scenario (D-05); a scenario with variants adds one line naming the cause that was drawn (V-08); a run the 30-minute cap ended adds the limit line after the level line (V-14); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
   scenario,
   result,
   level,
+  completedAt,
   onClose,
 }: {
   readonly scenario: Scenario;
   readonly result: GradeResult;
   readonly level: Level;
+  /** The run clock at the end of the run (the recording's completedAt). */
+  readonly completedAt: number;
   readonly onClose: () => void;
 }) {
   const outline = buildOutline(scenario, result.branches, 'debrief', result);
@@ -31,6 +34,7 @@ export function Debrief({
   const passed = result.result === 'pass';
   const reasons = reasonLines(result);
   const cause = causeLine(scenario, result);
+  const limit = limitLine(completedAt);
 
   return (
     <Modal
@@ -66,6 +70,11 @@ export function Debrief({
       <p class="briefing-meta" data-testid="debrief-level">
         {`Level: ${LEVEL_NAMES[level]}`}
       </p>
+      {limit === null ? null : (
+        <p class="briefing-meta" data-testid="debrief-limit">
+          {limit}
+        </p>
+      )}
       {cause === null ? null : (
         <p class="briefing-meta" data-testid="debrief-variant">
           {cause}

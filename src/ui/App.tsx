@@ -219,6 +219,7 @@ export function App() {
           scenario={scenario}
           result={result}
           level={session.level.value}
+          completedAt={session.recording.value?.completedAt ?? 0}
           onClose={closeDebrief}
         />
       ) : null}

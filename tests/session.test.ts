@@ -1416,3 +1416,25 @@ describe('a failing step (WR-03, V-13)', () => {
     logged.mockRestore();
   });
 });
+
+describe('the 30-minute cap (WR-05, V-14)', () => {
+  it('stepping a started run to the cap opens the debrief by itself, graded as of the cap', async () => {
+    // A blueprint without its outcome, so nothing but the cap can end the run.
+    const calm = BLUEPRINT.replace(/outcomes\[1\]:\n(?: {2}.*\n)+/, 'outcomes[0]:\n');
+    const r = await started({ files: { 'eng-oil-temp-green': calm } });
+    const run = r.session.run.value;
+    if (run === null) throw new Error('no run');
+    const steps = MAX_RUN_MS / STEP_MS;
+    for (let i = 0; i < steps - 1; i++) run.step();
+    expect(r.session.screen.value).toBe('running');
+    run.step();
+    expect(r.session.screen.value).toBe('debrief');
+    const recording = r.session.recording.value;
+    expect(recording?.completedAt).toBe(MAX_RUN_MS);
+    const scenario = r.session.scenario.value;
+    if (scenario === null || recording === null) throw new Error('no run result');
+    expect(r.session.result.value).toEqual(grade(scenario, DA50RG_ENV, recording));
+    run.step();
+    expect(run.clock.now()).toBe(MAX_RUN_MS);
+  });
+});

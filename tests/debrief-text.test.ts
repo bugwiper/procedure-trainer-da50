@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { GradeResult, OrderViolation, Reason } from '../src/engine/grading';
 import type { Group } from '../src/scenario/schema';
-import { harmfulLine, orderLine, reasonLines, timingLine } from '../src/ui/debrief-text';
+import { MAX_RUN_MS } from '../src/engine/sim';
+import { harmfulLine, limitLine, orderLine, reasonLines, timingLine } from '../src/ui/debrief-text';
 
 // Table T1 of plan 02-13: the copy rules of the debrief, pure functions of the grade result.
 
@@ -199,5 +200,15 @@ describe('timingLine (D-05, C-34)', () => {
     expect(timingLine(timed(0))).toBe('First action 0.0 s after the onset.');
     expect(timingLine(timed(12000))).toBe('First action 12.0 s after the onset.');
     expect(timingLine(timed(1234))).toBe('First action 1.2 s after the onset.');
+  });
+});
+
+describe('limitLine (WR-05, V-14)', () => {
+  it('names the limit only for a run that reached the cap', () => {
+    expect(limitLine(0)).toBeNull();
+    expect(limitLine(MAX_RUN_MS - 100)).toBeNull();
+    expect(limitLine(MAX_RUN_MS)).toBe(
+      `The run reached the ${String(MAX_RUN_MS / 60_000)} minute limit.`,
+    );
   });
 });

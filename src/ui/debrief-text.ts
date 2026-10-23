@@ -5,6 +5,7 @@
 // Pure TypeScript, no DOM, no framework, no clock.
 
 import type { GradeResult, HarmfulEntry, Reason } from '../engine/grading';
+import { MAX_RUN_MS } from '../engine/sim';
 import type { Group, Scenario } from '../scenario/schema';
 
 function reasonLine(reason: Reason, result: GradeResult): string {
@@ -80,4 +81,13 @@ export function causeLine(scenario: Scenario, result: GradeResult): string | nul
   if (result.variant === undefined) return null;
   const variant = scenario.variants.find((item) => item.id === result.variant);
   return variant === undefined ? null : `Cause: ${variant.debrief}`;
+}
+
+/**
+ * The line of a run the 30-minute cap ended (WR-05, V-14): "The run reached the 30 minute limit.",
+ * or null when the run ended earlier. The minutes come from MAX_RUN_MS.
+ */
+export function limitLine(completedAt: number): string | null {
+  if (completedAt < MAX_RUN_MS) return null;
+  return `The run reached the ${String(MAX_RUN_MS / 60_000)} minute limit.`;
 }

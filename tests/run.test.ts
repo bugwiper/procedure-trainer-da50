@@ -5,7 +5,7 @@ import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { initialQuantities, realisticQuantities } from '../src/engine/predicates';
 import { Run } from '../src/engine/run';
-import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
+import { MAX_RUN_MS, STEP_MS, simSetup, simulate } from '../src/engine/sim';
 import { PanelStore } from '../src/engine/store';
 import type { ControlEvent } from '../src/engine/store';
 import { resolveVariant } from '../src/engine/variants';
@@ -432,6 +432,84 @@ describe('a shorted alternator pops its breaker again (phase 3.1, V-09)', () => 
     expect(log).toHaveLength(2);
     expect(f.store.retract(pushed.seq)).toMatchObject({ ok: false, reason: 'not-last' });
     expect(f.store.retract(1)).toMatchObject({ ok: false, reason: 'system' });
+    f.run.dispose();
+  });
+});
+
+describe('the 30-minute cap (WR-05, V-14)', () => {
+  const STEPS_TO_CAP = MAX_RUN_MS / STEP_MS;
+  // The blueprint without its named outcome: the oil temperature climbs but nothing ends the run.
+  const calmSetup = simSetup(DA50RG_ENV, { ...scenario, outcomes: [] });
+
+  function fixture(): Fixture {
+    const store = new PanelStore(DA50RG);
+    store.reset(scenario.initial.controls);
+    return { store, run: new Run({ setup: calmSetup, store, start }) };
+  }
+
+  const replayOf = (f: Fixture) =>
+    simulate(calmSetup, { events: f.store.events(), start, untilMs: f.run.state.t }).state;
+  const far = (events: readonly ControlEvent[]) =>
+    simulate(calmSetup, { events, start, untilMs: 2 * MAX_RUN_MS }).state;
+
+  it('stops the simulation and the clock at MAX_RUN_MS and ignores further steps', () => {
+    const f = fixture();
+    steps(f, STEPS_TO_CAP - 1);
+    expect(f.run.ended).toBe(false);
+    f.run.step();
+    expect(f.run.ended).toBe(true);
+    expect(f.run.state.outcome).toBeNull();
+    expect(f.run.state.t).toBe(MAX_RUN_MS);
+    expect(f.run.clock.now()).toBe(MAX_RUN_MS);
+    const frozen = f.run.state;
+    steps(f, 5);
+    expect(f.run.state).toBe(frozen);
+    expect(f.run.clock.now()).toBe(MAX_RUN_MS);
+    f.run.dispose();
+  });
+
+  it('equals simulate with a far untilMs, with no event and with a late pilot event', () => {
+    const none = fixture();
+    steps(none, STEPS_TO_CAP + 20);
+    expect(none.run.state).toEqual(far([]));
+
+    const late = fixture();
+    steps(late, STEPS_TO_CAP - 100);
+    act(late, 'lv.power', 'p50');
+    steps(late, 200);
+    expect(late.run.state).toEqual(far(late.store.events()));
+    expect(late.run.state.t).toBe(MAX_RUN_MS);
+    none.run.dispose();
+    late.run.dispose();
+  });
+
+  it('keeps the state and the clock in step when the newest event is retracted before the cap', () => {
+    const f = fixture();
+    steps(f, 50);
+    const power = act(f, 'lv.power', 'p50');
+    steps(f, 30);
+    expect(f.store.retract(power.seq).ok).toBe(true);
+    expect(f.run.state).toEqual(replayOf(f));
+    steps(f, STEPS_TO_CAP);
+    expect(f.run.state.t).toBe(MAX_RUN_MS);
+    expect(f.run.clock.now()).toBe(MAX_RUN_MS);
+    expect(f.run.state).toEqual(far(f.store.events()));
+    f.run.dispose();
+  });
+
+  it('keeps the state and the clock in step when the newest event is retracted after the cap', () => {
+    const f = fixture();
+    steps(f, STEPS_TO_CAP - 50);
+    const power = act(f, 'lv.power', 'p50');
+    steps(f, 100);
+    expect(f.run.state.t).toBe(MAX_RUN_MS);
+    expect(f.store.retract(power.seq).ok).toBe(true);
+    expect(f.run.state.t).toBe(MAX_RUN_MS);
+    expect(f.run.clock.now()).toBe(MAX_RUN_MS);
+    expect(f.run.state).toEqual(replayOf(f));
+    steps(f, 10);
+    expect(f.run.state.t).toBe(MAX_RUN_MS);
+    expect(f.run.clock.now()).toBe(MAX_RUN_MS);
     f.run.dispose();
   });
 });
