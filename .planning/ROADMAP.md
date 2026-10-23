@@ -453,9 +453,23 @@ Plans:
 
 **Goal**: The electrical system behaves as in the aircraft: a bus model (main, essential, battery, hot, avionics) with the bus tie relay, ALT 1 and ALT 2 behaviour and the ESS BUS path per the AFM, one combined amps gauge, an ALTN 2 FAIL scenario, and checklist fidelity for ALTN 1 and ALTN 2. Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and .planning/todos/pending/2026-10-23-checklist-fidelity.md.
 **Depends on**: Phase 3.1
-**Requirements**: TBD (to be defined when the phase is planned)
+**Requirements**: SCN-11, PNL-16, CNT-04
 
-**Plans**: TBD
+**Plans:** 3 plans (lean form, see WORKFLOW.md)
+
+Plans:
+
+**Wave 1**
+
+- [ ] 04-01 — Bus model as aircraft data (buses, bus tie relay, consumers, currents, battery, Volts), ALTN 1 FAIL and ALTN 2 FAIL cautions from the alternator control unit logic, alternator 2 parameters and breaker trip, the EMERG FUEL PUMP on the main bus
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 04-02 — ALTN 2 FAIL scenario with its printed checklist and four causes, replay tests and e2e; ALTN 1 FAIL checklist checked against the print, briefing corrected to the bus model
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 04-03 — MFD Electrical box (Amps bar with pointers 1 and 2, Volts, alert styling), e2e, and the phase-end documentation (GRADING, owner review, README, todos, requirements)
 
 ### Phase 5: Fuel, tank and engine fidelity and the engine page
 
@@ -515,7 +529,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 2. First Gradable Scenario                            | 13/13          | Complete    | 2026-10-22 |
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
-| 4. Electrical system fidelity                         | 0/TBD          | Not started | -          |
+| 4. Electrical system fidelity                         | 0/3            | Not started | -          |
 | 5. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 6. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
