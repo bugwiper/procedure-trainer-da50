@@ -13,7 +13,7 @@
 - **D-01:** The first scenario is the AFM main case "Engine Oil Temperature High, OIL PRES within the green range" (AFM 03-08, issue 018). The branch "OIL PRES outside the green range" is a second scenario in Phase 3. The scenario file names AFM section and revision (SCN-07).
 - **D-02:** Panel-operable steps are exactly two and **both are critical** (owner-confirmed): POWER reduced and COWL FLAP open. POWER target: **at least 10 percentage points below the initial value**; initial POWER 75 percent, so 65 percent or lower credits (the lever has a 5 percent grid). COWL FLAP target: OPEN (initial CLOSED). The two steps form an **unordered** group (the AFM and the pocket card list POWER first but do not require the order). Initial POWER 75 percent and COWL FLAP closed are owner-confirmed.
 - **D-03:** Forbidden action: **POWER increased** above the initial value. No other forbidden actions in the first scenario. Severity classes (critical, standard, optional, forbidden) are scenario data; the first scenario uses critical for the two panel steps.
-- **D-04:** Steps without a panel control appear (the pocket checklist card, `.input/oil-temp-checklist-card.jpg`: "Check oil pressure" as the first, deciding step; in the green branch "Increase airspeed", "Check oil temp in green range" and "if not returning to green range: land at nearest suitable airfield"; in Phase 2 the last condition is always true because the temperature value stays fixed) as **non-graded checklist lines** in the briefing/debrief, marked as not graded in v1. Their grading is Phase 4 (SES-05).
+- **D-04:** Steps without a panel control appear (the pocket checklist card, `.input/oil-temp-checklist-card.jpg`: "Check oil pressure" as the first, deciding step; in the green branch "Increase airspeed", "Check oil temp in green range" and "if not returning to green range: land at nearest suitable airfield"; in Phase 2 the last condition is always true because the temperature value stays fixed) as **non-graded checklist lines** in the briefing/debrief, marked as not graded in v1. Their grading is Phase 7 (SES-05).
 - **D-23:** The **scenario format has condition blocks now**: a step or group can be bound to a condition on an aircraft-state quantity (e.g. only when oil pressure is green). The first scenario uses the "OIL PRES green" block; the card's "If too low" branch (reduce power, open cowl flap, be prepared for loss of oil and engine failure and emergency landing) becomes a second scenario file in Phase 3 without a format change. The initial state decides which block applies. — **Reversibility:** costly — every later scenario depends on the condition vocabulary.
 - **D-24:** The briefing names **AFM 03-08 ENG OIL TEMP, Issue 018** as the source (SCN-07). Step wording follows the pocket card and the AFM in short lines (at most 12 words); explanatory text is own wording. The pocket card is a private reference, not a cited source.
 - **D-05:** Short AFM checklist step lines may be verbatim up to 12 words; all explanatory text is paraphrased (`docs/CONTENT-POLICY.md`, D-15 of Phase 1). WARNING/CAUTION/NOTE text is never copied.
@@ -34,14 +34,14 @@
 ### Flow and screens
 - **D-14:** The app opens on the **panel as today**; a menu overlay on top offers **New situation (random)** and **Choose situation**. A **briefing** follows as an overlay over the panel: situation in short own words, source (AFM section, revision) and disclaimer (SCN-07), the non-graded checklist lines, a Start button. On start the panel is set to the scenario's initial state. Free panel use without a scenario stays possible.
 - **D-15:** In the run (**exam mode, silent**): no hints, no checklist, no feedback. **"Procedure complete"** is a clear button in the **footer bar** outside the panel (not floating over controls), so it is not hit while panning.
-- **D-16:** The **debrief** shows PASS/FAIL, a verdict per step (critical, standard, optional), order violations, harmful actions and the non-graded lines. **No action timeline** in v1 (verdicts only). Retry/next is Phase 4.
+- **D-16:** The **debrief** shows PASS/FAIL, a verdict per step (critical, standard, optional), order violations, harmful actions and the non-graded lines. **No action timeline** in v1 (verdicts only). Retry/next is Phase 7.
 - **D-17:** **First-run training-aid acknowledgment (PLT-04):** shown once, remembered in the browser (storage access wrapped, the app works without it), shown again when the disclaimer text version changes. Each scenario briefing shows source, revision and disclaimer.
 - **D-18:** Screens are app state (menu, briefing, running, debrief); no router (CLAUDE.md).
 
 ### Scenario data format and packs
 - **D-19:** **Scenario files are written in TOON** (owner decision, "Nur TOON"). This changes the earlier stack decision "YAML". The decision stands with known risks to be resolved in research: parser maturity, **line-numbered errors still required** (SCN-01), editor support (no JSON-Schema autocomplete expected), how Zod validation maps error paths to lines. If research finds no viable parser or no way to report positions, **return to the owner before planning**. Requirements, ROADMAP, PROJECT.md and CLAUDE.md wording ("YAML") must be amended as part of this phase. — **Reversibility:** costly — every scenario file and the authoring guide are written in the chosen notation; changing it later means converting all packs.
 - **D-20:** **Pack folder with manifest:** `scenarios/<pack>/pack` manifest (title, free flag, scenario count) plus one file per scenario. A **PackProvider** interface (list packs, load pack text) and an **AccessPolicy** (open in v1) are the only way the app reads scenarios (PLT-03). Metadata is available without loading the scenarios. Each pack is its own lazy build chunk. — **Reversibility:** costly — packs, entitlement and later paid-pack gating depend on the seam.
-- **D-21:** **Validation:** a `validate` command checks every scenario file with **line-numbered errors** and against the **control registry** (every control id and state must exist, SCN-02), and the same check runs in Vitest and CI so a bad file fails the build. Loading a user file inside the app is Phase 4 (authoring guide).
+- **D-21:** **Validation:** a `validate` command checks every scenario file with **line-numbered errors** and against the **control registry** (every control id and state must exist, SCN-02), and the same check runs in Vitest and CI so a bad file fails the build. Loading a user file inside the app is Phase 7 (authoring guide).
 - **D-22:** Scenarios are **data, never code**: no expression strings evaluated, conditions come from a small declarative vocabulary validated by the schema (consistent with the engine decision in CLAUDE.md).
 
 ### Claude's Discretion
@@ -52,8 +52,8 @@
 
 ### Deferred Ideas (OUT OF SCOPE)
 - Second scenario variant "OIL PRES outside the green range" with the engine-failure preparation: Phase 3.
-- Grading of the non-panel steps (airspeed, monitoring, landing decision) via "Further actions": Phase 4 (SES-05).
-- In-app loading of a user scenario file with line-numbered errors, authoring guide: Phase 4 (CNT-02).
+- Grading of the non-panel steps (airspeed, monitoring, landing decision) via "Further actions": Phase 7 (SES-05).
+- In-app loading of a user scenario file with line-numbered errors, authoring guide: Phase 7 (CNT-02).
 - Live oil temperature falling after POWER reduction, escalation if ignored: Phase 3 (SCN-06, PNL-04).
 - Per-action option that lets a forbidden action fail the run: schema discretion, default off.
 - Action timeline in the debrief: owner chose verdicts only for now.
@@ -372,7 +372,7 @@ Documentation to amend (D-19): `.claude/CLAUDE.md` (about 22 YAML mentions: stac
 
 ### Pitfall 3: TOON array-length headers and authoring friction
 **What goes wrong:** Every array needs `name[N]:` with the exact count; adding a step and forgetting to bump N gives "Expected 3 list-form items, but got 2" at the line after the array.
-**Avoid:** Keep strict mode (the error is explicit and has a line), make the CLI print the message with `file:line`, and document the rule in the (Phase 4) authoring guide. Do not use `strict: false`: 4.4 changed its error behaviour and it also drops tab/indent checks.
+**Avoid:** Keep strict mode (the error is explicit and has a line), make the CLI print the message with `file:line`, and document the rule in the (Phase 7) authoring guide. Do not use `strict: false`: 4.4 changed its error behaviour and it also drops tab/indent checks.
 
 ### Pitfall 4: TOON spec drift
 **What goes wrong:** A caret range upgrades to a decoder whose behaviour for hand-written (non-encoder) documents changed (4.2, 4.3, 4.4 each rejected forms earlier versions accepted) [CITED: https://raw.githubusercontent.com/toon-format/spec/main/CHANGELOG.md].
@@ -562,7 +562,7 @@ Four recordings (golden PASS, do-nothing FAIL, wrong-order against a **synthetic
 | Rollup `manualChunks` / `advancedChunks` | Rolldown `output.codeSplitting.groups` (Vite 8) | Vite 8.x (deprecation warning for `advancedChunks` seen on 8.3.4) | Per-pack chunking config |
 | Node `--experimental-strip-types` for scripts | Still cannot resolve extensionless TS imports | — | CLI uses Vite `ssrLoadModule` |
 
-**Deprecated/outdated:** the `yaml` package, `z.toJSONSchema` for VS Code autocomplete (no TOON consumer exists), `public/schema/scenario.schema.json` (CLAUDE.md). Keep `z.toJSONSchema` as an optional doc artifact for the Phase 4 authoring guide only.
+**Deprecated/outdated:** the `yaml` package, `z.toJSONSchema` for VS Code autocomplete (no TOON consumer exists), `public/schema/scenario.schema.json` (CLAUDE.md). Keep `z.toJSONSchema` as an optional doc artifact for the Phase 7 authoring guide only.
 
 ## Assumptions Log
 
@@ -659,7 +659,7 @@ Four recordings (golden PASS, do-nothing FAIL, wrong-order against a **synthetic
 | V2 Authentication | no | no accounts in v1 |
 | V3 Session Management | no | "session" here is app state, no cookies |
 | V4 Access Control | partial | `AccessPolicy` seam (open in v1); no server enforcement possible on Pages |
-| V5 Input Validation | yes | TOON decode strict + Zod `strictObject` for scenario and manifest text (trusted repo files now, user files in Phase 4: apply a size cap such as 256 KB and reject early) |
+| V5 Input Validation | yes | TOON decode strict + Zod `strictObject` for scenario and manifest text (trusted repo files now, user files in Phase 7: apply a size cap such as 256 KB and reject early) |
 | V6 Cryptography | no | none in this phase |
 | V14 / Config | yes | pinned exact dependency versions, `npm ci`, no postinstall scripts |
 

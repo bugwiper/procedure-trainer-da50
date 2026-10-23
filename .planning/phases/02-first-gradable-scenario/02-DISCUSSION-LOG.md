@@ -63,4 +63,4 @@ Schema field names and condition vocabulary; manifest shape and TOON validation 
 
 ## Deferred Ideas
 
-Second scenario variant (OIL PRES too low), graded non-panel steps (Phase 4), in-app file loading and authoring guide (Phase 4), live temperature behaviour and escalation (Phase 3), action timeline in the debrief.
+Second scenario variant (OIL PRES too low), graded non-panel steps (Phase 7), in-app file loading and authoring guide (Phase 7), live temperature behaviour and escalation (Phase 3), action timeline in the debrief.

@@ -38,8 +38,8 @@ Built by plan 01 (toolchain, panel stage, subpath production build verified in C
 - Scenarios, YAML loading and schema validation, grading and debrief (Phase 2)
 - Live gauge values and annunciations driven by aircraft state (Phases 2 and 3; frames are static in Phase 1 by D-11)
 - Scripted reactions, escalation, transponder squawk entry (Phase 3)
-- Training mode, hints, further actions, retry loop, authoring guide (Phase 4)
-- PWA install and offline use (Phase 5)
+- Training mode, hints, further actions, retry loop, authoring guide (Phase 7)
+- PWA install and offline use (Phase 8)
 - Keyboard and screen-reader operation (deferred requirement); region zoom on all devices is in Phase 1 (PNL-09, D-21, plan 09)
 - Circuit breakers and the full aircraft switch inventory beyond the demonstration set (added when scenarios need them)
 - The full de-ice (TKS/FIKI) panel: Phase 1 has only its guarded ALTERNATE switch (D-07b), the cockpit's single guarded switch
@@ -52,5 +52,5 @@ Each later phase adds one vertical slice on top of this skeleton without alterin
 
 - Phase 2: user starts Oil Temp High, operates the panel, ends with "Procedure complete" and gets a PASS/FAIL debrief graded from the store's event log and final state
 - Phase 3: scenarios react (gauges move, ignored failures escalate); Oil Temp High, Electrical Failure and Engine Fire all playable; transponder squawk entry
-- Phase 4: Training mode with checklist and hints, further actions and landing decision, retry/next, authoring guide
-- Phase 5: installable offline PWA verified on real devices
+- Phase 7: Training mode with checklist and hints, further actions and landing decision, retry/next, authoring guide
+- Phase 8: installable offline PWA verified on real devices
