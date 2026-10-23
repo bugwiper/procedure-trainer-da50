@@ -455,13 +455,13 @@ Plans:
 **Depends on**: Phase 3.1
 **Requirements**: SCN-11, PNL-16, CNT-04
 
-**Plans:** 3 plans (lean form, see WORKFLOW.md)
+**Plans:** 1/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
 **Wave 1**
 
-- [ ] 04-01 — Bus model as aircraft data (buses, bus tie relay, consumers, currents, battery, Volts), ALTN 1 FAIL and ALTN 2 FAIL cautions from the alternator control unit logic, alternator 2 parameters and breaker trip, the EMERG FUEL PUMP on the main bus
+- [x] 04-01 — Bus model as aircraft data (buses, bus tie relay, consumers, currents, battery, Volts), ALTN 1 FAIL and ALTN 2 FAIL cautions from the alternator control unit logic, alternator 2 parameters and breaker trip, the EMERG FUEL PUMP on the main bus
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -529,7 +529,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 2. First Gradable Scenario                            | 13/13          | Complete    | 2026-10-22 |
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
-| 4. Electrical system fidelity                         | 0/3            | Not started | -          |
+| 4. Electrical system fidelity                         | 1/3 | In Progress | -          |
 | 5. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 6. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
