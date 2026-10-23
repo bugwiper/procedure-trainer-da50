@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { parseScenario } from '../src/scenario/parse';
-import { quantityOf, startScenario } from './support/session';
+import { quantityOf, startRealistic, startScenario } from './support/session';
 import { activate, afterPairWindow } from './support/zoom';
 
 // SCN-06, PNL-04 (plan 03-01): the simulation reaches the built panel. While the pilot does nothing
@@ -10,7 +11,9 @@ import { activate, afterPairWindow } from './support/zoom';
 // the cowl flap opened it falls. Plan 03-04 adds the event-triggered reaction: MAX pressed with the
 // de-ice mode on HIGH lights the top amber lamp, leaving HIGH puts it out. Plan 03-05 adds the
 // named outcome: an ignored run ends by itself as FAIL and the debrief names the failure. Reads the
-// e2e-only window hook, so the title carries @hooks.
+// e2e-only window hook, so the title carries @hooks. Plan 03-11 adds the speed of the level
+// Realistic: the oil temperature starts at the top of green, passes into yellow within 3 s of the
+// onset and into red with the ENG OIL TEMP message within 10 s of it.
 
 /** Mirror of the indicators() read-only hook of the e2e build (src/ui/bridge.ts); no DOM lib here. */
 type LampHost = { __panel?: { indicators(): Record<string, 'lit' | 'off'> } };
@@ -150,4 +153,65 @@ test('@hooks an ignored run escalates: the debrief opens by itself as FAIL and n
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
   await expect(page.getByTestId('debrief-reason').first()).toContainText(outcome.text);
   await expect(page.getByTestId('debrief-reason')).toHaveCount(2);
+});
+
+/** Mirror of the quantities() and onset()/now() read-only hooks of the e2e build; no DOM lib here. */
+type SpeedHost = {
+  __panel?: { quantities(): Record<string, number> };
+  __panelSession?: { onset(): { at: number; seed: number } | null; now(): number | null };
+};
+
+/** The upper bound of a band of the oil temperature, read from the aircraft data, never typed. */
+function bandTopOf(band: string): number {
+  const found = DA50RG_QUANTITIES.get(OIL_TEMP)?.bands.find((b) => b.id === band);
+  if (found === undefined) throw new Error(`the oil temperature has no band "${band}"`);
+  return found.to;
+}
+
+/**
+ * Waits in the page until the oil temperature exceeds `above`; returns the run time minus the onset
+ * at that moment (ms). The run time is the virtual clock of the run, so a slow frame cannot skew it.
+ */
+function msAfterOnsetWhenAbove(page: Page, above: number): Promise<number> {
+  return page.evaluate(
+    ({ limit, id }) =>
+      new Promise<number>((resolve, reject) => {
+        const host = globalThis as unknown as SpeedHost;
+        const started = Date.now();
+        const look = (): void => {
+          const oil = host.__panel?.quantities()[id] ?? Number.NaN;
+          const now = host.__panelSession?.now() ?? 0;
+          const at = host.__panelSession?.onset()?.at;
+          if (at === undefined) {
+            reject(new Error('the run has no onset'));
+          } else if (oil > limit) {
+            resolve(now - at);
+          } else if (Date.now() - started > 30_000) {
+            reject(new Error(`the oil temperature stayed at ${String(oil)}`));
+          } else {
+            setTimeout(look, 10);
+          }
+        };
+        look();
+      }),
+    { limit: above, id: OIL_TEMP },
+  );
+}
+
+test('@hooks Realistic ENG OIL TEMP shows yellow within 3 s and red with the message within 10 s of the onset', async ({
+  page,
+  hasTouch,
+}) => {
+  const greenTop = bandTopOf('green');
+  const yellowTop = bandTopOf('high_yellow');
+
+  await startRealistic(page, hasTouch, ROW);
+  // The start reading sits just below the yellow band.
+  const first = await quantityOf(page, OIL_TEMP);
+  expect(first).toBeGreaterThan(greenTop - 5);
+  expect(first).toBeLessThanOrEqual(greenTop);
+
+  expect(await msAfterOnsetWhenAbove(page, greenTop)).toBeLessThanOrEqual(3000);
+  expect(await msAfterOnsetWhenAbove(page, yellowTop)).toBeLessThanOrEqual(10_000);
+  await expect(page.locator('[data-testid="cas-chip"]').first()).toBeVisible();
 });

@@ -87,6 +87,12 @@ outcomes[1]:
       quantity: oil_temp_c
       op: gte
       value: 140
-# The failure of the level Realistic begins at a random second inside this window; the window is an instructor-review value.
+# The failure of the level Realistic begins at a random second inside this window, with the oil temperature just below the yellow band, and then rises quickly. The window, the start reading and the rate are instructor-review values.
 onset:
-  window_s[2]: 5,20
+  window_s[2]: 2,6
+  # Start reading of the Realistic run: at the top of the green range.
+  quantities:
+    oil_temp_c: 114
+  # From the onset the oil temperature follows its target three times as fast as on Easy and Medium.
+  parameters:
+    oil_temp_rate: 3

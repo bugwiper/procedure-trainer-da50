@@ -8,6 +8,7 @@ import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { grade } from '../src/engine/grading';
 import type { Recording } from '../src/engine/grading';
+import { realisticQuantities } from '../src/engine/predicates';
 import { MAX_RUN_MS, STEP_MS, onsetFromSeed, simSetup, simulate } from '../src/engine/sim';
 import { parseScenario } from '../src/scenario/parse';
 import { OPEN_ACCESS, createPackProvider } from '../src/scenario/packs';
@@ -1090,7 +1091,7 @@ describe('realistic level (phase 03, D-05)', () => {
   const blueprint = parsed.value;
   const window = blueprint.onset?.window_s;
   if (window === undefined) throw new Error('the blueprint declares no onset');
-  const NO_ONSET = BLUEPRINT.replace(/\n#[^\n]*\nonset:\n {2}window_s\[2\]: 5,20\n/, '\n');
+  const NO_ONSET = BLUEPRINT.replace(/\n#[^\n]*\nonset:\n[\s\S]*$/, '\n');
   if (NO_ONSET === BLUEPRINT) throw new Error('the onset block of the blueprint was not found');
 
   /** An rng that returns the given values in turn, then 0; the first is consumed by the random pick. */
@@ -1138,9 +1139,13 @@ describe('realistic level (phase 03, D-05)', () => {
     expect(other.session.onset.value?.seed).toBe(Math.floor(0.1 * 4_294_967_296));
   });
 
-  it('starts in the base state: base quantities, initial controls, an empty log, no message', async () => {
+  it('starts in the Realistic setup: start quantities, initial controls, an empty log, no message', async () => {
     const r = await realistic();
-    expect(r.bridge.quantities.value).toEqual(DA50RG_QUANTITIES.baseValues());
+    // C-61: the base values laid over by the scenario's onset quantities, not its initial ones.
+    expect(r.bridge.quantities.value).toEqual({
+      ...DA50RG_QUANTITIES.baseValues(),
+      ...blueprint.onset?.quantities,
+    });
     expect(r.bridge.cas.value).toEqual([]);
     expect(r.bridge.store.events()).toEqual([]);
     expect(r.bridge.stateOf('lv.power').value).toBe('p75');
@@ -1191,7 +1196,7 @@ describe('realistic level (phase 03, D-05)', () => {
     expect(result?.timing).toEqual({ onsetAt: onset.at, firstActionMs: null });
     const replayed = simulate(simSetup(DA50RG_ENV, blueprint, { onsetAt: onset.at }), {
       events: [],
-      start: {},
+      start: realisticQuantities(blueprint, DA50RG_ENV.quantities),
       untilMs: MAX_RUN_MS,
     }).state;
     expect(result?.outcome?.t).toBe(replayed.outcome?.t);

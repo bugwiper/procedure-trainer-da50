@@ -36,12 +36,19 @@ export interface ParameterDef {
   readonly normal: number;
 }
 
-/** q moves toward target(inputs) with time constant tauMs. */
+/**
+ * q moves toward target(inputs) with time constant tauMs. The optional `rate` (C-60) is a
+ * multiplier of the step length: the effective time constant is tauMs divided by the rate. A model
+ * without a rate, or with rate 1, steps bit for bit as before. The rate is data of the aircraft
+ * (read from a physics parameter), never of a scenario file; sim.ts throws for a rate that is not
+ * finite or not above 0.
+ */
 export interface LagModel {
   readonly quantity: string;
   readonly mode: 'lag';
   readonly tauMs: number;
   readonly target: (inputs: PhysicsInputs) => number;
+  readonly rate?: (inputs: PhysicsInputs) => number;
 }
 
 /** q moves by perMinute(inputs) units per minute. */

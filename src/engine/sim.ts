@@ -10,9 +10,14 @@
 // Reactions (C-20): a control entering a state may start a one-shot reaction with a timer. Step
 // order: (1) the due events apply one by one in log order and, after each, a reaction armed by it
 // whose condition holds starts unless it is already active; (2) an active reaction whose clear
-// condition holds ends at once; (3) the models run, reading the flags of the active reactions;
-// (4) every active timer counts down by STEP_MS and its flag goes off at 0. A reaction is thus in
+// condition holds ends at once; (3) the models run, reading the flags of the active reactions (a
+// lag model may carry a rate that multiplies its step length, C-60); (4) every active timer counts
+// down by STEP_MS and its flag goes off at 0. A reaction is thus in
 // force for exactly its duration, counted from the step that applied the arming event.
+//
+// Realistic setup (C-58, C-59): the parameters in force from the onset are the aircraft's normal
+// values, then the scenario's parameters, then the parameters of its onset block; the last layer is
+// folded in only when an onset time is given, so a run without one (Easy, Medium) is unchanged.
 //
 // Outcomes (D-06, C-25): after the physics of a step every outcome predicate is evaluated over the
 // controls, the scenario baseline and the quantities of the new state. Its held time grows by
@@ -26,7 +31,7 @@
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import type { AircraftEnv } from './env';
-import type { PhysicsInputs } from './physics';
+import type { LagModel, PhysicsInputs } from './physics';
 import { baselineOf, evaluatePredicate } from './predicates';
 import type { Outcome, Scenario } from '../scenario/schema';
 
@@ -76,7 +81,10 @@ export interface SimSetup {
   readonly baseline: Readonly<Record<string, string>>;
   /** The aircraft's normal parameter values (before the onset). */
   readonly normalParameters: Readonly<Record<string, number>>;
-  /** The normal values overlaid with the scenario's parameters (from the onset). */
+  /**
+   * The normal values overlaid with the scenario's parameters (from the onset) and, only when an
+   * onset time is given, with the parameters of the scenario's onset block (C-59).
+   */
   readonly faultedParameters: Readonly<Record<string, number>>;
   /** Before this time the normal parameters are in force; 0 means the failure is there from the start. */
   readonly onsetAt: number;
@@ -121,7 +129,11 @@ export function simSetup(env: AircraftEnv, scenario: Scenario, options: SimOptio
     env,
     baseline: Object.freeze(baselineOf(scenario, env.registry)),
     normalParameters,
-    faultedParameters: Object.freeze({ ...normalParameters, ...scenario.parameters }),
+    faultedParameters: Object.freeze({
+      ...normalParameters,
+      ...scenario.parameters,
+      ...(options.onsetAt === undefined ? {} : (scenario.onset?.parameters ?? {})),
+    }),
     onsetAt: options.onsetAt ?? 0,
     outcomes: scenario.outcomes,
   });
@@ -159,6 +171,21 @@ function activeFlags(
     if (Object.hasOwn(timers, reaction.id)) flags[reaction.flag] = true;
   }
   return flags;
+}
+
+/**
+ * The step length of a lag model in ms: STEP_MS, times the model's rate when it has one (C-60). A
+ * rate that is not finite or not above 0 throws Error naming the quantity.
+ */
+function lagStep(model: LagModel, inputs: PhysicsInputs): number {
+  if (model.rate === undefined) return STEP_MS;
+  const rate = model.rate(inputs);
+  if (!(Number.isFinite(rate) && rate > 0)) {
+    throw new Error(
+      `lag model of "${model.quantity}" has rate ${String(rate)}; it must be above 0`,
+    );
+  }
+  return STEP_MS * rate;
 }
 
 /**
@@ -218,7 +245,7 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
     }
     const next =
       model.mode === 'lag'
-        ? current + ((model.target(inputs) - current) * STEP_MS) / model.tauMs
+        ? current + ((model.target(inputs) - current) * lagStep(model, inputs)) / model.tauMs
         : current + (model.perMinute(inputs) * STEP_MS) / MS_PER_MINUTE;
     if (!Number.isFinite(next)) {
       throw new Error(`model of "${model.quantity}" produced ${String(next)}`);

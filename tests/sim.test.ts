@@ -205,7 +205,7 @@ describe('quantities', () => {
   it('a quantity without a model never changes', () => {
     const oilOnly = definePhysics(
       {
-        parameters: [{ id: 'oil_cooling', min: 0.2, max: 1, normal: 1 }],
+        parameters: DA50RG_ENV.physics.parameters,
         models: DA50RG_ENV.physics.models.filter((m) => m.quantity === OIL_TEMP),
       },
       { registry: DA50RG, quantities: DA50RG_ENV.quantities },

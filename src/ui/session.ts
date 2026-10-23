@@ -8,7 +8,8 @@
 // Medium or Realistic): display state chosen on the level card; grade never receives it. A run whose
 // simulation reaches a named outcome (D-06) completes itself: the step listener calls the same
 // completion as the debrief button. Realistic (D-05) is available for a scenario that declares an
-// onset: choosing it starts the run at once, with no briefing, from the base quantities; the session
+// onset: choosing it starts the run at once, with no briefing, from the Realistic start quantities
+// (the base quantities laid over by the scenario's onset quantities, C-61); the session
 // draws a seed with its injected rng, the engine turns it into the onset time (onsetFromSeed) and the
 // onset is recorded run data (the signal `onset`, then Recording.onset), so the run replays.
 
@@ -18,7 +19,7 @@ import type { VirtualClock } from '../engine/clock';
 import type { AircraftEnv } from '../engine/env';
 import { branchStatuses, grade } from '../engine/grading';
 import type { BranchVerdict, GradeResult, RecordedOnset, Recording } from '../engine/grading';
-import { initialQuantities } from '../engine/predicates';
+import { initialQuantities, realisticQuantities } from '../engine/predicates';
 import { Run } from '../engine/run';
 import { onsetFromSeed, simSetup } from '../engine/sim';
 import { openScenario } from '../scenario/packs';
@@ -243,8 +244,9 @@ export function createSession(deps: SessionDeps): Session {
 
   /**
    * Table N1 "start": baseline without an event, a fresh clock, then the screen. A realistic start
-   * (C-31, C-32) draws the seed, takes the base quantities and lets the scenario's parameters act
-   * from the onset; otherwise the quantities are the scenario's and the failure is there from t 0.
+   * (C-31, C-32, C-61) draws the seed, takes the start quantities of the Realistic setup (the base
+   * quantities laid over by the scenario's onset quantities) and lets the scenario's parameters,
+   * with those of its onset block, act from the onset; otherwise the quantities are the scenario's and the failure is there from t 0.
    */
   const start = (opened: Scenario, realistic: boolean): void => {
     const window = realistic ? opened.onset?.window_s : undefined;
@@ -254,8 +256,14 @@ export function createSession(deps: SessionDeps): Session {
       drawn = { at: onsetFromSeed(seed, window), seed };
     }
     const setup = simSetup(env, opened, drawn === null ? {} : { onsetAt: drawn.at });
-    const startQuantities = drawn === null ? initialQuantities(opened, env.quantities) : {};
-    bridge.reset(opened.initial.controls, drawn === null ? opened.initial.quantities : {});
+    const startQuantities =
+      drawn === null
+        ? initialQuantities(opened, env.quantities)
+        : realisticQuantities(opened, env.quantities);
+    bridge.reset(
+      opened.initial.controls,
+      drawn === null ? opened.initial.quantities : (opened.onset?.quantities ?? {}),
+    );
     endRun();
     const current = new Run({ setup, store: bridge.store, start: startQuantities });
     current.onStep((state) => {

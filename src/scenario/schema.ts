@@ -154,12 +154,18 @@ const onsetSecond = z.number().min(1).max(MAX_ONSET_S);
 /**
  * The onset of the failure in the level Realistic (D-05, C-29): the failure begins by itself at a
  * random time inside `window_s` seconds (first at most second). A scenario without it does not
- * offer Realistic.
+ * offer Realistic. The block also carries the Realistic setup (C-58): `quantities` are the start
+ * values of a Realistic run (laid over the aircraft's base values, in place of initial.quantities)
+ * and `parameters` are physics parameters in force from the onset (laid over the top-level
+ * parameters). Both are read only when an onset is declared and a run has one; Easy and Medium
+ * never read them.
  */
 export const Onset = z.strictObject({
   window_s: z
     .tuple([onsetSecond, onsetSecond])
     .refine(([lo, hi]) => lo <= hi, { message: 'the first second must not exceed the second' }),
+  quantities: z.record(z.string(), z.number()).default({}),
+  parameters: z.record(nodeId, z.number()).default({}),
 });
 
 /** Table F1: scenario file, top level. */

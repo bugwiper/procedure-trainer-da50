@@ -200,3 +200,21 @@ export function initialQuantities(
   }
   return values;
 }
+
+/**
+ * The start quantities of a Realistic run (C-58, C-61): the base value of every quantity laid over
+ * by the scenario's onset quantities, in place of initial.quantities, which only Easy and Medium
+ * start from. A scenario without onset quantities gives exactly the base values. The one definition
+ * the session, grade and lint share, so the live run, the replay and the lint cannot drift apart.
+ */
+export function realisticQuantities(
+  scenario: Scenario,
+  quantities: QuantitySet,
+): Record<string, number> {
+  const values: Record<string, number> = { ...quantities.baseValues() };
+  for (const [id, value] of Object.entries(scenario.onset?.quantities ?? {})) {
+    if (quantities.get(id) === undefined) throw new PredicateError(`unknown quantity "${id}"`);
+    values[id] = value;
+  }
+  return values;
+}

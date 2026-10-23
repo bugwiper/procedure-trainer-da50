@@ -582,6 +582,9 @@ describe('L13: outcomes', () => {
 });
 
 describe('L14: the realistic level starts clean and shows what the scenario lists (D-05)', () => {
+  /** The window of the blueprint as written in the file, read from the file and never typed. */
+  const WINDOW_LINE = /window_s\[2\]: \d+,\d+/.exec(BLUEPRINT)?.[0] ?? '';
+
   const WITH_ONSET = `${MINIMAL}onset:\n  window_s[2]: 5,20\n`;
 
   /** An aircraft whose ENG OIL TEMP rule already fires at the cruise base value of the oil temperature. */
@@ -611,7 +614,11 @@ describe('L14: the realistic level starts clean and shows what the scenario list
   });
 
   it('passes the blueprint: it starts clean and ENG OIL TEMP shows after the onset', () => {
-    expect(parsedOf(BLUEPRINT).onset).toEqual({ window_s: [5, 20] });
+    expect(parsedOf(BLUEPRINT).onset).toEqual({
+      window_s: [2, 6],
+      quantities: { oil_temp_c: 114 },
+      parameters: { oil_temp_rate: 3 },
+    });
     expect(lintScenario(parsedOf(BLUEPRINT), DA50RG_ENV)).toEqual([]);
   });
 
@@ -657,7 +664,7 @@ describe('L14: the realistic level starts clean and shows what the scenario list
 
   it('bounds the window in the schema: inside 1 to 120 s and the first at most the second', () => {
     for (const bad of ['0,20', '5,121', '20,5']) {
-      const text = swap(BLUEPRINT, 'window_s[2]: 5,20', `window_s[2]: ${bad}`);
+      const text = swap(BLUEPRINT, WINDOW_LINE, `window_s[2]: ${bad}`);
       const result = checkScenario(text, DA50RG_ENV);
       expect(result.ok, bad).toBe(false);
       const first = result.ok ? undefined : result.issues[0];

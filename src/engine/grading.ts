@@ -11,7 +11,12 @@
 
 import type { Forbidden, Group, Scenario } from '../scenario/schema';
 import type { AircraftEnv } from './env';
-import { baselineOf, evaluatePredicate, initialQuantities } from './predicates';
+import {
+  baselineOf,
+  evaluatePredicate,
+  initialQuantities,
+  realisticQuantities,
+} from './predicates';
 import type { PredicateContext } from './predicates';
 import { simSetup, simulate } from './sim';
 
@@ -32,7 +37,7 @@ export interface Recording {
   readonly completedAt: number;
   /**
    * Run data of the level Realistic (C-33): the failure begins at `at` and the run starts from the
-   * base values. Absent or null means the failure is there from the start (Easy and Medium). The
+   * Realistic setup of the scenario (the base values laid over by its onset quantities). Absent or null means the failure is there from the start (Easy and Medium). The
    * level itself is never an input of grade.
    */
   readonly onset?: RecordedOnset | null;
@@ -192,12 +197,17 @@ function findOutcome(
   recording: Recording,
 ): OutcomeVerdict | null {
   if (scenario.outcomes.length === 0) return null;
-  // C-33: with an onset the run starts from the base values and the parameters switch at `at`;
-  // without one it starts from the scenario's initial quantities with the parameters from t 0.
+  // C-33: with an onset the run starts from the Realistic setup of the scenario (the base values
+  // laid over by its onset quantities, C-61) and the parameters, with those of its onset block,
+  // switch at `at`; without one it starts from the scenario's initial quantities with the
+  // parameters from t 0.
   const onset = recording.onset ?? null;
   const { state } = simulate(simSetup(env, scenario, onset === null ? {} : { onsetAt: onset.at }), {
     events: recording.events,
-    start: onset === null ? initialQuantities(scenario, env.quantities) : {},
+    start:
+      onset === null
+        ? initialQuantities(scenario, env.quantities)
+        : realisticQuantities(scenario, env.quantities),
     untilMs: recording.completedAt,
   });
   if (state.outcome === null) return null;

@@ -12,8 +12,10 @@ import { DA50RG_QUANTITIES } from './quantities';
 // a run. Aircraft behaviour, never a scenario fact: a scenario only sets a parameter such as the
 // oil cooling. Every model is anchored (C-09): at the registry defaults with normal parameters its
 // target equals the quantity's base value (quantities.ts), so the base is the equilibrium and the
-// free panel and every untouched run stay put. The time constants are compressed (tens of seconds)
-// so that a scenario resolves in one to five minutes: a training-aid choice. All constants are an
+// free panel and every untouched run stay put. The time constants are compressed (a few seconds to
+// tens of seconds, against minutes in the real engine) so that a scenario resolves in one to five
+// minutes: a training-aid choice stated here, once. The oil temperature lag may be sped up further
+// by the parameter oil_temp_rate (the Realistic setup of a scenario). All constants are an
 // instructor-review item (RESEARCH A1, A3), not measured values. No AFM wording; only + - * /
 // (RESEARCH Pitfall 1).
 
@@ -326,7 +328,19 @@ const lag = (
   quantity: string,
   tauMs: number,
   target: (inputs: PhysicsInputs) => number,
-): QuantityModel => ({ quantity, mode: 'lag', tauMs, target });
+  rate?: (inputs: PhysicsInputs) => number,
+): QuantityModel => ({
+  quantity,
+  mode: 'lag',
+  tauMs,
+  target,
+  ...(rate === undefined ? {} : { rate }),
+});
+
+/** How many times faster the oil temperature follows its target (the parameter oil_temp_rate). */
+function oilTempRate(inputs: PhysicsInputs): number {
+  return parameterOf(inputs, 'oil_temp_rate');
+}
 
 export const DA50RG_PHYSICS = definePhysics(
   {
@@ -337,12 +351,16 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'alt1_output', min: 0, max: 1, normal: 1 },
       // 0 is no fire; 1 is a fire that burns while fuel feeds it (the Engine Fire scenario).
       { id: 'engine_fire', min: 0, max: 1, normal: 0 },
+      // How many times faster the oil temperature follows its target (rise and recovery alike, the
+      // same lag); 1 is the compressed time constant. A scenario's Realistic setup sets it from the
+      // onset, so the failure shows within seconds without a stronger cooling fault.
+      { id: 'oil_temp_rate', min: 1, max: 10, normal: 1 },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),
       lag('load_pct', LOAD_TAU_MS, loadPercent),
       lag('oil_pressure_bar', OIL_PRESSURE_TAU_MS, oilPressureTarget),
-      lag('oil_temp_c', OIL_TEMP_TAU_MS, oilTempTarget),
+      lag('oil_temp_c', OIL_TEMP_TAU_MS, oilTempTarget, oilTempRate),
       lag('coolant_temp_c', COOLANT_TAU_MS, coolantTarget),
       lag('gearbox_temp_c', GEARBOX_TAU_MS, gearboxTarget),
       lag('fuel_temp_c', FUEL_TEMP_TAU_MS, fuelTempTarget),

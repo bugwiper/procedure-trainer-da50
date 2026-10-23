@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { branchStatuses, grade } from '../src/engine/grading';
 import type { GradeResult, Recording } from '../src/engine/grading';
-import { initialQuantities } from '../src/engine/predicates';
+import { initialQuantities, realisticQuantities } from '../src/engine/predicates';
 import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
 import { checkScenario } from '../src/scenario/lint';
 import { parseScenario } from '../src/scenario/parse';
@@ -1069,7 +1069,7 @@ describe('reaction time from the onset (D-05, C-33, C-34)', () => {
     const sooner = grade(blueprint, DA50RG_ENV, recording('do-nothing-long'));
     const simulated = simulate(simSetup(DA50RG_ENV, blueprint, { onsetAt }), {
       events: [],
-      start: {},
+      start: realisticQuantities(blueprint, DA50RG_ENV.quantities),
       untilMs: 600000,
     }).state.outcome;
     expect(ignored.outcome?.t).toBe(simulated?.t);
