@@ -174,9 +174,10 @@ function SelectorBarBody({ def, state, dragAngle, pressed }: RotaryBodyProps) {
         // on the left, above or below it for a stop straight up or down.
         const anchor = side > 0.3 ? 'start' : side < -0.3 ? 'end' : 'middle';
         // A stop straight up or down puts its word above or below the point; a diagonal or sideways
-        // stop puts it beside the point.
+        // stop puts it beside the point. Below the knob there is little room (the FUEL selector sits
+        // at the bottom of its plate, OFF at 180 degrees), so that word hugs the end of the bar.
         const y =
-          Math.abs(side) <= 0.3 ? (down > 0 ? p.y + 6 : p.y - 1) : p.y + (down > 0.3 ? 3 : 2);
+          Math.abs(side) <= 0.3 ? (down > 0 ? p.y + 2.5 : p.y - 1) : p.y + (down > 0.3 ? 3 : 2);
         return (
           <text
             key={stop.id}
