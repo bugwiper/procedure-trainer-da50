@@ -2,7 +2,7 @@
 
 ## Overview
 
-The journey runs in vertical slices, each of which ends with something a pilot can use. First a deployed, playable panel on every device, with the content-policy decision made before any procedure text exists. Then one real emergency (Oil Temp High) runs end to end, from "new situation" through operating the panel to an objective PASS/FAIL debrief. Next the scenarios come alive: scripted reactions, escalation, and the full initial pack of three emergencies. Then the learning loop (Training mode, non-panel "Further actions", retry) and the authoring guide. Finally the app becomes an installable, offline-capable PWA, checked on real devices. The core value (operate the panel, get accurate feedback on the AFM procedure) is demonstrable from Phase 2 onward.
+The journey runs in vertical slices, each of which ends with something a pilot can use. First a deployed, playable panel on every device, with the content-policy decision made before any procedure text exists. Then one real emergency (Oil Temp High) runs end to end, from "new situation" through operating the panel to an objective PASS/FAIL debrief. Next the scenarios come alive: scripted reactions, escalation, and the full initial pack of three emergencies. After the initial pack the scenario layer gains variants (several causes behind one failure) and a robust run, then the fidelity phases follow: the electrical system, the fuel system with the real engine page, and a windscreen with failure cues. Then the learning loop (Training mode, non-panel "Further actions", retry) and the authoring guide. Finally the app becomes an installable, offline-capable PWA, checked on real devices. The core value (operate the panel, get accurate feedback on the AFM procedure) is demonstrable from Phase 2 onward.
 
 ## Phases
 
@@ -17,8 +17,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 01.2: Circuit breakers, G1000 NXi shapes and avionics panels** (INSERTED) - All circuit breakers, G1000 NXi PFD and MFD with softkeys, audio and autopilot panels, backup EFIS (completed 2026-10-21)
 - [x] **Phase 2: First Gradable Scenario** - Oil Temp High runs end to end: start, briefing, operate the panel, "Procedure complete", PASS/FAIL debrief (completed 2026-10-22)
 - [ ] **Phase 3: Reactive Scenarios and Initial Pack** - Scripted reactions and escalation; Oil Temp High, Electrical Failure and Engine Fire all playable
-- [ ] **Phase 4: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
-- [ ] **Phase 5: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop
+- [ ] **Phase 3.1: Scenario variants and run robustness** (INSERTED) - Several causes behind one failure drawn by seed, a breaker that re-trips, a run that survives a throwing listener and agrees with its replay at the 30-minute cap
+- [ ] **Phase 4: Electrical system fidelity** - Bus model with bus tie relay, ALT 1 and ALT 2 behaviour, ESS BUS path, combined amps gauge, ALTN 2 FAIL scenario, ALTN checklist fidelity
+- [ ] **Phase 5: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim and the real engine page layout
+- [ ] **Phase 6: Windscreen and failure cues** - A windscreen area above the panel with static cues (fire, smoke, iced windscreen later), the onset cue declared in scenario data and checked by lint
+- [ ] **Phase 7: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
+- [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop
 
 ## Phase Details
 
@@ -348,11 +352,43 @@ Plans:
 
 **UI hint**: yes
 
-### Phase 4: Training Mode, Further Actions and Repeat Loop
+### Phase 3.1: Scenario variants and run robustness (INSERTED)
 
-**Goal**: Users can learn from a scenario with a checklist and hints, make non-panel decisions such as MAYDAY and the landing choice, and retry or move on to improve their debrief; authors can add scenarios by following a guide.
-**Mode:** mvp
+**Goal**: Scenarios can declare several causes behind one failure, drawn by seed, each with its own starting state and required steps, plus a breaker that re-trips; the run survives a throwing step listener (WR-03) and live run and replay agree at the 30-minute cap (WR-05). Source todo: .planning/todos/pending/2026-10-23-scenario-variants.md.
 **Depends on**: Phase 3
+**Requirements**: TBD (to be defined when the phase is planned)
+
+**Plans**: TBD
+
+### Phase 4: Electrical system fidelity
+
+**Goal**: The electrical system behaves as in the aircraft: a bus model (main, essential, battery, hot, avionics) with the bus tie relay, ALT 1 and ALT 2 behaviour and the ESS BUS path per the AFM, one combined amps gauge, an ALTN 2 FAIL scenario, and checklist fidelity for ALTN 1 and ALTN 2. Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and .planning/todos/pending/2026-10-23-checklist-fidelity.md.
+**Depends on**: Phase 3.1
+**Requirements**: TBD (to be defined when the phase is planned)
+
+**Plans**: TBD
+
+### Phase 5: Fuel, tank and engine fidelity and the engine page
+
+**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. Source: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md.
+**Depends on**: Phase 4
+**Requirements**: TBD (to be defined when the phase is planned)
+
+**Plans**: TBD
+
+### Phase 6: Windscreen and failure cues
+
+**Goal**: A windscreen area above the panel shows static failure cues (fire, smoke, an iced windscreen later), so a Realistic run without briefing gives the pilot something to see; the onset cue of each scenario is declared in scenario data and checked by lint. Source: .planning/todos/pending/2026-10-23-realistic-level-visual-cues.md.
+**Depends on**: Phase 3.1
+**Requirements**: TBD (to be defined when the phase is planned)
+
+**Plans**: TBD
+
+### Phase 7: Training Mode, Further Actions and Repeat Loop
+
+**Goal**: Users can learn from a scenario with a checklist and hints, make non-panel decisions such as MAYDAY and the landing choice, and retry or move on to improve their debrief; authors can add scenarios by following a guide. The authoring guide must describe the variant format and the cues.
+**Mode:** mvp
+**Depends on**: Phase 6
 **Requirements**: SES-02, SES-05, SES-06, CNT-02
 **Success Criteria** (what must be TRUE):
   1. In Training mode the user can show or hide the scenario checklist and ask for a hint during the scenario, while Exam mode stays silent.
@@ -363,11 +399,11 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 5: Offline PWA and Real-Device Hardening
+### Phase 8: Offline PWA and Real-Device Hardening
 
 **Goal**: Users can install the trainer on their phone, tablet or desktop and run scenarios offline, with the full flow confirmed on real devices and surviving new deploys.
 **Mode:** mvp
-**Depends on**: Phase 4
+**Depends on**: Phase 7
 **Requirements**: PLT-02
 **Success Criteria** (what must be TRUE):
   1. User can install the app from real iOS/iPadOS Safari, Android Chrome and desktop Chrome/Edge, and it launches as a standalone app.
@@ -380,12 +416,16 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Deployed Playable Panel | 9/9 | Complete    | 2026-10-20 |
 | 2. First Gradable Scenario | 13/13 | Complete    | 2026-10-22 |
 | 3. Reactive Scenarios and Initial Pack | 11/14 | In Progress | - |
-| 4. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
-| 5. Offline PWA and Real-Device Hardening | 0/TBD | Not started | - |
+| 3.1. Scenario variants and run robustness | 0/TBD | Not started | - |
+| 4. Electrical system fidelity | 0/TBD | Not started | - |
+| 5. Fuel, tank and engine fidelity and the engine page | 0/TBD | Not started | - |
+| 6. Windscreen and failure cues | 0/TBD | Not started | - |
+| 7. Training Mode, Further Actions and Repeat Loop | 0/TBD | Not started | - |
+| 8. Offline PWA and Real-Device Hardening | 0/TBD | Not started | - |

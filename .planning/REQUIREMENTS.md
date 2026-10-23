@@ -131,11 +131,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |
-| SES-02 | Phase 4 | Pending |
-| SES-05 | Phase 4 | Pending |
-| SES-06 | Phase 4 | Pending |
-| CNT-02 | Phase 4 | Pending |
-| PLT-02 | Phase 5 | Pending |
+| SES-02 | Phase 7 | Pending |
+| SES-05 | Phase 7 | Pending |
+| SES-06 | Phase 7 | Pending |
+| CNT-02 | Phase 7 | Pending |
+| PLT-02 | Phase 8 | Pending |
 
 **Coverage:**
 - v1 requirements: 36 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica)

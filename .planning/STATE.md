@@ -5,16 +5,16 @@ current_phase_name: Reactive Scenarios and Initial Pack
 current_plan: 10
 status: executing
 stopped_at: Completed 03-11-PLAN.md
-last_updated: "2026-10-23T09:43:38.149Z"
+last_updated: "2026-10-23T09:48:33.128Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 03 execution started
-state_head: 2048f6fb76164a381de3dc0273b573c41df872b9
+state_head: d71a39411442134ddca01adeea9d2c7f5775c9e0
 progress:
-  total_phases: 8
+  total_phases: 12
   completed_phases: 2
   total_plans: 88
   completed_plans: 85
-  percent: 25
+  percent: 17
 ---
 
 # Project State
@@ -35,7 +35,7 @@ Status: Ready to execute
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
 Last activity: 2026-10-22 — Phase 03 execution started
 
-Progress: [███░░░░░░░] 25%
+Progress: [██░░░░░░░░] 17%
 
 ## Performance Metrics
 
@@ -146,7 +146,7 @@ Recent decisions affecting current work:
 - [Roadmap]: Project mode is vertical MVP; every phase ends with an end-to-end user capability, not a technical layer.
 - [Roadmap]: Research's 6 horizontal phases re-sliced into 5 vertical ones (deployed panel; first gradable scenario; reactions + full pack; training loop + authoring; PWA/hardening).
 - [Roadmap]: CNT-03 (content policy) sits in Phase 1 so it lands before any AFM-derived text is committed in Phase 2.
-- [Roadmap]: Phase 2 delivers Exam-style flow plus the full debrief (SES-03, SES-04) so the core value is demonstrable early; Training mode follows in Phase 4.
+- [Roadmap]: Phase 2 delivers Exam-style flow plus the full debrief (SES-03, SES-04) so the core value is demonstrable early; Training mode follows in Phase 7.
 - [Roadmap]: Scripted reactions (SCN-06) and gauge response (PNL-04) are their own slice in Phase 3, where the three real scenarios stress the DSL.
 - [Phase 01.1]: PD-01: pedestal split into env_control and pedestal regions (44 px POWER on phone)
 - [Phase 01.1]: PD-02: de-ice split into deice and deice_switches regions (44 px per detent)
@@ -240,6 +240,11 @@ Recent decisions affecting current work:
 
 - Phase 1.1 inserted after Phase 1: Panel appearance (switch shapes/colours per real DA50: ELECT. MASTER big red rocker, ELT small red, ESS BUS medium red, others white), control inventory for upcoming scenarios, graphical panel rework, single-tap zoom-out and hidden Full panel button fixes. Must settle layout before Phase 2.
 - Phase 2.1 inserted after Phase 2: Briefing difficulty levels easy and medium, source line at the bottom (realistic level goes to Phase 3)
+- Phase 3.1 inserted after Phase 3: Scenario variants and run robustness (several causes behind one failure drawn by seed, a breaker that re-trips, run robustness WR-03 and WR-05; owner decision 2026-10-23)
+- Phase 4 added: Electrical system fidelity (bus model, ALT 1 and ALT 2, ESS BUS path, combined amps gauge, ALTN 2 FAIL, ALTN checklist fidelity; owner decision 2026-10-23)
+- Phase 5 added: Fuel, tank and engine fidelity and the engine page (owner decision 2026-10-23)
+- Phase 6 added: Windscreen and failure cues (owner decision 2026-10-23)
+- Former Phase 4 (Training Mode, Further Actions and Repeat Loop) renumbered to Phase 7 and former Phase 5 (Offline PWA and Real-Device Hardening) to Phase 8 (owner decision 2026-10-23); the Phase 7 authoring guide must describe the variant format and the cues
 
 ## Deferred Items
 

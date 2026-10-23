@@ -7,6 +7,8 @@ source: owner instructor review of phase 3 with type-rating wiring diagrams
 
 The owner wants a dedicated phase after the base work: two alternator ammeters combined in one gauge, two fuel tanks with one combined gauge, special essential bus behaviour, and the electrical findings below.
 
+Roadmap (decided 2026-10-23): this is split into Phase 4, Electrical system fidelity (the electrical findings, the bus model, the combined amps gauge, the ALTN 2 FAIL scenario; together with `2026-10-23-checklist-fidelity.md`), and Phase 5, Fuel, tank and engine fidelity and the engine page (two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure, oxygen, de-ice quantity, rudder trim, the real engine page layout). Both come after Phase 3.1 (scenario variants).
+
 ## Electrical findings (from the type-rating wiring diagrams, own words)
 
 Five diagrams: normal operations, alternator 1 fail, alternator 2 fail, essential bus ON, both alternators fail.
