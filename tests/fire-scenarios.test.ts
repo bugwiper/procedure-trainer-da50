@@ -247,3 +247,210 @@ describe('Electrical Fire with Smoke on Ground', () => {
     expect(cueVisible(levels['cabin_smoke'] ?? 1)).toBe(false);
   });
 });
+
+// Smoke and Fire During Take-Off: two scenarios, the abort and the no abort (S-06).
+describe('Smoke and Fire During Take-Off, the abort', () => {
+  const scenario = load('scenarios/fire/takeoff-fire-abort.toon');
+  const golden = events(
+    ['lv.power', 'p0'],
+    ['lv.ecs_shutoff', 'pulled'],
+    ['lv.toe_brakes', 'applied'],
+    ['sw.engine_master', 'off'],
+    ['sw.fuel_valve', 'off'],
+    ['sw.elect_master', 'off'],
+    ['lv.door_release', 'open'],
+  );
+
+  /** The first whole second at which a replay of `log` stands still, or null within `limitS` seconds. */
+  const stopsAt = (log: readonly RecordedEvent[], limitS = 200): number | null => {
+    const setup = simSetup(DA50RG_ENV, scenario);
+    const start = initialQuantities(scenario, DA50RG_ENV.quantities);
+    for (let s = 1; s <= limitS; s++) {
+      const state = simulate(setup, { events: log, start, untilMs: s * SECOND_MS }).state;
+      if (state.quantities['ground_speed_kt'] === 0) return s;
+    }
+    return null;
+  };
+
+  it('rolls at 40 knots with full power, take-off flaps and the gear down', () => {
+    const start = initialQuantities(scenario, DA50RG_ENV.quantities);
+    expect(start['ground_speed_kt']).toBeGreaterThan(0);
+    expect(scenario.scene).toBe('takeoff_roll');
+    expect(scenario.parameters['ground_roll']).toBe(1);
+    expect(scenario.initial.controls['lv.power']).toBe('p100');
+  });
+
+  it('is graded on the six stopping rows and the door release lever', () => {
+    const result = run(scenario, golden);
+    expect(result.result).toBe('pass');
+    expect(result.steps.map((s) => s.id).sort()).toEqual(
+      [
+        'brakes_applied',
+        'door_open',
+        'ecs_pulled',
+        'elect_master_off',
+        'engine_master_off',
+        'fuel_valve_off',
+        'power_idle',
+      ].sort(),
+    );
+  });
+
+  it('fails the same run without the door', () => {
+    expect(failed(run(scenario, golden.slice(0, -1)))).toBe(true);
+  });
+
+  it('fails a run that does nothing, and a long one ends in the outcome', () => {
+    expect(failed(run(scenario, []))).toBe(true);
+    expect(run(scenario, [], 300 * SECOND_MS).outcome?.id).toBe('fire_spreads');
+  });
+
+  it('stops the aircraft in the golden replay', () => {
+    expect(stopsAt(golden)).not.toBeNull();
+  });
+
+  it('a run that only brakes at full power stops later than one that idles first, and both stop', () => {
+    const brakesOnly = stopsAt(events(['lv.toe_brakes', 'applied']));
+    const idleFirst = stopsAt(events(['lv.power', 'p0'], ['lv.toe_brakes', 'applied']));
+    expect(brakesOnly).not.toBeNull();
+    expect(idleFirst).not.toBeNull();
+    expect(brakesOnly ?? 0).toBeGreaterThan(idleFirst ?? 0);
+  });
+
+  it('keeps rolling and accelerating at full power without the brakes', () => {
+    expect(stopsAt([], 100)).toBeNull();
+    expect(stopsAt(events(['lv.power', 'p0']), 60)).toBeNull();
+  });
+
+  it('shows the flames within the lint bound after a Realistic onset', () => {
+    expect(
+      cueVisible(realisticLevels(scenario, 4 * SECOND_MS, 12 * SECOND_MS)['flames'] ?? 0),
+    ).toBe(true);
+    expect(cueVisible(realisticLevels(scenario, 4 * SECOND_MS, 0)['flames'] ?? 0)).toBe(false);
+  });
+});
+
+describe('Smoke and Fire During Take-Off, no abort', () => {
+  const scenario = load('scenarios/fire/takeoff-fire-no-abort.toon');
+  const core = [
+    ['lv.ecs_shutoff', 'pulled'],
+    ['sw.engine_master', 'off'],
+    ['sw.fuel_valve', 'off'],
+    ['sw.elect_master', 'off'],
+  ] as const;
+
+  it('holds the speed at 70 knots: no roll model, the runway keeps moving', () => {
+    expect(scenario.parameters['ground_roll']).toBeUndefined();
+    const setup = simSetup(DA50RG_ENV, scenario);
+    const start = initialQuantities(scenario, DA50RG_ENV.quantities);
+    const speeds = [10, 60, 200].map(
+      (s) =>
+        simulate(setup, { events: [], start, untilMs: s * SECOND_MS }).state.quantities[
+          'ground_speed_kt'
+        ],
+    );
+    expect(speeds[0]).toBe(start['ground_speed_kt']);
+    expect(new Set(speeds).size).toBe(1);
+    const speed = speeds[0] ?? 0;
+    expect(speed).toBeGreaterThan(60);
+    expect(DA50RG_CUES.levels({ ground_speed_kt: speed })['roll_speed']).toBe(1);
+  });
+
+  it('passes with the four critical rows, with or without the optional window and doors', () => {
+    expect(run(scenario, events(...core)).result).toBe('pass');
+    const extras = [...core, ['sw.emerg_window', 'open'], ['lv.door_release', 'open']] as const;
+    const result = run(scenario, events(...extras));
+    expect(result.result).toBe('pass');
+    expect(credited(result, 'windows_open')).toBe(true);
+    expect(credited(result, 'doors_open')).toBe(true);
+  });
+
+  it('grades the window and the doors as optional steps', () => {
+    const optional = scenario.procedure.flatMap((node) =>
+      node.kind === 'group' ? node.steps.filter((s) => s.severity === 'optional') : [],
+    );
+    expect(optional.map((s) => s.id)).toEqual(['windows_open', 'doors_open']);
+  });
+
+  it('fails a run that leaves out one critical row', () => {
+    expect(failed(run(scenario, events(...core.slice(1))))).toBe(true);
+    expect(failed(run(scenario, events(...core.slice(0, 3))))).toBe(true);
+    expect(failed(run(scenario, []))).toBe(true);
+  });
+
+  it('ends a long do-nothing run in the outcome fire_spreads', () => {
+    expect(run(scenario, [], 300 * SECOND_MS).outcome?.id).toBe('fire_spreads');
+  });
+
+  it('shows the flames within the lint bound after a Realistic onset', () => {
+    expect(
+      cueVisible(realisticLevels(scenario, 4 * SECOND_MS, 12 * SECOND_MS)['flames'] ?? 0),
+    ).toBe(true);
+    expect(cueVisible(realisticLevels(scenario, 4 * SECOND_MS, 0)['flames'] ?? 0)).toBe(false);
+  });
+});
+
+// The PFD airspeed quantity (owner addition of 2026-10-27): it follows the ground speed while the
+// aircraft moves on the ground, and holds the static 140 knots elsewhere. The readout and the tape
+// that draw it are tested in tests/avionics.test.ts.
+describe('the PFD airspeed quantity', () => {
+  const speeds = (
+    scenario: Scenario,
+    log: readonly RecordedEvent[],
+    atS: number,
+  ): { airspeed: number; ground: number } => {
+    const state = simulate(simSetup(DA50RG_ENV, scenario), {
+      events: log,
+      start: initialQuantities(scenario, DA50RG_ENV.quantities),
+      untilMs: atS * SECOND_MS,
+    }).state;
+    return {
+      airspeed: state.quantities['airspeed_kt'] ?? Number.NaN,
+      ground: state.quantities['ground_speed_kt'] ?? Number.NaN,
+    };
+  };
+  const abort = load('scenarios/fire/takeoff-fire-abort.toon');
+  const noAbort = load('scenarios/fire/takeoff-fire-no-abort.toon');
+  const base = DA50RG_ENV.quantities.baseValues()['airspeed_kt'];
+
+  it('rises with the POWER on the roll and falls with the brakes on', () => {
+    // Full power from 40 knots accelerates; the brakes at 20 s slow the aircraft down.
+    const rolling = speeds(abort, [], 20);
+    // The reading follows within one step (at most 4.3 knots per second of braking over 0.1 s).
+    expect(Math.abs(rolling.airspeed - rolling.ground)).toBeLessThan(0.5);
+    expect(rolling.airspeed).toBeGreaterThan(
+      initialQuantities(abort, DA50RG_ENV.quantities)['airspeed_kt'] ?? 0,
+    );
+    const braked = speeds(
+      abort,
+      [{ t: 20 * SECOND_MS, id: 'lv.toe_brakes', value: 'applied' }],
+      30,
+    );
+    expect(Math.abs(braked.airspeed - braked.ground)).toBeLessThan(0.5);
+    expect(braked.airspeed).toBeLessThan(rolling.airspeed);
+  });
+
+  it('reads 0 when the roll has ended at a standstill, not the static value', () => {
+    const log = events(['lv.power', 'p0'], ['lv.toe_brakes', 'applied']);
+    const stopped = speeds(abort, log, 120);
+    expect(stopped.ground).toBe(0);
+    expect(stopped.airspeed).toBe(0);
+  });
+
+  it('follows the held speed of the airborne take-off', () => {
+    const held = speeds(noAbort, [], 60);
+    expect(held.ground).toBe(70);
+    expect(held.airspeed).toBe(70);
+  });
+
+  it('holds the static 140 knots in flight and on the apron', () => {
+    expect(base).toBe(140);
+    for (const file of [
+      'scenarios/engine/eng-fire-in-flight.toon',
+      'scenarios/fire/eng-fire-ground.toon',
+    ]) {
+      const scenario = load(file);
+      expect(speeds(scenario, [], 30).airspeed, file).toBe(140);
+    }
+  });
+});

@@ -303,4 +303,16 @@ export const DA50RG_QUANTITIES = defineQuantities([
     base: 0,
     bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
   },
+  {
+    // Hidden: no gauge. The airspeed the PFD tape shows (Phase 5.1, owner addition of 2026-10-27).
+    // The base is the static 140 knots of the free panel and of flight; while the aircraft moves on
+    // the ground (the parameter ground_roll, or a start speed) it follows ground_speed_kt, a
+    // training approximation (physics.ts). One unmarked band.
+    id: 'airspeed_kt',
+    unit: 'kt',
+    min: 0,
+    max: 200,
+    base: 140,
+    bands: [{ id: 'unmarked', colour: 'none', to: 200 }],
+  },
 ]);

@@ -369,6 +369,18 @@ function groundSpeedPerMinute(inputs: PhysicsInputs): number {
   );
 }
 
+/**
+ * The airspeed the PFD shows (owner addition of 2026-10-27): the ground speed while the aircraft
+ * moves on the ground (the scenario sets ground_roll, or it starts with a speed, as the airborne
+ * take-off does), otherwise the static value of the free panel and of flight, the quantity's base.
+ * A training approximation: no conversion to indicated airspeed.
+ */
+function airspeedTarget(inputs: PhysicsInputs): number {
+  const speed = quantityOf(inputs, 'ground_speed_kt');
+  const moving = parameterOf(inputs, 'ground_roll') > 0 || speed > 0;
+  return moving ? speed : baseOf('airspeed_kt');
+}
+
 /** The de-ice MAX run lasts 120 s of run time (owner finding G-1). */
 const DEICE_MAX_RUN_MS = 120_000;
 
@@ -464,6 +476,8 @@ export const DA50RG_PHYSICS = definePhysics(
           running(inputs) ? OIL_FILM_PER_MIN * parameterOf(inputs, 'oil_leak') : 0,
       },
       { quantity: 'ground_speed_kt', mode: 'rate', perMinute: groundSpeedPerMinute },
+      // The reading follows the target within one step (like the control unit flags).
+      lag('airspeed_kt', STEP_MS, airspeedTarget),
     ],
     trips: [
       {

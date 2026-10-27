@@ -10,12 +10,17 @@ import {
   MFD_MAP_LEGENDS,
   EFIS_ALTITUDE_TAPE,
   EFIS_SPEED_TAPE,
+  PFD_AIRSPEED_QUANTITY,
   PFD_LEGENDS,
   SOFTKEY_CENTRE_Y,
   SOFTKEY_KEY,
   SOFTKEY_ROWS,
+  SPEED_TICK_COUNT,
+  SPEED_TICK_PX,
   STANDBY_EFIS,
+  airspeedReadout,
   legendTabCentreX,
+  speedTickOffsets,
   softkeyCentre,
 } from '../src/aircraft/da50rg/avionics';
 import type { ColumnText } from '../src/aircraft/da50rg/avionics';
@@ -2002,5 +2007,75 @@ describe('review document on the audio panel, backup EFIS and autopilot panel (p
       expect(review, needle).toContain(needle);
     }
     expect(review).not.toContain('artwork come in plan 08');
+  });
+});
+
+// The PFD airspeed (Phase 5.1, owner addition of 2026-10-27): the readout and the tape follow the
+// quantity airspeed_kt, which is the ground speed while the aircraft rolls and a static 140 knots
+// elsewhere (the model is tested in tests/fire-scenarios.test.ts). Only the number and the ticks
+// move; no text is added.
+describe('the PFD airspeed readout and tape', () => {
+  const render = (values: Record<string, number>) => {
+    const bridge = {
+      ...fakeBridge('map'),
+      quantities: { value: values },
+    } as unknown as PanelBridge;
+    return expand(PfdFrame({ region: region('pfd'), bridge }));
+  };
+  const readout = (tree: El): string =>
+    textOf(findElements(tree, (e) => e.props['data-airspeed-readout'] !== undefined)[0] ?? tree);
+  const ticks = (tree: El): number[] =>
+    findElements(
+      findElements(tree, (e) => e.props['data-testid'] === 'pfd-airspeed')[0] ?? tree,
+      (e) => e.tag === 'line',
+    ).map((e) => Number(e.props['y1']));
+
+  it('reads the static 140 knots with the base values: the free panel and flight', () => {
+    expect(DA50RG_QUANTITIES.get(PFD_AIRSPEED_QUANTITY)?.base).toBe(140);
+    expect(readout(render(DA50RG_QUANTITIES.baseValues()))).toBe('140');
+  });
+
+  it('reads the speed of the quantity, rounded to whole knots, and 0 at standstill', () => {
+    expect(readout(render({ [PFD_AIRSPEED_QUANTITY]: 52.4 }))).toBe('52');
+    expect(readout(render({ [PFD_AIRSPEED_QUANTITY]: 52.6 }))).toBe('53');
+    expect(readout(render({ [PFD_AIRSPEED_QUANTITY]: 0 }))).toBe('0');
+    expect(airspeedReadout(undefined)).toBe(0);
+    expect(airspeedReadout(Number.NaN)).toBe(0);
+    expect(airspeedReadout(-3)).toBe(0);
+  });
+
+  it('adds no text: the readout is a number and the only other text is the KT label', () => {
+    const tape = findElements(
+      render({ [PFD_AIRSPEED_QUANTITY]: 63 }),
+      (e) => e.props['data-testid'] === 'pfd-airspeed',
+    )[0];
+    expect(tape).toBeDefined();
+    if (tape === undefined) return;
+    expect(findElements(tape, (e) => e.tag === 'text').map(textOf)).toEqual(['63', 'KT']);
+  });
+
+  it('keeps the count of ticks and moves them down by 3 px per knot, wrapping inside the band', () => {
+    const rest = ticks(render({ [PFD_AIRSPEED_QUANTITY]: 140 }));
+    expect(rest).toHaveLength(SPEED_TICK_COUNT);
+    const moved = ticks(render({ [PFD_AIRSPEED_QUANTITY]: 144 }));
+    expect(moved).toHaveLength(SPEED_TICK_COUNT);
+    expect([...moved].sort((a, b) => a - b)).not.toEqual([...rest].sort((a, b) => a - b));
+    // 4 knots are 12 px of the 30 px tick step; a tick that leaves the band wraps to the top.
+    const span = SPEED_TICK_COUNT * SPEED_TICK_PX;
+    speedTickOffsets(144).forEach((offset, i) => {
+      const before = speedTickOffsets(140)[i] ?? Number.NaN;
+      expect((offset - before + span) % span).toBeCloseTo((4 * SPEED_TICK_PX) / 10, 9);
+    });
+    // Speed 148 wraps the last tick: 195 + 24 is past 210.
+    expect(Math.min(...speedTickOffsets(148))).toBeCloseTo(9, 9);
+    for (const y of moved) expect(y).toBeGreaterThan(0);
+  });
+
+  it('puts the ticks of a multiple of 10 knots at the rest places of the static art', () => {
+    for (const speed of [0, 10, 40, 70, 140]) {
+      expect(speedTickOffsets(speed)).toEqual(
+        Array.from({ length: SPEED_TICK_COUNT }, (_, i) => SPEED_TICK_PX / 2 + i * SPEED_TICK_PX),
+      );
+    }
   });
 });

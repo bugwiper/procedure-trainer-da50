@@ -1,0 +1,158 @@
+# SMOKE AND FIRE DURING TAKE-OFF, take-off that can still be aborted (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decisions 2026-10-23 and 2026-10-27): the heading, every item, action and sub-heading as printed. The row marks are the letters A to H of the AFM page that was compared. ASSUMPTION for the owner: the booklet may print numbers 1 to 8 instead; the marks are plain data (the `number` fields), so swapping them is one edit per row plus the typed table in tests/checklist-reference.ts. POWER lever Ground Idle (GI) is the lever position p0; ECS shut-off PULL is the state pulled of the ECS shut-off; Brakes apply is the state applied of the toe brakes; FUEL valve OFF (lift and turn) is the state off of the FUEL selector (the lift is not modelled); Door is graded on the door release lever (state open); the printed row "Airplane evacuate immediately" has no panel action and stays a line. All other text is own wording. The fire constants, the outcome threshold and hold time, the onset window and the forbidden items are copied from ENGINE FIRE in flight and are instructor-review values; the roll starts at 40 knots with full power.
+format: 1
+id: takeoff-fire-abort
+title: T/O FIRE ABORT
+source:
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
+  section: AFM 03-31 IF TAKE-OFF CAN BE ABORTED
+  verified: "2026-10-27"
+disclaimer: training-aid
+scene: takeoff_roll
+briefing:
+  situation: "You are on the take-off roll at full power, about 40 knots, with flaps in take-off position. Smoke and flames come from the engine compartment. No message is shown on the primary flight display. There is plenty of runway ahead to stop."
+initial:
+  controls:
+    lv.power: p100
+    lv.flaps: to
+    lv.gear: down
+  quantities:
+    fire_intensity: 40
+    ground_speed_kt: 40
+    airspeed_kt: 40
+parameters:
+  engine_fire: 1
+  ground_roll: 1
+annunciations[0]:
+checklist:
+  form: table
+  heading: Smoke and Fire During Take-Off
+procedure[10]:
+  - kind: comment
+    style: subheading
+    text: If Take-Off Can Still Be Aborted
+  - kind: group
+    id: grp_power
+    ordered: false
+    steps[1]:
+      - id: power_idle
+        severity: critical
+        number: A
+        text: POWER lever
+        action: Ground Idle (GI)
+        done:
+          check: state
+          control: lv.power
+          is: p0
+  - kind: group
+    id: grp_ecs
+    ordered: false
+    steps[1]:
+      - id: ecs_pulled
+        severity: critical
+        number: B
+        text: ECS shut-off
+        action: PULL
+        done:
+          check: state
+          control: lv.ecs_shutoff
+          is: pulled
+  - kind: group
+    id: grp_brakes
+    ordered: false
+    steps[1]:
+      - id: brakes_applied
+        severity: critical
+        number: C
+        text: Brakes
+        action: apply - bring the airplane to a stop
+        done:
+          check: state
+          control: lv.toe_brakes
+          is: applied
+  - kind: group
+    id: grp_eng_master
+    ordered: false
+    steps[1]:
+      - id: engine_master_off
+        severity: critical
+        number: D
+        text: ENGINE MASTER
+        action: "OFF"
+        done:
+          check: state
+          control: sw.engine_master
+          is: off
+  - kind: group
+    id: grp_fuel_valve
+    ordered: false
+    steps[1]:
+      - id: fuel_valve_off
+        severity: critical
+        number: E
+        text: FUEL valve
+        action: OFF (lift and turn)
+        done:
+          check: state
+          control: sw.fuel_valve
+          is: off
+  - kind: group
+    id: grp_elect_master
+    ordered: false
+    steps[1]:
+      - id: elect_master_off
+        severity: critical
+        number: F
+        text: ELECT. MASTER
+        action: "OFF"
+        done:
+          check: state
+          control: sw.elect_master
+          is: off
+  - kind: comment
+    style: subheading
+    text: After Standstill
+  - kind: group
+    id: grp_door
+    ordered: false
+    steps[1]:
+      - id: door_open
+        severity: critical
+        number: G
+        text: Door
+        action: open
+        done:
+          check: state
+          control: lv.door_release
+          is: open
+  - kind: line
+    number: H
+    text: Airplane
+    action: evacuate immediately
+# The emergency fuel pump would feed the fire and fails the run. It is an instructor-review item.
+forbidden[1]:
+  - id: emerg_fuel_pump_on
+    text: Switch on the emergency fuel pump
+    fails_run: true
+    trigger:
+      check: state
+      control: sw.emerg_fuel_pump
+      is: "on"
+# The outcome ends the run as a fail when the fire stays at a high intensity; the intensity and the hold time are instructor-review values.
+outcomes[1]:
+  - id: fire_spreads
+    text: Fire spreads beyond the engine compartment
+    hold_s: 20
+    when:
+      check: quantity
+      quantity: fire_intensity
+      op: gte
+      value: 85
+# The fire of the level Realistic begins at a random second inside this short window; the aircraft rolls at 40 knots from the start (the PFD airspeed starts at the same speed). The window is an instructor-review value.
+# The fire shows by its flames and smoke over the cowl, since the scenario lists no message; the lint checks that they show within seconds of the onset.
+onset:
+  window_s[2]: 2,6
+  quantities:
+    ground_speed_kt: 40
+    airspeed_kt: 40
+  cues[1]: flames

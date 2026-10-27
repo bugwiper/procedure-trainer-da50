@@ -418,6 +418,40 @@ export const STANDBY_EFIS: StandbyEfisData = {
   knob: { kind: 'knob', id: 'efis', cx: 1134 - 1026, cy: 429 - 296, r: 8 },
 };
 
+/**
+ * The PFD airspeed (owner addition of 2026-10-27): the readout and the tape follow this quantity,
+ * which is the ground speed while the aircraft rolls and the static 140 knots elsewhere
+ * (physics.ts). Only the number and the tick positions move; no text is added (G-0).
+ */
+export const PFD_AIRSPEED_QUANTITY = 'airspeed_kt';
+
+/** The ticks of the PFD speed tape: how many, and the pixels one tick step of 10 knots spans. */
+export const SPEED_TICK_COUNT = 7;
+export const SPEED_TICK_PX = 30;
+const SPEED_TICK_KT = 10;
+
+/** The whole knots the readout shows for a reading; a missing reading shows 0. */
+export function airspeedReadout(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) return 0;
+  return value > 0 ? Math.round(value) : 0;
+}
+
+/**
+ * The offsets in pixels of the speed tape ticks from the top of the tape band, 7 ticks that wrap
+ * round so the count never changes. They fall by one tick step per 10 knots of speed, so the tape
+ * moves down as the speed rises; a speed that is a multiple of 10 puts the ticks at their rest
+ * places, 15 + 30 i.
+ */
+export function speedTickOffsets(value: number | undefined): number[] {
+  const speed = value === undefined || !Number.isFinite(value) || value < 0 ? 0 : value;
+  const span = SPEED_TICK_COUNT * SPEED_TICK_PX;
+  const shift = (speed % SPEED_TICK_KT) * (SPEED_TICK_PX / SPEED_TICK_KT);
+  return Array.from(
+    { length: SPEED_TICK_COUNT },
+    (_, i) => (SPEED_TICK_PX / 2 + i * SPEED_TICK_PX + shift) % span,
+  );
+}
+
 /** Idle tape numerals (proposals, U-18): speed from 180 down to 100, altitude around 1400. */
 export const EFIS_SPEED_TAPE: readonly number[] = [180, 160, 140, 120, 100];
 export const EFIS_ALTITUDE_TAPE: readonly number[] = [1600, 1500, 1400, 1300, 1200];

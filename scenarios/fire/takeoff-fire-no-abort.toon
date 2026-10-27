@@ -1,0 +1,150 @@
+# SMOKE AND FIRE DURING TAKE-OFF, take-off that cannot be aborted (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decisions 2026-10-23 and 2026-10-27): the heading, the WARNING block, every item, action, comment row and sub-heading as printed. The row marks are the letters A to I of the AFM page that was compared. ASSUMPTION for the owner: the booklet may print numbers 1 to 9 instead; the marks are plain data (the `number` fields), so swapping them is one edit per row plus the typed table in tests/checklist-reference.ts. ECS shut-off PULL is the state pulled of the ECS shut-off; FUEL valve OFF is the state off of the FUEL selector; the Emergency windows row is graded on the emergency window and the Doors row on the door release lever, both optional because this simulation has no landing and the aircraft never stands still. The printed rows without a panel action (the short-cut circuit, the emergency landing with its reference and the evacuation) stay lines. All other text is own wording. The fire constants, the outcome threshold and hold time, the onset window and the forbidden items are copied from ENGINE FIRE in flight and are instructor-review values; the aircraft is airborne over the runway, so the speed holds at 70 knots and the runway keeps moving.
+format: 1
+id: takeoff-fire-no-abort
+title: T/O FIRE NO ABORT
+source:
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
+  section: AFM 03-32 IF TAKE-OFF CANNOT BE ABORTED
+  verified: "2026-10-27"
+disclaimer: training-aid
+scene: takeoff_roll
+briefing:
+  situation: "You have just lifted off and are climbing out low over the runway at about 70 knots with flaps in take-off position. Smoke and flames come from the engine compartment. No message is shown on the primary flight display. There is no runway left to stop on."
+initial:
+  controls:
+    lv.power: p100
+    lv.flaps: to
+    lv.gear: down
+  quantities:
+    fire_intensity: 40
+    ground_speed_kt: 70
+    airspeed_kt: 70
+parameters:
+  engine_fire: 1
+annunciations[0]:
+checklist:
+  form: table
+  heading: Smoke and Fire During Take-Off
+procedure[12]:
+  - kind: comment
+    style: subheading
+    text: If Take-Off CANNOT Be Aborted
+  - kind: comment
+    style: warning
+    text: "IF, IN THE EVENT OF AN ENGINE PROBLEM OCCURRING DURING TAKE-OFF, THE TAKE-OFF CAN NO LONGER BE ABORTED AND A SAFE HEIGHT HAS NOT BEEN REACHED, THEN A STRAIGHT-AHEAD EMERGENCY LANDING SHOULD BE CARRIED OUT. DO NOT ATTEMPT TO TURN BACK TO THE AIRFIELD. TURNING BACK CAN BE FATAL. REFER TO 03-16 - ENGINE FAILURE DURING TAKE-OFF - EMERGENCY OPERATION PROCEDURE."
+  - kind: group
+    id: grp_ecs
+    ordered: false
+    steps[1]:
+      - id: ecs_pulled
+        severity: critical
+        number: A
+        text: ECS shut-off
+        action: PULL
+        done:
+          check: state
+          control: lv.ecs_shutoff
+          is: pulled
+  - kind: line
+    number: B
+    text: If possible, fly along a short-cut traffic circuit and land on the airfield.
+  - kind: comment
+    style: subheading
+    text: After Climbing to a Height From Which the Selected Landing Area Can Be Reached Safely
+  - kind: group
+    id: grp_shutdown
+    ordered: false
+    steps[3]:
+      - id: engine_master_off
+        severity: critical
+        number: C
+        text: ENGINE MASTER
+        action: "OFF"
+        done:
+          check: state
+          control: sw.engine_master
+          is: off
+      - id: fuel_valve_off
+        severity: critical
+        number: D
+        text: FUEL valve
+        action: "OFF"
+        done:
+          check: state
+          control: sw.fuel_valve
+          is: off
+      - id: elect_master_off
+        severity: critical
+        number: E
+        text: ELECT. MASTER
+        action: "OFF"
+        done:
+          check: state
+          control: sw.elect_master
+          is: off
+  - kind: group
+    id: grp_windows
+    ordered: false
+    steps[1]:
+      - id: windows_open
+        severity: optional
+        number: F
+        text: Emergency windows
+        action: open if necessary
+        done:
+          check: state
+          control: sw.emerg_window
+          is: open
+  - kind: line
+    number: G
+    text: Perform an emergency landing with engine off. Allow for increased landing distance due to the flap position.
+  - kind: comment
+    text: Refer to 03-41 - Emergency Landing with Engine Off - Emergency operation procedure.
+  - kind: comment
+    style: subheading
+    text: When Airplane Has Stopped
+  - kind: group
+    id: grp_doors
+    ordered: false
+    steps[1]:
+      - id: doors_open
+        severity: optional
+        number: H
+        text: Doors
+        action: open
+        done:
+          check: state
+          control: lv.door_release
+          is: open
+  - kind: line
+    number: I
+    text: Airplane
+    action: evacuate immediately
+# The emergency fuel pump would feed the fire and fails the run. It is an instructor-review item.
+forbidden[1]:
+  - id: emerg_fuel_pump_on
+    text: Switch on the emergency fuel pump
+    fails_run: true
+    trigger:
+      check: state
+      control: sw.emerg_fuel_pump
+      is: "on"
+# The outcome ends the run as a fail when the fire stays at a high intensity; the intensity and the hold time are instructor-review values.
+outcomes[1]:
+  - id: fire_spreads
+    text: Fire spreads beyond the engine compartment
+    hold_s: 20
+    when:
+      check: quantity
+      quantity: fire_intensity
+      op: gte
+      value: 85
+# The fire of the level Realistic begins at a random second inside this short window; the aircraft flies at 70 knots from the start (the PFD airspeed starts at the same speed). The window is an instructor-review value.
+# The fire shows by its flames and smoke over the cowl, since the scenario lists no message; the lint checks that they show within seconds of the onset.
+onset:
+  window_s[2]: 2,6
+  quantities:
+    ground_speed_kt: 70
+    airspeed_kt: 70
+  cues[1]: flames

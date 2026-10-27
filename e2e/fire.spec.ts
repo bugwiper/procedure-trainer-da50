@@ -182,3 +182,118 @@ test('@hooks Electrical Fire on Ground without the master off grades FAIL and ke
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
 });
+
+// Smoke and Fire During Take-Off: the abort and the no abort, on the roll scene, with the PFD
+// airspeed that follows the ground speed.
+const ABORT_ROW = 'fire.takeoff-fire-abort';
+const NO_ABORT_ROW = 'fire.takeoff-fire-no-abort';
+const MARKS = '[data-scene="takeoff_roll"] .w-roll-mark';
+const READOUT = '[data-testid="pfd-airspeed"] [data-airspeed-readout]';
+/** The aircraft stops within about 20 s of braking and idling; the spec allows 60 s. */
+const STOPS_WITHIN_MS = 60_000;
+
+const speedOf = async (page: Page): Promise<number> =>
+  Number(await page.locator(READOUT).first().textContent());
+const markRate = (page: Page) =>
+  page
+    .locator(MARKS)
+    .first()
+    .evaluate((el) => el.getAnimations().map((a) => a.playbackRate));
+
+/** Taps the toe brakes on the zoomed pedals region. */
+async function applyBrakes(page: Page, hasTouch: boolean): Promise<void> {
+  await zoomIntoRegion(page, hasTouch, 'pedals');
+  await activate(page.locator('[data-hit="lv.toe_brakes"]'), hasTouch);
+  await expect(control(page, 'lv.toe_brakes')).toHaveAttribute('data-state', 'applied');
+  await leaveZoom(page, hasTouch);
+}
+
+for (const [row, speed] of [
+  [ABORT_ROW, 40],
+  [NO_ABORT_ROW, 70],
+] as const) {
+  test(`@hooks ${row}: the roll scene, the flames and the PFD airspeed of the start show`, async ({
+    page,
+    hasTouch,
+  }) => {
+    await startScenario(page, hasTouch, row, 'easy');
+    await expect(page.locator(scene('takeoff_roll'))).toHaveCount(1);
+    await expect(page.locator(FLAMES)).toHaveCount(1);
+    // The reading starts at the start speed of the situation and moves from there.
+    await expect.poll(() => speedOf(page)).toBeGreaterThanOrEqual(speed);
+    await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p100');
+    await expect.poll(() => markRate(page)).not.toEqual([0]);
+  });
+}
+
+test('@hooks the PFD airspeed shows the static 140 knots on the free panel', async ({ page }) => {
+  await expect(page.locator(READOUT)).toHaveText('140');
+});
+
+test('@hooks the PFD airspeed rises with full power and falls with the brakes on', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, ABORT_ROW, 'easy');
+  const start = await speedOf(page);
+  // Full power from the start accelerates the roll.
+  await expect.poll(() => speedOf(page), { timeout: 15_000 }).toBeGreaterThan(start + 2);
+  const peak = await speedOf(page);
+  await applyBrakes(page, hasTouch);
+  // The brakes beat the power: the reading falls below where it was.
+  await expect.poll(() => speedOf(page), { timeout: 30_000 }).toBeLessThan(peak);
+});
+
+test('@hooks T/O FIRE ABORT: the golden run stops the aircraft and the roll scene, and grades PASS', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, ABORT_ROW, 'easy');
+  await activate(page.locator('[data-detent="lv.power:p0"]'), hasTouch);
+  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p0');
+  await applyBrakes(page, hasTouch);
+  await activate(page.locator('[data-detent="lv.ecs_shutoff:pulled"]'), hasTouch);
+  await expect(control(page, 'lv.ecs_shutoff')).toHaveAttribute('data-state', 'pulled');
+  await shutDown(page, hasTouch);
+
+  // The aircraft stands: the readout is 0 and the roll marks play at rate 0.
+  await expect.poll(() => speedOf(page), { timeout: STOPS_WITHIN_MS }).toBe(0);
+  await expect.poll(() => markRate(page)).toEqual([0]);
+  await openDoor(page, hasTouch);
+
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.locator('[data-step-id="door_open"]')).toHaveAttribute('data-verdict', 'Done');
+});
+
+test('@hooks T/O FIRE ABORT without the door grades FAIL', async ({ page, hasTouch }) => {
+  await startScenario(page, hasTouch, ABORT_ROW, 'easy');
+  await activate(page.locator('[data-detent="lv.power:p0"]'), hasTouch);
+  await applyBrakes(page, hasTouch);
+  await activate(page.locator('[data-detent="lv.ecs_shutoff:pulled"]'), hasTouch);
+  await shutDown(page, hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+});
+
+test('@hooks T/O FIRE NO ABORT: the four critical rows grade PASS, the window and the doors are optional', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, NO_ABORT_ROW, 'easy');
+  await activate(page.locator('[data-detent="lv.ecs_shutoff:pulled"]'), hasTouch);
+  await expect(control(page, 'lv.ecs_shutoff')).toHaveAttribute('data-state', 'pulled');
+  await shutDown(page, hasTouch);
+  // The speed holds at 70 knots and the roll marks keep moving in the air.
+  await expect.poll(() => speedOf(page)).toBe(70);
+  await expect.poll(() => markRate(page)).toEqual([1]);
+
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  for (const id of ['windows_open', 'doors_open']) {
+    await expect(page.locator(`[data-step-id="${id}"]`)).toHaveAttribute(
+      'data-verdict',
+      'Not done',
+    );
+  }
+});
