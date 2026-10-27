@@ -443,14 +443,27 @@ describe('the PFD airspeed quantity', () => {
     expect(held.airspeed).toBe(70);
   });
 
-  it('holds the static 140 knots in flight and on the apron', () => {
+  it('holds the static 140 knots in flight', () => {
     expect(base).toBe(140);
+    const scenario = load('scenarios/engine/eng-fire-in-flight.toon');
+    expect(speeds(scenario, [], 30).airspeed).toBe(140);
+  });
+
+  it('reads 0 knots while the aircraft stands on the apron, at every level and at every power', () => {
     for (const file of [
-      'scenarios/engine/eng-fire-in-flight.toon',
       'scenarios/fire/eng-fire-ground.toon',
+      'scenarios/fire/elec-fire-ground.toon',
     ]) {
       const scenario = load(file);
-      expect(speeds(scenario, [], 30).airspeed, file).toBe(140);
+      const start = initialQuantities(scenario, DA50RG_ENV.quantities);
+      expect(start['airspeed_kt'], file).toBe(0);
+      expect(realisticQuantities(scenario, DA50RG_ENV.quantities)['airspeed_kt'], file).toBe(0);
+      // Doing nothing, with the power at 25 percent (elec) or at idle (eng), the speed stays 0.
+      for (const at of [0, 1, 30, 120]) {
+        const s = speeds(scenario, [], at);
+        expect(s.airspeed, `${file} airspeed at ${at}`).toBe(0);
+        expect(s.ground, `${file} ground at ${at}`).toBe(0);
+      }
     }
   });
 });

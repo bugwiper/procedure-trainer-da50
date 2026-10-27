@@ -14,10 +14,14 @@ briefing:
 initial:
   controls:
     lv.power: p25
+    lv.parking_brake: set
   quantities:
+    airspeed_kt: 0
     smoke_density: 40
+# ground_roll with the parking brake set: the aircraft stands, the PFD speed reads 0 knots (the brake holds it although the engine runs).
 parameters:
   smoke_source: 1
+  ground_roll: 1
 annunciations[0]:
 checklist:
   form: table
@@ -124,4 +128,6 @@ variants[2]:
 # The smoke shows over the panel, since the scenario lists no message; the lint checks that it shows within seconds of the onset.
 onset:
   window_s[2]: 2,6
+  quantities:
+    airspeed_kt: 0
   cues[1]: cabin_smoke

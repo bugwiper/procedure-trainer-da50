@@ -14,13 +14,17 @@ briefing:
 initial:
   controls:
     lv.power: p0
+    lv.parking_brake: set
   quantities:
+    airspeed_kt: 0
     fire_intensity: 40
     oil_temp_c: 103
     coolant_temp_c: 97
     gearbox_temp_c: 91
+# ground_roll with the parking brake set: the aircraft stands, the PFD speed reads 0 knots (the ground speed stays 0 under the brake).
 parameters:
   engine_fire: 1
+  ground_roll: 1
 annunciations[0]:
 checklist:
   form: table
@@ -108,4 +112,6 @@ outcomes[1]:
 # The fire shows by its flames and smoke over the cowl, since the scenario lists no message; the lint checks that they show within seconds of the onset.
 onset:
   window_s[2]: 2,6
+  quantities:
+    airspeed_kt: 0
   cues[1]: flames

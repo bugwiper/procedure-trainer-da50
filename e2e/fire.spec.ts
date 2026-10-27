@@ -230,6 +230,19 @@ test('@hooks the PFD airspeed shows the static 140 knots on the free panel', asy
   await expect(page.locator(READOUT)).toHaveText('140');
 });
 
+for (const row of ['fire.eng-fire-ground', ELEC_ROW]) {
+  test(`@hooks ${row}: the PFD airspeed reads 0 knots while the aircraft stands on the apron`, async ({
+    page,
+    hasTouch,
+  }) => {
+    await startScenario(page, hasTouch, row, 'easy');
+    await expect(page.locator(READOUT)).toHaveText('0');
+    // It stays at 0 for a while (the parking brake holds the aircraft, also with the engine running).
+    await page.waitForTimeout(1500);
+    await expect(page.locator(READOUT)).toHaveText('0');
+  });
+}
+
 test('@hooks the PFD airspeed rises with full power and falls with the brakes on', async ({
   page,
   hasTouch,
