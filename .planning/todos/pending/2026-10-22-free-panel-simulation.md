@@ -17,3 +17,7 @@ In phase 3 the simulation and the de-ice MAX run exist only during a scenario ru
 ## Placement (2026-10-23)
 
 Owner decision: this goes into Phase 6 (fuel, tank and engine fidelity and the engine page), because the free panel then needs the whole simulated engine page. Reason from the owner's alternator test in the normal checklist: ESS BUS on makes alternator 2 Amps rise and alternator 1 Amps fall, ESS BUS off the reverse; today this shows only inside a scenario run.
+
+## Decision (2026-10-27)
+
+Not built. A general simulation on the free panel is too complex for its gain (no scene, no speed, no scenario context, own clock and hand-over). Replaced by situation-based simulation: normal procedures such as the alternator test of the normal checklist become situations of their own (scene parked or cruise, engine running, no failure), run like scenarios and graded against the printed normal checklist. The RESET button keeps returning to the static initial state.
