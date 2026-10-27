@@ -254,6 +254,34 @@ test('the DOOR RELEASE lever lies along its arm rest, a tap pulls it up and a se
   await expect(door).toHaveAttribute('data-state', 'locked');
 });
 
+test('WINDOW and DOOR LOCK are labelled, the oval stands directly above the door lock lever in the same strip', async ({
+  page,
+}) => {
+  const placards = await page.locator('[data-placard]').allTextContents();
+  expect(placards).toEqual(expect.arrayContaining(['WINDOW', 'DOOR LOCK']));
+  const win = await page.locator('[data-hit="sw.emerg_window"]').boundingBox();
+  const door = await page.locator('[data-hit="lv.door_release"]').boundingBox();
+  // The text box is read through the screen matrix: some engines report the box of an svg text
+  // element in odd places.
+  const textBox = (id: string) =>
+    page.evaluate((placard) => {
+      const el = document.querySelector<SVGTextElement>(`[data-placard="${placard}"]`);
+      const m = el?.getScreenCTM();
+      if (el === null || el === undefined || m === null || m === undefined) return null;
+      const b = el.getBBox();
+      return { top: m.d * b.y + m.f, bottom: m.d * (b.y + b.height) + m.f };
+    }, id);
+  const wl = await textBox('cabin.window');
+  const dl = await textBox('cabin.door_lock');
+  if (win === null || door === null || wl === null || dl === null) throw new Error('no box');
+  // Same column (centres within a few px), the window above the lever, each label under its part.
+  expect(Math.abs(win.x + win.width / 2 - (door.x + door.width / 2))).toBeLessThan(3);
+  expect(win.y + win.height).toBeLessThan(door.y);
+  expect(wl.top).toBeGreaterThanOrEqual(win.y + win.height - 1);
+  expect(dl.top).toBeGreaterThanOrEqual(door.y + door.height - 1);
+  expect(wl.bottom).toBeLessThan(door.y);
+});
+
 test('the pedestal levers print no name of their own, the plate placards name them', async ({
   page,
 }) => {

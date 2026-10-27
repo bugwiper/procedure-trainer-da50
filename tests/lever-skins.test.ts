@@ -741,7 +741,7 @@ describe('PARKING BRAKE flap geometry (R2-4.2, R3-4.1)', () => {
 describe('TOE BRAKES and DOOR RELEASE (Phase 5.1)', () => {
   const EXPECTED: Record<string, readonly [skin: string, hit: { w: number; h: number }]> = {
     'lv.toe_brakes': ['toe-brakes', { w: 260, h: 90 }],
-    'lv.door_release': ['door-release', { w: 56, h: 176 }],
+    'lv.door_release': ['door-release', { w: 76, h: 132 }],
   };
 
   it('are nameless tap-toggle levers with two detents, one hit and no markers or track art', () => {
@@ -793,10 +793,32 @@ describe('TOE BRAKES and DOOR RELEASE (Phase 5.1)', () => {
     expect(findElements(open, (el) => 'data-door-bar' in el.props)).toHaveLength(0);
   });
 
-  it('the pulled door plate rises about 90 units, four times the 22 of the parking flap', () => {
+  it('the swung door plate rises at least 3.5 times the 22 of the parking flap and is foreshortened', () => {
     const [a, , c] = doorPlate();
-    expect(a.y - c.y).toBe(90);
+    expect(a.y - c.y).toBe(84);
     expect(a.y - c.y).toBeGreaterThanOrEqual(3.5 * PLATE.rise);
+    // Foreshortened: it rises less than the 104 the lever is long lying flat.
+    expect(a.y - c.y).toBeLessThan(104);
+  });
+
+  it('the open door plate swings to the LEFT: skewed left, narrower at the free end, inside the hit', () => {
+    const [hingeL, hingeR, topR, topL] = doorPlate();
+    const def = lever('lv.door_release');
+    // The free end lies left of the hinge: the whole top edge is left of the hinge line centre.
+    expect(topR.x).toBeLessThan(0);
+    expect(topL.x).toBeLessThan(hingeL.x);
+    // Perspective: the free edge is narrower than the base and the plate is not a mirrored pair.
+    expect(topR.x - topL.x).toBeLessThan(hingeR.x - hingeL.x);
+    expect(topR.x - topL.x).toBeGreaterThan(0);
+    // The plate and its side face stay inside the footprint on both sides.
+    for (const p of [hingeL, hingeR, topR, topL]) {
+      expect(p.x - 1, 'plate left of the hit').toBeGreaterThanOrEqual(-def.hit.w / 2);
+      expect(p.x + 5, 'side face right of the hit').toBeLessThanOrEqual(def.hit.w / 2);
+      expect(Math.abs(p.y), 'plate inside the hit').toBeLessThanOrEqual(def.hit.h / 2);
+    }
+    // The open body draws the dark side face on the right edge, the locked one does not.
+    expect(findElements(body(def, 'open'), (el) => 'data-door-side' in el.props)).toHaveLength(1);
+    expect(findElements(body(def, 'locked'), (el) => 'data-door-side' in el.props)).toHaveLength(0);
   });
 });
 

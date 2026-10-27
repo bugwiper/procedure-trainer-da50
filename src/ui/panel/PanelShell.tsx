@@ -481,12 +481,13 @@ function BracketGroups() {
   );
 }
 
-/** Layer 11: de-ice and engine plates of the left strip and the static vent. */
+/** Layer 11: de-ice, engine and cabin plates of the left strip and the static vent. */
 function LeftStrip() {
   return (
     <g data-shell="left-strip">
       <Plate id="deice" />
       <Plate id="engine" />
+      <Plate id="cabin-pad" />
       <PlateHeadings />
       <BracketGroups />
       <g data-shell="vent">

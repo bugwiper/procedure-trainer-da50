@@ -30,19 +30,10 @@ import {
   fitScale,
   panRect,
   pinchRect,
-  regionAt,
   screenToView,
   targetSide,
   zoomRect,
 } from '../src/ui/panel/viewport';
-
-/**
- * The space the app zooms in: the extent (the app clamps every zoom to it). A region above the
- * panel (the windscreen and the window nested in it, y below 0) needs it; the others lie inside
- * the viewBox and zoom the same in both.
- */
-const spaceOf = (region: { readonly bounds: Rect }) =>
-  region.bounds.y < 0 ? PANEL_EXTENT : VIEWBOX;
 
 // View geometry for region zoom (PNL-09, D-20, D-21). Pure functions over the registry;
 // the zoomed tap-size guarantee is checked for every region and device profile.
@@ -93,9 +84,7 @@ describe('zoomRect', () => {
       w: 50 + ZOOM_PAD,
       h: 40 + ZOOM_PAD,
     });
-    // Regions inside the viewBox stay in it; the windscreen and the window nested in it (y below 0)
-    // stay inside the extent, checked in the loop below.
-    for (const region of DA50RG.regions.filter((r) => r.bounds.y >= 0)) {
+    for (const region of DA50RG.regions.filter((r) => r.id !== 'windscreen')) {
       expect(inside(zoomRect(region.bounds, VIEWBOX), FULL), region.id).toBe(true);
     }
     for (const region of DA50RG.regions) {
@@ -387,7 +376,7 @@ describe('zoomed tap-size guarantee (D-21)', () => {
         const defs = regionControls(region.id);
         if (defs.length === 0) continue;
         checked += 1;
-        const scale = fitScale(zoomRect(region.bounds, spaceOf(region)), screen);
+        const scale = fitScale(zoomRect(region.bounds, VIEWBOX), screen);
         const smallest = Math.min(...defs.map(targetSide));
         expect(smallest * scale, `${region.id} on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
       }
@@ -403,7 +392,7 @@ describe('zoomed tap-size guarantee (D-21)', () => {
     expect(region).toBeDefined();
     if (region === undefined || fan === undefined) return;
     for (const [name, screen] of Object.entries(VIEW_PROFILES)) {
-      const scale = fitScale(zoomRect(region.bounds, spaceOf(region)), screen);
+      const scale = fitScale(zoomRect(region.bounds, VIEWBOX), screen);
       for (const spot of spots) {
         const side = Math.min(spot.w, spot.h) * scale;
         expect(side, `${spot.stop} on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
@@ -421,11 +410,11 @@ describe('zoomed tap-size guarantee (D-21)', () => {
     if (pitot === undefined) return;
     expect(targetSide(pitot)).toBe(28);
     for (const [name, screen] of Object.entries(VIEW_PROFILES)) {
-      const scale = fitScale(zoomRect(region.bounds, spaceOf(region)), screen);
+      const scale = fitScale(zoomRect(region.bounds, VIEWBOX), screen);
       expect(targetSide(pitot) * scale, name).toBeGreaterThanOrEqual(MIN_TAP_PX);
     }
     // The phone profile is the tightest: 51.3 px (UI-SPEC 01.2, Table W2).
-    const phone = fitScale(zoomRect(region.bounds, spaceOf(region)), VIEW_PROFILES.phone) * 28;
+    const phone = fitScale(zoomRect(region.bounds, VIEWBOX), VIEW_PROFILES.phone) * 28;
     expect(phone).toBeCloseTo(51.3, 1);
   });
 
@@ -443,11 +432,10 @@ describe('zoomed tap-size guarantee (D-21)', () => {
       const smallest = Math.min(...regionControls(id).map(targetSide));
       expect(regionControls(id).length, id).toBeGreaterThan(0);
       for (const [name, screen] of Object.entries(VIEW_PROFILES)) {
-        const scale = fitScale(zoomRect(region.bounds, spaceOf(region)), screen);
+        const scale = fitScale(zoomRect(region.bounds, VIEWBOX), screen);
         expect(smallest * scale, `${id} on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
       }
-      const phone =
-        fitScale(zoomRect(region.bounds, spaceOf(region)), VIEW_PROFILES.phone) * smallest;
+      const phone = fitScale(zoomRect(region.bounds, VIEWBOX), VIEW_PROFILES.phone) * smallest;
       expect(phone, `${id} phone`).toBeCloseTo(expected, 0);
     }
   });
@@ -839,7 +827,7 @@ describe('Full panel button corner (R2-T1, D-13)', () => {
       expect(DA50RG.regions.length).toBeGreaterThan(0);
       let current: 'tr' | 'br' | 'bl' = 'tr';
       for (const region of DA50RG.regions) {
-        const view = zoomRect(region.bounds, spaceOf(region));
+        const view = zoomRect(region.bounds, VIEWBOX);
         const corner = chooseButtonCorner({ view, screen, footprints, current: 'tr' });
         expect(buttonOverlap(corner, view, screen, footprints), `${region.id} on ${name}`).toBe(0);
         // The current corner is kept when free, so a chain of views never picks a covered corner.
@@ -853,7 +841,7 @@ describe('Full panel button corner (R2-T1, D-13)', () => {
     const region = DA50RG.regions.find((r) => r.id === 'cb_main');
     expect(region).toBeDefined();
     if (region === undefined) return;
-    const view = zoomRect(region.bounds, spaceOf(region));
+    const view = zoomRect(region.bounds, VIEWBOX);
     const screen = VIEW_PROFILES.tablet;
     expect(buttonOverlap('tr', view, screen, footprints)).toBeGreaterThan(0);
     const pump = DA50RG.get('cb.main_pump');
@@ -939,7 +927,7 @@ describe('Full panel button corner (R2-T1, D-13)', () => {
     const known = new Set(['deice_switches', 'engine_controls', 'cb_low']);
     const covered: string[] = [];
     for (const region of DA50RG.regions) {
-      const view = zoomRect(region.bounds, spaceOf(region));
+      const view = zoomRect(region.bounds, VIEWBOX);
       const free = BUTTON_CORNERS.some((c) => buttonOverlap(c, view, screen, footprints) === 0);
       if (!free) covered.push(region.id);
     }
@@ -1028,38 +1016,9 @@ describe('session area zoom (plan 02-10)', () => {
   }
 });
 
-// The emergency window (Phase 5.1, P-07): its region is nested in the windscreen region and listed
-// before it, so the zoom takes the pane for a point on it and the windscreen for a point beside it.
-describe('the side_window region nested in the windscreen (P-07)', () => {
-  const WINDOW: Rect = { x: 6, y: -280, w: 112, h: 210 };
-  const WINDSCREEN: Rect = {
-    x: 0,
-    y: -WINDSCREEN_REFERENCE.h,
-    w: VIEWBOX.w,
-    h: WINDSCREEN_REFERENCE.h,
-  };
-
-  it('a point on the pane resolves to side_window, a point beside it to windscreen', () => {
-    const onPane = { x: WINDOW.x + WINDOW.w / 2, y: WINDOW.y + WINDOW.h / 2 };
-    expect(regionAt(DA50RG.regions, onPane)?.id).toBe('side_window');
-    const beside = { x: WINDOW.x + WINDOW.w + 40, y: onPane.y };
-    expect(regionAt(DA50RG.regions, beside)?.id).toBe('windscreen');
-    const above = { x: onPane.x, y: WINDOW.y - 20 };
-    expect(regionAt(DA50RG.regions, above)?.id).toBe('windscreen');
-    expect(regionAt(DA50RG.regions, { x: 1130, y: -200 })?.id).toBe('windscreen');
-  });
-
-  it('would resolve to the windscreen if the order were the other way (the order is what matters)', () => {
-    const reversed = [...DA50RG.regions].reverse();
-    expect(regionAt(reversed, { x: 60, y: -170 })?.id).toBe('windscreen');
-  });
-
-  it('the pane zoom lies inside the extent and the nesting is as typed', () => {
-    expect(DA50RG.regions.find((r) => r.id === 'side_window')?.bounds).toEqual(WINDOW);
-    expect(DA50RG.regions.find((r) => r.id === 'windscreen')?.bounds).toEqual(WINDSCREEN);
-    expect(inside(zoomRect(WINDOW, PANEL_EXTENT), PANEL_EXTENT)).toBe(true);
-  });
-
+// The emergency window and the door lock lever (Phase 5.1, P-07, P-09, owner 2026-10-27): two regions
+// stacked in the left strip, each zooms on its own.
+describe('the emergency window and the door lock lever zoom (P-07, P-09)', () => {
   it('the oval and the door lever reach 44 px at their own zoom on every profile', () => {
     for (const id of ['sw.emerg_window', 'lv.door_release']) {
       const def = DA50RG.get(id);
@@ -1069,7 +1028,7 @@ describe('the side_window region nested in the windscreen (P-07)', () => {
       expect(region, id).toBeDefined();
       if (region === undefined) continue;
       for (const [name, screen] of Object.entries(VIEW_PROFILES)) {
-        const scale = fitScale(zoomRect(region.bounds, spaceOf(region)), screen);
+        const scale = fitScale(zoomRect(region.bounds, VIEWBOX), screen);
         expect(targetSide(def) * scale, `${id} on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
       }
     }

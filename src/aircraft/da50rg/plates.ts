@@ -103,6 +103,19 @@ export const PLATES: readonly PlateDef[] = [
   // The toe brakes (Phase 5.1, P-02): the pedal plate on the floor of the pilot's footwell, 20
   // units larger than its region on every side.
   { id: 'pedals-pad', x: 280, y: 1130, w: 400, h: 150, rx: 12, regions: ['pedals'] },
+  // The cabin openings (Phase 5.1, P-07, P-09, owner 2026-10-27): the plate in the left strip below
+  // ALTERNATE STATIC (its region ends at y 865), carrying the emergency window above the door lock
+  // lever and their labels WINDOW and DOOR LOCK. 8 units of plate left and right of the regions, 12
+  // above the first and below the second.
+  {
+    id: 'cabin-pad',
+    x: 4,
+    y: 876,
+    w: 112,
+    h: 414,
+    rx: 12,
+    regions: ['side_window', 'door_arm'],
+  },
 ];
 
 /** One outlined group box of a plate; its title cuts the top edge (static shell art). */

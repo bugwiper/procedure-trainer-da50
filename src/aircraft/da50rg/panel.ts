@@ -67,11 +67,6 @@ export const VIEW_PROFILES: {
 };
 
 export const REGIONS: readonly RegionDef[] = [
-  // The emergency window (Phase 5.1, P-07): the oval in the side pane at the far left of the
-  // windscreen extent. Its region is NESTED inside the windscreen region and listed before it,
-  // because the zoom takes the first region that contains the tapped point. The one named
-  // exception of the no-overlap gates (tests/layout.test.ts).
-  { id: 'side_window', name: 'SIDE WINDOW', bounds: { x: 6, y: -280, w: 112, h: 210 } },
   // The windscreen above the panel (Phase 5, W-03): invisible geometry for the zoom, art only, no
   // control. It owns the space above y 0 and nothing else.
   {
@@ -162,10 +157,13 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'transponder', name: 'TRANSPONDER', bounds: { x: 1800, y: 780, w: 320, h: 200 } },
   // The toe brakes (Phase 5.1, P-02): the floor of the pilot's footwell. Holds the one control lv.toe_brakes, drawn as two pedals.
   { id: 'pedals', name: 'PEDALS', bounds: { x: 300, y: 1150, w: 360, h: 110 } },
-  // The red door release lever (Phase 5.1, P-09): low at the left edge, at the pilot's arm rest.
-  // The place is an assumption for the owner's review; it reaches into the reserved pilot legroom
-  // (a named exception of the legroom gate, next to the ECS pull).
-  { id: 'door_arm', name: 'DOOR RELEASE', bounds: { x: 4, y: 1000, w: 96, h: 240 } },
+  // The left strip below ALTERNATE STATIC (Phase 5.1, P-07, P-09, owner 2026-10-27), one plate
+  // `cabin-pad` (x 4, y 876, 112 x 414), top to bottom: the oval emergency window with its label
+  // WINDOW, then the RED door lock lever with its label DOOR LOCK. The places are assumptions for
+  // the owner's review. Both regions reach into the reserved pilot legroom (named exceptions of the
+  // legroom gate, like the ECS pull). Two regions, not one, so each zooms big enough on the phone.
+  { id: 'side_window', name: 'EMERGENCY WINDOW', bounds: { x: 12, y: 888, w: 96, h: 180 } },
+  { id: 'door_arm', name: 'DOOR RELEASE', bounds: { x: 12, y: 1082, w: 96, h: 196 } },
 ];
 
 export const DA50RG = defineRegistry({

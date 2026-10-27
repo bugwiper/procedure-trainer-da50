@@ -21,7 +21,6 @@ import {
   fitScale,
   panRect,
   pinchRect,
-  regionAt,
   screenToView,
   zoomRect,
 } from './viewport';
@@ -223,7 +222,13 @@ export function attachZoomGestures(
       zoomOut(extent);
     } else if (intent === 'zoom-in') {
       const point = toViewPoint(clientX, clientY);
-      const hit = regionAt(registry.regions, point);
+      const hit = registry.regions.find(
+        (r) =>
+          point.x >= r.bounds.x &&
+          point.x <= r.bounds.x + r.bounds.w &&
+          point.y >= r.bounds.y &&
+          point.y <= r.bounds.y + r.bounds.h,
+      );
       if (hit !== undefined) zoomToRegion(hit, extent);
     }
     // A pair that changed the view is over; the new view is not a tap in progress.

@@ -102,12 +102,13 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   // The toe brakes (Phase 5.1, P-02): one latching control drawn as two pedals on the floor of the
   // pilot's footwell, below the transponder plate (region pedals at 300, 1150; centre 180, 55).
   { id: 'lv.toe_brakes', x: 480, y: 1205, tol: 8, review: true },
-  // The red door release lever (Phase 5.1, P-09, owner 2026-10-27): low at the left edge, at the
-  // pilot's arm rest (region door_arm at 4, 1000; centre 48, 120). The place is an assumption.
-  { id: 'lv.door_release', x: 52, y: 1120, tol: 8, review: true },
-  // The emergency window (Phase 5.1, P-07): the oval in the side pane at the far left of the
-  // windscreen extent, above the panel (region side_window at 6, -280; centre 56, 105).
-  { id: 'sw.emerg_window', x: 62, y: -175, tol: 8, review: true },
+  // The red door lock lever (Phase 5.1, P-09, owner 2026-10-27): in the left strip below the ALTERNATE
+  // STATIC pull, under the emergency window (region door_arm at 12, 1082; centre 48, 74). The place
+  // is an assumption.
+  { id: 'lv.door_release', x: 60, y: 1156, tol: 8, review: true },
+  // The emergency window (Phase 5.1, P-07, owner 2026-10-27): the oval in the left strip directly
+  // above the door lock lever (region side_window at 12, 888; centre 48, 66).
+  { id: 'sw.emerg_window', x: 60, y: 954, tol: 8, review: true },
 ];
 
 /**
@@ -404,6 +405,12 @@ export const ORDERING: readonly OrderRow[] = [
   // rows only keep it out of the way of the real panel.
   ['kp.squawk', 'right-of', 'region:scenario_area'],
   ['kp.squawk', 'below', 'region:cb_low'],
+  // The cabin openings (Phase 5.1, owner 2026-10-27): in the left strip, the emergency window
+  // directly above the door lock lever, both below the ALTERNATE STATIC pull and left of the pedals.
+  ['sw.emerg_window', 'above', 'lv.door_release'],
+  ['sw.emerg_window', 'below', 'region:under_panel_left'],
+  ['sw.emerg_window', 'left-of', 'region:pedals'],
+  ['lv.door_release', 'left-of', 'region:pedals'],
 ];
 
 /**
@@ -414,7 +421,7 @@ export const ORDERING: readonly OrderRow[] = [
 export const ALL_REGION_IDS: readonly string[] = [
   // The windscreen of phase 5: invisible geometry above the panel, art only, no control.
   'windscreen',
-  // The emergency window of Phase 5.1: a narrow region nested inside the windscreen region, one control.
+  // The emergency window of Phase 5.1: in the left strip above the door lock lever, one control.
   'side_window',
   // The door release lever of Phase 5.1: at the pilot's arm rest, one control.
   'door_arm',
@@ -497,6 +504,7 @@ export const UNDER_PANEL_REGIONS: readonly string[] = [
   'transponder',
   // The toe brakes (Phase 5.1) sit below the panel, on the floor of the pilot's footwell.
   'pedals',
-  // The door release lever (Phase 5.1, owner 2026-10-27) lies low at the left edge, at the arm rest.
+  // The emergency window and the door lock lever (Phase 5.1, owner 2026-10-27) stand in the left strip below the pulls.
+  'side_window',
   'door_arm',
 ];

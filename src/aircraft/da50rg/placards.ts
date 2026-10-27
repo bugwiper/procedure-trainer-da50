@@ -67,6 +67,27 @@ export const PLACARDS: readonly PlacardDef[] = [
     anchor: 'middle',
     size: 6,
   },
+  // The cabin openings (Phase 5.1, owner 2026-10-27, the words are the owner's): WINDOW centred
+  // under the oval of the emergency window and DOOR LOCK centred under the red door lock lever,
+  // both on the plate cabin-pad. The baseline stands 94 below the control centre, under its hit.
+  {
+    id: 'cabin.window',
+    near: 'sw.emerg_window',
+    dx: 0,
+    dy: 94,
+    lines: ['WINDOW'],
+    anchor: 'middle',
+    size: 8,
+  },
+  {
+    id: 'cabin.door_lock',
+    near: 'lv.door_release',
+    dx: 0,
+    dy: 94,
+    lines: ['DOOR LOCK'],
+    anchor: 'middle',
+    size: 8,
+  },
   // De-ice mode toggle (sw.deice_mode, global centre 120, 342; plan 21, owner finding G-1): HIGH
   // centred above the highest handle position, NORM end-anchored left of the middle one, OFF
   // centred below the lowest. The handle pivot sits 4.5 below the centre of the hit.

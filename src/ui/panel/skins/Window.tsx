@@ -1,13 +1,14 @@
-// The emergency window in the side pane (Phase 5.1, P-07): a dark glass pane with an oval window in
-// it. Closed, the oval lies flat in its frame; open, it is drawn ajar: the far side has swung in,
-// the near side shows a slim lit gap. Control-local units, origin at the centre of the 64 x 140
-// footprint; the pane is 96 x 186 and reaches beyond it. No text in either state (G-0).
+// The emergency window (Phase 5.1, P-07): a dark glass pane with an oval window in it, in the left
+// strip above the door lock lever. Closed, the oval lies flat in its frame; open, it is drawn ajar:
+// the far side has swung in, the near side shows a slim lit gap. Control-local units, origin at the
+// centre of the 60 x 116 footprint; the pane is 76 x 124 and reaches beyond it. No text in either
+// state (G-0); the label WINDOW is a plate placard.
 
 /** The pressed ring: drawn only while a pointer is down, never a persistent state. */
 const PRESSED_RING = '#8fb8e6';
 
-/** Half sizes of the oval frame (rx 30, ry 58) and the pane (96 x 186) around it. */
-export const WINDOW = { rx: 30, ry: 58, paneHalfW: 48, paneHalfH: 93 } as const;
+/** Half sizes of the oval frame (rx 24, ry 46) and the pane (76 x 124) around it. */
+export const WINDOW = { rx: 24, ry: 46, paneHalfW: 38, paneHalfH: 62 } as const;
 
 const TONE = {
   pane: '#12161a',

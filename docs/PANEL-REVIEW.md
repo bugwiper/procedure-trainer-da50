@@ -245,14 +245,18 @@ Trainer simplification accepted by the owner on 2026-10-27: one latching control
 
 Two separate controls, by the owner's answers of 2026-10-27. Both places are assumptions for the owner's review; neither is a fidelity item yet.
 
-The door release lever is the RED lever low at the left edge, at the pilot's arm rest. Locked it lies flat along a dark recess in the arm rest; open it is pulled up and stands as a red plate in the same pseudo-perspective as the parking flap, about four times as long. A tap toggles it. The region `door_arm` (name DOOR RELEASE, x 4, y 1000, 96 x 240) has no plate; it reaches into the reserved pilot legroom like the ECS pull (a named exception of the legroom gate). Nothing else lies left of x 280 below the ALTERNATE STATIC pull.
+Both stand in the left strip below the ALTERNATE STATIC pull (its region ends at y 865), one above the other on the plate `cabin-pad` (x 4, y 876, 112 x 414, no heading). The owner moved the window there on 2026-10-27 because the canopy-frame place was wrong; the earlier nested region inside the windscreen is gone and the windscreen region is art only again.
 
-The emergency window is the oval in the side pane at the far left of the whole panel space, in the left canopy-frame side of the windscreen extent where the side window of the real cockpit is. A click toggles it; it is drawn ajar (a slim lit gap, the far side swung in) when open. The region `side_window` (name SIDE WINDOW, x 6, y -280, 112 x 210) is nested inside the art-only windscreen region and listed before it, because a double tap zooms into the first region that contains the point; the windscreen region itself is unchanged. It has no plate: the pane is drawn by the skin inside the region.
+The emergency window is the oval directly ABOVE the door lock lever. A click toggles it; it is drawn ajar (a slim lit gap, the far side swung in) when open. The region `side_window` (name EMERGENCY WINDOW, x 12, y 888, 96 x 180) holds the pane (76 x 124) and the oval (48 x 92); the white label WINDOW (size 8) stands under the pane.
+
+The door lock lever is the RED lever below it, at the pilot's arm rest. Locked it lies flat along a dark recess; open it swings up and to the LEFT, seen in perspective from the right: a foreshortened red plate (it rises 84 of the 104 the lever is long), narrower at the free end, skewed 34 units left of the centre, with a thin dark side face on its right edge. A tap toggles it. The region `door_arm` (name DOOR RELEASE, x 12, y 1082, 96 x 196) holds the lever; the white label DOOR LOCK (size 8) stands under it. Both regions and the plate reach into the reserved pilot legroom like the ECS pull (named exceptions of the legroom gate). The two are separate regions so each zooms big enough for 44 px on the phone.
+
+The words WINDOW and DOOR LOCK are the owner's; they are not guesses.
 
 | Id | Placard | Assumed kind and skin | Assumed states and default | Centre (tol) | What is uncertain | Photos | File to change |
 |----|---------|-----------------------|----------------------------|--------------|-------------------|--------|----------------|
-| `lv.door_release` | none | detent-lever with the tap-toggle option, door-release skin: red lever, nameless, no legends, hit 56 x 176 | LOCKED (lies flat), OPEN (pulled up); default LOCKED; a tap toggles, no dragging | 52, 1120 (8) | the place at the pilot's arm rest, the size and the red plate look are assumptions | none | `controls/cabin.ts`, `skins/DoorRelease.tsx` |
-| `sw.emerg_window` | none | toggle, window skin: oval in the side pane, nameless, hit 64 x 140 | CLOSED, OPEN (ajar); default CLOSED; a click toggles | 62, -175 (8) | the place in the left canopy frame, the oval size 60 x 116 and the pane look are assumptions | none | `controls/cabin.ts`, `skins/Window.tsx` |
+| `lv.door_release` | DOOR LOCK under the lever (owner's wording, plate placard) | detent-lever with the tap-toggle option, door-release skin: red lever, nameless, no legends, hit 76 x 132 | LOCKED (lies flat), OPEN (swung up and left); default LOCKED; a tap toggles, no dragging | 60, 1156 (8) | the place under the window, the size and the red plate look are assumptions | none | `controls/cabin.ts`, `skins/DoorRelease.tsx`, `placards.ts` |
+| `sw.emerg_window` | WINDOW under the oval (owner's wording, plate placard) | toggle, window skin: oval in a pane, nameless, hit 60 x 116 | CLOSED, OPEN (ajar); default CLOSED; a click toggles | 60, 954 (8) | the place above the door lock lever, the oval size 48 x 92 and the pane look are assumptions | none | `controls/cabin.ts`, `skins/Window.tsx`, `placards.ts` |
 
 ## Shell and placards (static art, no region)
 
@@ -272,6 +276,7 @@ All static art lives in `src/ui/panel/PanelShell.tsx` and carries no handler; pl
 | Flaps and right panel (`strip-flaps`) | 1150, 608, 680, 137 | `flaps`, `right_panel` |
 | Environmental control (`environmental`) | 962, 752, 201, 284 | `env_control`, `env_circ` |
 | Pedestal (`pedestal`) | 962, 1046, 201, 242 | `pedestal` |
+| Cabin openings (`cabin-pad`) | 4, 876, 112, 414 | `side_window`, `door_arm` |
 
 Other shell items:
 

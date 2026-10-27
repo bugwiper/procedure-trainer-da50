@@ -608,6 +608,34 @@ describe('plate placards', () => {
     expect(throttle?.dx).toBe(0);
   });
 
+  it('WINDOW and DOOR LOCK are 8 unit placards centred under their controls, inside their region and below the hit (owner 2026-10-27)', () => {
+    const rows = [
+      ['cabin.window', 'sw.emerg_window', ['WINDOW']],
+      ['cabin.door_lock', 'lv.door_release', ['DOOR LOCK']],
+    ] as const;
+    for (const [id, near, lines] of rows) {
+      const p = PLACARDS.find((q) => q.id === id);
+      expect(p?.near, id).toBe(near);
+      expect(p?.lines, id).toEqual(lines);
+      expect(p?.size, id).toBe(8);
+      expect(p?.anchor, id).toBe('middle');
+      expect(p?.dx, id).toBe(0);
+      const def = DA50RG.get(near);
+      const region = DA50RG.regions.find((r) => r.id === def?.region);
+      if (p === undefined || def === undefined || region === undefined) throw new Error(id);
+      const c = centreOf(near);
+      const baseline = c.y + placardLineY(p, 0);
+      // Under the hit and inside the region.
+      expect(baseline - p.size, `${id} clear of the hit`).toBeGreaterThan(c.y + def.hit.h / 2);
+      expect(baseline, `${id} inside the region`).toBeLessThanOrEqual(
+        region.bounds.y + region.bounds.h,
+      );
+      const width = lines[0].length * p.size * 0.62;
+      expect(c.x - width / 2, `${id} left`).toBeGreaterThanOrEqual(region.bounds.x);
+      expect(c.x + width / 2, `${id} right`).toBeLessThanOrEqual(region.bounds.x + region.bounds.w);
+    }
+  });
+
   it('the pedestal sits on one plate below the environmental control plate', () => {
     const pedestal = PLATES.find((pl) => pl.id === 'pedestal');
     const env = PLATES.find((pl) => pl.id === 'environmental');

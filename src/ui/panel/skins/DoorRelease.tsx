@@ -1,27 +1,32 @@
 import type { DetentLeverDef } from '../../../engine/registry';
 
-// The red door release lever (Phase 5.1, P-09): a long lever in the pilot's arm rest. Locked it
-// lies flat along the recess; open it is pulled up and stands as a red plate in the same
-// pseudo-perspective as the parking flap, about four times as long. Control-local units, origin at
-// the centre of the 56 x 176 footprint. No text in either state (G-0).
+// The red door release lever (Phase 5.1, P-09): a long lever in the pilot's arm rest, hinged at its
+// lower end. Locked it lies flat along the recess; open it swings up and over to the LEFT, seen in
+// perspective from the right (owner 2026-10-27): the plate is foreshortened (it rises less than the
+// lever is long), narrower at its free end and skewed to the left, with a thin dark side face along
+// its right edge. Control-local units, origin at the centre of the 76 x 132 footprint. No text in
+// either state (G-0); the label DOOR LOCK is a plate placard.
 
 /** The pressed ring: drawn only while a pointer is down, never a persistent state. */
 const PRESSED_RING = '#8fb8e6';
 
 /** The arm-rest recess the lever lies in, drawn in both states. */
-const RECESS = { w: 40, h: 150, rx: 6, fill: '#050506', rim: '#2d3138' } as const;
+const RECESS = { w: 40, h: 120, rx: 6, fill: '#050506', rim: '#2d3138' } as const;
 
-/** The lever: 26 wide, hinged on its lower end at y 62. */
+/** The lever: 26 wide, hinged on its lower end at y 50. */
 export const DOOR_LEVER = {
   halfW: 13,
-  hingeY: 62,
+  hingeY: 50,
   /** Length of the lever lying flat. */
-  length: 120,
-  /** Projected rise of the pulled plate from the hinge line to its top edge. */
-  rise: 90,
-  /** Top edge of the pulled plate as a fraction of the base, and the shift of its left end. */
+  length: 104,
+  /** Projected rise of the swung plate from the hinge line to its top edge. */
+  rise: 84,
+  /** Width of the top edge as a fraction of the base (the free end is farther away). */
   topFraction: 0.7,
-  shiftFraction: 0.5,
+  /** x of the top left corner: the plate leans to the left of the hinge, past the recess. */
+  topLeftX: -34,
+  /** Thickness of the side face seen along the right edge. */
+  side: 4,
 } as const;
 
 const TONE = {
@@ -41,16 +46,16 @@ const f = (n: number): string => n.toFixed(2).replace(/\.?0+$/, '');
 const pts = (points: readonly Point[]): string =>
   points.map((p) => `${f(p.x)},${f(p.y)}`).join(' ');
 
-/** The four points of the pulled plate: hinge left, hinge right, top right, top left (y down). */
+/** The four points of the swung plate: hinge left, hinge right, top right, top left (y down). */
 export function doorPlate(): readonly [Point, Point, Point, Point] {
   const base = DOOR_LEVER.halfW * 2;
   const topY = DOOR_LEVER.hingeY - DOOR_LEVER.rise;
-  const dx = -DOOR_LEVER.halfW + base * DOOR_LEVER.shiftFraction;
+  const x0 = DOOR_LEVER.topLeftX;
   return [
     { x: -DOOR_LEVER.halfW, y: DOOR_LEVER.hingeY },
     { x: DOOR_LEVER.halfW, y: DOOR_LEVER.hingeY },
-    { x: dx + base * DOOR_LEVER.topFraction, y: topY },
-    { x: dx, y: topY },
+    { x: x0 + base * DOOR_LEVER.topFraction, y: topY },
+    { x: x0, y: topY },
   ];
 }
 
@@ -64,8 +69,9 @@ export interface DoorReleaseBodyProps {
 
 /**
  * Pure body of the door release lever: the recess, a hinge pin and, locked, a rounded red bar lying
- * along the recess with a grip mark; open, a red plate standing from the hinge with a highlight on
- * its free edge and a dark shadow on the recess. No hooks.
+ * along the recess with a grip mark; open, a red plate swung up and to the left from the hinge with
+ * a highlight on its free edge, a dark side face on its right edge and a shadow on the recess. No
+ * hooks.
  */
 export function DoorReleaseBody({ state, pressed }: DoorReleaseBodyProps) {
   const open = state === 'open';
@@ -90,10 +96,20 @@ export function DoorReleaseBody({ state, pressed }: DoorReleaseBodyProps) {
             points={pts([
               { x: -DOOR_LEVER.halfW, y: DOOR_LEVER.hingeY },
               { x: DOOR_LEVER.halfW, y: DOOR_LEVER.hingeY },
-              { x: DOOR_LEVER.halfW - 2, y: DOOR_LEVER.hingeY - 30 },
-              { x: -DOOR_LEVER.halfW + 2, y: DOOR_LEVER.hingeY - 30 },
+              { x: 4, y: DOOR_LEVER.hingeY - 30 },
+              { x: -20, y: DOOR_LEVER.hingeY - 30 },
             ])}
             fill="#14090a"
+          />
+          <polygon
+            data-door-side=""
+            points={pts([
+              plate[1],
+              { x: plate[1].x + DOOR_LEVER.side, y: plate[1].y + 2 },
+              { x: plate[2].x + DOOR_LEVER.side, y: plate[2].y + 2 },
+              plate[2],
+            ])}
+            fill={TONE.dark}
           />
           <polygon
             data-door-plate=""

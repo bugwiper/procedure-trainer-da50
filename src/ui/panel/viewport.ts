@@ -38,25 +38,6 @@ function keepInside(rect: Rect, extent: Extent): Rect {
   return { x, y, w: rect.w, h: rect.h };
 }
 
-/**
- * The region a double tap at `point` zooms into: the FIRST region of the list that contains the
- * point, borders included. The order of the list matters where regions nest: the emergency window
- * region lies inside the windscreen region and is listed before it, so a point on the pane zooms
- * into the pane and a point beside it into the windscreen (Phase 5.1, P-07).
- */
-export function regionAt<R extends { readonly bounds: Rect }>(
-  regions: readonly R[],
-  point: { readonly x: number; readonly y: number },
-): R | undefined {
-  return regions.find(
-    (r) =>
-      point.x >= r.bounds.x &&
-      point.x <= r.bounds.x + r.bounds.w &&
-      point.y >= r.bounds.y &&
-      point.y <= r.bounds.y + r.bounds.h,
-  );
-}
-
 /** Region bounds padded by ZOOM_PAD, clamped (not shifted) to the extent. */
 export function zoomRect(bounds: Rect, extent: Extent): Rect {
   const e = extentRect(extent);

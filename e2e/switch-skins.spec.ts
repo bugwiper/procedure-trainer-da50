@@ -184,7 +184,7 @@ test('the EMERGENCY WINDOW oval toggles by a click or tap, is drawn ajar when op
   await expect(win.locator('[data-window-gap]')).toHaveCount(0);
 });
 
-test('a double tap on the pane beside the oval zooms into the side window and out again', async ({
+test('a double tap on the pane beside the oval zooms into the window region and out again', async ({
   page,
   hasTouch,
 }) => {
@@ -192,7 +192,7 @@ test('a double tap on the pane beside the oval zooms into the side window and ou
   await doubleActivateAt(page, p, hasTouch);
   await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
   const view = (await page.getByTestId('panel').getAttribute('viewBox')) ?? '';
-  // The view is the small region around the pane, not the whole windscreen.
+  // The view is the small region around the pane in the left strip, not the whole panel.
   expect(Number(view.split(' ')[2])).toBeLessThan(400);
   await afterPairWindow(page);
   await expect(page.locator('[data-control-id="sw.emerg_window"]')).toHaveAttribute(
