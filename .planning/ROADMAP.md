@@ -478,7 +478,7 @@ Plans:
 **Depends on**: Phase 3.1
 **Requirements**: PNL-17, PNL-18, PNL-19, SCN-12
 
-**Plans:** 2/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 3/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -492,7 +492,7 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 05-03 — Aural cues with Web Audio (caution, warning, engine drone; the Sound control, off by default), the cloud scene and the moving runway, the phase-end documentation and todos
+- [x] 05-03 — Aural cues with Web Audio (caution, warning, engine drone; the Sound control, off by default), the cloud scene and the moving runway, the phase-end documentation and todos
 
 ### Phase 5.1: Ground and takeoff emergencies (INSERTED)
 
@@ -553,7 +553,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
-| 5. Windscreen and failure cues                        | 2/3 | In Progress | -          |
+| 5. Windscreen and failure cues                        | 3/3 | In Progress | -          |
 | 5.1 Ground and takeoff emergencies                    | 0/TBD          | Not started | -          |
 | 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
