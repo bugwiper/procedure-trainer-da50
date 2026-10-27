@@ -521,13 +521,14 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
   };
   const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
 
-  it('has Phase 5: owner review as the last section after Phase 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
+  it('has Phase 5.1: owner review as the last section after Phase 5, 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Phase 5: owner review');
-    expect(headings[headings.length - 2]).toBe('## Phase 4: owner review');
-    expect(headings[headings.length - 3]).toBe('## Phase 3.1: owner review');
-    expect(headings[headings.length - 4]).toBe('## Phase 3: owner review');
-    expect(headings[headings.length - 5]).toBe('## Phase 2: owner review');
+    expect(headings[headings.length - 1]).toBe('## Phase 5.1: owner review');
+    expect(headings[headings.length - 2]).toBe('## Phase 5: owner review');
+    expect(headings[headings.length - 3]).toBe('## Phase 4: owner review');
+    expect(headings[headings.length - 4]).toBe('## Phase 3.1: owner review');
+    expect(headings[headings.length - 5]).toBe('## Phase 3: owner review');
+    expect(headings[headings.length - 6]).toBe('## Phase 2: owner review');
     expect(headings).toContain('## Round 5: morning review');
     expect(headings).toContain('## Round 4: morning review');
   });
@@ -761,7 +762,9 @@ describe('phase 4 owner review (plan 04-03)', () => {
 
 describe('phase 5 owner review (plan 05-03)', () => {
   const at = review.search(/^## Phase 5: owner review/m);
-  const section = at === -1 ? '' : review.slice(at);
+  const rest = at === -1 ? '' : review.slice(at + 3);
+  const next = rest.search(/^## /m);
+  const section = at === -1 ? '' : next === -1 ? review.slice(at) : review.slice(at, at + 3 + next);
 
   it('has the section, points to the grading rules and says nothing was pushed', () => {
     expect(at).toBeGreaterThan(-1);
