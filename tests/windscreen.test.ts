@@ -241,10 +241,10 @@ describe('the cloud scene and the moving runway (phase 05 plan 03, A-05)', () =>
     }
   });
 
-  it('the edge lights sit on the runway edge lines and the dashes on the centre line', () => {
+  it('the moving texture lies inside the runway at every depth, the warm dashes inside the edge lines', () => {
     // A point on a line through the vanishing point keeps x / y constant: the runway edge lines
-    // run from 610 to 634 units from the centre at the bottom edge (the mark's own frame is the
-    // vanishing point).
+    // run from 610 to 634 units from the centre at the bottom edge and the runway surface out to
+    // 640 (the mark's own frame is the vanishing point).
     const depth = OPENING.y + OPENING.h - HORIZON_Y;
     const ratios = (poly: El) =>
       String(poly.props['points'])
@@ -253,18 +253,31 @@ describe('the cloud scene and the moving runway (phase 05 plan 03, A-05)', () =>
         .map(([x, y]) => (x * depth) / y);
     for (const mark of marks('takeoff_roll')) {
       const polys = findElements(mark, (el) => el.tag === 'polygon');
-      expect(polys).toHaveLength(3);
-      const [centre, left, right] = polys as [El, El, El];
+      // centre dash, two warm dashes, light seam, dark seam line, two rubber marks
+      expect(polys).toHaveLength(7);
+      for (const poly of polys) {
+        for (const r of ratios(poly)) expect(Math.abs(r)).toBeLessThanOrEqual(610 + 1e-6);
+      }
+      const [centre, left, right, seam] = polys as [El, El, El, El];
       for (const r of ratios(centre)) expect(Math.abs(r)).toBeLessThanOrEqual(12 + 1e-6);
-      for (const r of ratios(left)) {
-        expect(r).toBeGreaterThanOrEqual(-634 - 1e-6);
-        expect(r).toBeLessThanOrEqual(-610 + 1e-6);
-      }
-      for (const r of ratios(right)) {
-        expect(r).toBeGreaterThanOrEqual(610 - 1e-6);
-        expect(r).toBeLessThanOrEqual(634 + 1e-6);
-      }
+      for (const r of ratios(left)) expect(r).toBeLessThan(-540);
+      for (const r of ratios(right)) expect(r).toBeGreaterThan(540);
+      // the seam crosses the runway: it spans both sides of the centre line
+      const seamX = ratios(seam);
+      expect(Math.min(...seamX)).toBeLessThan(-500);
+      expect(Math.max(...seamX)).toBeGreaterThan(500);
     }
+  });
+
+  it('the texture stays between the first mark depth and the bottom edge of the scene', () => {
+    const [first] = marks('takeoff_roll');
+    const ys = findElements(first as El, (el) => el.tag === 'polygon').flatMap((poly) =>
+      String(poly.props['points'])
+        .split(' ')
+        .map((p) => Number(p.split(',')[1])),
+    );
+    expect(Math.min(...ys)).toBeGreaterThan(0);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(OPENING.y + OPENING.h - HORIZON_Y + 1e-6);
   });
 
   it('the scrolling is CSS only, at one named speed, and stops under reduced motion', () => {

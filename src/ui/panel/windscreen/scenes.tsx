@@ -281,40 +281,50 @@ function ParkedScene() {
   );
 }
 
-/** Number of runway marks that scroll: centre dashes, each with a pair of edge marks. */
+/** Number of runway marks that scroll: centre dash, edge dashes, a seam and rubber marks each. */
 const ROLL_MARKS = 15;
-/** Depth pitch between two marks, dash length in depth, edge mark offset from the centre line. */
+/** Depth pitch between two marks, dash length in depth, edge dash length in depth. */
 const ROLL_PITCH = 0.7;
 const ROLL_LENGTH = 0.32;
-/** Depth length of an edge light, and its offset from the centre line: the middle of the edge line. */
-const ROLL_LIGHT_LENGTH = 0.18;
-const ROLL_EDGE_OFFSET = 622;
+const ROLL_LIGHT_LENGTH = 0.3;
+/** Offset of the warm edge dashes from the centre line: just inside the white edge lines (610 to 634). */
+const ROLL_EDGE_OFFSET = 578;
+/** The seam (a light joint with a dark shadow line) spans the runway between the edge dashes. */
+const ROLL_SEAM_HALF = 560;
+/** Lateral places of the rubber marks, taken in turns so the pattern does not repeat at once. */
+const ROLL_RUBBER = [-300, 180, -120, 330, -420, 90, 420, -210] as const;
 
 /**
  * The scrolling marks of the take-off roll (Phase 5, A-05). Each mark is drawn relative to the
  * vanishing point and carries two custom properties for its CSS animation (stage.css, w-roll): it
  * scales about the vanishing point to the place of the next mark nearer to the viewer, which is
- * the perspective of moving forward; the whole row then repeats unchanged. The edge lights sit on
- * the two runway edge lines and the dashes on the centre line, every offset shrinking with the depth,
- * so nothing runs through the grass. The speed is one
- * constant in stage.css; Phase 5.1 ties it to the ground speed. No timer, no state.
+ * the perspective of moving forward; the whole row then repeats unchanged. Each mark brings the
+ * centre dash, a warm dash just inside each white edge line (a colour that contrasts with the grey
+ * surface and the white lines), a transverse seam (a light joint and a dark shadow line, the
+ * expansion joint of the concrete) and two dark rubber marks in turns of place. Every offset
+ * shrinks with the depth like the runway itself, so nothing runs through the grass. The speed is
+ * one constant in stage.css; Phase 5.1 ties it to the ground speed. No timer, no state.
  */
 function RollMarks() {
   const marks: JSX.Element[] = [];
   for (let k = 0; k < ROLL_MARKS; k++) {
     const d0 = 1 + k * ROLL_PITCH;
     const d1 = d0 + ROLL_LENGTH;
-    const near = DEPTH / d0;
     const mid = d0 / (d0 - ROLL_PITCH / 2);
     const end = d0 / (d0 - ROLL_PITCH);
     // Every offset shrinks with the depth like the runway itself, so the marks stay on their lines.
-    const bar = (centre: number, half: number, depthEnd: number) =>
+    const quad = (centre: number, half: number, depthStart: number, depthEnd: number) =>
       poly([
         [(centre - half) / depthEnd, DEPTH / depthEnd],
         [(centre + half) / depthEnd, DEPTH / depthEnd],
-        [(centre + half) / d0, near],
-        [(centre - half) / d0, near],
+        [(centre + half) / depthStart, DEPTH / depthStart],
+        [(centre - half) / depthStart, DEPTH / depthStart],
       ]);
+    const bar = (centre: number, half: number, depthEnd: number) =>
+      quad(centre, half, d0, depthEnd);
+    const seam = d0 + 0.45;
+    const rubberA = ROLL_RUBBER[k % ROLL_RUBBER.length] as number;
+    const rubberB = ROLL_RUBBER[(k * 3 + 2) % ROLL_RUBBER.length] as number;
     marks.push(
       <g
         key={k}
@@ -322,8 +332,24 @@ function RollMarks() {
         style={`--roll-mid:${mid.toFixed(4)};--roll-to:${end.toFixed(4)}`}
       >
         <polygon points={bar(0, 12, d1)} fill="#f1f1ea" />
-        <polygon points={bar(-ROLL_EDGE_OFFSET, 12, d0 + ROLL_LIGHT_LENGTH)} fill="#ffe9a3" />
-        <polygon points={bar(ROLL_EDGE_OFFSET, 12, d0 + ROLL_LIGHT_LENGTH)} fill="#ffe9a3" />
+        <polygon points={bar(-ROLL_EDGE_OFFSET, 16, d0 + ROLL_LIGHT_LENGTH)} fill="#ffe9a3" />
+        <polygon points={bar(ROLL_EDGE_OFFSET, 16, d0 + ROLL_LIGHT_LENGTH)} fill="#ffe9a3" />
+        <polygon
+          points={quad(0, ROLL_SEAM_HALF, seam, seam + 0.05)}
+          fill="#b9bec3"
+          fill-opacity={0.85}
+        />
+        <polygon
+          points={quad(0, ROLL_SEAM_HALF, seam + 0.05, seam + 0.075)}
+          fill="#1b1e21"
+          fill-opacity={0.8}
+        />
+        <polygon
+          points={quad(rubberA, 26, d0 + 0.05, d0 + 0.3)}
+          fill="#17191b"
+          fill-opacity={0.7}
+        />
+        <polygon points={quad(rubberB, 20, d0 + 0.2, d0 + 0.6)} fill="#17191b" fill-opacity={0.7} />
       </g>,
     );
   }
