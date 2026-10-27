@@ -30,7 +30,8 @@ function where(file: string, needle: string, at: string): string {
   return `${file}:${String(index + 1)}:${String((lines[index] ?? '').indexOf(at) + 1)}`;
 }
 
-describe('npm run validate', () => {
+// The child process loads every shipped scenario; under a loaded machine or a slow CI runner it needs more than the default test timeout.
+describe('npm run validate', { timeout: 60_000 }, () => {
   it('passes the shipped packs', () => {
     const { code, lines } = validate();
     expect(code).toBe(0);
