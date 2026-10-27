@@ -98,6 +98,9 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   // Simplified transponder (phase 03, D-11): a temporary trainer part in the pilot's legroom; the
   // position is an assumption, not a fidelity item (region transponder at 300, 900; centre 180, 100).
   { id: 'kp.squawk', x: 480, y: 1000, tol: 8, review: true },
+  // The toe brakes (Phase 5.1, P-02): one latching control drawn as two pedals on the floor of the
+  // pilot's footwell, below the transponder plate (region pedals at 300, 1150; centre 180, 55).
+  { id: 'lv.toe_brakes', x: 480, y: 1205, tol: 8, review: true },
 ];
 
 /**
@@ -395,6 +398,10 @@ export const ORDERING: readonly OrderRow[] = [
   ['kp.squawk', 'below', 'region:switch_bank'],
   ['kp.squawk', 'left-of', 'region:pedestal'],
   ['kp.squawk', 'left-of', 'region:scenario_area'],
+  // The toe brakes (Phase 5.1): on the floor of the pilot's footwell, below the switch row and left
+  // of the centre console.
+  ['lv.toe_brakes', 'below', 'region:switch_bank'],
+  ['lv.toe_brakes', 'left-of', 'region:pedestal'],
 ];
 
 /**
@@ -440,6 +447,8 @@ export const ALL_REGION_IDS: readonly string[] = [
   'scenario_area',
   // Simplified transponder of phase 03 (D-11): trainer part in the pilot legroom, one control.
   'transponder',
+  // The toe brakes of Phase 5.1: the floor of the pilot's footwell, one control.
+  'pedals',
 ];
 
 export const FRONT_PANEL_REGIONS: readonly string[] = [
@@ -480,4 +489,6 @@ export const UNDER_PANEL_REGIONS: readonly string[] = [
   'under_panel_right',
   // The simplified transponder (D-11) sits below the panel, in the pilot's legroom.
   'transponder',
+  // The toe brakes (Phase 5.1) sit below the panel, on the floor of the pilot's footwell.
+  'pedals',
 ];

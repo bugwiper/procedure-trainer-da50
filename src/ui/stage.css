@@ -850,8 +850,8 @@ body,
    series, roll-series.ts) scales about the vanishing point from 1 to the factor between two
    neighbouring marks, once per period, so every mark lands on the place of the next one nearer and
    the last frame equals the first. The eight keyframes (--roll-s1 to --roll-s8, set by RollMarks)
-   follow an even growth, so the speed does not pulse at the loop. --w-roll-period is the one speed
-   constant; Phase 5.1 drives it from the ground speed. */
+   follow an even growth, so the speed does not pulse at the loop. --w-roll-period is the period at full rate;
+   the playback rate (scenes.tsx, applyRollRate) follows the ground speed. */
 .panel-svg .w-roll-mark {
   --w-roll-period: 0.9s;
   transform-origin: 0 0;

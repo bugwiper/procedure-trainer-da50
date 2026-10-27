@@ -33,7 +33,7 @@ import {
   rollState,
 } from '../src/ui/panel/windscreen/roll-series';
 import type { RollPolygon } from '../src/ui/panel/windscreen/roll-series';
-import { HORIZON_Y, SCENES } from '../src/ui/panel/windscreen/scenes';
+import { HORIZON_Y, SCENES, applyRollRate } from '../src/ui/panel/windscreen/scenes';
 import { Windscreen } from '../src/ui/panel/windscreen/Windscreen';
 import { OPENING, OPENING_PATH } from '../src/ui/panel/windscreen/geometry';
 import { PANEL_VIEWBOX, WINDSCREEN_REFERENCE } from './layout-reference';
@@ -657,10 +657,13 @@ describe('the ice cues and the spray (Phase 5, C-05, owner answers of 2026-10-27
     const levels: Record<string, number> = {};
     for (const id of DA50RG_CUES.ids) levels[id] = 1;
     const tree = render(levels, 'cruise', true);
+    // The runway marks of the take-off roll scene draw the roll_speed cue (Phase 5.1).
+    const roll = render(levels, 'takeoff_roll');
     const smoke = expand(CabinSmoke({ level: 1 }));
     for (const id of DA50RG_CUES.ids) {
       const drawn =
         findElements(tree, (el) => el.props['data-cue'] === id).length +
+        findElements(roll, (el) => el.props['data-cue'] === id).length +
         findElements(smoke, (el) => el.props['data-cue'] === id).length;
       expect(drawn, id).toBeGreaterThan(0);
     }
@@ -756,5 +759,75 @@ describe('the oil streaks (Phase 5, C-06)', () => {
     for (const el of findElements(tree, () => true)) {
       for (const value of Object.values(el.props)) expect(String(value)).not.toContain('url(');
     }
+  });
+});
+
+describe('the take-off roll marks follow the ground speed (Phase 5.1, P-04)', () => {
+  const marks = (level: number): El =>
+    findElements(
+      render({ roll_speed: level }, 'takeoff_roll'),
+      (el) => el.props['data-cue'] === 'roll_speed',
+    )[0] as El;
+
+  it('draws the marks of the roll scene only, carrying the cue level', () => {
+    expect(marks(0.5).props['data-level']).toBe(0.5);
+    expect(marks(0.5).props['class']).toBe('w-roll-mark');
+    for (const scene of SCENE_IDS) {
+      if (scene === 'takeoff_roll') continue;
+      expect(
+        findElements(
+          render({ roll_speed: 1 }, scene),
+          (el) => el.props['data-cue'] === 'roll_speed',
+        ),
+        scene,
+      ).toHaveLength(0);
+    }
+  });
+
+  it('reads a bare level table as standing still', () => {
+    const bare = findElements(
+      render({}, 'takeoff_roll'),
+      (el) => el.props['data-cue'] === 'roll_speed',
+    )[0] as El;
+    expect(bare.props['data-level']).toBe(0);
+  });
+
+  it('applyRollRate sets the playback rate of the running animation and changes nothing else', () => {
+    const calls: number[] = [];
+    const animation = {
+      playbackRate: 1,
+      updatePlaybackRate(rate: number) {
+        calls.push(rate);
+        this.playbackRate = rate;
+      },
+    };
+    const el = { getAnimations: () => [animation] } as unknown as SVGGElement;
+    applyRollRate(el, 0.4);
+    applyRollRate(el, 0.4);
+    expect(calls).toEqual([0.4]);
+    applyRollRate(null, 1);
+    applyRollRate({} as SVGGElement, 1);
+    expect(calls).toEqual([0.4]);
+  });
+
+  it('applyRollRate waits for the animation to start when there is none yet', () => {
+    const calls: number[] = [];
+    const animations: unknown[] = [];
+    let onStart: (() => void) | undefined;
+    const el = {
+      getAnimations: () => animations,
+      addEventListener: (type: string, listener: () => void) => {
+        expect(type).toBe('animationstart');
+        onStart = listener;
+      },
+    } as unknown as SVGGElement;
+    applyRollRate(el, 0.3);
+    expect(onStart).toBeDefined();
+    animations.push({
+      playbackRate: 1,
+      updatePlaybackRate: (rate: number) => calls.push(rate),
+    });
+    onStart?.();
+    expect(calls).toEqual([0.3]);
   });
 });

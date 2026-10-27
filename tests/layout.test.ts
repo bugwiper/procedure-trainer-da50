@@ -796,14 +796,15 @@ describe('avionics unit regions and plates (plan 06)', () => {
     ]);
   });
 
-  it('the three unit plates carry exactly their region and there are 15 plates', () => {
+  it('the three unit plates carry exactly their region and there are 16 plates', () => {
     const carried = (id: string) => [...(PLATES.find((p) => p.id === id)?.regions ?? [])];
     expect(carried('ap-unit')).toEqual(['autopilot_panel']);
     expect(carried('pfd-left-unit')).toEqual(['pfd_bezel_left']);
     expect(carried('mfd-right-unit')).toEqual(['mfd_bezel_right']);
     expect(carried('session-pad')).toEqual(['scenario_area']);
     expect(carried('transponder-pad')).toEqual(['transponder']);
-    expect(PLATES).toHaveLength(15);
+    expect(carried('pedals-pad')).toEqual(['pedals']);
+    expect(PLATES).toHaveLength(16);
   });
 
   it('keeps its clearances to the neighbours (strip-flaps, gear plate, bezels, bus plate)', () => {
@@ -1510,6 +1511,12 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
    */
   const D11_TRANSPONDER_REGION = 'transponder';
   const D11_TRANSPONDER_PLATE = 'transponder-pad';
+  /**
+   * The toe brakes (Phase 5.1, P-02): the floor of the pilot's footwell, below the transponder
+   * plate. Its region and its plate are the second pair of parts allowed in the reserved legroom.
+   */
+  const P51_PEDALS_REGION = 'pedals';
+  const P51_PEDALS_PLATE = 'pedals-pad';
 
   it('the session-pad plate has the Table Z1 rectangle (rx 18) and carries scenario_area only', () => {
     const plate = PLATES.find((p) => p.id === 'session-pad');
@@ -1553,16 +1560,33 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     }
   });
 
-  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions, the owner-placed under_panel_ecs region (2026-10-22) and the D-11 transponder region and plate', () => {
+  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions, the owner-placed under_panel_ecs region (2026-10-22) and the D-11 transponder region and plate and the Phase 5.1 pedals region and plate', () => {
     const plates = PLATES.filter((p) => overlaps(rectOf(p), PILOT_LEGROOM)).map((p) => p.id);
-    expect(plates).toEqual([D11_TRANSPONDER_PLATE]);
+    expect(plates.sort()).toEqual([D11_TRANSPONDER_PLATE, P51_PEDALS_PLATE].sort());
     const regions = DA50RG.regions
       .filter((r) => overlaps(r.bounds, PILOT_LEGROOM))
       .map((r) => r.id)
       .sort();
     expect(regions).toEqual(
-      [...LEGROOM_EXCEPTIONS, OWNER_ECS_REGION, D11_TRANSPONDER_REGION].sort(),
+      [...LEGROOM_EXCEPTIONS, OWNER_ECS_REGION, D11_TRANSPONDER_REGION, P51_PEDALS_REGION].sort(),
     );
+  });
+
+  it('the pedals plate carries the pedals region, lies wholly inside the legroom and clear of the transponder plate (P-02)', () => {
+    const plate = PLATES.find((p) => p.id === P51_PEDALS_PLATE);
+    expect(plate).toBeDefined();
+    if (plate === undefined) return;
+    expect([...plate.regions]).toEqual([P51_PEDALS_REGION]);
+    expect(inside(rectOf(plate), PILOT_LEGROOM)).toBe(true);
+    const region = regionBounds(P51_PEDALS_REGION);
+    expect(region.x - plate.x).toBe(20);
+    expect(region.y - plate.y).toBe(20);
+    expect(plate.x + plate.w - (region.x + region.w)).toBe(20);
+    expect(plate.y + plate.h - (region.y + region.h)).toBeGreaterThanOrEqual(20);
+    const transponder = PLATES.find((p) => p.id === D11_TRANSPONDER_PLATE);
+    expect(transponder).toBeDefined();
+    if (transponder === undefined) return;
+    expect(plate.y - (transponder.y + transponder.h)).toBeGreaterThanOrEqual(10);
   });
 
   it('the transponder plate carries the transponder region and lies wholly inside the legroom (D-11)', () => {

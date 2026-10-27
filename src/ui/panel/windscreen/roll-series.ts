@@ -137,3 +137,13 @@ export function rollState(
     opacity: rollOpacity(depth, bottom),
   };
 }
+
+/**
+ * The playback rate of the scrolling marks for the roll_speed cue level (Phase 5.1, P-04): the
+ * level itself, clamped to 0..1, a level that is not a number counted as 0. 1 is the full rate
+ * (the period of --w-roll-period in stage.css), 0 stands the marks still.
+ */
+export function rollRate(level: number): number {
+  if (!(level > 0)) return 0;
+  return level < 1 ? level : 1;
+}

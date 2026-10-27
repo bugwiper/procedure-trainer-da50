@@ -4,6 +4,7 @@ import {
   BREAKER_GROUPS,
   BUTTON_SKINS,
   LEVER_SKINS,
+  TAP_TOGGLE_SKINS,
   RegistryError,
   defineRegistry,
   guardIdFor,
@@ -594,13 +595,16 @@ const LEVER_THREE: DetentLeverDef['detents'] = [
 describe('lever skins', () => {
   it('accepts every skin of the vocabulary and none', () => {
     expect(LEVER_SKINS).toContain('power-grip');
-    expect(LEVER_SKINS).toHaveLength(10);
+    expect(LEVER_SKINS).toHaveLength(11);
+    expect(LEVER_SKINS).toContain('toe-brakes');
     expect(LEVER_SKINS).toContain('pull-ecs');
     expect(LEVER_SKINS).not.toContain('bat-small');
     expect(LEVER_SKINS).toContain('parking-flap');
     expect(LEVER_SKINS).not.toContain('parking-lever');
     for (const skin of LEVER_SKINS) {
-      const over: Partial<DetentLeverDef> = skin === 'parking-flap' ? TAP_TOGGLE : { skin };
+      const over: Partial<DetentLeverDef> = TAP_TOGGLE_SKINS.includes(skin)
+        ? { ...TAP_TOGGLE, skin }
+        : { skin };
       expect(() => build([lever('lv.s', over)])).not.toThrow();
     }
     expect(() => build([lever('lv.none')])).not.toThrow();

@@ -6,7 +6,7 @@ import { defineQuantities } from '../../engine/quantities';
 // colour 'none' marks an unmarked scale range. Every quantity has a base value: its reading at the
 // registry defaults (in-flight cruise), which is also the equilibrium of its model, so the free
 // panel shows cruise and no annunciation fires there. alt2_amps, battery_pct, fire_intensity and the
-// windscreen quantities (smoke_density, ice_pilot, ice_copilot, oil_film) have no gauge (hidden
+// windscreen quantities (smoke_density, ice_pilot, ice_copilot, oil_film) and ground_speed_kt have no gauge (hidden
 // quantities); the Amps gauge shows alternator 1 (C-10).
 // Data only: facts and numbers, no AFM wording.
 
@@ -290,6 +290,17 @@ export const DA50RG_QUANTITIES = defineQuantities([
     max: 100,
     base: 0,
     scale: SLOW_SCALE,
+    bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
+  },
+  {
+    // Hidden: no gauge. The speed over the ground in knots, 0 at rest (Phase 5.1, P-03). Only a
+    // scenario that sets the parameter ground_roll moves it (physics.ts); the take-off roll scene
+    // scrolls at the rate the roll_speed cue reads from it. One unmarked band.
+    id: 'ground_speed_kt',
+    unit: 'kt',
+    min: 0,
+    max: 100,
+    base: 0,
     bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
   },
 ]);

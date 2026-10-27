@@ -22,6 +22,7 @@ import { KNOB_CONTROLS } from './controls/knobs';
 import { LIGHTS_CONTROLS } from './controls/lights';
 import { MFD_CONTROLS } from './controls/mfd';
 import { GEAR_FLAPS_CONTROLS } from './controls/gear-flaps';
+import { PEDALS_CONTROLS } from './controls/pedals';
 import { PEDESTAL_CONTROLS } from './controls/pedestal';
 import { SQUAWK_CONTROLS } from './controls/squawk';
 import { SWITCH_BANK_CONTROLS } from './controls/switch-bank';
@@ -152,6 +153,9 @@ export const REGIONS: readonly RegionDef[] = [
   // legroom by owner decision; its position is not a fidelity item and it is replaced later by the
   // transponder of the PFD. Holds the one code-entry control kp.squawk.
   { id: 'transponder', name: 'TRANSPONDER', bounds: { x: 300, y: 900, w: 360, h: 200 } },
+  // The toe brakes (Phase 5.1, P-02): the floor of the pilot's footwell, below the transponder
+  // plate. Holds the one control lv.toe_brakes, drawn as two pedals.
+  { id: 'pedals', name: 'PEDALS', bounds: { x: 300, y: 1150, w: 360, h: 110 } },
 ];
 
 export const DA50RG = defineRegistry({
@@ -172,5 +176,6 @@ export const DA50RG = defineRegistry({
     ...UNDER_PANEL_CONTROLS,
     ...BREAKER_CONTROLS,
     ...SQUAWK_CONTROLS,
+    ...PEDALS_CONTROLS,
   ],
 });

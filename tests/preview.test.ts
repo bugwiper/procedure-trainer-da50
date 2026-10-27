@@ -23,6 +23,12 @@ describe('?q=id:value,...', () => {
     expect(parse('?q=constructor:1,__proto__:1')).toEqual({});
   });
 
+  it('takes the ground speed inside 0 to 100 and ignores 500 (T-05.1-01)', () => {
+    expect(parse('?q=ground_speed_kt:60')).toEqual({ ground_speed_kt: 60 });
+    expect(parse('?q=ground_speed_kt:500')).toEqual({});
+    expect(parse('?q=ground_speed_kt:-5')).toEqual({});
+  });
+
   it('keeps the valid entries next to the bad ones', () => {
     expect(parse('?q=smoke_density:50,bogus:1,rpm:9999')).toEqual({ smoke_density: 50 });
   });

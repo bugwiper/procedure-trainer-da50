@@ -100,6 +100,9 @@ export const PLATES: readonly PlateDef[] = [
   // Simplified transponder (phase 03, D-11): the plate around the region transponder, 20 units
   // larger on every side. A temporary trainer part in the pilot's legroom, by owner decision.
   { id: 'transponder-pad', x: 280, y: 880, w: 400, h: 240, rx: 12, regions: ['transponder'] },
+  // The toe brakes (Phase 5.1, P-02): the pedal plate on the floor of the pilot's footwell, 20
+  // units larger than its region on every side but 10 clear of the transponder plate above.
+  { id: 'pedals-pad', x: 280, y: 1130, w: 400, h: 150, rx: 12, regions: ['pedals'] },
 ];
 
 /** One outlined group box of a plate; its title cuts the top edge (static shell art). */

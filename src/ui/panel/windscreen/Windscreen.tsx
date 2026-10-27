@@ -36,7 +36,7 @@ export function Windscreen({
         <FrameDefs />
       </defs>
       <g clip-path="url(#w-opening)">
-        <Scene />
+        <Scene cues={cues} />
         <Disc level={cues['prop_stopped'] ?? 0} />
         <StoppedBlade level={cues['prop_stopped'] ?? 0} />
         <Cowl />

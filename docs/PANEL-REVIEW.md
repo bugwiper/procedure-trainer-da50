@@ -233,6 +233,14 @@ Trainer part, not an aircraft part (owner decision D-11, plan 03-03): a simplifi
 |----|---------|--------------|--------------------------|--------------|-------------------|--------|----------------|
 | `kp.squawk` | TRANSPONDER | code-entry, hit 252 x 140 | keys 0 to 7 and CLR (every key 44 units square), four digits, default 7000 | 480, 1000 (8) | the whole position is an assumption inside the pilot legroom and not a fidelity item; the key layout (two rows of four digits, CLR tall at the right) is a planner choice | none | `controls/squawk.ts` |
 
+## Toe brakes (region `pedals`, Phase 5.1)
+
+Trainer simplification accepted by the owner on 2026-10-27: one latching control `lv.toe_brakes` drawn as two pedals with a toe pad each. A tap applies both pedals and a second tap releases them. The plate `pedals-pad` (x 280, y 1130, 400 x 150) carries the region `pedals` (name PEDALS, x 300, y 1150, 360 x 110) on the floor of the pilot's footwell, 10 units below the transponder plate. The ground speed model (`ground_roll`, `physics.ts`) reads it together with the parking brake.
+
+| Id | Placard | Assumed kind and skin | Assumed states and default | Centre (tol) | What is uncertain | Photos | File to change |
+|----|---------|-----------------------|----------------------------|--------------|-------------------|--------|----------------|
+| `lv.toe_brakes` | none | detent-lever with the tap-toggle option, toe-brakes skin: two pedals, nameless, no legends, hit 260 x 90 | RELEASED (pedals up), APPLIED (both pads pressed); default RELEASED; a tap toggles, no dragging | 480, 1205 (8) | the place is an assumption; real pedals are two separate controls held by the feet | none | `controls/pedals.ts`, `skins/Pedals.tsx` |
+
 ## Shell and placards (static art, no region)
 
 All static art lives in `src/ui/panel/PanelShell.tsx` and carries no handler; plates are data in `src/aircraft/da50rg/plates.ts` and placards are data in `src/aircraft/da50rg/placards.ts`. Outline coordinates are redrawn approximations of the photo silhouettes (U-12). The plate rectangles below are the ones the art-fit gate (`e2e/art-fit.spec.ts`) measures every control and caption against; the open list of that gate is empty, so every control, lamp and caption lies on its plate.

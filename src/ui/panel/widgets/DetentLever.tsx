@@ -9,6 +9,7 @@ import { DRAG_START_PX } from '../press-arbiter';
 import { registerPressTarget, seqOf } from '../press-targets';
 import type { PressTarget } from '../press-targets';
 import { FlapBody } from '../skins/Flap';
+import { PedalsBody } from '../skins/Pedals';
 import {
   EnvIcon,
   ENV_ICONS,
@@ -157,7 +158,7 @@ export interface LeverBodyProps {
 }
 
 /**
- * Body of a tap-toggle lever (R2-4.2): the hinged flap and one hit over the whole footprint. No
+ * Body of a tap-toggle lever (R2-4.2): the hinged flap (or the pedal pair of the skin toe-brakes) and one hit over the whole footprint. No
  * track, tick, legend or marker; prints no text. Pure, no hooks.
  */
 function TapToggleBody({
@@ -180,7 +181,11 @@ function TapToggleBody({
       aria-label={`${def.label}: ${current.label}`}
       transform={`translate(${def.x} ${def.y})`}
     >
-      <FlapBody def={def} state={state} pressed={pressed === true} />
+      {def.skin === 'toe-brakes' ? (
+        <PedalsBody def={def} state={state} pressed={pressed === true} />
+      ) : (
+        <FlapBody def={def} state={state} pressed={pressed === true} />
+      )}
       <rect
         data-hit={def.id}
         x={-def.hit.w / 2}

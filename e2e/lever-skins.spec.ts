@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { afterPairWindow } from './support/zoom';
+import { afterPairWindow, zoomIntoRegion } from './support/zoom';
 
 // Lever skins (PNL-11, D-09): the art is in place and every Phase 1 lever behaviour is kept on
 // every device. Detailed drag and tap behaviour stays in lever.spec.ts.
@@ -207,6 +207,28 @@ test('PARKING BRAKE is a flap: a tap pulls it up (one plate), a second tap relea
   await expect(brake.locator('[data-flap-plate]')).toHaveCount(0);
   await expect(brake.locator('[data-flap-wall]')).toHaveCount(0);
   await expect(brake.locator('text')).toHaveCount(0);
+});
+
+test('TOE BRAKES are two pedals under one control: a tap presses both, a second tap releases them', async ({
+  page,
+  hasTouch,
+}) => {
+  await zoomIntoRegion(page, hasTouch, 'pedals');
+  const brakes = control(page, 'lv.toe_brakes');
+  const hit = page.locator('[data-hit="lv.toe_brakes"]');
+  await expect(brakes).toHaveAttribute('data-state', 'released');
+  await expect(brakes).toHaveAttribute('data-skin', 'toe-brakes');
+  await expect(page.locator('[data-detent^="lv.toe_brakes:"]')).toHaveCount(0);
+  await expect(brakes.locator('[data-pedal]')).toHaveCount(2);
+  await expect(brakes.locator('[data-pedals="released"]')).toHaveCount(1);
+  await activate(hit, hasTouch);
+  await expect(brakes).toHaveAttribute('data-state', 'applied');
+  await expect(brakes.locator('[data-pedals="applied"]')).toHaveCount(1);
+  // Nothing is printed on the pedals: the state shows by position only.
+  await expect(brakes.locator('text')).toHaveCount(0);
+  await afterPairWindow(page);
+  await activate(hit, hasTouch);
+  await expect(brakes).toHaveAttribute('data-state', 'released');
 });
 
 test('the pedestal levers print no name of their own, the plate placards name them', async ({

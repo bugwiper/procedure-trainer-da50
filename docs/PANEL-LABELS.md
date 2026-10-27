@@ -139,6 +139,14 @@ A simplified transponder for the squawk code (phase 03, owner decision D-11). It
 |----|-----------------|-------------------|-------|--------------|
 | `kp.squawk` (new in plan 03-03) | TRANSPONDER; the key legends 0 1 2 3 4 5 6 7 and CLR | none; the readout shows the code (the recorded exception to G-0.1) | owner decision D-11, temporary | `controls/squawk.ts` |
 
+## Toe brakes (region `pedals`, Phase 5.1)
+
+One latching control drawn as two pedals on the floor of the pilot's footwell, below the transponder plate. The owner accepted this simplification on 2026-10-27: a finger cannot hold a pedal while the other hand works the panel, and a step reads one control. It prints no text; the position shows the state (applied: both toe pads pressed, darker and lower).
+
+| Id | Static label(s) | Position placards | Basis | File to edit |
+|----|-----------------|-------------------|-------|--------------|
+| `lv.toe_brakes` (new in plan 05.1-01) | none (accessible name TOE BRAKES only) | none; a tap toggles both pedals, there is no dragging | owner decision 2026-10-27, place is an assumption | `controls/pedals.ts`, `src/ui/panel/skins/Pedals.tsx` |
+
 ## Session area (trainer part, region `scenario_area`)
 
 The session pad in the co-pilot legroom is trainer content, not an aircraft part, and has no registry control. Its button text is static caps text; nothing on it changes with a state (only the rim while a press is pending).

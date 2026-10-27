@@ -140,8 +140,14 @@ describe('tap-toggle lever (parking flap) text is state-independent', () => {
     (c): c is DetentLeverDef => c.kind === 'detent-lever' && c.tapToggle === true,
   );
 
-  it('the PARKING BRAKE flap is rendered through FlapBody and prints no text in either state', () => {
-    expect(flapLevers.map((d) => d.id)).toEqual(['lv.parking_brake']);
+  // The body marker each tap-toggle skin draws: FlapBody sets data-flap, PedalsBody data-pedals.
+  const BODY_MARKER: Readonly<Record<string, string>> = {
+    'parking-flap': 'data-flap',
+    'toe-brakes': 'data-pedals',
+  };
+
+  it('the PARKING BRAKE flap and the TOE BRAKES pedals print no text in either state', () => {
+    expect(flapLevers.map((d) => d.id).sort()).toEqual(['lv.parking_brake', 'lv.toe_brakes']);
     for (const def of flapLevers) {
       for (const detent of def.detents) {
         const tree = expand(
@@ -155,7 +161,7 @@ describe('tap-toggle lever (parking flap) text is state-independent', () => {
         );
         const id = `${def.id}/${detent.id}`;
         expect(
-          findElements(tree, (el) => 'data-flap' in el.props),
+          findElements(tree, (el) => (BODY_MARKER[def.skin ?? ''] ?? '') in el.props),
           id,
         ).toHaveLength(1);
         expect(textStrings(tree), id).toEqual([]);

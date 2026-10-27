@@ -28,6 +28,9 @@ export const DA50RG_CUES = defineCues(
     { id: 'prop_stopped', quantity: 'rpm', from: ENGINE_RPM_STOPPED, to: ENGINE_RPM_STOPPED - 1 },
     // Oil streaks running back over the glass (C-06): the oil film is at full strength from 50.
     { id: 'oil_streaks', quantity: 'oil_film', from: 0, to: 50 },
+    // The runway marks of the take-off roll scroll at a rate that follows the ground speed (Phase
+    // 5.1, P-04): 0 stands still, full rate from 60 kt.
+    { id: 'roll_speed', quantity: 'ground_speed_kt', from: 0, to: 60 },
   ],
   DA50RG_QUANTITIES,
 );

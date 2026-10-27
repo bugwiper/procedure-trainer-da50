@@ -8,6 +8,7 @@ import {
   ROLL_LAST,
   rollFadeRange,
   rollPolygons,
+  rollRate,
   rollScales,
 } from './roll-series';
 import type { Point, RollPolygon } from './roll-series';
@@ -334,6 +335,31 @@ const pts = (p: readonly Point[]): string =>
 /** Half width of the fade cover at the bottom edge: inside the edge lines (610 to 634). */
 const ROLL_FADE_HALF = 604;
 
+/** What a scene gets: the cue levels (only the roll scene reads one). */
+export interface SceneProps {
+  readonly cues: Readonly<Record<string, number>>;
+}
+
+/**
+ * Sets the playback rate of the running CSS animation of the marks (Phase 5.1, P-04). Called as a
+ * ref callback, so it needs no hook and the pure body stays testable. updatePlaybackRate keeps the
+ * visual position, so a change of speed never makes the marks jump; with reduced motion there is
+ * no animation and nothing happens.
+ */
+export function applyRollRate(el: SVGGElement | null, rate: number): void {
+  if (el === null || typeof el.getAnimations !== 'function') return;
+  const animations = el.getAnimations();
+  if (animations.length === 0) {
+    // The ref can run before the browser has started the CSS animation: apply the rate when it
+    // starts. With reduced motion there is no animation and the event never comes.
+    el.addEventListener('animationstart', () => applyRollRate(el, rate), { once: true });
+    return;
+  }
+  for (const animation of animations) {
+    if (animation.playbackRate !== rate) animation.updatePlaybackRate(rate);
+  }
+}
+
 /**
  * The scrolling marks of the take-off roll (Phase 5, A-05). The marks form a self-similar series
  * (roll-series.ts): mark n is the template at depth z_n, z_n growing by one fixed factor per
@@ -345,10 +371,10 @@ const ROLL_FADE_HALF = 604;
  * centre dash, a warm dash just inside each white edge line (a colour that contrasts with the grey
  * surface and the white lines), a transverse seam (a light joint and a dark shadow line, the
  * expansion joint of the concrete) and two dark tyre tracks. Every offset shrinks with the depth
- * like the runway itself, so nothing runs through the grass. The speed is one constant in
- * stage.css; Phase 5.1 ties it to the ground speed. No timer, no state.
+ * like the runway itself, so nothing runs through the grass. The playback rate follows
+ * the roll_speed cue, which reads the ground speed (rollRate). No timer, no state.
  */
-function RollMarks() {
+function RollMarks({ level }: { level: number }) {
   const marks: JSX.Element[] = [];
   for (let n = 0; n <= ROLL_LAST; n++) {
     for (const kind of ROLL_KINDS) {
@@ -375,9 +401,16 @@ function RollMarks() {
     .map((s, i) => `--roll-s${String(i + 1)}:${s.toFixed(5)}`)
     .join(';');
   const { full } = rollFadeRange(DEPTH);
+  const rate = rollRate(level);
   return (
     <g transform={`translate(${SCENE_CENTRE_X} ${HORIZON_Y})`}>
-      <g class="w-roll-mark" style={vars}>
+      <g
+        class="w-roll-mark"
+        style={vars}
+        data-cue="roll_speed"
+        data-level={level}
+        ref={(el: SVGGElement | null) => applyRollRate(el, rate)}
+      >
         {marks}
       </g>
       <polygon
@@ -393,7 +426,7 @@ function RollMarks() {
   );
 }
 
-function TakeoffRollScene() {
+function TakeoffRollScene({ cues }: SceneProps) {
   const bottomHalf = 640;
   const edge = (side: -1 | 1) => (
     <polygon
@@ -448,7 +481,7 @@ function TakeoffRollScene() {
       />
       {edge(-1)}
       {edge(1)}
-      <RollMarks />
+      <RollMarks level={cues['roll_speed'] ?? 0} />
       <rect
         x={LEFT}
         y={HORIZON_Y - 4}
@@ -494,7 +527,7 @@ function CloudScene() {
 }
 
 /** The art of each scene, typed by the scene ids of the aircraft data. */
-export const SCENES: Readonly<Record<SceneId, () => JSX.Element>> = {
+export const SCENES: Readonly<Record<SceneId, (props: SceneProps) => JSX.Element>> = {
   parked: ParkedScene,
   takeoff_roll: TakeoffRollScene,
   cruise: CruiseScene,

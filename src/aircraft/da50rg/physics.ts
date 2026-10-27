@@ -125,6 +125,18 @@ const WINDSHIELD_SPRAY_MS = 10_000;
 // scenario parameter oil_leak while the engine runs and never decays. An instructor-review value.
 const OIL_FILM_PER_MIN = 30;
 
+// Ground roll (Phase 5.1, P-03): the speed over the ground follows the POWER travel and the
+// brakes. All values are instructor-review values, none is an AFM figure. Only a scenario that
+// sets ground_roll gets the model; every other run holds the speed it starts with.
+/** Acceleration in knots per second per percent of POWER travel while the engine runs. */
+const GROUND_ACCEL_PER_PERCENT = 0.02;
+/** Rolling and air drag in knots per second, running and engine off. */
+const GROUND_DRAG_RUNNING = 0.3;
+const GROUND_DRAG_STOPPED = 0.6;
+/** Braking in knots per second while the toe brakes are applied or the parking brake is set. */
+const GROUND_BRAKING = 4;
+const SECONDS_PER_MINUTE = 60;
+
 function lever(id: string): DetentLeverDef {
   const def = DA50RG.get(id);
   if (def?.kind !== 'detent-lever') throw new Error(`physics needs the detent lever "${id}"`);
@@ -327,6 +339,18 @@ function fuelBurnPerMinute(inputs: PhysicsInputs): number {
   return fuelFlowGph(inputs) / MINUTES_PER_HOUR;
 }
 
+/** Change of the ground speed in knots per minute: zero unless the scenario sets ground_roll. */
+function groundSpeedPerMinute(inputs: PhysicsInputs): number {
+  const roll = parameterOf(inputs, 'ground_roll');
+  const drag = running(inputs) ? GROUND_DRAG_RUNNING : GROUND_DRAG_STOPPED;
+  const braked =
+    stateOf(inputs, 'lv.toe_brakes') === 'applied' || stateOf(inputs, 'lv.parking_brake') === 'set';
+  const braking = braked ? GROUND_BRAKING : 0;
+  return (
+    roll * SECONDS_PER_MINUTE * (GROUND_ACCEL_PER_PERCENT * loadPercent(inputs) - drag - braking)
+  );
+}
+
 /** The de-ice MAX run lasts 120 s of run time (owner finding G-1). */
 const DEICE_MAX_RUN_MS = 120_000;
 
@@ -378,6 +402,8 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'ice_accretion', min: 0, max: 1, normal: 0 },
       // 0 is no oil leak; 1 is a leak that smears the windscreen at OIL_FILM_PER_MIN while the engine runs.
       { id: 'oil_leak', min: 0, max: 1, normal: 0 },
+      // 0 is an aircraft at rest or in flight (the speed holds); 1 is a ground roll (Phase 5.1).
+      { id: 'ground_roll', min: 0, max: 1, normal: 0 },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),
@@ -419,6 +445,7 @@ export const DA50RG_PHYSICS = definePhysics(
         perMinute: (inputs) =>
           running(inputs) ? OIL_FILM_PER_MIN * parameterOf(inputs, 'oil_leak') : 0,
       },
+      { quantity: 'ground_speed_kt', mode: 'rate', perMinute: groundSpeedPerMinute },
     ],
     trips: [
       {

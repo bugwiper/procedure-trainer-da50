@@ -173,14 +173,16 @@ test('the briefing already shows the scene of the scenario', async ({ page, hasT
   await expect(page.locator('[data-layer="windscreen"] [data-scene="cruise"]')).toHaveCount(1);
 });
 
-test('the take-off roll marks scroll, and stand still with reduced motion', async ({ page }) => {
+test('the take-off roll marks scroll with the ground speed, and stand still with reduced motion', async ({
+  page,
+}) => {
   const marks = '[data-scene="takeoff_roll"] .w-roll-mark';
   const animation = () =>
     page
       .locator(marks)
       .first()
       .evaluate((el) => getComputedStyle(el).animationName);
-  await page.goto('./?scene=takeoff_roll');
+  await page.goto('./?scene=takeoff_roll&q=ground_speed_kt:60');
   await expect(page.getByTestId('panel')).toBeVisible();
   expect(await page.locator(marks).count()).toBeGreaterThan(0);
   expect(await animation()).toBe('w-roll');
@@ -197,6 +199,39 @@ test('the take-off roll marks scroll, and stand still with reduced motion', asyn
   const still = await box();
   await page.waitForTimeout(300);
   expect(await box()).toBe(still);
+});
+
+test('the take-off roll marks play at the rate of the ground speed and stand still at 0', async ({
+  page,
+}) => {
+  const marks = '[data-scene="takeoff_roll"] .w-roll-mark';
+  const rate = () =>
+    page
+      .locator(marks)
+      .first()
+      .evaluate((el) => el.getAnimations().map((a) => a.playbackRate));
+  const box = () =>
+    page
+      .locator(marks)
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().height);
+  for (const [speed, expected] of [
+    [60, 1],
+    [30, 0.5],
+    [90, 1],
+  ] as const) {
+    await page.goto(`./?scene=takeoff_roll&q=ground_speed_kt:${String(speed)}`);
+    await expect(page.locator(marks)).toHaveCount(1);
+    await expect.poll(rate, String(speed)).toEqual([expected]);
+  }
+  // At 0 (the base value) the scene stands still: the rate is 0 and the box never changes.
+  await page.goto('./?scene=takeoff_roll');
+  await expect(page.locator(marks)).toHaveCount(1);
+  await expect.poll(rate).toEqual([0]);
+  const still = await box();
+  await page.waitForTimeout(400);
+  expect(await box()).toBe(still);
+  await expect(page.locator(marks)).toHaveAttribute('data-level', '0');
 });
 
 test('the other scenes have no moving marks', async ({ page }) => {

@@ -64,7 +64,13 @@ export const LEVER_SKINS = [
   'parking-flap',
   'cowl-slider',
   'pull-ecs',
+  'toe-brakes',
 ] as const;
+/**
+ * Lever skins that go with tapToggle, both or neither: a hinged flap or a pedal pair that a tap
+ * flips between exactly two detents and that is drawn by its own body, not by the handle code.
+ */
+export const TAP_TOGGLE_SKINS: readonly LeverSkin[] = ['parking-flap', 'toe-brakes'];
 /**
  * Looks of a rotary knob. Absent means `round` (the black disc with a pointer line); `selector-bar`
  * is the elongated red selector knob of the FUEL valve (owner decision 2026-10-22).
@@ -151,7 +157,7 @@ export interface DetentLeverDef extends ControlBase {
   readonly skin?: LeverSkin;
   /**
    * A tap anywhere on the footprint toggles between the two detents; no dragging, no markers, no
-   * track (R2-4.2). Goes with the parking-flap skin, both or neither; exactly two detents.
+   * track (R2-4.2). Goes with the skins of TAP_TOGGLE_SKINS, both or neither; exactly two detents.
    */
   readonly tapToggle?: true;
 }
@@ -748,12 +754,14 @@ function checkLeverSkin(def: DetentLeverDef): void {
   if (def.skin !== undefined && !(LEVER_SKINS as readonly string[]).includes(def.skin)) {
     throw new RegistryError(`lever "${def.id}" has unknown skin "${def.skin}"`);
   }
-  const flapSkin = def.skin === 'parking-flap';
-  if (def.tapToggle === true && !flapSkin) {
-    throw new RegistryError(`lever "${def.id}" has tapToggle but its skin is not "parking-flap"`);
+  const toggleSkin = def.skin !== undefined && TAP_TOGGLE_SKINS.includes(def.skin);
+  if (def.tapToggle === true && !toggleSkin) {
+    throw new RegistryError(
+      `lever "${def.id}" has tapToggle but its skin is not one of ${TAP_TOGGLE_SKINS.map((k) => `"${k}"`).join(', ')}`,
+    );
   }
-  if (flapSkin && def.tapToggle !== true) {
-    throw new RegistryError(`lever "${def.id}" has the "parking-flap" skin but not tapToggle`);
+  if (toggleSkin && def.tapToggle !== true) {
+    throw new RegistryError(`lever "${def.id}" has the "${def.skin}" skin but not tapToggle`);
   }
   if (def.tapToggle === true) {
     if (def.detents.length !== 2) {
