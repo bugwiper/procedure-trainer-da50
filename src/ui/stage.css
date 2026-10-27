@@ -99,6 +99,16 @@ body,
   touch-action: manipulation;
 }
 
+/* Sound: the footer toggle (Phase 5). Off reads as a plain link, on as a filled one; the label
+   itself never changes (the state shows by the pressed look and aria-pressed). */
+.footer-link.sound-toggle[aria-pressed='true'] {
+  text-decoration: none;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: #8fb8e6;
+  color: #0b0d10;
+}
+
 /* Right group of the footer: [Procedure complete] [About and content policy], 16 px apart. On a
    narrow portrait phone the footer wraps and the group takes its own right-aligned line. */
 .footer-actions {
@@ -147,6 +157,24 @@ body,
 .run-button:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: 2px;
+}
+
+/* A narrow landscape phone (734 px) holds the notice, Procedure complete, Sound and About on one
+   line: tighter gaps, run-button padding and letter spacing. The 44 px height is unchanged. */
+@media (max-width: 760px) and (orientation: landscape) {
+  .footer,
+  .footer-actions {
+    column-gap: 8px;
+  }
+
+  .footer {
+    letter-spacing: 0.02em;
+  }
+
+  .run-button {
+    padding: 0 12px;
+    letter-spacing: 0.02em;
+  }
 }
 
 /* Keyboard focus ring of a session button inside the SVG (width 4, 4 outside the rim). */

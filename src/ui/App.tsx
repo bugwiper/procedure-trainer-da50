@@ -1,4 +1,4 @@
-import { signal } from '@preact/signals';
+import { effect, signal } from '@preact/signals';
 import { useLayoutEffect } from 'preact/hooks';
 import { DA50RG_ENV } from '../aircraft/da50rg/aircraft';
 import { DA50RG_INDICATORS } from '../aircraft/da50rg/indicators';
@@ -7,6 +7,9 @@ import { OPEN_ACCESS } from '../scenario/packs';
 import { VITE_PACKS } from '../scenario/packs-vite';
 import { About } from './about/About';
 import { browserStorage, createAckStore } from './ack';
+import { attachAural } from './audio/driver';
+import { createSoundPref } from './audio/sound-pref';
+import { browserAudioContext, createSoundPlayer } from './audio/web-audio';
 import { createPanelBridge } from './bridge';
 import { attachClockDriver } from './clock-driver';
 import { anyModalOpen, holdModal, releaseModal } from './modals';
@@ -86,6 +89,73 @@ if (import.meta.env.VITE_TEST_HOOKS === '1') {
     onset: () => session.onset.value,
     variant: () => session.variant.value,
     recording: () => session.recording.value,
+  };
+}
+
+// The aural cues (Phase 5, A-01 to A-04): off until the footer control Sound is tapped, remembered,
+// and only while a run is live. The audio context is created inside that tap (or at the first press
+// after a reload with the choice remembered, on pointer, click or key); nothing here reads or changes the run.
+const soundPref = createSoundPref(browserStorage());
+const soundOn = signal(soundPref.get());
+const soundPlayer = createSoundPlayer(browserAudioContext);
+const aural = attachAural({
+  player: soundPlayer,
+  wanted: () => soundOn.peek(),
+  running: () => session.screen.peek() === 'running',
+  blocked: () => anyModalOpen.peek(),
+  hidden: () => document.hidden,
+  cas: () => bridge.cas.peek(),
+  rpm: () => bridge.quantities.peek()['rpm'] ?? 0,
+  runMs: () => session.clock.peek()?.now() ?? null,
+  raf: (run) => requestAnimationFrame(run),
+  cancelRaf: (handle) => {
+    cancelAnimationFrame(handle);
+  },
+});
+const stopAuralEffect = effect(() => {
+  // A modal opening, the screen changing: look at once, not at the next frame.
+  void anyModalOpen.value;
+  void session.screen.value;
+  aural.update();
+});
+const onPress = () => {
+  aural.press();
+};
+const onVisibility = () => {
+  aural.update();
+};
+document.addEventListener('pointerdown', onPress, true);
+document.addEventListener('pointerup', onPress, true);
+document.addEventListener('click', onPress, true);
+document.addEventListener('keydown', onPress, true);
+document.addEventListener('visibilitychange', onVisibility);
+import.meta.hot?.dispose(() => {
+  aural.detach();
+  stopAuralEffect();
+  document.removeEventListener('pointerdown', onPress, true);
+  document.removeEventListener('pointerup', onPress, true);
+  document.removeEventListener('click', onPress, true);
+  document.removeEventListener('keydown', onPress, true);
+  document.removeEventListener('visibilitychange', onVisibility);
+});
+
+const toggleSound = () => {
+  const next = !soundOn.peek();
+  soundPref.set(next);
+  soundOn.value = next;
+  // Inside the tap, so the browser allows the context to start.
+  if (next) soundPlayer.enable();
+  else soundPlayer.disable();
+  aural.update();
+};
+
+if (import.meta.env.VITE_TEST_HOOKS === '1') {
+  window.__panelAudio = {
+    enabled: () => soundPlayer.stats.enabled,
+    tones: () => soundPlayer.stats.tones,
+    lastTone: () => soundPlayer.stats.lastTone,
+    engineHz: () => soundPlayer.stats.engineHz,
+    engineGain: () => soundPlayer.stats.engineGain,
   };
 }
 
@@ -217,6 +287,15 @@ export function App() {
               Procedure complete
             </button>
           ) : null}
+          <button
+            type="button"
+            class="footer-link sound-toggle"
+            data-testid="sound-toggle"
+            aria-pressed={soundOn.value}
+            onClick={toggleSound}
+          >
+            Sound
+          </button>
           <button type="button" class="footer-link" data-testid="about-open" onClick={openAbout}>
             About and content policy
           </button>
