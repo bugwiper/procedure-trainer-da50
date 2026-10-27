@@ -32,3 +32,14 @@ GSD is used at phase level only. Removed plans, research and discussion logs of 
 - Delegate long reads, full test runs and e2e runs to a subagent and take back only the result.
 - Keep `.claude/CLAUDE.md` lean; put detail into `docs/` or `.planning/`, not into the always-loaded file.
 - Do not duplicate: one SUMMARY per plan, no restating of code in documents.
+
+## Lessons from phases 3 to 5 (keep)
+
+- **Clear the Vitest cache before the final run:** `rm -rf node_modules/.vitest-cache`. A stale transform cache hid new scenario files and made a failing test look green; CI (fresh clone) then failed.
+- **CI runs everything:** all Playwright projects (desktop, phone, tablet in chromium and webkit, plus phone-portrait). Geometry gates are font- and size-sensitive; for layout changes run static-text, art-fit, layout, zoom and session-area on all of them, and allow font slack (macOS against the Linux runner differ by under a unit).
+- **WebKit remembers a failed dynamic import:** the "pack that cannot be loaded" retry case is skipped on WebKit (see the hardening todo).
+- **Never run blanket git reverts** (`git checkout -- .`, `git restore .`, `git reset --hard`, `git clean`): an agent once wiped the owner's uncommitted tool state. Commit by explicit path.
+- **Delegate runs to subagents, verify yourself:** after every agent report run the whole vitest with a cleared cache and `git log`; agents report green when a stale cache hides a failure.
+- **Limits:** the owner's rule is to pause at 98 percent of the 5-hour limit (and the weekly limit); check `get_usage` before dispatching a plan (a plan costs about 10 to 30 percent of the 5-hour window); wake up after the reset with a scheduled wakeup. The owner may also just nudge.
+- **Publishing:** only the owner pushes `main` (CI deploys it); ask before any push, push a fast-forward with `git push origin 'HEAD:refs/heads/main'`, quote the refspec (zsh).
+- **Where things are:** roadmap and phases `.planning/ROADMAP.md`, state `.planning/STATE.md`, open ideas `.planning/todos/pending/`, owner review lists `docs/PANEL-REVIEW.md`, grading and authoring notes `docs/GRADING.md`, private photos and AFM `.input/`.
