@@ -500,7 +500,7 @@ Plans:
 **Depends on**: Phase 5
 **Requirements**: PNL-20, SCN-13, SES-08, CNT-05
 
-**Plans:** 2/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 3/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -514,7 +514,7 @@ Plans:
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 05.1-03 — Tracer: Electrical Fire in Flight; Unintentional Flight Into Icing (the icing area ends, the spray keeps the pilot side clear); the phase-end documentation, requirements, todos and gates
+- [x] 05.1-03 — Tracer: Electrical Fire in Flight; Unintentional Flight Into Icing (the icing area ends, the spray keeps the pilot side clear); the phase-end documentation, requirements, todos and gates
 
 ### Phase 6: Fuel, tank and engine fidelity and the engine page
 
@@ -568,7 +568,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
 | 5. Windscreen and failure cues                        | 3/3 | Complete    | 2026-10-27 |
-| 5.1 Ground and takeoff emergencies                    | 2/3 | In Progress | -          |
+| 5.1 Ground and takeoff emergencies                    | 3/3 | In Progress | -          |
 | 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |
