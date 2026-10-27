@@ -764,3 +764,42 @@ body,
     display: flex;
   }
 }
+
+/* Windscreen cue flicker (Phase 5, W-06): a slow wobble of the flames and the smoke; off under
+   reduced motion, where the flames stand still. */
+.panel-svg .w-flicker,
+.panel-svg .w-flicker-smoke {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: w-flicker 1.3s ease-in-out infinite alternate;
+}
+
+.panel-svg .w-flicker-smoke {
+  animation-duration: 3.1s;
+  animation-name: w-drift;
+}
+
+@keyframes w-flicker {
+  from {
+    transform: scale(1, 0.93) skewX(-1.5deg);
+  }
+  to {
+    transform: scale(1, 1.06) skewX(1.5deg);
+  }
+}
+
+@keyframes w-drift {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-10px, -6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-svg .w-flicker,
+  .panel-svg .w-flicker-smoke {
+    animation: none;
+  }
+}

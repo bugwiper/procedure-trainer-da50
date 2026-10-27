@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DA50RG, VIEWBOX, VIEW_PROFILES } from '../src/aircraft/da50rg/panel';
 import type { ControlDef, Rect } from '../src/engine/registry';
+import { PANEL_EXTENT, WINDSCREEN_REFERENCE } from './layout-reference';
 import { sessionFootprints } from '../src/ui/panel/session-area';
 import {
   DOUBLE_TAP_MS,
@@ -83,10 +84,68 @@ describe('zoomRect', () => {
       w: 50 + ZOOM_PAD,
       h: 40 + ZOOM_PAD,
     });
-    for (const region of DA50RG.regions) {
+    for (const region of DA50RG.regions.filter((r) => r.id !== 'windscreen')) {
       expect(inside(zoomRect(region.bounds, VIEWBOX), FULL), region.id).toBe(true);
     }
+    for (const region of DA50RG.regions) {
+      expect(inside(zoomRect(region.bounds, PANEL_EXTENT), PANEL_EXTENT), region.id).toBe(true);
+    }
   });
+});
+
+describe('the extent with the windscreen above the panel (W-01, W-02)', () => {
+  const profiles = [
+    ['phone', VIEW_PROFILES.phone],
+    ['tablet', VIEW_PROFILES.tablet],
+    ['desktop', VIEW_PROFILES.desktop],
+  ] as const;
+  const windscreen = DA50RG.regions.find((r) => r.id === 'windscreen');
+
+  it('the registry extent equals the reference table, the viewBox is unchanged', () => {
+    expect({ ...DA50RG.extent }).toEqual(PANEL_EXTENT);
+    expect({ ...DA50RG.viewBox }).toEqual({
+      w: PANEL_EXTENT.w,
+      h: PANEL_EXTENT.h - WINDSCREEN_REFERENCE.h,
+    });
+  });
+
+  it.each(profiles)(
+    'the full view scale on the %s profile is the fit of the extent',
+    (_name, screen) => {
+      const full = fitScale(PANEL_EXTENT, screen);
+      expect(full).toBe(Math.min(screen.w / PANEL_EXTENT.w, screen.h / PANEL_EXTENT.h));
+      // The windscreen costs full-view scale; the zoom views of the control regions do not change.
+      expect(full).toBeLessThan(fitScale(VIEWBOX, screen));
+    },
+  );
+
+  it('the windscreen zoom view lies inside the extent and shows the whole windscreen', () => {
+    expect(windscreen).toBeDefined();
+    const view = zoomRect(windscreen?.bounds ?? FULL, DA50RG.extent);
+    expect(inside(view, PANEL_EXTENT)).toBe(true);
+    expect(view.y).toBe(PANEL_EXTENT.y);
+    expect(view.x).toBe(PANEL_EXTENT.x);
+    expect(view.h).toBeGreaterThanOrEqual(WINDSCREEN_REFERENCE.h);
+    expect(view.w).toBe(PANEL_EXTENT.w);
+  });
+
+  it('pinch out ends at the full extent and a pan stays inside it', () => {
+    const view: Rect = { x: 400, y: -300, w: 800, h: 400 };
+    expect(pinchRect(view, { x: 800, y: -100 }, 0.001, DA50RG.extent)).toEqual(PANEL_EXTENT);
+    expect(panRect(view, 0, -9999, DA50RG.extent).y).toBe(PANEL_EXTENT.y);
+    expect(panRect(view, 0, 9999, DA50RG.extent).y).toBe(PANEL_EXTENT.y + PANEL_EXTENT.h - view.h);
+    expect(panRect(view, -9999, 0, DA50RG.extent).x).toBe(PANEL_EXTENT.x);
+  });
+
+  it.each(profiles)(
+    'the Full panel corner covers no control footprint on the windscreen view on the %s profile',
+    (_name, screen) => {
+      const view = zoomRect(windscreen?.bounds ?? FULL, DA50RG.extent);
+      const footprints = controlFootprints(DA50RG);
+      const corner = chooseButtonCorner({ view, screen, footprints, current: 'tr' });
+      expect(buttonOverlap(corner, view, screen, footprints)).toBe(0);
+    },
+  );
 });
 
 describe('pinchRect', () => {

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { PANEL_VIEWBOX } from '../tests/layout-reference';
+import { FULL_VIEWBOX } from './support/zoom';
 
 test('panel stage loads at the base path', async ({ page, baseURL }) => {
   if (baseURL === undefined) throw new Error('baseURL missing');
@@ -28,7 +28,7 @@ test('panel stage loads at the base path', async ({ page, baseURL }) => {
 
   const panel = page.getByTestId('panel');
   await expect(panel).toBeVisible();
-  await expect(panel).toHaveAttribute('viewBox', `0 0 ${PANEL_VIEWBOX.w} ${PANEL_VIEWBOX.h}`);
+  await expect(panel).toHaveAttribute('viewBox', FULL_VIEWBOX);
   await expect(page.getByTestId('training-aid-notice')).toHaveText(
     'Training aid only, not the AFM',
   );

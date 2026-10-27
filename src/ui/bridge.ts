@@ -4,6 +4,7 @@
 import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal, Signal } from '@preact/signals';
 import type { ActiveCas, CasRuleSet } from '../engine/cas';
+import type { CueSet } from '../engine/cues';
 import { evaluateIndicator } from '../engine/indicators';
 import type { IndicatorSet } from '../engine/indicators';
 import type { PredicateContext } from '../engine/predicates';
@@ -34,6 +35,8 @@ export interface BridgeAircraft {
   readonly quantities: QuantitySet;
   /** The CAS rule table; without it no message is ever active. */
   readonly cas?: CasRuleSet;
+  /** The visual cues of the windscreen; without them no level is ever reported. */
+  readonly cues?: CueSet;
 }
 
 export interface PanelBridge {
@@ -77,6 +80,12 @@ export interface PanelBridge {
    * control states, warnings first. Derived, never set; empty without an aircraft rule table.
    */
   readonly cas: ReadonlySignal<readonly ActiveCas[]>;
+  /**
+   * The level 0 to 1 of every visual cue (Phase 5, W-05), derived from the quantities; empty
+   * without an aircraft cue table. They follow the quantities, so a cue stays as a run left it
+   * until RESET, like the gauges.
+   */
+  readonly cueLevels: ReadonlySignal<Readonly<Record<string, number>>>;
   /** Event times come from now() (a virtual clock); null restores performance.now. */
   setTimeSource(now: (() => number) | null): void;
 }
@@ -135,6 +144,11 @@ export function createPanelBridge(
     const ctx: PredicateContext = { controls, baseline, quantities: quantities.value };
     return casRules.active(ctx, { registry, quantities: aircraft.quantities });
   });
+
+  const cueSet = aircraft?.cues;
+  const cueLevels = computed<Readonly<Record<string, number>>>(() =>
+    cueSet === undefined ? {} : cueSet.levels(quantities.value),
+  );
 
   // Flags (for example deice.max_active) are the simulation's output, set once per run step; they
   // are empty at creation, after a reset and outside a run.
@@ -207,6 +221,7 @@ export function createPanelBridge(
       if (!same) flags.value = { ...values };
     },
     cas,
+    cueLevels,
     reset(controls, given = {}) {
       store.reset(controls);
       quantities.value = { ...baseQuantities(), ...given };

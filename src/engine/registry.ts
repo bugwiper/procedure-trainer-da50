@@ -317,7 +317,13 @@ export interface Region extends RegionDef {
 }
 
 export interface Registry {
+  /** The instrument-panel space: every region, plate and control lies in it. */
   readonly viewBox: Size;
+  /**
+   * The whole drawable space: the viewBox, optionally grown (the windscreen above the panel,
+   * Phase 5). The full view, zoom, pinch and pan use it; defaults to the viewBox.
+   */
+  readonly extent: Rect;
   readonly regions: readonly Region[];
   /** Declaration order; each derived guard directly after its switch. */
   readonly controls: readonly ControlDef[];
@@ -811,6 +817,7 @@ function deriveGuard(sw: GuardedToggleDef): GuardDef {
 
 export function defineRegistry(input: {
   viewBox: Size;
+  extent?: Rect;
   regions: readonly RegionDef[];
   controls: readonly ControlSpec[];
 }): Registry {
@@ -860,6 +867,9 @@ export function defineRegistry(input: {
   const byId = new Map<ControlId, ControlDef>(controls.map((c) => [c.id, c]));
   return Object.freeze({
     viewBox: Object.freeze({ ...input.viewBox }),
+    extent: Object.freeze({
+      ...(input.extent ?? { x: 0, y: 0, w: input.viewBox.w, h: input.viewBox.h }),
+    }),
     regions: Object.freeze(regions),
     controls: Object.freeze(controls),
     get: (id: ControlId) => byId.get(id),

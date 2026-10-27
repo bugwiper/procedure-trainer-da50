@@ -5,7 +5,7 @@
 
 import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
-import { VIEWBOX } from '../../aircraft/da50rg/panel';
+import { EXTENT } from '../../aircraft/da50rg/panel';
 import type { Rect, Region, Registry, Size } from '../../engine/registry';
 import { createPressArbiter } from './press-arbiter';
 import type { Midpoint, PressEffect, TargetDescriptor } from './press-arbiter';
@@ -17,13 +17,14 @@ import type { ControlTapResult, DoubleTapIntent, PointerKind } from './tap-inten
 import {
   chooseButtonCorner,
   controlFootprints,
+  extentRect,
   fitScale,
   panRect,
   pinchRect,
   screenToView,
   zoomRect,
 } from './viewport';
-import type { ButtonCorner } from './viewport';
+import type { ButtonCorner, Extent } from './viewport';
 
 /**
  * A pointer that starts on one of these elements lands on a control (a registered or own target)
@@ -31,10 +32,10 @@ import type { ButtonCorner } from './viewport';
  */
 const TAP_TARGET_SELECTOR = '[data-hit], [data-detent], [data-session-hit]';
 
-const fullView = signal<Rect>({ x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h });
+const fullView = signal<Rect>({ ...EXTENT });
 
 /** The visible part of the panel in viewBox units; starts as the whole panel. */
-export const viewRect = signal<Rect>({ x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h });
+export const viewRect = signal<Rect>({ ...EXTENT });
 
 export const isZoomed: ReadonlySignal<boolean> = computed(() => {
   const v = viewRect.value;
@@ -78,12 +79,12 @@ export function viewChangedByTapAt(): number | null {
   return tapViewChangeAt;
 }
 
-export function zoomToRegion(region: Region, viewBox: Size): void {
-  viewRect.value = zoomRect(region.bounds, viewBox);
+export function zoomToRegion(region: Region, extent: Extent): void {
+  viewRect.value = zoomRect(region.bounds, extent);
 }
 
-export function zoomOut(viewBox: Size): void {
-  viewRect.value = { x: 0, y: 0, w: viewBox.w, h: viewBox.h };
+export function zoomOut(extent: Extent): void {
+  viewRect.value = extentRect(extent);
 }
 
 /** The pointer kind of an event; pen counts as touch for the slop, an unknown type as touch. */
@@ -139,8 +140,8 @@ export function attachZoomGestures(
   },
 ): () => void {
   const { registry } = opts;
-  const { viewBox } = registry;
-  fullView.value = { x: 0, y: 0, w: viewBox.w, h: viewBox.h };
+  const { extent } = registry;
+  fullView.value = extentRect(extent);
   // The session buttons are no registry controls: their footprints join the corner chooser so the
   // Full panel button never covers one (U-07). Skipped when the registry has no such region.
   const sessionRegion = registry.regions.find((r) => r.id === 'scenario_area');
@@ -191,16 +192,16 @@ export function attachZoomGestures(
     const screen = { w: box.width, h: box.height };
     const view = viewRect.peek();
     const centre = screenToView(view, screen, next.x - box.left, next.y - box.top);
-    const scaled = pinchRect(view, centre, next.dist / prev.dist, viewBox);
+    const scaled = pinchRect(view, centre, next.dist / prev.dist, extent);
     const s = fitScale(scaled, screen);
-    viewRect.value = panRect(scaled, -(next.x - prev.x) / s, -(next.y - prev.y) / s, viewBox);
+    viewRect.value = panRect(scaled, -(next.x - prev.x) / s, -(next.y - prev.y) / s, extent);
   };
 
   const panBy = (dx: number, dy: number) => {
     if (!isZoomed.peek()) return;
     const view = viewRect.peek();
     const s = fitScale(view, screenSize());
-    viewRect.value = panRect(view, -dx / s, -dy / s, viewBox);
+    viewRect.value = panRect(view, -dx / s, -dy / s, extent);
   };
 
   /**
@@ -218,7 +219,7 @@ export function attachZoomGestures(
     const intent = resolve();
     lastTapView = viewRect.peek();
     if (intent === 'zoom-out') {
-      zoomOut(viewBox);
+      zoomOut(extent);
     } else if (intent === 'zoom-in') {
       const point = toViewPoint(clientX, clientY);
       const hit = registry.regions.find(
@@ -228,7 +229,7 @@ export function attachZoomGestures(
           point.y >= r.bounds.y &&
           point.y <= r.bounds.y + r.bounds.h,
       );
-      if (hit !== undefined) zoomToRegion(hit, viewBox);
+      if (hit !== undefined) zoomToRegion(hit, extent);
     }
     // A pair that changed the view is over; the new view is not a tap in progress.
     if (viewRect.peek() !== lastTapView) {

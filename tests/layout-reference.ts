@@ -14,6 +14,20 @@
  */
 export const PANEL_VIEWBOX = { w: 2180, h: 1300 } as const;
 
+/**
+ * The windscreen above the panel (Phase 5, W-01) as an independent literal: its height is typed in
+ * here, not read from src. The panel space grows upward by it and nothing of the panel moves.
+ */
+export const WINDSCREEN_REFERENCE = { h: 440 } as const;
+
+/** The whole drawable space: the instrument-panel space with the windscreen above it. */
+export const PANEL_EXTENT = {
+  x: 0,
+  y: -WINDSCREEN_REFERENCE.h,
+  w: PANEL_VIEWBOX.w,
+  h: PANEL_VIEWBOX.h + WINDSCREEN_REFERENCE.h,
+} as const;
+
 export interface ReferencePosition {
   readonly id: string;
   readonly x: number;
@@ -389,6 +403,8 @@ export const ORDERING: readonly OrderRow[] = [
  * inventory and the built-panel layout spec both count against this table.
  */
 export const ALL_REGION_IDS: readonly string[] = [
+  // The windscreen of phase 5: invisible geometry above the panel, art only, no control.
+  'windscreen',
   'lights',
   'deice',
   'deice_switches',

@@ -1,13 +1,13 @@
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { DOUBLE_TAP_MS } from '../../src/ui/panel/tap-intent';
-import { PANEL_VIEWBOX } from '../../tests/layout-reference';
+import { PANEL_EXTENT } from '../../tests/layout-reference';
 
 // Shared e2e zoom helpers (R2-Z1, PNL-15). This is test support, not a spec: its name does not
-// end in .spec.ts, so Playwright never collects it. The full viewBox comes from the independent
-// reference table, never from src.
+// end in .spec.ts, so Playwright never collects it. The full view is the whole extent (the
+// windscreen above the panel) and comes from the independent reference table, never from src.
 
-export const FULL_VIEWBOX = `0 0 ${PANEL_VIEWBOX.w} ${PANEL_VIEWBOX.h}`;
+export const FULL_VIEWBOX = `${PANEL_EXTENT.x} ${PANEL_EXTENT.y} ${PANEL_EXTENT.w} ${PANEL_EXTENT.h}`;
 
 export interface Point {
   x: number;
@@ -16,7 +16,8 @@ export interface Point {
 
 /**
  * A page point inside the region's frame that is visible on screen, outside the "Full panel"
- * button and as far as possible from every tap target of the whole panel (at least 1.5 px), away
+ * button and as far as possible from every tap target of the whole panel (at least 1 px: the full
+ * view shows the windscreen too, so the phone gaps are about 1.5 px), away
  * from the frame edge.
  */
 export async function backgroundPoint(page: Page, regionId: string): Promise<Point> {
@@ -44,11 +45,11 @@ export async function backgroundPoint(page: Page, regionId: string): Promise<Poi
       return best;
     };
     let found: { x: number; y: number } | null = null;
-    let bestClearance = 1.5;
-    // At least 48 samples per axis and a sample every 0.5 px where the region is small (at most 300 per axis): on a portrait phone the
+    let bestClearance = 1;
+    // At least 48 samples per axis and a sample every 0.25 px where the region is small (at most 300 per axis): on a portrait phone the
     // session buttons are 4 px apart, so the gap between them is found only by a fine grid.
-    const stepsX = Math.min(300, Math.max(48, Math.ceil((0.8 * box.width) / 0.5)));
-    const stepsY = Math.min(300, Math.max(48, Math.ceil((0.8 * box.height) / 0.5)));
+    const stepsX = Math.min(300, Math.max(48, Math.ceil((0.8 * box.width) / 0.25)));
+    const stepsY = Math.min(300, Math.max(48, Math.ceil((0.8 * box.height) / 0.25)));
     for (let i = 0; i < stepsX; i++) {
       for (let j = 0; j < stepsY; j++) {
         const x = box.left + (0.1 + (0.8 * (i + 0.5)) / stepsX) * box.width;

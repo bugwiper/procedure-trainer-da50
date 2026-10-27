@@ -31,7 +31,7 @@ const session = createSession({
   env: DA50RG_ENV,
   rng: Math.random,
   onRunStart: () => {
-    zoomOut(bridge.registry.viewBox);
+    zoomOut(bridge.registry.extent);
   },
 });
 
@@ -157,7 +157,7 @@ export function App() {
                 clickAt: e.timeStamp,
               });
               if (stray) return;
-              zoomOut(bridge.registry.viewBox);
+              zoomOut(bridge.registry.extent);
             }}
           >
             Full panel

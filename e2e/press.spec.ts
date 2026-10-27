@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { PANEL_VIEWBOX } from '../tests/layout-reference';
+import { PANEL_EXTENT, PANEL_VIEWBOX } from '../tests/layout-reference';
 import { DRAG_START_PX, MOMENTARY_HOLD_MS } from '../src/ui/panel/press-arbiter';
 import {
   DOUBLE_TAP_PX,
@@ -126,8 +126,8 @@ async function hitCentre(page: Page, selector: string): Promise<Point> {
 async function panVector(page: Page, d: number): Promise<Point> {
   const v = await viewNumbers(page);
   return {
-    x: v.x > (PANEL_VIEWBOX.w - v.w) / 2 ? d : -d,
-    y: v.y > (PANEL_VIEWBOX.h - v.h) / 2 ? d : -d,
+    x: v.x + v.w / 2 > PANEL_EXTENT.x + PANEL_EXTENT.w / 2 ? d : -d,
+    y: v.y + v.h / 2 > PANEL_EXTENT.y + PANEL_EXTENT.h / 2 ? d : -d,
   };
 }
 

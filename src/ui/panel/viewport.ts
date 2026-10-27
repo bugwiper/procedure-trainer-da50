@@ -18,47 +18,57 @@ export function fitScale(view: Size, screen: Size): number {
   return Math.min(screen.w / view.w, screen.h / view.h);
 }
 
-function fullRect(viewBox: Size): Rect {
-  return { x: 0, y: 0, w: viewBox.w, h: viewBox.h };
+/** The drawable space: a size at the origin, or with an origin (the windscreen grows it upward). */
+export type Extent = Size & { readonly x?: number; readonly y?: number };
+
+/** The extent as a rect (origin 0, 0 when it has none). */
+export function extentRect(extent: Extent): Rect {
+  return { x: extent.x ?? 0, y: extent.y ?? 0, w: extent.w, h: extent.h };
 }
 
-/** Moves `rect` the shortest way until it lies inside the viewBox (size unchanged). */
-function keepInside(rect: Rect, viewBox: Size): Rect {
-  const x = Math.min(Math.max(rect.x, 0), Math.max(0, viewBox.w - rect.w));
-  const y = Math.min(Math.max(rect.y, 0), Math.max(0, viewBox.h - rect.h));
+function fullRect(extent: Extent): Rect {
+  return extentRect(extent);
+}
+
+/** Moves `rect` the shortest way until it lies inside the extent (size unchanged). */
+function keepInside(rect: Rect, extent: Extent): Rect {
+  const e = extentRect(extent);
+  const x = Math.min(Math.max(rect.x, e.x), e.x + Math.max(0, e.w - rect.w));
+  const y = Math.min(Math.max(rect.y, e.y), e.y + Math.max(0, e.h - rect.h));
   return { x, y, w: rect.w, h: rect.h };
 }
 
-/** Region bounds padded by ZOOM_PAD, clamped (not shifted) to the viewBox. */
-export function zoomRect(bounds: Rect, viewBox: Size): Rect {
-  const x1 = Math.max(0, bounds.x - ZOOM_PAD);
-  const y1 = Math.max(0, bounds.y - ZOOM_PAD);
-  const x2 = Math.min(viewBox.w, bounds.x + bounds.w + ZOOM_PAD);
-  const y2 = Math.min(viewBox.h, bounds.y + bounds.h + ZOOM_PAD);
+/** Region bounds padded by ZOOM_PAD, clamped (not shifted) to the extent. */
+export function zoomRect(bounds: Rect, extent: Extent): Rect {
+  const e = extentRect(extent);
+  const x1 = Math.max(e.x, bounds.x - ZOOM_PAD);
+  const y1 = Math.max(e.y, bounds.y - ZOOM_PAD);
+  const x2 = Math.min(e.x + e.w, bounds.x + bounds.w + ZOOM_PAD);
+  const y2 = Math.min(e.y + e.h, bounds.y + bounds.h + ZOOM_PAD);
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
 }
 
 /**
- * Scales the view about `centre` (viewBox coordinates): factor 2 halves the width. The aspect
- * of the current view is kept. The width stays within MIN_VIEW_WIDTH..viewBox.w and the result
- * inside the viewBox; a view that would reach the full extent in either axis becomes the
- * full viewBox, so pinching out always ends at the whole panel.
+ * Scales the view about `centre` (extent coordinates): factor 2 halves the width. The aspect
+ * of the current view is kept. The width stays within MIN_VIEW_WIDTH..extent.w and the result
+ * inside the extent; a view that would reach the full extent in either axis becomes the
+ * full extent, so pinching out always ends at the whole panel.
  */
 export function pinchRect(
   current: Rect,
   centre: { x: number; y: number },
   factor: number,
-  viewBox: Size,
+  extent: Extent,
 ): Rect {
   const aspect = current.h / current.w;
   const wanted = current.w / factor;
   // The pinch-in limit never widens a view that is already narrower (a double-tap zoom into a
   // small region, e.g. 68 wide): a pinch-in keeps it, only a pinch-out grows it (review WR-03).
   const floor = Math.min(MIN_VIEW_WIDTH, current.w);
-  const width = Math.min(Math.max(wanted, floor), viewBox.w);
+  const width = Math.min(Math.max(wanted, floor), extent.w);
   const height = width * aspect;
-  if (width >= viewBox.w * SNAP_TO_FULL || height >= viewBox.h * SNAP_TO_FULL) {
-    return fullRect(viewBox);
+  if (width >= extent.w * SNAP_TO_FULL || height >= extent.h * SNAP_TO_FULL) {
+    return fullRect(extent);
   }
   const k = width / current.w;
   return keepInside(
@@ -68,13 +78,13 @@ export function pinchRect(
       w: width,
       h: height,
     },
-    viewBox,
+    extent,
   );
 }
 
-/** Translates the view by (dx, dy) viewBox units, kept inside the viewBox. */
-export function panRect(current: Rect, dx: number, dy: number, viewBox: Size): Rect {
-  return keepInside({ x: current.x + dx, y: current.y + dy, w: current.w, h: current.h }, viewBox);
+/** Translates the view by (dx, dy) extent units, kept inside the extent. */
+export function panRect(current: Rect, dx: number, dy: number, extent: Extent): Rect {
+  return keepInside({ x: current.x + dx, y: current.y + dy, w: current.w, h: current.h }, extent);
 }
 
 /**

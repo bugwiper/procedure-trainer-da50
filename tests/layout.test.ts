@@ -21,7 +21,9 @@ import {
   FRONT_PANEL_REGIONS,
   INDICATOR_POSITIONS,
   ORDERING,
+  PANEL_EXTENT,
   PANEL_VIEWBOX,
+  WINDSCREEN_REFERENCE,
   REFERENCE_POSITIONS,
   UNDER_PANEL_REGIONS,
 } from './layout-reference';
@@ -131,7 +133,10 @@ describe('viewBox and regions', () => {
     const rights = DA50RG.regions
       .filter(
         (r) =>
-          !r.id.startsWith('cb_') && r.id !== 'scenario_area' && r.bounds.x + r.bounds.w > 1980,
+          !r.id.startsWith('cb_') &&
+          r.id !== 'scenario_area' &&
+          r.id !== 'windscreen' &&
+          r.bounds.x + r.bounds.w > 1980,
       )
       .map((r) => r.id);
     expect(rights).toEqual([]);
@@ -150,9 +155,25 @@ describe('viewBox and regions', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('every region lies inside the viewBox', () => {
+  it('every region lies inside the viewBox, except the windscreen above it', () => {
     const box: Rect = { x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h };
-    for (const r of DA50RG.regions) expect(inside(r.bounds, box), r.id).toBe(true);
+    for (const r of DA50RG.regions.filter((region) => region.id !== 'windscreen')) {
+      expect(inside(r.bounds, box), r.id).toBe(true);
+    }
+  });
+
+  it('the extent is the viewBox grown upward by the windscreen, and every region lies inside it (W-01)', () => {
+    expect({ ...DA50RG.extent }).toEqual(PANEL_EXTENT);
+    expect(PANEL_EXTENT.h).toBe(PANEL_VIEWBOX.h + WINDSCREEN_REFERENCE.h);
+    for (const r of DA50RG.regions) expect(inside(r.bounds, PANEL_EXTENT), r.id).toBe(true);
+    // The windscreen is the one region above the panel: it fills the space the extent added.
+    expect(regionBounds('windscreen')).toEqual({
+      x: 0,
+      y: -WINDSCREEN_REFERENCE.h,
+      w: PANEL_VIEWBOX.w,
+      h: WINDSCREEN_REFERENCE.h,
+    });
+    expect(DA50RG.regions.find((r) => r.id === 'windscreen')?.controlIds).toEqual([]);
   });
 
   it('the four breaker regions have the Table B1 bounds, typed in independently of the data', () => {

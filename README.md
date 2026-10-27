@@ -10,8 +10,9 @@ A web-based 2D cockpit procedure trainer for the Diamond DA50 RG, including emer
 
 ## Demo controls
 
-The panel has 95 controls and 13 indicator lamps in 33 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork and the session area is trainer content, both with no controls; the transponder in the pilot's legroom is a temporary trainer part with one control, its position is not a fidelity item):
+The panel has 95 controls and 13 indicator lamps in 34 regions, placed where they sit in the real DA50 RG (the PFD and MFD regions are display artwork, the windscreen above the panel is art only and the session area is trainer content, all with no controls; the transponder in the pilot's legroom is a temporary trainer part with one control, its position is not a fidelity item):
 
+- **WINDSCREEN**, above the glare shield: the view out of the cockpit (a canopy frame, the cowl and the scene; no text), art only; the full view shows it above the panel, which makes the panel a little smaller on screen; a double tap on it zooms to it
 - **LIGHTS**, glareshield: LANDING, TAXI, POSITION, STROBE (ON above OFF is printed once on each side of the four rockers, as on the aircraft)
 - **INSTRUMENT AND FLOOD LIGHT**, between the displays: INSTRUMENT LIGHT and FLOOD LIGHT knobs
 - **DE ICE**, top far left: MAX (push button), the mode toggle (HIGH / NORM / OFF) with its three lamps, and ALTERNATE (the guarded switch)

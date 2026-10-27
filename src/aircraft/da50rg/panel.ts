@@ -13,7 +13,7 @@
 // again numbers only. Nothing is widened or enlarged for touch size.
 
 import { defineRegistry } from '../../engine/registry';
-import type { RegionDef, Size } from '../../engine/registry';
+import type { Rect, RegionDef, Size } from '../../engine/registry';
 import { BREAKER_CONTROLS, CB_REGIONS } from './controls/breakers';
 import { BUTTON_CONTROLS } from './controls/buttons';
 import { DEICE_CONTROLS } from './controls/deice';
@@ -36,6 +36,15 @@ import { UNDER_PANEL_CONTROLS } from './controls/under-panel';
 export const VIEWBOX: Size = { w: 2180, h: 1300 };
 
 /**
+ * Height of the windscreen above the instrument panel (Phase 5, W-01): the opening of the owner's
+ * cockpit photo is about a fifth of its width. Nothing of the panel moves; the space grows upward.
+ */
+export const WINDSCREEN_H = 440;
+
+/** The whole drawable space: the windscreen above the instrument-panel viewBox (W-01). */
+export const EXTENT: Rect = { x: 0, y: -WINDSCREEN_H, w: VIEWBOX.w, h: VIEWBOX.h + WINDSCREEN_H };
+
+/**
  * Every Phase 1 front-panel y moved down by this much when the glareshield strip was added
  * above the displays (UI-SPEC "Coordinate Space and Regions").
  */
@@ -56,6 +65,13 @@ export const VIEW_PROFILES: {
 };
 
 export const REGIONS: readonly RegionDef[] = [
+  // The windscreen above the panel (Phase 5, W-03): invisible geometry for the zoom, art only, no
+  // control. It owns the space above y 0 and nothing else.
+  {
+    id: 'windscreen',
+    name: 'WINDSCREEN',
+    bounds: { x: 0, y: -WINDSCREEN_H, w: VIEWBOX.w, h: WINDSCREEN_H },
+  },
   // Glareshield hump above the displays: the four exterior light switches (D-08).
   { id: 'lights', name: 'LIGHTS', bounds: { x: 930, y: 20, w: 280, h: 150 } },
   // De-ice upper block, top far left: MAX button, mode toggle, three lamps, ALTERNATE (plan 21).
@@ -140,6 +156,7 @@ export const REGIONS: readonly RegionDef[] = [
 
 export const DA50RG = defineRegistry({
   viewBox: VIEWBOX,
+  extent: EXTENT,
   regions: REGIONS,
   // Plans 05 and 07 append their control lists here.
   controls: [
