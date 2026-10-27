@@ -2,6 +2,15 @@ import type { JSX } from 'preact';
 import { SCENE_IDS } from '../../../aircraft/da50rg/scenes';
 import type { SceneId } from '../../../aircraft/da50rg/scenes';
 import { OPENING, SCENE_CENTRE_X } from './geometry';
+import {
+  ROLL_COLOURS,
+  ROLL_KINDS,
+  ROLL_LAST,
+  rollFadeRange,
+  rollPolygons,
+  rollScales,
+} from './roll-series';
+import type { Point, RollPolygon } from './roll-series';
 
 // The four views out of the windscreen (Phase 5, W-04, W-07): flat vector art in the opening, no
 // text (G-0), the layer's own `w-` paints (SceneDefs). Every scene shares one horizon height and
@@ -38,7 +47,44 @@ export function SceneDefs() {
       {vertical('w-grass', '#86a56a', null, '#4f7a3a')}
       {vertical('w-runway', '#6c7075', null, '#3f4347')}
       {vertical('w-cloud', '#b4bbc2', '#d3d8dc', '#e3e6e8')}
+      <RollFade />
     </>
+  );
+}
+
+/** Colours of the runway gradient (w-runway) at the horizon and at the bottom edge. */
+const RUNWAY_TOP = [0x6c, 0x70, 0x75] as const;
+const RUNWAY_BOTTOM = [0x3f, 0x43, 0x47] as const;
+
+/** The runway surface colour at row y (relative to the horizon), as the w-runway gradient paints it. */
+function runwayColourAt(y: number): string {
+  const f = y / DEPTH;
+  const channel = (i: 0 | 1 | 2) =>
+    Math.round(RUNWAY_TOP[i] + (RUNWAY_BOTTOM[i] - RUNWAY_TOP[i]) * f)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${channel(0)}${channel(1)}${channel(2)}`;
+}
+
+/**
+ * The fade of the take-off marks: the runway colour, opaque at the far end of the row, clear from
+ * the middle of the row on, in panel space. It depends on the row only, so a mark that moves nearer
+ * is shown exactly as the mark in front of it was (no mask, the layer keeps to flat paint).
+ */
+function RollFade() {
+  const { zero, full } = rollFadeRange(DEPTH);
+  return (
+    <linearGradient
+      id="w-roll-fade"
+      gradientUnits="userSpaceOnUse"
+      x1="0"
+      y1={HORIZON_Y + zero}
+      x2="0"
+      y2={HORIZON_Y + full}
+    >
+      <stop offset="0" stop-color={runwayColourAt(zero)} />
+      <stop offset="1" stop-color={runwayColourAt(full)} stop-opacity={0} />
+    </linearGradient>
   );
 }
 
@@ -281,79 +327,70 @@ function ParkedScene() {
   );
 }
 
-/** Number of runway marks that scroll: centre dash, edge dashes, a seam and rubber marks each. */
-const ROLL_MARKS = 15;
-/** Depth pitch between two marks, dash length in depth, edge dash length in depth. */
-const ROLL_PITCH = 0.7;
-const ROLL_LENGTH = 0.32;
-const ROLL_LIGHT_LENGTH = 0.3;
-/** Offset of the warm edge dashes from the centre line: just inside the white edge lines (610 to 634). */
-const ROLL_EDGE_OFFSET = 578;
-/** The seam (a light joint with a dark shadow line) spans the runway between the edge dashes. */
-const ROLL_SEAM_HALF = 560;
-/** Lateral places of the rubber marks, taken in turns so the pattern does not repeat at once. */
-const ROLL_RUBBER = [-300, 180, -120, 330, -420, 90, 420, -210] as const;
+/** Points of a polygon as an SVG attribute, rounded to two places. */
+const pts = (p: readonly Point[]): string =>
+  p.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
+
+/** Half width of the fade cover at the bottom edge: inside the edge lines (610 to 634). */
+const ROLL_FADE_HALF = 604;
 
 /**
- * The scrolling marks of the take-off roll (Phase 5, A-05). Each mark is drawn relative to the
- * vanishing point and carries two custom properties for its CSS animation (stage.css, w-roll): it
- * scales about the vanishing point to the place of the next mark nearer to the viewer, which is
- * the perspective of moving forward; the whole row then repeats unchanged. Each mark brings the
+ * The scrolling marks of the take-off roll (Phase 5, A-05). The marks form a self-similar series
+ * (roll-series.ts): mark n is the template at depth z_n, z_n growing by one fixed factor per
+ * mark. The CSS animation (stage.css, w-roll) scales the whole row about the vanishing point from
+ * 1 to that factor once per period, which puts every mark exactly onto the place, size and shape
+ * of the next mark nearer. The last frame of the period is therefore the first frame again. The
+ * nearest slot lies below the picture; the far end fades in through a cover of the runway colour
+ * that depends on the row only (RollFade), so the new mark enters as a speck at the horizon. Each mark brings the
  * centre dash, a warm dash just inside each white edge line (a colour that contrasts with the grey
  * surface and the white lines), a transverse seam (a light joint and a dark shadow line, the
- * expansion joint of the concrete) and two dark rubber marks in turns of place. Every offset
- * shrinks with the depth like the runway itself, so nothing runs through the grass. The speed is
- * one constant in stage.css; Phase 5.1 ties it to the ground speed. No timer, no state.
+ * expansion joint of the concrete) and two dark tyre tracks. Every offset shrinks with the depth
+ * like the runway itself, so nothing runs through the grass. The speed is one constant in
+ * stage.css; Phase 5.1 ties it to the ground speed. No timer, no state.
  */
 function RollMarks() {
   const marks: JSX.Element[] = [];
-  for (let k = 0; k < ROLL_MARKS; k++) {
-    const d0 = 1 + k * ROLL_PITCH;
-    const d1 = d0 + ROLL_LENGTH;
-    const mid = d0 / (d0 - ROLL_PITCH / 2);
-    const end = d0 / (d0 - ROLL_PITCH);
-    // Every offset shrinks with the depth like the runway itself, so the marks stay on their lines.
-    const quad = (centre: number, half: number, depthStart: number, depthEnd: number) =>
-      poly([
-        [(centre - half) / depthEnd, DEPTH / depthEnd],
-        [(centre + half) / depthEnd, DEPTH / depthEnd],
-        [(centre + half) / depthStart, DEPTH / depthStart],
-        [(centre - half) / depthStart, DEPTH / depthStart],
-      ]);
-    const bar = (centre: number, half: number, depthEnd: number) =>
-      quad(centre, half, d0, depthEnd);
-    const seam = d0 + 0.45;
-    const rubberA = ROLL_RUBBER[k % ROLL_RUBBER.length] as number;
-    const rubberB = ROLL_RUBBER[(k * 3 + 2) % ROLL_RUBBER.length] as number;
-    marks.push(
-      <g
-        key={k}
-        class="w-roll-mark"
-        style={`--roll-mid:${mid.toFixed(4)};--roll-to:${end.toFixed(4)}`}
-      >
-        <polygon points={bar(0, 12, d1)} fill="#f1f1ea" />
-        <polygon points={bar(-ROLL_EDGE_OFFSET, 16, d0 + ROLL_LIGHT_LENGTH)} fill="#ffe9a3" />
-        <polygon points={bar(ROLL_EDGE_OFFSET, 16, d0 + ROLL_LIGHT_LENGTH)} fill="#ffe9a3" />
-        <polygon
-          points={quad(0, ROLL_SEAM_HALF, seam, seam + 0.05)}
-          fill="#b9bec3"
-          fill-opacity={0.85}
-        />
-        <polygon
-          points={quad(0, ROLL_SEAM_HALF, seam + 0.05, seam + 0.075)}
-          fill="#1b1e21"
-          fill-opacity={0.8}
-        />
-        <polygon
-          points={quad(rubberA, 26, d0 + 0.05, d0 + 0.3)}
-          fill="#17191b"
-          fill-opacity={0.7}
-        />
-        <polygon points={quad(rubberB, 20, d0 + 0.2, d0 + 0.6)} fill="#17191b" fill-opacity={0.7} />
-      </g>,
-    );
+  for (let n = 0; n <= ROLL_LAST; n++) {
+    for (const kind of ROLL_KINDS) {
+      const polys = rollPolygons(DEPTH, n, kind);
+      const { fill, opacity } = ROLL_COLOURS[kind];
+      const common = { fill, 'fill-opacity': opacity < 1 ? opacity : undefined };
+      const key = `${String(n)}-${kind}`;
+      marks.push(
+        polys.length === 1 ? (
+          <polygon key={key} points={pts(polys[0] as RollPolygon)} {...common} />
+        ) : (
+          <path
+            key={key}
+            d={polys.map((p) => `M${pts(p).replaceAll(' ', 'L')}Z`).join('')}
+            {...common}
+          />
+        ),
+      );
+    }
   }
-  return <g transform={`translate(${SCENE_CENTRE_X} ${HORIZON_Y})`}>{marks}</g>;
+  const scales = rollScales();
+  const vars = scales
+    .slice(1)
+    .map((s, i) => `--roll-s${String(i + 1)}:${s.toFixed(5)}`)
+    .join(';');
+  const { full } = rollFadeRange(DEPTH);
+  return (
+    <g transform={`translate(${SCENE_CENTRE_X} ${HORIZON_Y})`}>
+      <g class="w-roll-mark" style={vars}>
+        {marks}
+      </g>
+      <polygon
+        data-part="roll-fade"
+        points={pts([
+          [0, 0],
+          [(ROLL_FADE_HALF * full) / DEPTH, full],
+          [(-ROLL_FADE_HALF * full) / DEPTH, full],
+        ])}
+        fill="url(#w-roll-fade)"
+      />
+    </g>
+  );
 }
 
 function TakeoffRollScene() {

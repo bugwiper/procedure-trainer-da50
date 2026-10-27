@@ -19,6 +19,20 @@ import {
   veilOpacity,
 } from '../src/ui/panel/windscreen/Ice';
 import { CabinSmoke, SMOKE_MAX_OPACITY, smokeOpacity } from '../src/ui/panel/windscreen/CabinSmoke';
+import {
+  ROLL_FULL_FROM,
+  ROLL_KINDS,
+  ROLL_LAST,
+  ROLL_RATIO,
+  ROLL_STEPS,
+  ROLL_TEMPLATE_FAR,
+  rollFadeRange,
+  rollOpacity,
+  rollPolygons,
+  rollScales,
+  rollState,
+} from '../src/ui/panel/windscreen/roll-series';
+import type { RollPolygon } from '../src/ui/panel/windscreen/roll-series';
 import { HORIZON_Y, SCENES } from '../src/ui/panel/windscreen/scenes';
 import { Windscreen } from '../src/ui/panel/windscreen/Windscreen';
 import { OPENING, OPENING_PATH } from '../src/ui/panel/windscreen/geometry';
@@ -231,53 +245,148 @@ describe('the cloud scene and the moving runway (phase 05 plan 03, A-05)', () =>
     }
   });
 
-  it('every mark brings both animation properties, the end beyond the middle beyond 1', () => {
-    for (const mark of marks('takeoff_roll')) {
-      const style = String(mark.props['style']);
-      const mid = Number(/--roll-mid:([\d.]+)/.exec(style)?.[1]);
-      const end = Number(/--roll-to:([\d.]+)/.exec(style)?.[1]);
-      expect(mid).toBeGreaterThan(1);
-      expect(end).toBeGreaterThan(mid);
-    }
+  const depth = OPENING.y + OPENING.h - HORIZON_Y;
+  const near = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a));
+
+  describe('the seamless loop', () => {
+    const marksCount = ROLL_LAST + 1;
+    it('has ratio, count and fade from one definition and a ratio the template fits into', () => {
+      expect(ROLL_RATIO).toBeGreaterThan(ROLL_TEMPLATE_FAR);
+      expect(ROLL_FULL_FROM).toBeLessThan(ROLL_LAST);
+      const scales = rollScales();
+      expect(scales).toHaveLength(ROLL_STEPS + 1);
+      expect(scales[0]).toBe(1);
+      expect(scales[ROLL_STEPS]).toBe(ROLL_RATIO);
+      for (let i = 1; i < scales.length; i++) {
+        expect(scales[i]).toBeGreaterThan(scales[i - 1] as number);
+      }
+    });
+
+    it.each(ROLL_KINDS)(
+      'the state of a %s mark at the end of the period equals the state of the next mark at the start',
+      (kind) => {
+        for (let n = 1; n <= ROLL_LAST; n++) {
+          const end = rollState(depth, n, kind, ROLL_RATIO);
+          const start = rollState(depth, n - 1, kind, 1);
+          for (const key of ['x', 'y', 'w', 'h', 'opacity'] as const) {
+            expect(near(end[key], start[key]), `${kind} ${String(n)} ${key}`).toBe(true);
+          }
+        }
+      },
+    );
+
+    it('every polygon of every mark lands on the polygon of the mark before it, vertex by vertex', () => {
+      for (const kind of ROLL_KINDS) {
+        for (let n = 1; n <= ROLL_LAST; n++) {
+          const a = rollPolygons(depth, n, kind);
+          const b = rollPolygons(depth, n - 1, kind);
+          expect(a.length).toBe(b.length);
+          a.forEach((poly, i) =>
+            poly.forEach(([x, y], v) => {
+              const [bx, by] = (b[i] as RollPolygon)[v] as [number, number];
+              expect(near(x * ROLL_RATIO, bx)).toBe(true);
+              expect(near(y * ROLL_RATIO, by)).toBe(true);
+            }),
+          );
+        }
+      }
+    });
+
+    it('draws exactly these polygons, and the css animation ends on the same factor', () => {
+      const group = marks('takeoff_roll');
+      expect(group).toHaveLength(1);
+      const drawn = findElements(group[0] as El, (el) => el.tag === 'polygon' || el.tag === 'path');
+      expect(drawn).toHaveLength(marksCount * ROLL_KINDS.length);
+      const style = String((group[0] as El).props['style']);
+      const last = Number(new RegExp(`--roll-s${String(ROLL_STEPS)}:([\\d.]+)`).exec(style)?.[1]);
+      expect(last).toBeCloseTo(ROLL_RATIO, 4);
+      for (let i = 1; i <= ROLL_STEPS; i++) {
+        expect(css).toMatch(new RegExp(`scale\\(var\\(--roll-s${String(i)}\\)\\)`));
+      }
+      // the first polygon drawn is the centre dash of the nearest mark
+      const centre = rollPolygons(depth, 0, 'centre')[0] as RollPolygon;
+      expect(String((drawn[0] as El).props['points'])).toBe(
+        centre.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' '),
+      );
+    });
+
+    it('the nearest slot lies below the picture and the farthest slot is faded out, nothing pops', () => {
+      // mark 0 after the period sits where there is no mark at its start: below the bottom edge
+      for (const kind of ROLL_KINDS) {
+        for (const poly of rollPolygons(depth, -1, kind)) {
+          for (const [, y] of poly) expect(y).toBeGreaterThanOrEqual(depth);
+        }
+      }
+      // the farthest mark starts invisible and the fade is opaque from the middle of the row
+      const { zero, full } = rollFadeRange(depth);
+      for (const kind of ROLL_KINDS) {
+        for (const poly of rollPolygons(depth, ROLL_LAST, kind)) {
+          for (const [, y] of poly) expect(rollOpacity(depth, y)).toBe(0);
+        }
+      }
+      expect(rollOpacity(depth, full)).toBe(1);
+      expect(rollOpacity(depth, (zero + full) / 2)).toBeCloseTo(0.5, 9);
+    });
+
+    it('the fade cover of the scene is the same ramp: runway colour opaque at zero, clear at full', () => {
+      const tree = render({}, 'takeoff_roll');
+      const [ramp] = findElements(tree, (el) => el.props['id'] === 'w-roll-fade') as [El];
+      const { zero, full } = rollFadeRange(depth);
+      expect(Number(ramp.props['y1'])).toBeCloseTo(HORIZON_Y + zero, 9);
+      expect(Number(ramp.props['y2'])).toBeCloseTo(HORIZON_Y + full, 9);
+      const stops = findElements(ramp, (el) => el.tag === 'stop');
+      expect(stops).toHaveLength(2);
+      expect((stops[1] as El).props['stop-opacity']).toBe(0);
+      const cover = findElements(tree, (el) => el.props['data-part'] === 'roll-fade');
+      expect(cover).toHaveLength(1);
+      expect((cover[0] as El).props['fill']).toBe('url(#w-roll-fade)');
+    });
   });
 
   it('the moving texture lies inside the runway at every depth, the warm dashes inside the edge lines', () => {
     // A point on a line through the vanishing point keeps x / y constant: the runway edge lines
     // run from 610 to 634 units from the centre at the bottom edge and the runway surface out to
     // 640 (the mark's own frame is the vanishing point).
-    const depth = OPENING.y + OPENING.h - HORIZON_Y;
-    const ratios = (poly: El) =>
-      String(poly.props['points'])
-        .split(' ')
-        .map((p) => p.split(',').map(Number) as [number, number])
-        .map(([x, y]) => (x * depth) / y);
-    for (const mark of marks('takeoff_roll')) {
-      const polys = findElements(mark, (el) => el.tag === 'polygon');
-      // centre dash, two warm dashes, light seam, dark seam line, two rubber marks
-      expect(polys).toHaveLength(7);
-      for (const poly of polys) {
-        for (const r of ratios(poly)) expect(Math.abs(r)).toBeLessThanOrEqual(610 + 1e-6);
+    const ratio = ([x, y]: readonly [number, number]) => (x * depth) / y;
+    for (let n = -1; n <= ROLL_LAST; n++) {
+      for (const kind of ROLL_KINDS) {
+        for (const poly of rollPolygons(depth, n, kind)) {
+          for (const p of poly) expect(Math.abs(ratio(p))).toBeLessThanOrEqual(610 + 1e-6);
+        }
       }
-      const [centre, left, right, seam] = polys as [El, El, El, El];
-      for (const r of ratios(centre)) expect(Math.abs(r)).toBeLessThanOrEqual(12 + 1e-6);
-      for (const r of ratios(left)) expect(r).toBeLessThan(-540);
-      for (const r of ratios(right)) expect(r).toBeGreaterThan(540);
+      for (const poly of rollPolygons(depth, n, 'centre')) {
+        for (const p of poly) expect(Math.abs(ratio(p))).toBeLessThanOrEqual(12 + 1e-6);
+      }
+      const [left, right] = rollPolygons(depth, n, 'edge') as [RollPolygon, RollPolygon];
+      for (const p of left) expect(ratio(p)).toBeLessThan(-540);
+      for (const p of right) expect(ratio(p)).toBeGreaterThan(540);
       // the seam crosses the runway: it spans both sides of the centre line
-      const seamX = ratios(seam);
-      expect(Math.min(...seamX)).toBeLessThan(-500);
-      expect(Math.max(...seamX)).toBeGreaterThan(500);
+      const seam = (rollPolygons(depth, n, 'seam-light')[0] as RollPolygon).map(ratio);
+      expect(Math.min(...seam)).toBeLessThan(-500);
+      expect(Math.max(...seam)).toBeGreaterThan(500);
     }
+    // the cover of the far fade stays inside the edge lines as well
+    const cover = findElements(
+      render({}, 'takeoff_roll'),
+      (el) => el.props['data-part'] === 'roll-fade',
+    )[0] as El;
+    const covered = String(cover.props['points'])
+      .split(' ')
+      .map((q) => q.split(',').map(Number) as [number, number]);
+    for (const [x, y] of covered) if (y > 0) expect(Math.abs(ratio([x, y]))).toBeLessThan(610);
   });
 
-  it('the texture stays between the first mark depth and the bottom edge of the scene', () => {
-    const [first] = marks('takeoff_roll');
-    const ys = findElements(first as El, (el) => el.tag === 'polygon').flatMap((poly) =>
-      String(poly.props['points'])
-        .split(' ')
-        .map((p) => Number(p.split(',')[1])),
-    );
-    expect(Math.min(...ys)).toBeGreaterThan(0);
-    expect(Math.max(...ys)).toBeLessThanOrEqual(OPENING.y + OPENING.h - HORIZON_Y + 1e-6);
+  it('the texture of the picture stays between the horizon and the bottom edge of the scene', () => {
+    // every mark that is not the slot below the picture starts with its far edge above the bottom
+    for (let n = 0; n <= ROLL_LAST; n++) {
+      for (const kind of ROLL_KINDS) {
+        for (const poly of rollPolygons(depth, n, kind)) {
+          const ys = poly.map((p) => p[1]);
+          expect(Math.min(...ys)).toBeGreaterThan(0);
+          expect(Math.min(...ys)).toBeLessThan(depth);
+        }
+      }
+    }
   });
 
   it('the scrolling is CSS only, at one named speed, and stops under reduced motion', () => {

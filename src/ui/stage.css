@@ -846,10 +846,12 @@ body,
   }
 }
 
-/* The take-off roll scrolls toward the viewer (Phase 5, A-05): every mark scales about the vanishing
-   point (its custom properties, set by RollMarks) to the place of the next mark nearer, once per
-   period, then the row repeats. --w-roll-period is the one speed constant; Phase 5.1 drives it from
-   the ground speed. */
+/* The take-off roll scrolls toward the viewer (Phase 5, A-05): the whole row of marks (a self-similar
+   series, roll-series.ts) scales about the vanishing point from 1 to the factor between two
+   neighbouring marks, once per period, so every mark lands on the place of the next one nearer and
+   the last frame equals the first. The eight keyframes (--roll-s1 to --roll-s8, set by RollMarks)
+   follow an even growth, so the speed does not pulse at the loop. --w-roll-period is the one speed
+   constant; Phase 5.1 drives it from the ground speed. */
 .panel-svg .w-roll-mark {
   --w-roll-period: 0.9s;
   transform-origin: 0 0;
@@ -861,12 +863,36 @@ body,
     transform: scale(1);
   }
 
+  12.5% {
+    transform: scale(var(--roll-s1));
+  }
+
+  25% {
+    transform: scale(var(--roll-s2));
+  }
+
+  37.5% {
+    transform: scale(var(--roll-s3));
+  }
+
   50% {
-    transform: scale(var(--roll-mid));
+    transform: scale(var(--roll-s4));
+  }
+
+  62.5% {
+    transform: scale(var(--roll-s5));
+  }
+
+  75% {
+    transform: scale(var(--roll-s6));
+  }
+
+  87.5% {
+    transform: scale(var(--roll-s7));
   }
 
   to {
-    transform: scale(var(--roll-to));
+    transform: scale(var(--roll-s8));
   }
 }
 
