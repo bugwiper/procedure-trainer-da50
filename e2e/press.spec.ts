@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { TAP_TOGGLE_SKINS } from '../src/engine/registry';
 import { PANEL_EXTENT, PANEL_VIEWBOX } from '../tests/layout-reference';
 import { DRAG_START_PX, MOMENTARY_HOLD_MS } from '../src/ui/panel/press-arbiter';
 import {
@@ -966,7 +967,10 @@ test('the classification gate: every hit and detent element has the data-press c
       case 'rotary':
         return r.isDetent ? 'latch' : 'own';
       case 'detent-lever':
-        return r.isDetent || r.skin === 'parking-flap' ? 'latch' : 'own';
+        // The tap-toggle skins (parking flap, toe brakes, door release) latch on a tap.
+        return r.isDetent || (TAP_TOGGLE_SKINS as readonly string[]).includes(r.skin)
+          ? 'latch'
+          : 'own';
       case 'toggle':
       case 'guarded-toggle':
       case 'guard':
