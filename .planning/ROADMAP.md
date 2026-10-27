@@ -20,7 +20,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Reactive Scenarios and Initial Pack** - Scripted reactions and escalation; Oil Temp High, Electrical Failure and Engine Fire all playable (completed 2026-10-23)
 - [x] **Phase 3.1: Scenario variants and run robustness** (INSERTED) - Several causes behind one failure drawn by seed, a breaker that re-trips, a run that survives a throwing listener and agrees with its replay at the 30-minute cap (completed 2026-10-23)
 - [x] **Phase 4: Electrical system fidelity** - Bus model with bus tie relay, ALT 1 and ALT 2 behaviour, ESS BUS path, combined amps gauge, ALTN 2 FAIL scenario, ALTN checklist fidelity (completed 2026-10-27)
-- [ ] **Phase 5: Windscreen and failure cues** - A windscreen area above the panel with static cues (fire, smoke, iced windscreen later), the onset cue declared in scenario data and checked by lint
+- [ ] **Phase 5: Windscreen and failure cues** - A windscreen area above the panel with scenes (parked, takeoff roll, cruise) and cues driven by the simulation: engine fire flames and smoke, cabin smoke, windscreen ice with warm air and TKS spray; the onset cue declared in scenario data and checked by lint
+- [ ] **Phase 5.1: Ground and takeoff emergencies** (INSERTED) - Rudder pedals with service brakes, ground speed on the takeoff roll, the transponder in the co-pilot footwell, the oval emergency window, and the scenarios engine fire on ground, on takeoff (abort and no abort), electrical fire on ground and in flight, unintentional flight into icing
 - [ ] **Phase 6: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim and the real engine page layout
 - [ ] **Phase 7: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
 - [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop
@@ -473,8 +474,16 @@ Plans:
 
 ### Phase 5: Windscreen and failure cues
 
-**Goal**: A windscreen area above the panel shows static failure cues (fire, smoke, an iced windscreen later), so a Realistic run without briefing gives the pilot something to see; the onset cue of each scenario is declared in scenario data and checked by lint. Source: .planning/todos/pending/2026-10-23-realistic-level-visual-cues.md.
+**Goal**: A windscreen area above the panel shows the situation (parked in front of a hangar, takeoff roll, cruise flight over simple landscape) and failure cues driven by the simulation quantities: engine fire flames and smoke outside, smoke inside the cabin partly hiding the instrument panel, a freezing windscreen with ice crystals and milky vision that warm air removes slowly and the WIND SHIELD TKS spray removes visibly (pilot side only). A Realistic run without briefing gives the pilot something to see; the scene and the onset cue of each scenario are declared in scenario data and checked by lint. Optional extras chosen by the owner on 2026-10-27: oil streaks on the windscreen, a stopped propeller on engine failure, night and dusk scenes, cloud for icing, aural cues (Web Audio), a moving runway on the takeoff roll. Source: .planning/todos/pending/2026-10-23-realistic-level-visual-cues.md (owner spec section).
 **Depends on**: Phase 3.1
+**Requirements**: TBD (to be defined when the phase is planned)
+
+**Plans**: TBD
+
+### Phase 5.1: Ground and takeoff emergencies (INSERTED)
+
+**Goal**: The panel and the pack cover emergencies on the ground and during takeoff: two rudder pedals with toe brakes (service brakes) in the pilot's footwell and a ground speed on the takeoff roll, the transponder moved into the co-pilot footwell beside the situation buttons, the oval emergency window that can be opened, and the scenarios engine fire on ground, engine fire on takeoff (abort possible and not possible), electrical fire with smoke on ground and in flight, and unintentional flight into icing, each with its printed checklist verbatim (edition 4.1) and its scene from Phase 5. Source: .planning/todos/pending/2026-10-23-realistic-level-visual-cues.md (owner spec section).
+**Depends on**: Phase 5
 **Requirements**: TBD (to be defined when the phase is planned)
 
 **Plans**: TBD
@@ -531,6 +540,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
 | 5. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
+| 5.1 Ground and takeoff emergencies                    | 0/TBD          | Not started | -          |
 | 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |
