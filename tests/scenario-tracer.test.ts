@@ -374,6 +374,7 @@ describe('the pack seam', () => {
         free: true,
         scenarios: [
           { id: 'eng-fire-ground', title: 'ENGINE FIRE GROUND', file: 'eng-fire-ground' },
+          { id: 'elec-fire-ground', title: 'ELEC FIRE GROUND', file: 'elec-fire-ground' },
         ],
       },
     ]);

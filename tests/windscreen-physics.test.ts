@@ -73,16 +73,58 @@ describe('cabin smoke (C-02)', () => {
     expect(quantity(state.quantities, 'smoke_density')).toBe(0);
   });
 
-  it('has no ventilation effect: the ECS and circulating air controls change nothing', () => {
+  it('builds up at the plain rate: the ECS, the circulating air and the window do not speed it', () => {
     const events: SimEvent[] = [
       { t: 0, id: 'lv.env_circ', value: 'fresh' },
       { t: 0, id: 'lv.ecs_shutoff', value: 'pulled' },
+      { t: 0, id: 'sw.emerg_window', value: 'open' },
     ];
     const plain = run(fixture({ smoke_source: 1 }), MINUTE_MS);
     const handled = run(fixture({ smoke_source: 1 }), MINUTE_MS, events);
     expect(quantity(handled.quantities, 'smoke_density')).toBe(
       quantity(plain.quantities, 'smoke_density'),
     );
+  });
+
+  describe('clearing (Phase 5.1)', () => {
+    const FULL = { smoke_density: 100 } as const;
+    const density = (events: readonly SimEvent[], untilMs: number): number =>
+      quantity(
+        run(fixture({ smoke_source: 1 }), untilMs, events, FULL).quantities,
+        'smoke_density',
+      );
+    const MASTER_OFF: SimEvent = { t: 0, id: 'sw.elect_master', value: 'off' };
+    const FRESH: SimEvent = { t: 0, id: 'lv.env_circ', value: 'fresh' };
+    const WINDOW: SimEvent = { t: 0, id: 'sw.emerg_window', value: 'open' };
+
+    it('stays full while ELECT. MASTER is on, whatever the ventilation', () => {
+      expect(density([FRESH, WINDOW], MINUTE_MS)).toBeGreaterThan(99.9);
+    });
+
+    it('starts to clear once ELECT. MASTER is off, with the plain time constant of 15 s', () => {
+      // One time constant: the density falls to about 37 % of its start.
+      const after = density([MASTER_OFF], 15_000);
+      expect(after).toBeGreaterThan(35);
+      expect(after).toBeLessThan(39);
+      expect(density([MASTER_OFF], 5 * MINUTE_MS)).toBeLessThan(0.1);
+    });
+
+    it('clears faster with fresh air, faster still with the window too, at most 3 times as fast', () => {
+      const plain = density([MASTER_OFF], 10_000);
+      const fresh = density([MASTER_OFF, FRESH], 10_000);
+      const window = density([MASTER_OFF, WINDOW], 10_000);
+      const both = density([MASTER_OFF, FRESH, WINDOW], 10_000);
+      expect(fresh).toBeLessThan(plain);
+      expect(window).toBeLessThan(plain);
+      expect(both).toBeLessThan(fresh);
+      expect(both).toBeLessThan(window);
+      // Both together (rate 3) over 10 s equal the plain clearing over 30 s, within a step.
+      expect(Math.abs(both - density([MASTER_OFF], 30_000))).toBeLessThan(0.5);
+    });
+
+    it('ventilation alone does not clear smoke that has a live source', () => {
+      expect(density([FRESH, WINDOW], 10_000)).toBeGreaterThan(99.9);
+    });
   });
 
   it('a live run equals the replay at every step, to the last digit', () => {

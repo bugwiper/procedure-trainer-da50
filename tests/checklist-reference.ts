@@ -65,6 +65,20 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
       { kind: 'row', number: 'E', item: 'Airplane', action: 'evacuate immediately' },
     ],
   },
+  'elec-fire-ground': {
+    form: 'table',
+    heading: 'Electrical Fire with Smoke on Ground',
+    rows: [
+      { kind: 'row', number: 'A', item: 'ELECT. MASTER', action: 'OFF' },
+      { kind: 'comment', style: 'subheading', text: 'If the Engine Is Running' },
+      { kind: 'row', number: 'B', item: 'POWER lever', action: 'Ground Idle (GI)' },
+      { kind: 'row', number: 'C', item: 'ENGINE MASTER', action: 'OFF' },
+      { kind: 'row', number: 'D', item: 'FUEL valve', action: 'OFF (lift and turn)' },
+      { kind: 'comment', style: 'subheading', text: 'When the Engine Has Stopped' },
+      { kind: 'row', number: 'E', item: 'Door', action: 'open' },
+      { kind: 'row', number: 'F', item: 'Airplane', action: 'evacuate immediately' },
+    ],
+  },
   'elec-altn1-fail': {
     form: 'table',
     heading: 'ALTN 1 FAIL',
@@ -167,6 +181,7 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
 /** The scenario file of each reference entry, relative to the repository root. */
 export const PRINTED_FILES: Readonly<Record<string, string>> = {
   'eng-fire-ground': 'scenarios/fire/eng-fire-ground.toon',
+  'elec-fire-ground': 'scenarios/fire/elec-fire-ground.toon',
   'elec-altn1-fail': 'scenarios/electrical/elec-altn1-fail.toon',
   'elec-altn2-fail': 'scenarios/electrical/elec-altn2-fail.toon',
   'eng-fire-in-flight': 'scenarios/engine/eng-fire-in-flight.toon',

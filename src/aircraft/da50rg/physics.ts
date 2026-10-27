@@ -102,10 +102,16 @@ const FIRE_OIL_RISE = 30;
 const FIRE_COOLANT_RISE = 30;
 const FIRE_GEARBOX_RISE = 40;
 
-// Cabin smoke (Phase 5, C-02): the hidden smoke density (0 to 100) lags toward the full scale times
-// the scenario parameter smoke_source. No ventilation effect is modelled (the printed checklists
-// of Phase 5.1 decide that). Compressed, an instructor-review value.
+// Cabin smoke (Phase 5, C-02; ventilation and the source switch from Phase 5.1): the hidden smoke
+// density (0 to 100) lags toward the full scale times the scenario parameter smoke_source while
+// ELECT. MASTER is on, and toward 0 once it is off (the electrical source is gone). The build-up
+// has the plain time constant. The clearing runs SMOKE_CLEAR_BASE times as fast, plus
+// SMOKE_CLEAR_FRESH_AIR with CIRCULATING AIR at fresh, plus SMOKE_CLEAR_WINDOW with the emergency
+// window open, so at most 3 times as fast. Compressed, instructor-review values.
 const SMOKE_TAU_MS = 15_000;
+const SMOKE_CLEAR_BASE = 1;
+const SMOKE_CLEAR_FRESH_AIR = 1;
+const SMOKE_CLEAR_WINDOW = 1;
 
 // Windscreen ice (Phase 5, C-04) and the WIND SHIELD spray. All values are instructor-review
 // values, none is an AFM figure. Per half of the windscreen the ice (0 to 100) grows by
@@ -229,7 +235,19 @@ function fireFeed(inputs: PhysicsInputs): number {
 const SMOKE_FULL = bandTop('smoke_density', 'unmarked');
 
 function smokeTarget(inputs: PhysicsInputs): number {
+  if (stateOf(inputs, 'sw.elect_master') !== 'on') return 0;
   return SMOKE_FULL * parameterOf(inputs, 'smoke_source');
+}
+
+/**
+ * The rate of the smoke lag: the build-up is the plain lag, the clearing (the target below the
+ * reading) is faster with fresh air and with the open emergency window.
+ */
+function smokeRate(inputs: PhysicsInputs): number {
+  if (smokeTarget(inputs) >= quantityOf(inputs, 'smoke_density')) return 1;
+  const fresh = stateOf(inputs, 'lv.env_circ') === 'fresh' ? SMOKE_CLEAR_FRESH_AIR : 0;
+  const windowOpen = stateOf(inputs, 'sw.emerg_window') === 'open' ? SMOKE_CLEAR_WINDOW : 0;
+  return SMOKE_CLEAR_BASE + fresh + windowOpen;
 }
 
 /** Warm air toward the windscreen: DIRECTION at DEFROST with TEMPERATURE at 75 or WARM. */
@@ -436,7 +454,7 @@ export const DA50RG_PHYSICS = definePhysics(
       lag('alt1_fault', STEP_MS, (inputs) => (acuFault(inputs, 1) ? 1 : 0)),
       lag('alt2_fault', STEP_MS, (inputs) => (acuFault(inputs, 2) ? 1 : 0)),
       lag('fire_intensity', FIRE_TAU_MS, fireTarget),
-      lag('smoke_density', SMOKE_TAU_MS, smokeTarget),
+      lag('smoke_density', SMOKE_TAU_MS, smokeTarget, smokeRate),
       { quantity: 'ice_pilot', mode: 'rate', perMinute: (inputs) => icePerMinute(inputs, true) },
       { quantity: 'ice_copilot', mode: 'rate', perMinute: (inputs) => icePerMinute(inputs, false) },
       {
