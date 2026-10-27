@@ -500,13 +500,13 @@ Plans:
 **Depends on**: Phase 5
 **Requirements**: PNL-20, SCN-13, SES-08, CNT-05
 
-**Plans:** 3 plans (lean form, see WORKFLOW.md)
+**Plans:** 1/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
 **Wave 1**
 
-- [ ] 05.1-01 — Tracer: toe brakes (one latching pedal-pair control in the pilot's footwell) with a ground speed that drives the take-off roll scene; the transponder moved beside the situation buttons and a chooser that pages; the red door release lever at the left edge and the emergency window oval in the side pane at the far left
+- [x] 05.1-01 — Tracer: toe brakes (one latching pedal-pair control in the pilot's footwell) with a ground speed that drives the take-off roll scene; the transponder moved beside the situation buttons and a chooser that pages; the red door release lever at the left edge and the emergency window oval in the side pane at the far left
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -568,7 +568,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
 | 5. Windscreen and failure cues                        | 3/3 | Complete    | 2026-10-27 |
-| 5.1 Ground and takeoff emergencies                    | 0/3            | Not started | -          |
+| 5.1 Ground and takeoff emergencies                    | 1/3 | In Progress | -          |
 | 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |
