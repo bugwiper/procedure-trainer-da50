@@ -199,7 +199,7 @@ describe('the scenes', () => {
 describe('the cloud scene and the moving runway (phase 05 plan 03, A-05)', () => {
   const css = readFileSync(new URL('../src/ui/stage.css', import.meta.url), 'utf8');
   const marks = (id: string): El[] =>
-    findElements(render({}, id), (el) => String(el.props['class'] ?? '').includes('w-roll-mark'));
+    findElements(render({}, id), (el) => el.props['class'] === 'w-roll-mark');
 
   it('the scene ids are the keys of the art record, the cloud among them', () => {
     expect([...SCENE_IDS].sort()).toEqual(Object.keys(SCENES).sort());
