@@ -15,8 +15,8 @@
 // REALISTIC_SHOW_WITHIN_MS after the onset, and the Realistic setup is sound (onset.parameters and
 // onset.quantities name known ids inside their ranges, and no branch decided at the start reads a
 // quantity the onset block sets, because grade decides such a branch on the initial state, WR-04).
-// L16 and L17 (plan 03-13) keep a printed checklist consistent: L16 wants the row numbers present
-// to run 1, 2, 3 in document order (rows without a number are free); L17 keeps the two forms apart
+// L16 and L17 (plan 03-13) keep a printed checklist consistent: L16 wants the row marks present
+// to run 1, 2, 3 (or A, B, C, one style per checklist) in document order (rows without a mark are free); L17 keeps the two forms apart
 // (table: numbers, actions and comments, no decision, branch or marker; outline: markers, no
 // number, action, comment or boxed).
 // Variants (phase 3.1, SCN-09): L18 checks the references of a variant (unique ids, known controls,
@@ -586,8 +586,9 @@ function resolveSteps(scenario: Scenario): Step[] {
  * L16 and L17: a checklist as printed. L16: in document order (a group's steps in order, nested
  * nodes where they stand) the numbers present are 1, 2, 3 and so on; a gap, a repeat or a start
  * other than 1 is reported at the number, with the expected and the found number; counting resumes
- * after a higher number and keeps the expected one after a repeat, so one slip is one issue. L17: the table form has no decision, branch or
- * marker (a marker is reported at its own key as well); the outline form (the default) has no number, action, comment node or boxed.
+ * after a higher number and keeps the expected one after a repeat, so one slip is one issue. L16 reads letters as their place in the
+ * alphabet and reports a mix of numbers and letters once, at the first mismatch. L17: the table form has no decision, branch or
+ * marker (a marker is reported at its own key as well); the outline form (the default) has no number, action, comment node, comment style or boxed.
  */
 function checkChecklist(
   scenario: Scenario,
@@ -595,15 +596,31 @@ function checkChecklist(
 ): void {
   const table = scenario.checklist?.form === 'table';
   let expected = 1;
-  const numbered = (path: Segments, number: number | undefined): void => {
-    if (number === undefined) return;
+  let letters: boolean | undefined;
+  const placeOf = (mark: number | string): number =>
+    typeof mark === 'number' ? mark : mark.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
+  const shown = (place: number): string =>
+    letters === true ? String.fromCharCode('A'.charCodeAt(0) + place - 1) : String(place);
+  const numbered = (path: Segments, mark: number | string | undefined): void => {
+    if (mark === undefined) return;
+    const isLetter = typeof mark === 'string';
+    letters ??= isLetter;
+    if (isLetter !== letters) {
+      // One checklist uses one style of marks; the slip is one issue and counting goes on.
+      add([...path, 'number'], `row mark ${String(mark)} mixes numbers and letters`);
+      const place = placeOf(mark);
+      if (place === expected) expected++;
+      else if (place > expected) expected = place + 1;
+      return;
+    }
+    const number = placeOf(mark);
     if (number === expected) {
       expected++;
       return;
     }
     add(
       [...path, 'number'],
-      `row number ${String(number)} breaks the numbering; expected ${String(expected)}`,
+      `row ${letters ? 'mark' : 'number'} ${String(mark)} breaks the numbering; expected ${shown(expected)}`,
     );
     // A gap or a late start resumes after the found number; a repeat keeps the expected one.
     if (number > expected) expected = number + 1;
@@ -630,8 +647,15 @@ function checkChecklist(
           if (!table) outlineOnly(here, { number: node.number, action: node.action }, 'outline');
           return;
         case 'comment':
-          if (!table)
+          if (!table) {
             add(here, 'a comment row is for the table form; this checklist is an outline');
+            if (node.style !== undefined) {
+              add(
+                [...here, 'style'],
+                'a comment style is for the table form; this checklist is an outline',
+              );
+            }
+          }
           return;
         case 'group':
           node.steps.forEach((step, j) => {

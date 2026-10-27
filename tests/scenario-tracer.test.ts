@@ -368,6 +368,14 @@ describe('the pack seam', () => {
           { id: 'eng-fire-in-flight', title: 'ENGINE FIRE', file: 'eng-fire-in-flight' },
         ],
       },
+      {
+        id: 'fire',
+        title: 'Fire and smoke',
+        free: true,
+        scenarios: [
+          { id: 'eng-fire-ground', title: 'ENGINE FIRE GROUND', file: 'eng-fire-ground' },
+        ],
+      },
     ]);
   });
 

@@ -1,0 +1,8 @@
+# Manifest of the fire pack (format 1). Lists the scenarios without loading them.
+format: 1
+title: Fire and smoke
+free: true
+scenarios[1]:
+  - id: eng-fire-ground
+    title: ENGINE FIRE GROUND
+    file: eng-fire-ground

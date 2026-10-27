@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Page, Route } from '@playwright/test';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { parseScenario } from '../src/scenario/parse';
+import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
 import {
   chooseScenario,
   quantityOf,
@@ -150,7 +151,8 @@ test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its br
   await expect(page.locator(CHOOSE_SITUATION)).toHaveCount(0);
   await expect(page.locator(NEW_SITUATION)).toHaveCount(0);
   const rows = page.locator('[data-session-hit^="session.row."]');
-  const shipped = shippedScenarios();
+  // The list holds one page of situations (plan 05.1-01); the pages are checked in pack.spec.ts.
+  const shipped = shippedScenarios().slice(0, SESSION_LAYOUT.choose.maxRows);
   await expect(rows).toHaveCount(shipped.length);
   for (const entry of shipped) {
     const row = page.getByRole('button', { name: `Open briefing: ${entry.title}` });

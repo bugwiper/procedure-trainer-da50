@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_TEXT_LENGTH, parseManifest, parseScenario } from '../src/scenario/parse';
-import { MARKERS, MAX_LINE_WORDS } from '../src/scenario/schema';
+import { MARKERS, MAX_LINE_WORDS, MAX_NOTE_WORDS } from '../src/scenario/schema';
 import { colOf, lineOf, MINIMAL, swap } from './scenario-text';
 
 // Parser errors of an author (SCN-01): every issue names its line and column. Each case edits the
@@ -226,6 +226,51 @@ describe('a checklist as printed (plan 03-13)', () => {
     ]) {
       expect(parseScenario(withNode(body)).ok).toBe(true);
     }
+  });
+
+  it('accepts a capital letter as a row mark on a line and rejects the other strings', () => {
+    expect(parseScenario(withLine('    number: A')).ok).toBe(true);
+    expect(parseScenario(withLine('    number: Z')).ok).toBe(true);
+    for (const bad of ['a', 'AB', '"1"', '"0"', '""']) {
+      const text = withLine(`    number: ${bad}`);
+      const issues = issuesOf(text);
+      expect(issues, bad).toHaveLength(1);
+      expect(issues[0]).toMatchObject({
+        path: 'procedure.1.number',
+        line: lineOf(text, `number: ${bad}`),
+      });
+    }
+  });
+
+  it('accepts the three comment styles and rejects an unknown one at the key', () => {
+    for (const style of ['subheading', 'warning', 'caution']) {
+      const body = `  - kind: comment\n    style: ${style}\n    text: After Standstill`;
+      expect(parseScenario(withNode(body)).ok, style).toBe(true);
+    }
+    const text = withNode('  - kind: comment\n    style: bold\n    text: After Standstill');
+    expect(issuesOf(text)).toContainEqual(
+      expect.objectContaining({ path: 'procedure.2.style', line: lineOf(text, 'style: bold') }),
+    );
+  });
+
+  it('caps a plain or sub-heading comment at the line words and a WARNING or CAUTION block at MAX_NOTE_WORDS', () => {
+    const words = (n: number): string => Array.from({ length: n }, () => 'word').join(' ');
+    const comment = (style: string, n: number): string =>
+      `  - kind: comment\n    style: ${style}\n    text: ${words(n)}`;
+    expect(parseScenario(withNode(comment('subheading', MAX_LINE_WORDS))).ok).toBe(true);
+    const long = withNode(comment('subheading', MAX_LINE_WORDS + 1));
+    expect(issuesOf(long)).toContainEqual(
+      expect.objectContaining({ path: 'procedure.2.text', line: lineOf(long, 'text: word') }),
+    );
+    for (const style of ['warning', 'caution']) {
+      expect(parseScenario(withNode(comment(style, MAX_NOTE_WORDS))).ok, style).toBe(true);
+      const over = withNode(comment(style, MAX_NOTE_WORDS + 1));
+      expect(issuesOf(over), style).toContainEqual(
+        expect.objectContaining({ path: 'procedure.2.text' }),
+      );
+    }
+    const plain = withNode(`  - kind: comment\n    text: ${words(MAX_LINE_WORDS + 1)}`);
+    expect(issuesOf(plain)).toContainEqual(expect.objectContaining({ path: 'procedure.2.text' }));
   });
 
   it('rejects an unknown key in a comment at the key itself', () => {

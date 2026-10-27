@@ -747,3 +747,62 @@ describe('the printed markers of ENG OIL TEMP', () => {
     expect(ChecklistHeading({ heading: undefined, message: undefined })).toBeNull();
   });
 });
+
+// The AFM form (plan 05.1-02): letter marks, an italic sub-heading and a WARNING block, from the
+// shipped Engine Fire on Ground file and a take-off file with its printed WARNING.
+describe('the AFM form of a checklist', () => {
+  const ground = load(readFileSync(join(root, 'scenarios/fire/eng-fire-ground.toon'), 'utf8'));
+  const printed = PRINTED['eng-fire-ground'] as PrintedTable;
+  const items = briefingOf(ground);
+
+  it('lists letter marks and the sub-heading as printed', () => {
+    const shown = items.map((item) => {
+      if (item.kind === 'comment') return { kind: 'comment', style: item.style, text: item.text };
+      if (item.kind !== 'line' && item.kind !== 'step') throw new Error(`unexpected ${item.kind}`);
+      return { kind: 'row', number: item.number, item: item.text, action: item.action };
+    });
+    const expected = printed.rows.map((row) =>
+      row.kind === 'comment'
+        ? { kind: 'comment', style: row.style, text: row.text }
+        : { kind: 'row', number: row.number, item: row.item, action: row.action },
+    );
+    expect(shown).toEqual(expected);
+  });
+
+  it('draws the sub-heading as an italic full-width row without a number', () => {
+    const tree = expand(ChecklistOutline({ items, form: 'table' }));
+    const [sub] = findElements(tree, (el) => el.props['data-style'] === 'subheading');
+    expect(sub).toBeDefined();
+    if (sub === undefined) return;
+    expect(textOf(sub)).toBe('After Standstill');
+    expect(findElements(sub, (el) => classesOf(el).includes('outline-subheading'))).toHaveLength(1);
+    expect(findElements(sub, (el) => classesOf(el).includes('outline-number'))).toHaveLength(0);
+  });
+
+  it('draws the letter marks in the number cell', () => {
+    const tree = expand(ChecklistOutline({ items, form: 'table' }));
+    const marks = findElements(tree, (el) => classesOf(el).includes('outline-number')).map(textOf);
+    expect(marks).toEqual(
+      printed.rows.flatMap((row) => (row.kind === 'row' ? [String(row.number)] : [])),
+    );
+  });
+
+  it('draws a WARNING or CAUTION block with its printed word above the text', () => {
+    for (const [style, word] of [
+      ['warning', 'WARNING'],
+      ['caution', 'CAUTION'],
+    ] as const) {
+      const block: OutlineItem[] = [
+        { kind: 'comment', style, text: 'DO NOT TURN BACK', muted: false },
+      ];
+      const tree = expand(ChecklistOutline({ items: block, form: 'table' }));
+      const [row] = findElements(tree, (el) => el.props['data-style'] === style);
+      expect(row, style).toBeDefined();
+      if (row === undefined) continue;
+      const parts = findElements(row, (el) =>
+        classesOf(el).some((c) => c.startsWith('outline-n') || c === 'outline-text'),
+      );
+      expect(parts.map(textOf)).toEqual([word, 'DO NOT TURN BACK']);
+    }
+  });
+});

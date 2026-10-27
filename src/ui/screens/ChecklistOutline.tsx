@@ -1,3 +1,4 @@
+import type { CommentStyle, RowMark } from '../../scenario/schema';
 import type { OutlineItem, OutlineMarker, OutlineVerdict, VerdictTone } from '../outline';
 
 // The recursive checklist outline of the briefing and the debrief (UI-SPEC "Checklist outline",
@@ -13,6 +14,12 @@ import type { OutlineItem, OutlineMarker, OutlineVerdict, VerdictTone } from '..
 
 /** How the items are laid out: numbered rows with actions at the right, or the marked outline. */
 export type ChecklistForm = 'table' | 'outline';
+
+/** The printed word above a WARNING or CAUTION block; the sub-heading draws none. */
+const NOTE_WORDS: Readonly<Record<Exclude<CommentStyle, 'subheading'>, string>> = {
+  warning: 'WARNING',
+  caution: 'CAUTION',
+};
 
 const TONE_COLORS: Readonly<Record<VerdictTone, string>> = {
   done: '#2fd36f',
@@ -133,7 +140,7 @@ function TableCells({
   action,
   muted,
 }: {
-  readonly number: number | undefined;
+  readonly number: RowMark | undefined;
   readonly text: string;
   readonly action: string | undefined;
   readonly muted: boolean;
@@ -189,21 +196,22 @@ function Item({
         </li>
       );
     }
-    case 'comment':
+    case 'comment': {
+      const classes = ['outline-row', 'outline-comment'];
+      if (item.boxed === true) classes.push('outline-boxed');
+      if (item.style !== undefined) classes.push(`outline-${item.style}`);
       return (
         <li
           class="outline-item"
           data-kind="comment"
           data-boxed={item.boxed === true ? 'true' : undefined}
+          data-style={item.style}
           data-muted={item.muted ? 'true' : undefined}
         >
-          <div
-            class={
-              item.boxed === true
-                ? 'outline-row outline-comment outline-boxed'
-                : 'outline-row outline-comment'
-            }
-          >
+          <div class={classes.join(' ')}>
+            {item.style === 'warning' || item.style === 'caution' ? (
+              <span class="outline-note-word">{NOTE_WORDS[item.style]}</span>
+            ) : null}
             <span class={item.muted ? 'outline-text outline-muted' : 'outline-text'}>
               {item.text}
             </span>
@@ -211,6 +219,7 @@ function Item({
           </div>
         </li>
       );
+    }
     case 'step': {
       const table = form === 'table';
       const label: string[] = [];

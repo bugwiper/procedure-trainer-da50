@@ -11,7 +11,7 @@
 // Pure TypeScript, no DOM, no framework, no clock.
 
 import type { BranchStatus, BranchVerdict, GradeResult, StepVerdict } from '../engine/grading';
-import type { MARKERS, ProcedureNode, Scenario } from '../scenario/schema';
+import type { CommentStyle, MARKERS, ProcedureNode, RowMark, Scenario } from '../scenario/schema';
 import { orderLine } from './debrief-text';
 
 /**
@@ -35,9 +35,9 @@ export interface OutlineVerdict {
 /** The printed marker of an outline item; a name only, the renderer draws the shape. */
 export type OutlineMarker = (typeof MARKERS)[number];
 
-/** The printed number, desired action and marker of a line or step, each only when declared. */
+/** The printed row mark (number or letter), desired action and marker of a line or step, each only when declared. */
 interface Printed {
-  readonly number?: number;
+  readonly number?: RowMark;
   readonly action?: string;
   readonly marker?: OutlineMarker;
 }
@@ -60,6 +60,8 @@ export interface OutlineComment {
   readonly text: string;
   readonly action?: string;
   readonly boxed?: boolean;
+  /** An italic sub-heading, or a WARNING or CAUTION block (its printed word is drawn above the text). */
+  readonly style?: CommentStyle;
   readonly muted: boolean;
 }
 
@@ -127,7 +129,7 @@ export function checklistHead(scenario: Scenario): ChecklistHead {
 
 /** The number, action and marker a node declares, as an object with only the declared keys. */
 function printedOf(node: {
-  readonly number?: number | undefined;
+  readonly number?: RowMark | undefined;
   readonly action?: string | undefined;
   readonly marker?: OutlineMarker | undefined;
 }): Printed {
@@ -218,6 +220,7 @@ export function buildOutline(
             text: node.text,
             ...(node.action === undefined ? {} : { action: node.action }),
             ...(node.boxed === undefined ? {} : { boxed: node.boxed }),
+            ...(node.style === undefined ? {} : { style: node.style }),
             muted,
           });
           return;

@@ -48,6 +48,7 @@ function tableRows(nodes: readonly ProcedureNode[]): PrintedItem[] {
           text: node.text,
           ...(node.boxed === true ? { boxed: true as const } : {}),
           ...(node.action === undefined ? {} : { reference: node.action }),
+          ...(node.style === undefined ? {} : { style: node.style }),
         });
         break;
       case 'decision':

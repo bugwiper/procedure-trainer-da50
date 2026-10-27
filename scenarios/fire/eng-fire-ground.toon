@@ -1,0 +1,111 @@
+# ENGINE FIRE on the ground (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decisions 2026-10-23 and 2026-10-27): the heading, every item, action and sub-heading as printed. The row marks are the letters A to E of the AFM page that was compared. ASSUMPTION for the owner: the booklet may print numbers 1 to 5 instead; the marks are plain data (the `number` fields), so swapping them is one edit per row plus the typed table in tests/checklist-reference.ts. The Door row is graded on the door release lever (state open); the printed row "Airplane evacuate immediately" has no panel action and stays a line. All other text is own wording. The fire constants, the outcome threshold and hold time, the onset window and the forbidden items are copied from ENGINE FIRE in flight and are instructor-review values.
+format: 1
+id: eng-fire-ground
+title: ENGINE FIRE GROUND
+source:
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
+  section: AFM 03-29 ENGINE FIRE ON GROUND
+  verified: "2026-10-27"
+disclaimer: training-aid
+scene: parked
+briefing:
+  situation: "You are on the apron with the engine idling when you see smoke and flames coming from the engine compartment. No message is shown on the primary flight display. The fire is growing and the engine temperatures are rising."
+initial:
+  controls:
+    lv.power: p0
+  quantities:
+    fire_intensity: 40
+    oil_temp_c: 103
+    coolant_temp_c: 97
+    gearbox_temp_c: 91
+parameters:
+  engine_fire: 1
+annunciations[0]:
+checklist:
+  form: table
+  heading: Engine Fire on Ground
+procedure[6]:
+  - kind: group
+    id: grp_eng_master
+    ordered: false
+    steps[1]:
+      - id: engine_master_off
+        severity: critical
+        number: A
+        text: ENGINE MASTER
+        action: "OFF"
+        done:
+          check: state
+          control: sw.engine_master
+          is: off
+  - kind: group
+    id: grp_fuel_valve
+    ordered: false
+    steps[1]:
+      - id: fuel_valve_off
+        severity: critical
+        number: B
+        text: FUEL valve
+        action: "OFF"
+        done:
+          check: state
+          control: sw.fuel_valve
+          is: off
+  - kind: group
+    id: grp_elect_master
+    ordered: false
+    steps[1]:
+      - id: elect_master_off
+        severity: critical
+        number: C
+        text: ELECT. MASTER
+        action: "OFF"
+        done:
+          check: state
+          control: sw.elect_master
+          is: off
+  - kind: comment
+    style: subheading
+    text: After Standstill
+  - kind: group
+    id: grp_door
+    ordered: false
+    steps[1]:
+      - id: door_open
+        severity: critical
+        number: D
+        text: Door
+        action: open
+        done:
+          check: state
+          control: lv.door_release
+          is: open
+  - kind: line
+    number: E
+    text: Airplane
+    action: evacuate immediately
+# The emergency fuel pump would feed the fire and fails the run. It is an instructor-review item.
+forbidden[1]:
+  - id: emerg_fuel_pump_on
+    text: Switch on the emergency fuel pump
+    fails_run: true
+    trigger:
+      check: state
+      control: sw.emerg_fuel_pump
+      is: "on"
+# The outcome ends the run as a fail when the fire stays at a high intensity; the intensity and the hold time are instructor-review values.
+outcomes[1]:
+  - id: fire_spreads
+    text: Fire spreads beyond the engine compartment
+    hold_s: 20
+    when:
+      check: quantity
+      quantity: fire_intensity
+      op: gte
+      value: 85
+# The fire of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
+# The fire shows by its flames and smoke over the cowl, since the scenario lists no message; the lint checks that they show within seconds of the onset.
+onset:
+  window_s[2]: 2,6
+  cues[1]: flames

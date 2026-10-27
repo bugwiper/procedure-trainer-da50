@@ -13,12 +13,12 @@ DA50 and Diamond are trademarks of Diamond Aircraft Industries. Garmin and G1000
 The following kinds of content may be committed to this repository:
 
 - (a) Facts expressed as structured data: control names and positions, numeric limits, colour-band values, and the order of procedure steps.
-- (b) Checklist text, reproduced exactly as printed, as the subsection below defines it. WARNING, CAUTION and NOTE prose, figures, charts, performance tables and page images are never copied, and the explanatory prose of the manual is never copied as continuous text.
+- (b) Checklist text, reproduced exactly as printed, as the subsection below defines it. That includes the WARNING and CAUTION blocks that stand inside a checklist. NOTE prose, figures, charts, performance tables and page images are never copied, and the explanatory prose of the manual is never copied as continuous text.
 - (c) All narrative and explanatory text, written in the author's own words (paraphrased, never copied).
 
 ### Verbatim checklist text
 
-Checklist text is reproduced exactly as printed in the checklist booklet or the AFM checklist: the heading, the message tag, every item, every desired action, the comment lines between the rows, the branch labels and the markers that are printed in front of the lines. Wording, spelling, upper and lower case and the order of the lines are kept; nothing is shortened, reworded or paraphrased, because for training the exact wording matters. Numbers are kept where the checklist has them and left out where it has none.
+Checklist text is reproduced exactly as printed in the checklist booklet or the AFM checklist: the heading, the message tag, every item, every desired action, the comment lines between the rows (including the sub-headings, such as After Standstill), the WARNING and CAUTION blocks that stand inside the checklist with their printed word, the branch labels, the row marks (numbers or letters) and the markers that are printed in front of the lines. Wording, spelling, upper and lower case and the order of the lines are kept; nothing is shortened, reworded or paraphrased, because for training the exact wording matters. Numbers are kept where the checklist has them and left out where it has none.
 
 This rule covers the checklist text only. The situation text, the briefing, the debrief wording, the messages of the app and every other narrative text stay in the author's own words, and the prose of the manual is not copied.
 
@@ -26,7 +26,7 @@ A line the author adds that is not printed (for example an own graded step for a
 
 The line cap of the scenario schema is a layout bound for the screen, not a legal limit and not a style rule.
 
-Decided by the project owner on 2026-10-23. It replaces the limit of 12 words per line and the own-words rule that the project owner decided on 2026-10-20 (option-a), for checklist text only.
+Decided by the project owner on 2026-10-23, confirmed on 2026-10-27 for the WARNING and CAUTION blocks and the letter row marks of the ground and take-off checklists. It replaces the limit of 12 words per line and the own-words rule that the project owner decided on 2026-10-20 (option-a), for checklist text only.
 
 ## 3. What must never be committed
 

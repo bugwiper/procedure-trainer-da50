@@ -41,6 +41,15 @@ export const MAX_LINE_WORDS = 20;
 const lineWords = wordsBetween(1, MAX_LINE_WORDS);
 
 /**
+ * The longest WARNING or CAUTION block in words: a layout bound like the line cap (plan 05.1-02).
+ * The block is reproduced as printed, so the bound only keeps one block from filling the screen.
+ */
+export const MAX_NOTE_WORDS = 70;
+
+/** The style of a comment row: an italic sub-heading, or a WARNING or CAUTION block. */
+export const COMMENT_STYLES = ['subheading', 'warning', 'caution'] as const;
+
+/**
  * The printed marker in front of an outline item (plan 03-13): the arrow of a heading line, the
  * diamond variants of a condition, the double arrow of an action, the circle and the square of the
  * nested levels. A name only; the renderer draws it.
@@ -56,8 +65,14 @@ export const MARKERS = [
 
 const marker = z.enum(MARKERS).optional();
 
-/** The row number printed at the left of a checklist table row. */
-const rowNumber = z.number().int().min(1).max(99);
+/**
+ * The row mark printed at the left of a checklist table row: a whole number 1 to 99 or one capital
+ * letter A to Z (the ground and take-off checklists print letters). One checklist uses one style.
+ */
+const rowNumber = z.union([
+  z.number().int().min(1).max(99),
+  z.string().regex(/^[A-Z]$/, { message: 'must be a whole number 1 to 99 or one capital letter' }),
+]);
 
 const nonBlank = z.string().refine((s) => s.trim() !== '', { message: 'must not be empty' });
 
@@ -126,13 +141,26 @@ const Line = z.strictObject({
   marker,
 });
 
-/** A full-width printed row between checklist rows; `action` is a right-hand reference such as a page. */
-const Comment = z.strictObject({
-  kind: z.literal('comment'),
-  text: lineWords,
-  action: lineWords.optional(),
-  boxed: z.boolean().optional(),
-});
+/**
+ * A full-width printed row between checklist rows; `action` is a right-hand reference such as a
+ * page. `style` makes it an italic sub-heading or a WARNING or CAUTION block (the printed word is
+ * drawn above the text); only those two may be longer than a line, up to MAX_NOTE_WORDS.
+ */
+const Comment = z
+  .strictObject({
+    kind: z.literal('comment'),
+    text: wordsBetween(1, MAX_NOTE_WORDS),
+    action: lineWords.optional(),
+    boxed: z.boolean().optional(),
+    style: z.enum(COMMENT_STYLES).optional(),
+  })
+  .refine(
+    (node) =>
+      node.style === 'warning' ||
+      node.style === 'caution' ||
+      wordCount(node.text) <= MAX_LINE_WORDS,
+    { message: `must have 1 to ${String(MAX_LINE_WORDS)} words`, path: ['text'] },
+  );
 
 const Group = z.strictObject({
   kind: z.literal('group'),
@@ -326,6 +354,9 @@ export type ProcedureNode = z.infer<typeof ProcedureNode>;
 export type BranchObject = z.infer<typeof BranchObject>;
 export type Group = z.infer<typeof Group>;
 export type Checklist = z.infer<typeof Checklist>;
+export type CommentStyle = (typeof COMMENT_STYLES)[number];
+/** The printed row mark of a line or step: a whole number or one capital letter. */
+export type RowMark = z.infer<typeof rowNumber>;
 export type Step = z.infer<typeof Step>;
 export type Forbidden = z.infer<typeof Forbidden>;
 export type Outcome = z.infer<typeof Outcome>;

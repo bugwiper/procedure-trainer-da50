@@ -623,6 +623,43 @@ body,
   border: 1px solid #6b7580;
 }
 
+/* A printed sub-heading (After Standstill) is an italic bold full-width row; a WARNING or CAUTION block
+   draws its printed word centred above the text, which keeps the printed capitals and stays flat. */
+.outline-subheading {
+  margin-top: 6px;
+}
+
+.outline-subheading .outline-text {
+  font-style: italic;
+  font-weight: 700;
+}
+
+.outline-warning,
+.outline-caution {
+  flex-direction: column;
+  align-items: stretch;
+  margin: 6px 0;
+  padding: 4px 8px;
+  border-left: 3px solid #f2c230;
+}
+
+.outline-warning {
+  border-left-color: #ff5a50;
+}
+
+.outline-note-word {
+  align-self: center;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.outline-warning .outline-text,
+.outline-caution .outline-text {
+  font-weight: 700;
+  text-align: justify;
+  overflow-wrap: anywhere;
+}
+
 /* On narrow screens a table row takes up to three lines: the number and the item, the action at the
    right of its own line (the dotted leader is dropped), then, in the debrief, the tag at the left and
    the verdict at the right. Nothing scrolls sideways. */

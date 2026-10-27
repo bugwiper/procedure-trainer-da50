@@ -1053,6 +1053,49 @@ describe('L16 and L17: a checklist as printed (plan 03-13)', () => {
     expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
   });
 
+  it('L16: letters run A, B, C as their place in the alphabet, one style per checklist', () => {
+    const lettered = swap(
+      swap(swap(TABLE, 'number: 1', 'number: A'), 'number: 2', 'number: B'),
+      'number: 3',
+      'number: C',
+    );
+    expect(checkScenario(lettered, DA50RG_ENV).ok).toBe(true);
+
+    const gap = swap(lettered, 'number: C', 'number: D');
+    const gapIssues = issuesOf(gap);
+    expect(gapIssues).toHaveLength(1);
+    expect(gapIssues[0]).toMatchObject({
+      path: 'procedure.1.number',
+      line: lineOf(gap, 'number: D'),
+    });
+    expect(gapIssues[0]?.message).toContain('expected C');
+
+    const late = issuesOf(swap(lettered, 'number: A', 'number: B'));
+    expect(late[0]?.message).toContain('expected A');
+  });
+
+  it('L16: a mix of numbers and letters is one issue at the first mismatch', () => {
+    const mixed = swap(TABLE, 'number: 2', 'number: B');
+    const issues = issuesOf(mixed);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'procedure.0.steps.1.number',
+      line: lineOf(mixed, 'number: B'),
+    });
+    expect(issues[0]?.message).toContain('mixes numbers and letters');
+  });
+
+  it('L17: a comment style in the default form is reported at its key as well', () => {
+    const text = swap(
+      MINIMAL,
+      'text: Increase airspeed',
+      'text: Increase airspeed\n  - kind: comment\n    style: subheading\n    text: After Standstill',
+    ).replace('procedure[2]:', 'procedure[3]:');
+    const paths = issuesOf(text).map((issue) => issue.path);
+    expect(paths).toContain('procedure.2');
+    expect(paths).toContain('procedure.2.style');
+  });
+
   it('L17: a decision and a branch in a table, each at its node', () => {
     const branch = [
       '  - kind: branch',

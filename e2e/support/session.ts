@@ -3,7 +3,8 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { variantFromSeed } from '../../src/engine/variants';
 import { parseManifest, parseScenario } from '../../src/scenario/parse';
-import { activate } from './zoom';
+import { pageCount } from '../../src/ui/panel/session-area';
+import { activate, afterPairWindow } from './zoom';
 
 // Shared e2e helpers for starting one named scenario through CHOOSE SITUATION (plan 03-01). Test
 // support, not a spec: the name does not end in .spec.ts, so Playwright never collects it.
@@ -60,7 +61,15 @@ export function shippedScenarios(): readonly ShippedScenario[] {
 export async function chooseScenario(page: Page, hasTouch: boolean, row: string): Promise<void> {
   await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
   await page.waitForTimeout(SHIELD_WAIT_MS);
-  await activate(page.locator(`[data-session-hit="session.row.${row}"]`), hasTouch);
+  const target = page.locator(`[data-session-hit="session.row.${row}"]`);
+  // The list pages (plan 05.1-01): NEXT PAGE until the row is on screen, at most once per page.
+  const next = page.locator('[data-session-hit="session.next"]');
+  for (let turned = 1; turned < pageCount(shippedScenarios().length); turned++) {
+    if ((await target.count()) > 0) break;
+    await afterPairWindow(page);
+    await activate(next, hasTouch);
+  }
+  await activate(target, hasTouch);
   await expect(page.getByTestId('level-pick')).toBeVisible();
 }
 

@@ -19,6 +19,7 @@ const ALTN1 = 'electrical.elec-altn1-fail';
 const ALTN2 = 'electrical.elec-altn2-fail';
 const FIRE = 'engine.eng-fire-in-flight';
 const OIL = 'engine.eng-oil-temp-green';
+const GROUND_FIRE = 'fire.eng-fire-ground';
 
 /** Pixel slack for sub-pixel layout. */
 const EDGE_PX = 2;
@@ -84,6 +85,8 @@ async function expectTable(list: Locator, id: string): Promise<void> {
       await expect(li).toHaveAttribute('data-kind', 'comment');
       await expect(li.locator('.outline-text')).toHaveText(row.text);
       await expect(li.locator('.outline-number')).toHaveCount(0);
+      if (row.style === undefined) await expect(li).not.toHaveAttribute('data-style', /.+/);
+      else await expect(li).toHaveAttribute('data-style', row.style);
       if (row.boxed === true) {
         await expect(li).toHaveAttribute('data-boxed', 'true');
         await expect(li.locator('.outline-action')).toHaveText(row.reference ?? '');
@@ -161,6 +164,26 @@ test('the Easy briefing of ALTN 1 FAIL reads like the printed table', async ({
   await expect(briefing).not.toContainText('CRITICAL');
   await expect(briefing).not.toContainText('Not graded');
   await expect(briefing.locator('svg.outline-marker')).toHaveCount(0);
+  await noSidewaysScroll(briefing);
+});
+
+test('the Easy briefing of Engine Fire on Ground reads like the AFM page: letter marks and an italic sub-heading', async ({
+  page,
+  hasTouch,
+}) => {
+  const table = printedTable('eng-fire-ground');
+  const briefing = await openBriefing(page, hasTouch, GROUND_FIRE);
+  await expect(briefing.getByTestId('checklist-title')).toHaveText(table.heading);
+  const list = briefing.getByTestId('briefing-outline').locator('ul.outline-table').first();
+  await expect(list).toBeVisible();
+  await expectTable(list, 'eng-fire-ground');
+  await expectAlignment(list);
+  // The sub-heading is italic and bold, and the letters are the marks of the rows.
+  const sub = list.locator('li[data-style="subheading"] .outline-text');
+  await expect(sub).toHaveCSS('font-style', 'italic');
+  await expect(sub).toHaveCSS('font-weight', '700');
+  const marks = await list.locator('.outline-number').allTextContents();
+  expect(marks).toEqual(rows(table.rows).map((row) => String(row.number)));
   await noSidewaysScroll(briefing);
 });
 

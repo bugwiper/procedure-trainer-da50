@@ -8,7 +8,8 @@
 /** One row of a printed table: the number at the left, the item and the desired action at the right. */
 export interface PrintedRow {
   readonly kind: 'row';
-  readonly number?: number;
+  /** A whole number, or one capital letter on the ground and take-off checklists. */
+  readonly number?: number | string;
   readonly item: string;
   readonly action?: string;
   /** True for the one row that is not printed (an own addition kept as a graded step). */
@@ -21,6 +22,8 @@ export interface PrintedComment {
   readonly text: string;
   readonly boxed?: true;
   readonly reference?: string;
+  /** An italic sub-heading, or a WARNING or CAUTION block with its printed word. */
+  readonly style?: 'subheading' | 'warning' | 'caution';
 }
 
 export interface PrintedTable {
@@ -50,6 +53,18 @@ export type PrintedChecklist = PrintedTable | PrintedOutline;
 
 /** The printed checklists by scenario id. */
 export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
+  'eng-fire-ground': {
+    form: 'table',
+    heading: 'Engine Fire on Ground',
+    rows: [
+      { kind: 'row', number: 'A', item: 'ENGINE MASTER', action: 'OFF' },
+      { kind: 'row', number: 'B', item: 'FUEL valve', action: 'OFF' },
+      { kind: 'row', number: 'C', item: 'ELECT. MASTER', action: 'OFF' },
+      { kind: 'comment', style: 'subheading', text: 'After Standstill' },
+      { kind: 'row', number: 'D', item: 'Door', action: 'open' },
+      { kind: 'row', number: 'E', item: 'Airplane', action: 'evacuate immediately' },
+    ],
+  },
   'elec-altn1-fail': {
     form: 'table',
     heading: 'ALTN 1 FAIL',
@@ -151,6 +166,7 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
 
 /** The scenario file of each reference entry, relative to the repository root. */
 export const PRINTED_FILES: Readonly<Record<string, string>> = {
+  'eng-fire-ground': 'scenarios/fire/eng-fire-ground.toon',
   'elec-altn1-fail': 'scenarios/electrical/elec-altn1-fail.toon',
   'elec-altn2-fail': 'scenarios/electrical/elec-altn2-fail.toon',
   'eng-fire-in-flight': 'scenarios/engine/eng-fire-in-flight.toon',

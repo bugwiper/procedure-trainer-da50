@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { SESSION_LAYOUT, pageCount } from '../src/ui/panel/session-area';
 import { forceVariant, shippedScenarios, startScenario } from './support/session';
 import { activate, activateAt, afterPairWindow, leaveZoom, zoomIntoRegion } from './support/zoom';
 
@@ -18,19 +19,31 @@ test.beforeEach(async ({ page }) => {
 
 const control = (page: Page, id: string) => page.locator(`[data-control-id="${id}"]`);
 
-test('@hooks CHOOSE SITUATION lists every shipped scenario', async ({ page, hasTouch }) => {
+test('@hooks CHOOSE SITUATION lists every shipped scenario, page by page', async ({
+  page,
+  hasTouch,
+}) => {
   const shipped = shippedScenarios();
   expect(shipped.length).toBeGreaterThan(1);
+  const pages = pageCount(shipped.length);
 
   await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
   await page.waitForTimeout(SHIELD_WAIT_MS);
   const rows = page.locator('[data-session-hit^="session.row."]');
-  await expect(rows).toHaveCount(shipped.length);
-  for (const [i, scenario] of shipped.entries()) {
-    await expect(rows.nth(i)).toHaveAttribute('data-session-hit', `session.row.${scenario.row}`);
-    await expect(page.getByRole('button', { name: `Open briefing: ${scenario.title}` })).toHaveText(
-      scenario.title,
-    );
+  for (let turned = 0; turned < pages; turned++) {
+    const first = turned * SESSION_LAYOUT.choose.maxRows;
+    const onPage = shipped.slice(first, first + SESSION_LAYOUT.choose.maxRows);
+    await expect(rows).toHaveCount(onPage.length);
+    for (const [i, scenario] of onPage.entries()) {
+      await expect(rows.nth(i)).toHaveAttribute('data-session-hit', `session.row.${scenario.row}`);
+      await expect(
+        page.getByRole('button', { name: `Open briefing: ${scenario.title}` }),
+      ).toHaveText(scenario.title);
+    }
+    if (pages > 1) {
+      await afterPairWindow(page);
+      await activate(page.locator('[data-session-hit="session.next"]'), hasTouch);
+    }
   }
 });
 
