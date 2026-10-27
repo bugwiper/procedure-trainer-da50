@@ -19,9 +19,9 @@ import {
   veilOpacity,
 } from '../src/ui/panel/windscreen/Ice';
 import { CabinSmoke, SMOKE_MAX_OPACITY, smokeOpacity } from '../src/ui/panel/windscreen/CabinSmoke';
-import { SCENES } from '../src/ui/panel/windscreen/scenes';
+import { HORIZON_Y, SCENES } from '../src/ui/panel/windscreen/scenes';
 import { Windscreen } from '../src/ui/panel/windscreen/Windscreen';
-import { OPENING_PATH } from '../src/ui/panel/windscreen/geometry';
+import { OPENING, OPENING_PATH } from '../src/ui/panel/windscreen/geometry';
 import { PANEL_VIEWBOX, WINDSCREEN_REFERENCE } from './layout-reference';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { El } from './vnode-walk';
@@ -241,6 +241,32 @@ describe('the cloud scene and the moving runway (phase 05 plan 03, A-05)', () =>
     expect(reduced).toMatch(/\.w-roll-mark\s*\{\s*animation:\s*none/);
   });
 });
+  it('the edge lights sit on the runway edge lines and the dashes on the centre line', () => {
+    // A point on a line through the vanishing point keeps x / y constant: the runway edge lines
+    // run from 610 to 634 units from the centre at the bottom edge (the mark's own frame is the
+    // vanishing point).
+    const depth = OPENING.y + OPENING.h - HORIZON_Y;
+    const ratios = (poly: El) =>
+      String(poly.props['points'])
+        .split(' ')
+        .map((p) => p.split(',').map(Number) as [number, number])
+        .map(([x, y]) => (x * depth) / y);
+    for (const mark of marks('takeoff_roll')) {
+      const polys = findElements(mark, (el) => el.tag === 'polygon');
+      expect(polys).toHaveLength(3);
+      const [centre, left, right] = polys as [El, El, El];
+      for (const r of ratios(centre)) expect(Math.abs(r)).toBeLessThanOrEqual(12 + 1e-6);
+      for (const r of ratios(left)) {
+        expect(r).toBeGreaterThanOrEqual(-634 - 1e-6);
+        expect(r).toBeLessThanOrEqual(-610 + 1e-6);
+      }
+      for (const r of ratios(right)) {
+        expect(r).toBeGreaterThanOrEqual(610 - 1e-6);
+        expect(r).toBeLessThanOrEqual(634 + 1e-6);
+      }
+    }
+  });
+
 
 describe('the flames cue', () => {
   it('is absent below the visible level, on the free panel and at the Realistic start', () => {

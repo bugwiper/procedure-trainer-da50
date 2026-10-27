@@ -286,13 +286,17 @@ const ROLL_MARKS = 15;
 /** Depth pitch between two marks, dash length in depth, edge mark offset from the centre line. */
 const ROLL_PITCH = 0.7;
 const ROLL_LENGTH = 0.32;
-const ROLL_EDGE_OFFSET = 700;
+/** Depth length of an edge light, and its offset from the centre line: the middle of the edge line. */
+const ROLL_LIGHT_LENGTH = 0.18;
+const ROLL_EDGE_OFFSET = 622;
 
 /**
  * The scrolling marks of the take-off roll (Phase 5, A-05). Each mark is drawn relative to the
  * vanishing point and carries two custom properties for its CSS animation (stage.css, w-roll): it
  * scales about the vanishing point to the place of the next mark nearer to the viewer, which is
- * the perspective of moving forward; the whole row then repeats unchanged. The speed is one
+ * the perspective of moving forward; the whole row then repeats unchanged. The edge lights sit on
+ * the two runway edge lines and the dashes on the centre line, every offset shrinking with the depth,
+ * so nothing runs through the grass. The speed is one
  * constant in stage.css; Phase 5.1 ties it to the ground speed. No timer, no state.
  */
 function RollMarks() {
@@ -300,16 +304,16 @@ function RollMarks() {
   for (let k = 0; k < ROLL_MARKS; k++) {
     const d0 = 1 + k * ROLL_PITCH;
     const d1 = d0 + ROLL_LENGTH;
-    const far = DEPTH / d1;
     const near = DEPTH / d0;
     const mid = d0 / (d0 - ROLL_PITCH / 2);
     const end = d0 / (d0 - ROLL_PITCH);
-    const bar = (centre: number, half: number) =>
+    // Every offset shrinks with the depth like the runway itself, so the marks stay on their lines.
+    const bar = (centre: number, half: number, depthEnd: number) =>
       poly([
-        [centre - half / d1, far],
-        [centre + half / d1, far],
-        [centre + half / d0, near],
-        [centre - half / d0, near],
+        [(centre - half) / depthEnd, DEPTH / depthEnd],
+        [(centre + half) / depthEnd, DEPTH / depthEnd],
+        [(centre + half) / d0, near],
+        [(centre - half) / d0, near],
       ]);
     marks.push(
       <g
@@ -317,9 +321,9 @@ function RollMarks() {
         class="w-roll-mark"
         style={`--roll-mid:${mid.toFixed(4)};--roll-to:${end.toFixed(4)}`}
       >
-        <polygon points={bar(0, 12)} fill="#f1f1ea" />
-        <polygon points={bar(-ROLL_EDGE_OFFSET, 8)} fill="#f1f1ea" />
-        <polygon points={bar(ROLL_EDGE_OFFSET, 8)} fill="#f1f1ea" />
+        <polygon points={bar(0, 12, d1)} fill="#f1f1ea" />
+        <polygon points={bar(-ROLL_EDGE_OFFSET, 12, d0 + ROLL_LIGHT_LENGTH)} fill="#ffe9a3" />
+        <polygon points={bar(ROLL_EDGE_OFFSET, 12, d0 + ROLL_LIGHT_LENGTH)} fill="#ffe9a3" />
       </g>,
     );
   }
