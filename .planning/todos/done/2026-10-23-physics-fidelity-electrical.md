@@ -5,7 +5,7 @@ area: engine
 source: owner instructor review of phase 3 with type-rating wiring diagrams; closed by Phase 4
 ---
 
-The electrical findings of the physics fidelity todo, as plan 04-01 decided them (E-01 to E-11 in `.planning/phases/04-electrical-system-fidelity/04-01-PLAN.md`; the model is `src/aircraft/da50rg/electrical.ts`). Done in Phase 4. The fuel, tank, engine and engine-page-layout parts stay in `.planning/todos/pending/2026-10-23-physics-fidelity-phase.md` for Phase 5.
+The electrical findings of the physics fidelity todo, as plan 04-01 decided them (E-01 to E-11 in `.planning/phases/04-electrical-system-fidelity/04-01-PLAN.md`; the model is `src/aircraft/da50rg/electrical.ts`). Done in Phase 4. The fuel, tank, engine and engine-page-layout parts stay in `.planning/todos/pending/2026-10-23-physics-fidelity-phase.md` for Phase 6.
 
 ## Findings as modelled
 
@@ -19,4 +19,4 @@ The electrical findings of the physics fidelity todo, as plan 04-01 decided them
 
 ## Left open
 
-The free panel shows fixed base readings; the free-panel simulation is in `.planning/todos/pending/2026-10-22-free-panel-simulation.md` (Phase 5).
+The free panel shows fixed base readings; the free-panel simulation is in `.planning/todos/pending/2026-10-22-free-panel-simulation.md` (Phase 6).

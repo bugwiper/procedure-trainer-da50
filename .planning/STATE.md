@@ -255,6 +255,7 @@ Recent decisions affecting current work:
 - Phase 5 added: Fuel, tank and engine fidelity and the engine page (owner decision 2026-10-23)
 - Phase 6 added: Windscreen and failure cues (owner decision 2026-10-23)
 - Former Phase 4 (Training Mode, Further Actions and Repeat Loop) renumbered to Phase 7 and former Phase 5 (Offline PWA and Real-Device Hardening) to Phase 8 (owner decision 2026-10-23); the Phase 7 authoring guide must describe the variant format and the cues
+- Phases 5 and 6 swapped (owner decision 2026-10-27): Phase 5 is now Windscreen and failure cues (depends on Phase 3.1), Phase 6 is Fuel, tank and engine fidelity and the engine page (depends on Phase 4, carries the free-panel simulation); Phase 7 now depends on Phases 5 and 6
 
 ## Deferred Items
 

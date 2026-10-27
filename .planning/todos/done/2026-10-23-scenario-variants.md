@@ -29,7 +29,7 @@ One failure message can have several causes with different correct actions, and 
 
 ## Placement
 
-Decided 2026-10-23: the variant mechanism is its own phase, Phase 3.1 (inserted after Phase 3), and comes before the fidelity phases (Phase 4 electrical system, Phase 5 fuel and engine page), so new scenarios are written in the variant form from the start. The buses and the ALT 1 / ALT 2 model of Phase 4 make the causes fully real; Phase 3.1 builds the mechanism on the current model. The Phase 7 authoring guide must describe the variant format.
+Decided 2026-10-23: the variant mechanism is its own phase, Phase 3.1 (inserted after Phase 3), and comes before the fidelity phases (Phase 4 electrical system, Phase 6 fuel and engine page), so new scenarios are written in the variant form from the start. The buses and the ALT 1 / ALT 2 model of Phase 4 make the causes fully real; Phase 3.1 builds the mechanism on the current model. The Phase 7 authoring guide must describe the variant format.
 
 ## Also in this phase: run robustness from the phase 3 code review
 

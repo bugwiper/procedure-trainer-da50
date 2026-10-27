@@ -16,4 +16,4 @@ In phase 3 the simulation and the de-ice MAX run exist only during a scenario ru
 
 ## Placement (2026-10-23)
 
-Owner decision: this goes into Phase 5 (fuel, tank and engine fidelity and the engine page), because the free panel then needs the whole simulated engine page. Reason from the owner's alternator test in the normal checklist: ESS BUS on makes alternator 2 Amps rise and alternator 1 Amps fall, ESS BUS off the reverse; today this shows only inside a scenario run.
+Owner decision: this goes into Phase 6 (fuel, tank and engine fidelity and the engine page), because the free panel then needs the whole simulated engine page. Reason from the owner's alternator test in the normal checklist: ESS BUS on makes alternator 2 Amps rise and alternator 1 Amps fall, ESS BUS off the reverse; today this shows only inside a scenario run.

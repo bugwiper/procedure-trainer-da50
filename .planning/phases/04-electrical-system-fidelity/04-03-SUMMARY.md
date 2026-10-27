@@ -9,8 +9,8 @@ requires:
 provides:
   - AmpsGauge: the two-pointer Amps bar (pointer 1 above, pointer 2 below, alert look per pointer)
   - the ELECTRICAL box on the MFD engine page (Amps and Volts), fuel bars moved below it
-  - phase 4 documents, requirements and todos (one pending todo left for Phase 5)
-affects: [Phase 5 fuel, tank, engine and engine page]
+  - phase 4 documents, requirements and todos (one pending todo left for Phase 6)
+affects: [Phase 6 fuel, tank, engine and engine page]
 status: complete
 actuals:
   tokens: 30000

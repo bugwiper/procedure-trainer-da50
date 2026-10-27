@@ -97,7 +97,7 @@ None open. The owner review list in `docs/PANEL-REVIEW.md` "Phase 4: owner revie
 
 ### Deferred Items (by design, not gaps)
 
-Free-panel simulation, fuel, tank and engine fidelity and the real engine page layout (Phase 5), the windscreen cue, ENG OIL TEMP and Engine Fire variants.
+Free-panel simulation, fuel, tank and engine fidelity and the real engine page layout (Phase 6), the windscreen cue, ENG OIL TEMP and Engine Fire variants.
 
 ### Gaps Summary
 

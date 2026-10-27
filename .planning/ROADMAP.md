@@ -20,8 +20,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Reactive Scenarios and Initial Pack** - Scripted reactions and escalation; Oil Temp High, Electrical Failure and Engine Fire all playable (completed 2026-10-23)
 - [x] **Phase 3.1: Scenario variants and run robustness** (INSERTED) - Several causes behind one failure drawn by seed, a breaker that re-trips, a run that survives a throwing listener and agrees with its replay at the 30-minute cap (completed 2026-10-23)
 - [x] **Phase 4: Electrical system fidelity** - Bus model with bus tie relay, ALT 1 and ALT 2 behaviour, ESS BUS path, combined amps gauge, ALTN 2 FAIL scenario, ALTN checklist fidelity (completed 2026-10-27)
-- [ ] **Phase 5: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim and the real engine page layout
-- [ ] **Phase 6: Windscreen and failure cues** - A windscreen area above the panel with static cues (fire, smoke, iced windscreen later), the onset cue declared in scenario data and checked by lint
+- [ ] **Phase 5: Windscreen and failure cues** - A windscreen area above the panel with static cues (fire, smoke, iced windscreen later), the onset cue declared in scenario data and checked by lint
+- [ ] **Phase 6: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim and the real engine page layout
 - [ ] **Phase 7: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
 - [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop
 
@@ -471,15 +471,7 @@ Plans:
 
 - [x] 04-03 — MFD Electrical box (Amps bar with pointers 1 and 2, Volts, alert styling), e2e, and the phase-end documentation (GRADING, owner review, README, todos, requirements)
 
-### Phase 5: Fuel, tank and engine fidelity and the engine page
-
-**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. The simulation also runs on the free panel (outside a scenario run), so the normal-checklist walks work there, for example the alternator test with ESS BUS on and off (owner decision 2026-10-23). Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and 2026-10-22-free-panel-simulation.md.
-**Depends on**: Phase 4
-**Requirements**: TBD (to be defined when the phase is planned)
-
-**Plans**: TBD
-
-### Phase 6: Windscreen and failure cues
+### Phase 5: Windscreen and failure cues
 
 **Goal**: A windscreen area above the panel shows static failure cues (fire, smoke, an iced windscreen later), so a Realistic run without briefing gives the pilot something to see; the onset cue of each scenario is declared in scenario data and checked by lint. Source: .planning/todos/pending/2026-10-23-realistic-level-visual-cues.md.
 **Depends on**: Phase 3.1
@@ -487,11 +479,19 @@ Plans:
 
 **Plans**: TBD
 
+### Phase 6: Fuel, tank and engine fidelity and the engine page
+
+**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. The simulation also runs on the free panel (outside a scenario run), so the normal-checklist walks work there, for example the alternator test with ESS BUS on and off (owner decision 2026-10-23). Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and 2026-10-22-free-panel-simulation.md.
+**Depends on**: Phase 4
+**Requirements**: TBD (to be defined when the phase is planned)
+
+**Plans**: TBD
+
 ### Phase 7: Training Mode, Further Actions and Repeat Loop
 
-**Goal**: Users can learn from a scenario with a checklist and hints, make non-panel decisions such as MAYDAY and the landing choice, and retry or move on to improve their debrief; authors can add scenarios by following a guide. The authoring guide must describe the variant format and the cues.
+**Goal**: Users can learn from a scenario with a checklist and hints, make non-panel decisions such as MAYDAY and the landing choice, and retry or move on to improve their debrief; authors can add scenarios by following a guide. The authoring guide and the training hints must describe the variant format, the cues (Phase 5) and the fidelity (Phase 6).
 **Mode:** mvp
-**Depends on**: Phase 6
+**Depends on**: Phase 5, Phase 6
 **Requirements**: SES-02, SES-05, SES-06, CNT-02
 **Success Criteria** (what must be TRUE):
 
@@ -530,7 +530,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
-| 5. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
-| 6. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
+| 5. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
+| 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |

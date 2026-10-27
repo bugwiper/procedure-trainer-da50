@@ -1,11 +1,11 @@
 ---
 created: 2026-10-23
-title: Physics fidelity phase 5 (fuel, tank, engine and the real engine page layout)
+title: Physics fidelity phase 6 (fuel, tank, engine and the real engine page layout)
 area: engine
-source: owner instructor review of phase 3 with type-rating wiring diagrams; the source todo of Phase 5
+source: owner instructor review of phase 3 with type-rating wiring diagrams; the source todo of Phase 6
 ---
 
-The electrical part of this todo is done in Phase 4 (bus model, two-pointer Amps bar, Volts, ALTN 2 FAIL); see [the done todo](../done/2026-10-23-physics-fidelity-electrical.md). This file is the source todo of Phase 5, Fuel, tank and engine fidelity and the engine page: two fuel tanks with one combined gauge, fuel flow, fuel calculator, oil pressure, oxygen, de-ice quantity, rudder trim and the real engine page layout. The free-panel simulation (`2026-10-22-free-panel-simulation.md`) belongs there too, since the free panel shows only fixed base readings.
+The electrical part of this todo is done in Phase 4 (bus model, two-pointer Amps bar, Volts, ALTN 2 FAIL); see [the done todo](../done/2026-10-23-physics-fidelity-electrical.md). This file is the source todo of Phase 6, Fuel, tank and engine fidelity and the engine page: two fuel tanks with one combined gauge, fuel flow, fuel calculator, oil pressure, oxygen, de-ice quantity, rudder trim and the real engine page layout. The free-panel simulation (`2026-10-22-free-panel-simulation.md`) belongs there too, since the free panel shows only fixed base readings.
 
 Gauges still open: one fuel gauge with two tanks (the MFD and quantity data change). The Electrical box of the real page is built (Phase 4).
 

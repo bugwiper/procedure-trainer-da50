@@ -109,7 +109,7 @@ blocked: 0
     - "Windscreen area above the panel with static cues (fire, smoke, iced windscreen later), or an interim cue"
     - "Onset cue declared in the scenario data and checked by lint (L14 extension)"
   debug_session: ""
-  deferred_to: "Phase 6 (windscreen and failure cues), owner decision 2026-10-23"
+  deferred_to: "Phase 5 (windscreen and failure cues), owner decision 2026-10-23"
 
 - truth: "Checklists in briefing and debrief look and read like the official checklist: numbered table, item and number left-aligned, desired action right-aligned, full-width comment lines between two numbers (for example the carry-out line), wording 1:1 as in the AFM"
   status: resolved

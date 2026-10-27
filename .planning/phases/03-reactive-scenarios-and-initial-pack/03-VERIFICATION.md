@@ -100,7 +100,7 @@ known_issues:
     summary: "A reaction armed and cleared in one step still consumes its event"
   - id: UAT-5
     severity: major
-    status: deferred to Phase 6
+    status: deferred to Phase 5
     summary: "Engine Fire on Realistic has no recognisable cue (windscreen with fire and smoke); owner decision 2026-10-23"
   - id: WEBKIT
     severity: info
@@ -117,7 +117,7 @@ known_issues:
 
 ## Goal Achievement
 
-Every roadmap success criterion is backed by code that exists, is wired from the UI to the engine, and is exercised by tests that I ran in this verification. The two human items of the first report are closed by the owner: the real-device check was done as the UAT (12 tests, 10 passed, 3 gaps; two resolved and accepted, the windscreen cue deferred to Phase 6 by owner decision), and the instructor review is answered in `docs/GRADING.md`. No human item remains.
+Every roadmap success criterion is backed by code that exists, is wired from the UI to the engine, and is exercised by tests that I ran in this verification. The two human items of the first report are closed by the owner: the real-device check was done as the UAT (12 tests, 10 passed, 3 gaps; two resolved and accepted, the windscreen cue deferred to Phase 5 by owner decision), and the instructor review is answered in `docs/GRADING.md`. No human item remains.
 
 ### Observable Truths
 
@@ -209,7 +209,7 @@ None. The real-device check of PANEL-REVIEW and the instructor review were done 
 
 ### Gaps Summary
 
-No gaps. Deferred by owner decision and not counted: UAT test 5 (Engine Fire cue on Realistic, windscreen) to Phase 6; WR-03 and WR-05 to Phase 3.1. Known issues are listed in the frontmatter.
+No gaps. Deferred by owner decision and not counted: UAT test 5 (Engine Fire cue on Realistic, windscreen) to Phase 5; WR-03 and WR-05 to Phase 3.1. Known issues are listed in the frontmatter.
 
 ---
 

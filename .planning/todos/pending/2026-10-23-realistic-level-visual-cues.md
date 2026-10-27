@@ -13,7 +13,7 @@ Extend the panel upward to show a windscreen (plain blue sky). Scenarios draw st
 
 ## To decide
 
-- Decided 2026-10-23: this is Phase 6, Windscreen and failure cues (after Phase 3.1). The panel space (2180 x 1300) and the phone zoom regions change.
+- Decided 2026-10-23: this is Phase 5, Windscreen and failure cues (after Phase 3.1). The panel space (2180 x 1300) and the phone zoom regions change.
 - G-0: the windscreen is art, not panel text; no label changes with state.
 - Each scenario declares its onset cue in the scenario data (schema, lint, blueprint gate); a Realistic do-nothing run must show the cue (extends lint L14).
 - Easy and Medium keep their briefing; decide whether they show the cue too.
