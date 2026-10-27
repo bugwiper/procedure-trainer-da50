@@ -24,6 +24,13 @@ export const DEICE_MAX_ACTIVE = 'deice.max_active';
  */
 export const WINDSHIELD_SPRAY_ACTIVE = 'deice.windshield_spray';
 
+/**
+ * Flag set for ten minutes after a WIND SHIELD press (Phase 5.1, owner 2026-10-27). The reaction
+ * `windshield_protect` in physics.ts sets it; the ice model keeps the pilot side free of new ice
+ * while it is set. It drives no lamp.
+ */
+export const WINDSHIELD_PROTECT_ACTIVE = 'deice.windshield_protected';
+
 /** Flag for the gear moving or disagreeing with the lever; nothing sets it yet (deferred). */
 export const GEAR_IN_TRANSIT = 'gear.in_transit';
 

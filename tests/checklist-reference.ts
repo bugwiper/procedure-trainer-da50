@@ -108,6 +108,38 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
       { kind: 'row', number: 'H', item: 'Airplane', action: 'evacuate immediately' },
     ],
   },
+  'icing-unintentional': {
+    form: 'table',
+    heading: 'Unintentional Flight Into Icing Conditions',
+    rows: [
+      { kind: 'comment', style: 'subheading', text: 'Unintentional Flight Into Icing Conditions' },
+      {
+        kind: 'row',
+        number: 'A',
+        item: 'Leave the icing area (by changing altitude or turning back in order to reach zones with a higher ambient temperature).',
+      },
+      { kind: 'row', number: 'B', item: 'PITOT/STALL HEAT', action: 'ON' },
+      { kind: 'row', number: 'C', item: 'Cabin heat', action: 'ON' },
+      { kind: 'row', number: 'D', item: 'Cabin air', action: 'DEFROST' },
+      {
+        kind: 'row',
+        number: 'E',
+        item: 'POWER lever',
+        action:
+          'increase power, in order to prevent ice build-up on the propeller blades apply power changes periodically',
+      },
+      { kind: 'row', number: 'F', item: 'ALTERNATE AIR', action: 'OPEN' },
+      { kind: 'row', number: 'G', item: 'Alternate static', action: 'OPEN' },
+      { kind: 'row', number: 'H', item: 'Emergency windows', action: 'open if required' },
+      { kind: 'comment', style: 'caution', text: 'ICE BUILD-UP INCREASES THE STALLING SPEED.' },
+      {
+        kind: 'comment',
+        style: 'caution',
+        text: 'WHEN THE PITOT HEATING FAILS EXPECT LOSS OF AIRSPEED INDICATION.',
+      },
+      { kind: 'row', number: 'I', item: 'ATC', action: 'advise if an emergency is expected' },
+    ],
+  },
   'takeoff-fire-abort': {
     form: 'table',
     heading: 'Smoke and Fire During Take-Off',
@@ -267,6 +299,7 @@ export const PRINTED_FILES: Readonly<Record<string, string>> = {
   'eng-fire-ground': 'scenarios/fire/eng-fire-ground.toon',
   'elec-fire-ground': 'scenarios/fire/elec-fire-ground.toon',
   'elec-fire-flight': 'scenarios/fire/elec-fire-flight.toon',
+  'icing-unintentional': 'scenarios/icing/icing-unintentional.toon',
   'takeoff-fire-abort': 'scenarios/fire/takeoff-fire-abort.toon',
   'takeoff-fire-no-abort': 'scenarios/fire/takeoff-fire-no-abort.toon',
   'elec-altn1-fail': 'scenarios/electrical/elec-altn1-fail.toon',

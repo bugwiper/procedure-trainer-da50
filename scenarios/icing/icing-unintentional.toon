@@ -1,0 +1,143 @@
+# UNINTENTIONAL FLIGHT INTO ICING CONDITIONS (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decisions 2026-10-23 and 2026-10-27): the heading, the italic sub-heading, every item, action and both CAUTION blocks as printed. The row marks are the letters A to I of the AFM page that was compared. ASSUMPTION for the owner: the booklet may print numbers 1 to 9 instead; the marks are plain data (the `number` fields), so swapping them is one edit per row plus the typed table in tests/checklist-reference.ts. Row A (leave the icing area) and row I (ATC) have no panel action and stay lines: the icing area ends by itself after a fixed time, further actions come with the physics phase. Cabin heat ON is TEMPERATURE at 75 or WARM, the same rule as the warm air that melts the ice; Cabin air DEFROST is DIRECTION at DEFROST; the POWER row is an increase of the POWER lever; the Emergency windows row is optional, as printed "if required". All other text is own wording. The ice growth, the length of the icing area, the onset window and the cue bound are instructor-review values.
+format: 1
+id: icing-unintentional
+title: ICING CONDITIONS
+source:
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
+  section: AFM 03-35 UNINTENTIONAL FLIGHT INTO ICING CONDITIONS
+  verified: "2026-10-27"
+disclaimer: training-aid
+scene: cloud
+briefing:
+  situation: "You are flying in cloud when ice begins to form on the windscreen. No message is shown on the primary flight display. The ice builds up on both halves of the windscreen, and the pitot heating, the cabin heat and the alternate air and static sources are not in use."
+initial:
+  controls:
+    sw.pitot_stall_heat: "off"
+    lv.env_temp: cold
+    lv.env_direction: face
+    lv.alt_air: closed
+    lv.alt_static: closed
+  quantities:
+    ice_pilot: 15
+    ice_copilot: 15
+parameters:
+  ice_accretion: 0.5
+annunciations[0]:
+checklist:
+  form: table
+  heading: Unintentional Flight Into Icing Conditions
+procedure[12]:
+  - kind: comment
+    style: subheading
+    text: Unintentional Flight Into Icing Conditions
+  - kind: line
+    number: A
+    text: Leave the icing area (by changing altitude or turning back in order to reach zones with a higher ambient temperature).
+  - kind: group
+    id: grp_pitot
+    ordered: false
+    steps[1]:
+      - id: pitot_heat_on
+        severity: critical
+        number: B
+        text: PITOT/STALL HEAT
+        action: "ON"
+        done:
+          check: state
+          control: sw.pitot_stall_heat
+          is: "on"
+  - kind: group
+    id: grp_cabin_heat
+    ordered: false
+    steps[1]:
+      - id: cabin_heat_on
+        severity: critical
+        number: C
+        text: Cabin heat
+        action: "ON"
+        done:
+          check: state_in
+          control: lv.env_temp
+          in[2]: t75,warm
+  - kind: group
+    id: grp_cabin_air
+    ordered: false
+    steps[1]:
+      - id: cabin_air_defrost
+        severity: critical
+        number: D
+        text: Cabin air
+        action: DEFROST
+        done:
+          check: state
+          control: lv.env_direction
+          is: defrost
+  - kind: group
+    id: grp_power
+    ordered: false
+    steps[1]:
+      - id: power_increase
+        severity: standard
+        number: E
+        text: POWER lever
+        action: increase power, in order to prevent ice build-up on the propeller blades apply power changes periodically
+        done:
+          check: travel_rel
+          control: lv.power
+          op: gt
+          delta: 0
+  - kind: group
+    id: grp_alt_air
+    ordered: false
+    steps[1]:
+      - id: alt_air_open
+        severity: critical
+        number: F
+        text: ALTERNATE AIR
+        action: OPEN
+        done:
+          check: state
+          control: lv.alt_air
+          is: open
+  - kind: group
+    id: grp_alt_static
+    ordered: false
+    steps[1]:
+      - id: alt_static_open
+        severity: critical
+        number: G
+        text: Alternate static
+        action: OPEN
+        done:
+          check: state
+          control: lv.alt_static
+          is: open
+  - kind: group
+    id: grp_windows
+    ordered: false
+    steps[1]:
+      - id: windows_open
+        severity: optional
+        number: H
+        text: Emergency windows
+        action: open if required
+        done:
+          check: state
+          control: sw.emerg_window
+          is: open
+  - kind: comment
+    style: caution
+    text: ICE BUILD-UP INCREASES THE STALLING SPEED.
+  - kind: comment
+    style: caution
+    text: WHEN THE PITOT HEATING FAILS EXPECT LOSS OF AIRSPEED INDICATION.
+  - kind: line
+    number: I
+    text: ATC
+    action: advise if an emergency is expected
+# The ice shows on both halves of the windscreen; the slow cue gets its own bound (lint L23), an instructor-review value. The icing area ends by itself (the icing exposure of the aircraft physics).
+onset:
+  window_s[2]: 2,6
+  message_within_s: 24
+  cues[2]: ice_pilot_side,ice_copilot_side

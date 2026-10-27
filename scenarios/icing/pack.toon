@@ -1,0 +1,8 @@
+# Manifest of the icing pack (format 1). Lists the scenarios without loading them.
+format: 1
+title: Icing
+free: true
+scenarios[1]:
+  - id: icing-unintentional
+    title: ICING CONDITIONS
+    file: icing-unintentional

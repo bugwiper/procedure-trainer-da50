@@ -384,6 +384,14 @@ describe('the pack seam', () => {
           { id: 'elec-fire-flight', title: 'ELEC FIRE FLIGHT', file: 'elec-fire-flight' },
         ],
       },
+      {
+        id: 'icing',
+        title: 'Icing',
+        free: true,
+        scenarios: [
+          { id: 'icing-unintentional', title: 'ICING CONDITIONS', file: 'icing-unintentional' },
+        ],
+      },
     ]);
   });
 

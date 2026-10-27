@@ -5,7 +5,7 @@ import { travelPercent } from '../../engine/predicates';
 import type { DetentLeverDef } from '../../engine/registry';
 import { STEP_MS } from '../../engine/sim';
 import { acuFault, electricalState } from './electrical';
-import { DEICE_MAX_ACTIVE, WINDSHIELD_SPRAY_ACTIVE } from './indicators';
+import { DEICE_MAX_ACTIVE, WINDSHIELD_PROTECT_ACTIVE, WINDSHIELD_SPRAY_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
 import { OIL_TEMP_RISE_RATE_CURVE } from './oil-temp-curve';
 import { PROP_SPEED_CURVE } from './prop-curve';
@@ -113,19 +113,31 @@ const SMOKE_CLEAR_BASE = 1;
 const SMOKE_CLEAR_FRESH_AIR = 1;
 const SMOKE_CLEAR_WINDOW = 1;
 
-// Windscreen ice (Phase 5, C-04) and the WIND SHIELD spray. All values are instructor-review
-// values, none is an AFM figure. Per half of the windscreen the ice (0 to 100) grows by
-// ICE_ACCRETE_PER_MIN times the parameter ice_accretion. Warm air toward the windscreen (DIRECTION
-// at DEFROST, TEMPERATURE at 75 or WARM) melts it only very slowly (owner, 2026-10-27): light icing
-// clears over many minutes and heavy icing is hardly slowed. Pressing WIND SHIELD sprays the pilot
-// side (the left half) for WINDSHIELD_SPRAY_MS of run time; the airflow carries the fluid upward
-// and the ice on that side is gone directly, within about a second (ICE_SPRAY_CLEAR_PER_MIN), with
-// no accretion while the spray runs. The co-pilot side is untouched. Afterwards the pilot side
-// accretes again while the parameter is above 0 (no exit-from-icing model before Phase 5.1).
+// Windscreen ice (Phase 5, C-04; the end of the icing area and the lasting spray from Phase 5.1)
+// and the WIND SHIELD spray. All values are instructor-review values, none is an AFM figure. Per
+// half of the windscreen the ice (0 to 100) grows by ICE_ACCRETE_PER_MIN times the parameter
+// ice_accretion. The icing area ends: the hidden icing_exposure (0 to 100) runs while the
+// parameter is above 0 and is full after ICING_AREA_MS of run time, and once it is full the ice
+// stops growing on both sides (owner, 2026-10-27; "leave the icing area" stays a display row).
+// Ice already on the glass melts only by warm air toward the windscreen (DIRECTION at DEFROST,
+// TEMPERATURE at 75 or WARM), very slowly (ICE_WARM_CLEAR_PER_MIN), or by the spray. Pressing WIND
+// SHIELD sprays the pilot side (the left half) for WINDSHIELD_SPRAY_MS: the airflow carries the
+// fluid upward and the ice on that side is gone directly, within about a second
+// (ICE_SPRAY_CLEAR_PER_MIN). The same press arms a protection of WINDSHIELD_PROTECT_MS (owner,
+// 2026-10-27: the pilot side stays clear for several minutes): the pilot side takes no ice for that
+// long, so after the area has ended it stays clear for the rest of a normal run. The co-pilot side
+// is untouched by the press and keeps its ice until warm air melts it.
 const ICE_ACCRETE_PER_MIN = 40;
 const ICE_WARM_CLEAR_PER_MIN = 6;
 const ICE_SPRAY_CLEAR_PER_MIN = 6_000;
 const WINDSHIELD_SPRAY_MS = 10_000;
+const WINDSHIELD_PROTECT_MS = 600_000;
+const MS_PER_MINUTE = 60_000;
+/** The icing area lasts this long (run time); the exposure quantity fills its 0 to 100 in that time. */
+const ICING_AREA_MS = 180_000;
+const ICING_EXPOSURE_FULL = 100;
+/** The exposure counts as full from here: a margin below the top for the quantisation of the rate. */
+const ICING_EXPOSURE_DONE_AT = 99.9;
 
 // Oil on the windscreen (Phase 5, C-06): the oil film (0 to 100) grows by OIL_FILM_PER_MIN times the
 // scenario parameter oil_leak while the engine runs and never decays. An instructor-review value.
@@ -259,11 +271,25 @@ function warmAirToWindscreen(inputs: PhysicsInputs): boolean {
   );
 }
 
+/** Exposure to icing per minute: the full scale over the icing area, while the parameter is above 0. */
+function icingExposurePerMinute(inputs: PhysicsInputs): number {
+  if (parameterOf(inputs, 'ice_accretion') <= 0) return 0;
+  return (ICING_EXPOSURE_FULL * MS_PER_MINUTE) / ICING_AREA_MS;
+}
+
+/** True once the aircraft has been in the icing area for its whole length: no more ice grows. */
+function icingAreaEnded(inputs: PhysicsInputs): boolean {
+  return quantityOf(inputs, 'icing_exposure') >= ICING_EXPOSURE_DONE_AT;
+}
+
 /** Ice change per minute on one half of the windscreen; `pilot` is the left half, the one the spray reaches. */
 function icePerMinute(inputs: PhysicsInputs, pilot: boolean): number {
   if (pilot && inputs.flags[WINDSHIELD_SPRAY_ACTIVE] === true) return -ICE_SPRAY_CLEAR_PER_MIN;
+  const protectedSide = pilot && inputs.flags[WINDSHIELD_PROTECT_ACTIVE] === true;
+  const growing = icingAreaEnded(inputs) || protectedSide;
+  const accretion = growing ? 0 : ICE_ACCRETE_PER_MIN * parameterOf(inputs, 'ice_accretion');
   const warm = warmAirToWindscreen(inputs) ? ICE_WARM_CLEAR_PER_MIN : 0;
-  return ICE_ACCRETE_PER_MIN * parameterOf(inputs, 'ice_accretion') - warm;
+  return accretion - warm;
 }
 
 function fireTarget(inputs: PhysicsInputs): number {
@@ -467,6 +493,7 @@ export const DA50RG_PHYSICS = definePhysics(
       lag('alt2_fault', STEP_MS, (inputs) => (acuFault(inputs, 2) ? 1 : 0)),
       lag('fire_intensity', FIRE_TAU_MS, fireTarget),
       lag('smoke_density', SMOKE_TAU_MS, smokeTarget, smokeRate),
+      { quantity: 'icing_exposure', mode: 'rate', perMinute: icingExposurePerMinute },
       { quantity: 'ice_pilot', mode: 'rate', perMinute: (inputs) => icePerMinute(inputs, true) },
       { quantity: 'ice_copilot', mode: 'rate', perMinute: (inputs) => icePerMinute(inputs, false) },
       {
@@ -516,6 +543,16 @@ export const DA50RG_PHYSICS = definePhysics(
         when: () => true,
         flag: WINDSHIELD_SPRAY_ACTIVE,
         durationMs: WINDSHIELD_SPRAY_MS,
+        clearsWhen: () => false,
+      },
+      // The same press protects the pilot side from new ice for 10 minutes of run time (owner,
+      // 2026-10-27); a second press during that time neither restarts nor extends it.
+      {
+        id: 'windshield_protect',
+        on: { control: 'btn.deice_windshield', value: 'pressed' },
+        when: () => true,
+        flag: WINDSHIELD_PROTECT_ACTIVE,
+        durationMs: WINDSHIELD_PROTECT_MS,
         clearsWhen: () => false,
       },
     ],

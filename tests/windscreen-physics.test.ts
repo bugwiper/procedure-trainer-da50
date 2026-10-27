@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
-import { WINDSHIELD_SPRAY_ACTIVE } from '../src/aircraft/da50rg/indicators';
+import {
+  WINDSHIELD_PROTECT_ACTIVE,
+  WINDSHIELD_SPRAY_ACTIVE,
+} from '../src/aircraft/da50rg/indicators';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { initialQuantities } from '../src/engine/predicates';
 import { Run } from '../src/engine/run';
@@ -226,13 +229,15 @@ describe('windscreen ice (C-04)', () => {
       expect(quantity(after, 'ice_copilot')).toBeGreaterThan(quantity(before, 'ice_copilot'));
     });
 
-    it('keeps the pilot side clear while the spray runs and lets it ice up again afterwards', () => {
+    it('keeps the pilot side clear while the spray runs and for the protection time after it', () => {
       const scenario = fixture({ ice_accretion: 1 });
       const during = run(scenario, 14_000, press(5_000), start).quantities;
-      const later = run(scenario, 5_000 + 10_000 + 30_000, press(5_000), start).quantities;
       expect(quantity(during, 'ice_pilot')).toBe(0);
-      // 30 s of accretion at 40 per minute after the 10 s spray.
-      expect(quantity(later, 'ice_pilot')).toBeCloseTo(20, 0);
+      // Past the spray (10 s) the protection (10 min) still holds the pilot side at 0, while the
+      // co-pilot side keeps icing.
+      const later = run(scenario, 5_000 + 10_000 + 30_000, press(5_000), start).quantities;
+      expect(quantity(later, 'ice_pilot')).toBe(0);
+      expect(quantity(later, 'ice_copilot')).toBeGreaterThan(80);
     });
 
     it('is harmless with clear glass: nothing changes', () => {
@@ -289,6 +294,143 @@ describe('windscreen ice (C-04)', () => {
 });
 
 // The cheap extras (C-06): a stopped propeller from the engine speed, the oil film from a leak.
+// The end of the icing area and the lasting spray (Phase 5.1, I-02, I-03, owner 2026-10-27).
+describe('the end of the icing area', () => {
+  const MINUTES = (n: number): number => n * MINUTE_MS;
+  const exposureAt = (ms: number, parameter = 1): number =>
+    quantity(run(fixture({ ice_accretion: parameter }), ms).quantities, 'icing_exposure');
+
+  it('fills the exposure in 3 minutes of run time while the parameter is above 0', () => {
+    expect(exposureAt(MINUTES(1))).toBeCloseTo(100 / 3, 0);
+    expect(exposureAt(MINUTES(3))).toBeGreaterThan(99.8);
+    expect(exposureAt(MINUTES(10))).toBe(100);
+    // The rate does not depend on the size of the parameter.
+    expect(exposureAt(MINUTES(1), 0.1)).toBeCloseTo(100 / 3, 0);
+  });
+
+  it('stays at 0 with the normal parameter', () => {
+    expect(quantity(run(fixture({}), MINUTES(10)).quantities, 'icing_exposure')).toBe(0);
+  });
+
+  it('stops the accretion on both sides once the exposure is full', () => {
+    const scenario = fixture({ ice_accretion: 1 });
+    const at3 = run(scenario, MINUTES(3) + 1_000).quantities;
+    const at6 = run(scenario, MINUTES(6)).quantities;
+    for (const id of ['ice_pilot', 'ice_copilot']) {
+      // 40 per minute for 3 minutes is above the top: the glass is full and stays so.
+      expect(quantity(at3, id), id).toBe(100);
+      expect(quantity(at6, id), id).toBe(quantity(at3, id));
+    }
+    const slow = fixture({ ice_accretion: 0.25 });
+    const slow3 = run(slow, MINUTES(3) + 1_000).quantities;
+    const slow10 = run(slow, MINUTES(10)).quantities;
+    // 10 per minute for 3 minutes: 30, and no more afterwards.
+    expect(quantity(slow3, 'ice_pilot')).toBeCloseTo(30, 0);
+    expect(quantity(slow10, 'ice_pilot')).toBe(quantity(slow3, 'ice_pilot'));
+    expect(quantity(slow10, 'ice_copilot')).toBe(quantity(slow3, 'ice_copilot'));
+  });
+
+  it('melts the ice that is already on the glass with warm air, 6 per minute, after the area ends', () => {
+    const scenario = fixture({ ice_accretion: 0.25 });
+    const warm: SimEvent[] = [
+      { t: 0, id: 'lv.env_direction', value: 'defrost' },
+      { t: 0, id: 'lv.env_temp', value: 'warm' },
+    ];
+    // Growth 10 per minute less 6 of melt for 3 minutes is 12; then 6 per minute melt it in 2 minutes.
+    const q = run(scenario, MINUTES(10), warm).quantities;
+    expect(quantity(q, 'ice_pilot')).toBe(0);
+    expect(quantity(q, 'ice_copilot')).toBe(0);
+    const ice = run(scenario, MINUTES(3) + 1_000, warm).quantities;
+    expect(quantity(ice, 'ice_pilot')).toBeCloseTo(12, 0);
+  });
+
+  it('a live run equals the replay at every step, to the last digit', () => {
+    const scenario = fixture({ ice_accretion: 1 });
+    const setup = simSetup(DA50RG_ENV, scenario);
+    const begin = initialQuantities(scenario, DA50RG_ENV.quantities);
+    const store = new PanelStore(DA50RG);
+    store.reset(scenario.initial.controls);
+    const live = new Run({ setup, store, start: begin });
+    for (let n = 1; n <= 2_000; n++) {
+      live.step();
+      if (n % 100 === 0) {
+        const replay = simulate(setup, {
+          events: store.events(),
+          start: begin,
+          untilMs: n * STEP_MS,
+        });
+        expect(live.state.quantities, `step ${String(n)}`).toEqual(replay.state.quantities);
+      }
+    }
+    expect(quantity(live.state.quantities, 'icing_exposure')).toBe(100);
+  });
+});
+
+describe('the lasting WIND SHIELD spray (I-03)', () => {
+  const press = (t: number): SimEvent[] => [
+    { t, id: 'btn.deice_windshield', value: 'pressed' },
+    { t: t + 500, id: 'btn.deice_windshield', value: 'released' },
+  ];
+  const MINUTES = (n: number): number => n * MINUTE_MS;
+
+  it('runs the protection flag for 10 minutes of run time and ignores a second press', () => {
+    const reaction = DA50RG_ENV.physics.reactions.find((r) => r.id === 'windshield_protect');
+    expect(reaction?.flag).toBe(WINDSHIELD_PROTECT_ACTIVE);
+    expect(reaction?.durationMs).toBe(MINUTES(10));
+    const events = [...press(2_000), ...press(MINUTES(5))];
+    const scenario = fixture({});
+    const flag = WINDSHIELD_PROTECT_ACTIVE;
+    expect(run(scenario, 2_000, events).flags[flag]).toBeUndefined();
+    expect(run(scenario, 2_100, events).flags[flag]).toBe(true);
+    expect(run(scenario, MINUTES(10), events).flags[flag]).toBe(true);
+    expect(run(scenario, MINUTES(10) + 2_000, events).flags[flag]).toBeUndefined();
+  });
+
+  it('keeps the pilot side at 0 for 10 minutes while the co-pilot side keeps its ice', () => {
+    const scenario = fixture({ ice_accretion: 1 });
+    const start = { ice_pilot: 50, ice_copilot: 50 };
+    const q = run(scenario, MINUTES(9), press(2_000), start).quantities;
+    expect(quantity(q, 'ice_pilot')).toBe(0);
+    expect(quantity(q, 'ice_copilot')).toBeGreaterThanOrEqual(50);
+  });
+
+  it('leaves the pilot side without ice to the end of a 15 minute run after a press at 60 s', () => {
+    const scenario = fixture({ ice_accretion: 0.5 });
+    const q = run(scenario, MINUTES(15), press(60_000)).quantities;
+    expect(quantity(q, 'ice_pilot')).toBe(0);
+    // The co-pilot side stopped growing with the area: 0.5 times 40 for 3 minutes.
+    expect(quantity(q, 'ice_copilot')).toBeCloseTo(60, 0);
+  });
+
+  it('a run without the press still ices the pilot side', () => {
+    const q = run(fixture({ ice_accretion: 0.5 }), MINUTES(15)).quantities;
+    expect(quantity(q, 'ice_pilot')).toBeCloseTo(60, 0);
+  });
+
+  it('a live run equals the replay at every step, to the last digit', () => {
+    const scenario = fixture({ ice_accretion: 0.5 });
+    const setup = simSetup(DA50RG_ENV, scenario);
+    const begin = initialQuantities(scenario, DA50RG_ENV.quantities);
+    const store = new PanelStore(DA50RG);
+    store.reset(scenario.initial.controls);
+    const live = new Run({ setup, store, start: begin });
+    for (let n = 1; n <= 1_500; n++) {
+      if (n === 600) store.dispatch('btn.deice_windshield', 'pressed', live.clock.now());
+      if (n === 605) store.dispatch('btn.deice_windshield', 'released', live.clock.now());
+      live.step();
+      if (n % 100 === 0) {
+        const replay = simulate(setup, {
+          events: store.events(),
+          start: begin,
+          untilMs: n * STEP_MS,
+        });
+        expect(live.state.quantities, `step ${String(n)}`).toEqual(replay.state.quantities);
+        expect(live.state.flags, `step ${String(n)}`).toEqual(replay.state.flags);
+      }
+    }
+  });
+});
+
 describe('the stopped propeller (C-06)', () => {
   const MASTER_OFF: SimEvent[] = [{ t: 0, id: 'sw.engine_master', value: 'off' }];
   const levelOf = (rpm: number): number => DA50RG_ENV.cues.levels({ rpm })['prop_stopped'] ?? -1;

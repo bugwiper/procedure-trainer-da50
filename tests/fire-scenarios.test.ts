@@ -347,6 +347,138 @@ describe('Electrical Fire in Flight', () => {
   });
 });
 
+// Unintentional Flight Into Icing Conditions (pack icing): the printed page with its two CAUTION
+// blocks, graded by control state, the ice on the cloud scene, an end of the icing area and a
+// spray that keeps the pilot side clear (the exposure and the protection are tested on a fixture in
+// tests/windscreen-physics.test.ts).
+describe('Unintentional Flight Into Icing Conditions', () => {
+  const scenario = load('scenarios/icing/icing-unintentional.toon');
+  const golden = events(
+    ['sw.pitot_stall_heat', 'on'],
+    ['lv.env_temp', 'warm'],
+    ['lv.env_direction', 'defrost'],
+    ['lv.power', 'p100'],
+    ['lv.alt_air', 'open'],
+    ['lv.alt_static', 'open'],
+  );
+  const MINUTE_MS = 60_000;
+  const iceAt = (log: readonly RecordedEvent[], atMs: number): Record<string, number> => {
+    const q = simulate(simSetup(DA50RG_ENV, scenario), {
+      events: log,
+      start: initialQuantities(scenario, DA50RG_ENV.quantities),
+      untilMs: atMs,
+    }).state.quantities;
+    return { pilot: q['ice_pilot'] ?? Number.NaN, copilot: q['ice_copilot'] ?? Number.NaN };
+  };
+  const press = (t: number): RecordedEvent[] => [
+    { t, id: 'btn.deice_windshield', value: 'pressed' },
+    { t: t + 500, id: 'btn.deice_windshield', value: 'released' },
+  ];
+
+  it('is on the cloud scene with both ice cues and no message', () => {
+    expect(scenario.scene).toBe('cloud');
+    expect(scenario.onset?.cues).toEqual(['ice_pilot_side', 'ice_copilot_side']);
+    expect(scenario.annunciations).toEqual([]);
+    expect(scenario.outcomes).toEqual([]);
+  });
+
+  it('is graded on the five critical steps, the power increase and the optional window', () => {
+    const result = run(scenario, golden);
+    expect(result.result).toBe('pass');
+    expect(Object.fromEntries(result.steps.map((s) => [s.id, s.severity]))).toEqual({
+      pitot_heat_on: 'critical',
+      cabin_heat_on: 'critical',
+      cabin_air_defrost: 'critical',
+      power_increase: 'standard',
+      alt_air_open: 'critical',
+      alt_static_open: 'critical',
+      windows_open: 'optional',
+    });
+  });
+
+  it('fails a run that does nothing and a run that misses any one critical step', () => {
+    expect(failed(run(scenario, []))).toBe(true);
+    for (const skip of [
+      'sw.pitot_stall_heat',
+      'lv.env_temp',
+      'lv.env_direction',
+      'lv.alt_air',
+      'lv.alt_static',
+    ]) {
+      expect(
+        failed(
+          run(
+            scenario,
+            golden.filter((e) => e.id !== skip),
+          ),
+        ),
+        skip,
+      ).toBe(true);
+    }
+  });
+
+  it('takes the cabin heat as TEMPERATURE at 75 or WARM, not at 50', () => {
+    const heat = (value: string) =>
+      credited(run(scenario, events(['lv.env_temp', value])), 'cabin_heat_on');
+    expect(heat('t75')).toBe(true);
+    expect(heat('warm')).toBe(true);
+    expect(heat('t50')).toBe(false);
+  });
+
+  it('passes without the window and with it, and without the power increase', () => {
+    const withWindow = [
+      ...golden,
+      ...events(['sw.emerg_window', 'open']).map((e) => ({ ...e, t: 20 * SECOND_MS })),
+    ];
+    expect(run(scenario, withWindow).result).toBe('pass');
+    expect(
+      run(
+        scenario,
+        golden.filter((e) => e.id !== 'lv.power'),
+      ).result,
+    ).toBe('pass');
+  });
+
+  it('shows ice on both halves within the lint bound at both ends of the onset window', () => {
+    for (const onsetAt of [2 * SECOND_MS, 6 * SECOND_MS]) {
+      const levels = realisticLevels(scenario, onsetAt, 24 * SECOND_MS);
+      expect(cueVisible(levels['ice_pilot_side'] ?? 0), `pilot at ${String(onsetAt)}`).toBe(true);
+      expect(cueVisible(levels['ice_copilot_side'] ?? 0), `co-pilot at ${String(onsetAt)}`).toBe(
+        true,
+      );
+      const start = realisticLevels(scenario, onsetAt, 0);
+      expect(cueVisible(start['ice_pilot_side'] ?? 0)).toBe(false);
+      expect(cueVisible(start['ice_copilot_side'] ?? 0)).toBe(false);
+    }
+  });
+
+  it('ends the icing area after 3 minutes: the ice stops growing on both sides', () => {
+    const at3 = iceAt([], 3 * MINUTE_MS + 2 * SECOND_MS);
+    const at10 = iceAt([], 10 * MINUTE_MS);
+    // 15 at the start, 0.5 times 40 per minute for 3 minutes.
+    expect(at3['pilot']).toBeCloseTo(75, 0);
+    expect(at10).toEqual(at3);
+  });
+
+  it('melts the ice with the warm air of the golden run after the area has ended', () => {
+    // About 57 on the glass when the area ends, 6 per minute of warm air: clear within 10 minutes.
+    expect(iceAt(golden, 3 * MINUTE_MS + 2 * SECOND_MS)['pilot']).toBeGreaterThan(40);
+    const q = iceAt(golden, 14 * MINUTE_MS);
+    expect(q['pilot']).toBe(0);
+    expect(q['copilot']).toBe(0);
+  });
+
+  it('keeps the pilot side clear after a WIND SHIELD press at 60 s, the co-pilot side keeps its ice', () => {
+    const q = iceAt(press(60 * SECOND_MS), 15 * MINUTE_MS);
+    expect(q['pilot']).toBe(0);
+    expect(q['copilot']).toBeCloseTo(75, 0);
+    // The press at 60 s clears the pilot glass directly within about a second.
+    expect(iceAt(press(60 * SECOND_MS), 62 * SECOND_MS)['pilot']).toBe(0);
+    // Without the press the pilot side stays iced to the end of the same run.
+    expect(iceAt([], 15 * MINUTE_MS)['pilot']).toBeCloseTo(75, 0);
+  });
+});
+
 // Smoke and Fire During Take-Off: two scenarios, the abort and the no abort (S-06).
 describe('Smoke and Fire During Take-Off, the abort', () => {
   const scenario = load('scenarios/fire/takeoff-fire-abort.toon');
