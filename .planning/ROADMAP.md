@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Electrical system fidelity** - Bus model with bus tie relay, ALT 1 and ALT 2 behaviour, ESS BUS path, combined amps gauge, ALTN 2 FAIL scenario, ALTN checklist fidelity (completed 2026-10-27)
 - [x] **Phase 5: Windscreen and failure cues** - A windscreen area above the panel with scenes (parked, takeoff roll, cruise) and cues driven by the simulation: engine fire flames and smoke, cabin smoke, windscreen ice with warm air and TKS spray; the onset cue declared in scenario data and checked by lint (completed 2026-10-27)
 - [ ] **Phase 5.1: Ground and takeoff emergencies** (INSERTED) - Rudder pedals with service brakes, ground speed on the takeoff roll, the transponder in the co-pilot footwell, the oval emergency window, and the scenarios engine fire on ground, on takeoff (abort and no abort), electrical fire on ground and in flight, unintentional flight into icing
-- [ ] **Phase 6: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim and the real engine page layout
+- [ ] **Phase 6: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim, the real engine page layout and a live PFD
 - [ ] **Phase 7: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
 - [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop
 
@@ -518,7 +518,7 @@ Plans:
 
 ### Phase 6: Fuel, tank and engine fidelity and the engine page
 
-**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. The simulation also runs on the free panel (outside a scenario run), so the normal-checklist walks work there, for example the alternator test with ESS BUS on and off (owner decision 2026-10-23). Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and 2026-10-22-free-panel-simulation.md.
+**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. The simulation also runs on the free panel (outside a scenario run), so the normal-checklist walks work there, for example the alternator test with ESS BUS on and off (owner decision 2026-10-23). The PFD becomes live as well: airspeed and ground speed, altitude and attitude read the simulated quantities (today the PFD is an inert picture and shows zero speed even on the takeoff roll; owner decision 2026-10-27). Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and 2026-10-22-free-panel-simulation.md.
 **Depends on**: Phase 4
 **Requirements**: TBD (to be defined when the phase is planned)
 
