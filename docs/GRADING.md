@@ -201,3 +201,50 @@ Four situations in the pack `fire` (Fire and smoke): Engine Fire on Ground, Elec
 - **Outcome.** The three fire scenarios copy the Engine Fire outcome (`fire_spreads`, 85 held 20 s) and the emergency fuel pump as the forbidden item; the electrical one ends in `cabin_smoke_full` (smoke 95 held 30 s) and forbids nothing. 95 and not 90, because the gate `tests/blueprint.test.ts` bans an outcome threshold as a number in engine code and 90 is a degree constant there.
 - **Realistic.** The take-off scenarios put only the start speed under `onset.quantities`: the lint (L23) rejects a flame cue that is visible at the Realistic start.
 - **PFD airspeed.** The PFD readout and tape follow the hidden quantity `airspeed_kt`, which is the ground speed while the aircraft moves on the ground (the scenario sets `ground_roll`, or it starts with a speed) and the static 140 knots elsewhere (the free panel, flight, the apron). A training approximation with no conversion to indicated airspeed.
+
+## Checklists in the AFM form (phase 5.1)
+
+The ground, take-off, electrical-fire and icing situations are printed in the form of the AFM pages: a heading, row marks that are capital letters, italic sub-headings and WARNING and CAUTION blocks between the rows. The format stays 1; grading does not read any of it.
+
+- **Letter marks.** A row mark (`number`) is a whole number or one capital letter A to Z; one checklist uses one style and runs in document order (L16). The letters are the marks of the AFM pages that were compared. ASSUMPTION for the owner: the checklist booklet may print numbers instead. The marks are plain data, so a swap is one edit of the `number` fields in the file plus the typed table in `tests/checklist-reference.ts`; every file says so in its header comment.
+- **Comment styles.** A `comment` row has an optional `style`: `subheading` (italic, one line), `warning` or `caution` (the word WARNING or CAUTION above the text). Only the last two may run to 70 words; their text is reproduced as printed (owner, 2026-10-27, `docs/CONTENT-POLICY.md`).
+- **Flat rows.** The AFM pages have no nesting, so every row is a top-level `group` of one step (unordered, so any order passes) or a `line`. A sub-heading does not indent what follows it.
+- **Variants as the engine-running branch.** Electrical Fire with Smoke on Ground has two causes behind one page: the engine running (the shutdown rows apply) or stopped already (only ELECT. MASTER and the door apply). They are variants (`applies`), not a decision row.
+- **Door and window rows.** "Door open" and "Doors open" are graded on the door release lever (state `open`), the window row on `sw.emerg_window`. They are critical in the ground scenarios (the door row is the last step of every ground checklist) and optional in the flight scenarios, where the simulation has no landing (S-07). The door is credited whenever the lever is opened, at any time; opening the window never credits the door. Nothing fails a run for opening a door or a window early or in flight; a harmful open door is a cut, listed in the todos.
+- **Display rows.** A printed row without a panel action ("Perform a precautionary landing...", "Airplane evacuate immediately", "Leave the icing area", "ATC advise...") is a `line`: shown, never graded.
+- **Ground idle.** GI is the lever position `p0`. "FUEL valve OFF (lift and turn)" is the state `off` of the FUEL selector; the printed lift is not modelled.
+
+## Ground speed and the take-off roll (phase 5.1)
+
+A scenario that sets the parameter `ground_roll` gets a ground speed (the hidden quantity `ground_speed_kt`, knots): it gains 0.02 knots per second per percent of POWER travel while the engine runs, loses 0.3 knots per second to drag with the engine running (0.6 stopped) and 4 knots per second while the toe brakes are applied or the parking brake is set; the speed stays between 0 and 100. Every other scenario holds the speed it starts with, so no earlier recording changes. The scene `takeoff_roll` scrolls at a rate that follows the speed (the cue `roll_speed`), and the PFD readout and tape follow `airspeed_kt` (the ground speed while the aircraft moves on the ground, the static 140 knots in flight). The parked situations (Engine Fire on Ground, Electrical Fire with Smoke on Ground) start with `ground_roll` 1, the parking brake set and `airspeed_kt` 0, so the apron reads 0 knots, also with the engine running; the flight situations keep 140. The take-off situations list the start speed under `initial` and `onset` quantities.
+
+## Smoke clearing and icing rules (phase 5.1)
+
+- **Smoke.** The source is live only while ELECT. MASTER is on. Once it is off the smoke clears at 1 times the build-up speed, plus 1 with CIRCULATING AIR at fresh, plus 1 with the emergency window open (at most 3 times). In Electrical Fire in Flight CIRCULATING AIR starts at recirc, so the fresh-air row is a real step. The open door does not clear smoke in the simulation (a cut).
+- **The icing area ends.** The hidden quantity `icing_exposure` (0 to 100) runs while `ice_accretion` is above 0 and is full after 3 minutes of run time; from then on no ice grows on either half. "Leave the icing area" stays a display row. Ice already on the glass melts only by warm air (DIRECTION at DEFROST with TEMPERATURE at 75 or WARM, 6 per minute) or by the spray.
+- **The lasting spray.** A WIND SHIELD press starts the spray (10 s, clears the pilot half within a second) and, from the same press, a protection of 10 minutes of run time (`windshield_protect`, flag `deice.windshield_protected`): the pilot half takes no new ice. The icing area ends after 3 minutes, so after a press the pilot half stays clear for the rest of a normal run and the co-pilot half keeps its ice until warm air melts it (owner, 2026-10-27). This replaces the Phase 5 behaviour that the pilot half iced again after the spray. The press is not graded (the printed page has no spray step). Aerodynamic effects of the ice come with a later phase.
+
+## Engine Fire in Flight: the AFM page and the booklet page (phase 5.1)
+
+The shipped scenario `eng-fire-in-flight` is the booklet page and is not changed. The AFM page differs in these points, listed for the owner in case the booklet is replaced by the AFM form:
+
+- the marks are the letters A to K, the booklet has the numbers 1 to 8;
+- the AFM page has a WARNING block above the first row; the booklet has none;
+- "Select appropriate emergency landing area" is a lettered row on the AFM page and a comment line without a mark in the booklet;
+- the AFM page has the sub-heading When Airplane Has Stopped with the two rows Doors and Airplane (letters J, K); the booklet has a comment line and the row Doors with a number, then a bare comment;
+- the wording of several rows differs: the circulating air row (OFF / FRESH AIR against FRESH AIR), the three shutdown rows (capital letters and word order), the airspeed row (a printed sentence about a faster airspeed against a short phrase), the windows row (Emergency Windows OPEN if required against front windows OPEN as necessary) and the landing row (a sentence with a reference against a boxed reference);
+- the squawk 7700 row is an own addition in the booklet scenario and not printed on either page.
+
+## Instructor review (phase 5.1)
+
+Every value below is an own value chosen by default (instructor-review, not an AFM figure) and each is a data edit in the file named. The grading rules do not change and the level is still never an input of `grade`. The same items are listed for the owner in [PANEL-REVIEW.md](PANEL-REVIEW.md), section "Phase 5.1: owner review".
+
+1. **Ground speed constants.** 0.02 knots per second per percent of POWER, drag 0.3 running and 0.6 stopped, braking 4 (`physics.ts`).
+2. **Smoke.** Source 1, start density 40, clearing factors 1, +1 fresh air, +1 window; the outcome `cabin_smoke_full` at 95 held 30 s (95 and not 90, see the blueprint gate).
+3. **Fire and smoke onsets.** Window 2 to 6 s, cues `flames` or `cabin_smoke`; the take-off start speeds 40 and 70 knots.
+4. **Causes of the ground electrical fire.** Engine running 70, stopped 30.
+5. **Door and window severities.** Critical on the ground, optional in flight (S-07, owner 2026-10-27); the window optional everywhere.
+6. **Icing.** `ice_accretion` 0.5 (20 per minute per half), start ice 15 on Easy and Medium, the area ends after 3 minutes, the protection lasts 10 minutes, onset cue bound 24 s (`message_within_s`).
+7. **Icing steps.** Pitot heat, cabin heat (75 or WARM), DEFROST, ALTERNATE AIR and alternate static are critical, the POWER increase is standard (any increase), the window is optional.
+8. **Start state of the parked situations.** Parking brake set, POWER at idle (engine fire) or 25 percent (electrical fire).
+9. **No outcome in the icing scenario.** The aerodynamic effects of ice are not simulated.
