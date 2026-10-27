@@ -121,3 +121,4 @@ outcomes[1]:
 # The fire of the level Realistic begins at a random second inside this window; the window is an instructor-review value.
 onset:
   window_s[2]: 5,20
+  cues[1]: flames

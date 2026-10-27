@@ -18,6 +18,7 @@ import { Briefing } from './screens/Briefing';
 import { LevelPick } from './screens/LevelPick';
 import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
 import { Debrief } from './screens/Debrief';
+import { parsePreviewFlags, parsePreviewQuantities } from './preview';
 import { RUN_ERROR_PATH, createSession } from './session';
 import type { LoadFailure } from './session';
 import type { Level } from './session';
@@ -30,6 +31,21 @@ const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
  */
 const FLAG_SCENE =
   typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('scene');
+
+// Preview flags of the free panel (Phase 5, C-03): ?q=id:value,... sets start quantities and
+// ?flags=name,... sets flags, applied once; unknown or out-of-range entries are ignored and a
+// RESET clears them like any run state.
+if (typeof location !== 'undefined') {
+  const quantities = parsePreviewQuantities(location.search, DA50RG_ENV.quantities);
+  if (Object.keys(quantities).length > 0) {
+    bridge.setQuantities({ ...bridge.quantities.peek(), ...quantities });
+  }
+  const flags = parsePreviewFlags(
+    location.search,
+    DA50RG_ENV.physics.reactions.map((reaction) => reaction.flag),
+  );
+  if (Object.keys(flags).length > 0) bridge.setFlags(flags);
+}
 
 // The session owns randomness and the run clock; a run starts on the full panel (UI-SPEC).
 const session = createSession({

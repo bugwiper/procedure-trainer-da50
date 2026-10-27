@@ -656,6 +656,7 @@ describe('L14: the realistic level starts clean and shows what the scenario list
       parameters: {},
       controls: {},
       message_within_s: 22,
+      cues: [],
     });
     expect(lintScenario(parsedOf(BLUEPRINT), DA50RG_ENV)).toEqual([]);
   });
@@ -722,6 +723,98 @@ describe('L14: the realistic level starts clean and shows what the scenario list
       const first = result.ok ? undefined : result.issues[0];
       expect(first?.path, bad).toMatch(/^onset\.window_s/);
       expect(first?.line, bad).toBe(lineOf(text, 'window_s[2]'));
+    }
+  });
+});
+
+describe('L23 and L24: the declared onset cue (Phase 5, C-01)', () => {
+  const SMOKE = readFileSync(`${root}tests/fixtures/scenarios/smoke-onset.toon`, 'utf8');
+  const CUES_LINE = '  cues[1]: cabin_smoke';
+
+  it('passes the smoke fixture: the cabin smoke shows a second or so after the onset', () => {
+    expect(checkScenario(SMOKE, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('L24: an onset with neither annunciation nor cue is reported at the onset', () => {
+    const text = swap(SMOKE, `${CUES_LINE}\n`, '');
+    const issues = issuesOf(text);
+    expect(issues.map((i) => i.path)).toContain('onset');
+    const hit = issues.find((i) => i.path === 'onset');
+    expect(hit?.message).toContain('no annunciation and no cue');
+    expect(hit?.line).toBe(lineOf(text, 'onset:'));
+  });
+
+  it('L24: an annunciation alone satisfies the rule, a cue alone does too', () => {
+    expect(checkScenario(BLUEPRINT, DA50RG_ENV).ok).toBe(true);
+    expect(checkScenario(SMOKE, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('L23: an unknown cue is reported at its entry, with the known cues', () => {
+    const text = swap(SMOKE, CUES_LINE, '  cues[1]: fog');
+    const issues = issuesOf(text);
+    expect(issues).toEqual([
+      {
+        path: 'onset.cues.0',
+        message: `unknown cue "fog"; known cues: ${DA50RG_ENV.cues.ids.join(', ')}`,
+        line: lineOf(text, 'cues[1]: fog'),
+        col: expect.any(Number) as number,
+      },
+    ]);
+  });
+
+  it('L23: a cue listed twice is reported at the second entry', () => {
+    const text = swap(SMOKE, CUES_LINE, '  cues[2]: cabin_smoke,cabin_smoke');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ path: 'onset.cues.1' });
+    expect(issues[0]?.message).toContain('listed twice');
+  });
+
+  it('L23: a cue that is visible at the realistic start is reported at the cue', () => {
+    // The onset sets the start reading of the smoke, so the cue stands in the cabin from t 0.
+    const text = swap(SMOKE, CUES_LINE, `${CUES_LINE}\n  quantities:\n    smoke_density: 50`);
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ path: 'onset.cues.0', line: lineOf(text, CUES_LINE) });
+    expect(issues[0]?.message).toContain('already visible at the realistic start');
+  });
+
+  it('L23: a cue that never shows in a do-nothing run is reported at the cue', () => {
+    // Without the source parameter the cabin stays clear.
+    const text = swap(SMOKE, 'parameters:\n  smoke_source: 1\n', '');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ path: 'onset.cues.0', line: lineOf(text, CUES_LINE) });
+    expect(issues[0]?.message).toContain('never becomes visible');
+  });
+
+  it('L23: a cue that shows later than the bound is reported with the measured seconds', () => {
+    // A small source parameter fills the cabin so slowly that the cue (level 0.1) takes longer than 12 s.
+    const text = swap(SMOKE, 'smoke_source: 1', 'smoke_source: 0.1');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.message).toMatch(/shows \d+\.\d s after the onset/);
+    expect(issues[0]?.message).toContain(`within ${String(REALISTIC_SHOW_WITHIN_MS / 1000)} s`);
+  });
+
+  it('L23: the scenario bound message_within_s replaces the default for a cue too', () => {
+    const slow = swap(SMOKE, 'smoke_source: 1', 'smoke_source: 0.1');
+    const text = swap(slow, CUES_LINE, `${CUES_LINE}\n  message_within_s: 60`);
+    expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('L19: the per-variant start check reports the same, at the variant', () => {
+    const ALTN = readFileSync(`${root}scenarios/electrical/elec-altn1-fail.toon`, 'utf8');
+    const at = 'onset:\n  window_s[2]: 2,6';
+    expect(ALTN.split(at).length - 1).toBe(1);
+    const text = ALTN.replace(at, `${at}\n${CUES_LINE}`);
+    const issues = issuesOf(text);
+    expect(issues.length).toBeGreaterThan(0);
+    for (const issue of issues) {
+      expect(issue.path).toMatch(/^variants\.\d+$/);
+      expect(issue.message).toContain(
+        'the cue "cabin_smoke" is declared but never becomes visible',
+      );
     }
   });
 });

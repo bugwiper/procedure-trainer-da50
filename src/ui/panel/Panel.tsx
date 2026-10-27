@@ -1,6 +1,7 @@
 import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { DEFAULT_SCENE } from '../../aircraft/da50rg/scenes';
+import { cueVisible } from '../../engine/cues';
 import type { PanelBridge } from '../bridge';
 import type { Session } from '../session';
 import { ControlWidget } from './ControlWidget';
@@ -15,6 +16,7 @@ import { ScenarioAreaFrame } from './frames/ScenarioAreaFrame';
 import { SoftkeysFrame } from './frames/SoftkeysFrame';
 import { StandbyEfisFrame } from './frames/StandbyEfisFrame';
 import { PanelShell } from './PanelShell';
+import { CabinSmoke } from './windscreen/CabinSmoke';
 import { Windscreen } from './windscreen/Windscreen';
 import { IndicatorLight } from './widgets/IndicatorLight';
 import { attachZoomGestures, viewBoxAttr } from './zoom';
@@ -59,6 +61,8 @@ export function Panel({ bridge, session }: { bridge: PanelBridge; session?: Sess
     if (svg === null) return undefined;
     return attachZoomGestures(svg, { registry, retract: (seq) => bridge.retract(seq).ok });
   }, [registry, bridge]);
+  const cues = bridge.cueLevels.value;
+  const smoke = cues['cabin_smoke'] ?? 0;
   return (
     <svg
       ref={svgRef}
@@ -70,7 +74,7 @@ export function Panel({ bridge, session }: { bridge: PanelBridge; session?: Sess
     >
       <rect data-testid="panel-background" x={x} y={y} width={w} height={h} fill="#14171c" />
       <Defs />
-      <Windscreen scene={session?.scene.value ?? DEFAULT_SCENE} cues={bridge.cueLevels.value} />
+      <Windscreen scene={session?.scene.value ?? DEFAULT_SCENE} cues={cues} />
       <PanelShell registry={registry} />
       {registry.regions.map((region) => (
         <g
@@ -118,6 +122,8 @@ export function Panel({ bridge, session }: { bridge: PanelBridge; session?: Sess
           })}
         </g>
       ))}
+      {/* Cabin smoke (Phase 5, C-02): over every region, never takes a press. */}
+      {cueVisible(smoke) ? <CabinSmoke level={smoke} /> : null}
     </svg>
   );
 }

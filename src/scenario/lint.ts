@@ -28,11 +28,18 @@
 // onset, in the Realistic form at both ends of the window. L21 keeps the variants apart: no step
 // that applies in one variant makes a forbidden item of another variant true at its start.
 // L22 (Phase 5) checks the optional `scene`: it must name a scene of the aircraft.
+// L23 (Phase 5) checks the visual cues an onset declares (`onset.cues`): every id is a cue of the
+// aircraft, none is visible at the realistic start, and each is visible within the same bound as
+// an annunciation (onset.message_within_s, else REALISTIC_SHOW_WITHIN_MS) after the onset in a
+// do-nothing run, at both ends of the window. L24: an onset needs at least one annunciation or one
+// cue, so a Realistic run always shows the pilot something. Both run inside the realistic start
+// check, so the per-variant check L19 inherits them.
 // checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
 // the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { MAX_CAS_CHIPS } from '../engine/cas';
+import { cueVisible } from '../engine/cues';
 import type { AircraftEnv } from '../engine/env';
 import { grade } from '../engine/grading';
 import type { Recording } from '../engine/grading';
@@ -66,6 +73,9 @@ const REALISTIC_LOOKAHEAD_MS = 600_000;
  * asked for on 2026-10-23, so 22 s), and the other scenarios keep this one.
  */
 export const REALISTIC_SHOW_WITHIN_MS = 12_000;
+
+/** The prefix that keeps a cue apart from a message id in the table of first-shown times. */
+const CUE_KEY = 'cue:';
 
 /** Most branch levels on one path through the procedure (UI-SPEC outline cap). */
 export const MAX_BRANCH_LEVELS = 3;
@@ -122,6 +132,15 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
   if (scenario.scene !== undefined && !env.scenes.has(scenario.scene)) {
     add(['scene'], `unknown scene "${scenario.scene}"; known scenes: ${env.scenes.ids.join(', ')}`);
   }
+
+  // L23: every cue the onset declares is a cue of the aircraft.
+  (scenario.onset?.cues ?? []).forEach((id, i) => {
+    if (!env.cues.ids.includes(id)) {
+      add(['onset', 'cues', i], `unknown cue "${id}"; known cues: ${env.cues.ids.join(', ')}`);
+    } else if (scenario.onset?.cues.indexOf(id) !== i) {
+      add(['onset', 'cues', i], `the cue "${id}" is listed twice`);
+    }
+  });
 
   for (const [id, state] of Object.entries(scenario.initial.controls)) {
     const def = env.registry.get(id);
@@ -777,6 +796,14 @@ function checkRealisticStart(
   const onset = scenario.onset;
   if (onset === undefined) return;
 
+  // L24: the Realistic run has to show the pilot something at the onset.
+  if (scenario.annunciations.length === 0 && onset.cues.length === 0) {
+    add(
+      ['onset'],
+      'the onset has no annunciation and no cue; list an annunciation or declare onset.cues, so the level Realistic shows the failure',
+    );
+  }
+
   // L15 guard: branches decided at the start that read a quantity the onset block sets.
   const set = new Set(Object.keys(onset.quantities));
   const reported = new Set<string>();
@@ -837,13 +864,32 @@ function checkRealisticStart(
     }
   });
 
-  /** The time of the first step in which each message is active, in a do-nothing run with this onset. */
+  // L23: a declared cue is not visible at the start either.
+  const startLevels = env.cues.levels(state0.quantities);
+  onset.cues.forEach((id, i) => {
+    if (cueVisible(startLevels[id] ?? 0)) {
+      add(
+        ['onset', 'cues', i],
+        `the cue "${id}" is already visible at the realistic start; the level Realistic must begin without a cue`,
+      );
+    }
+  });
+
+  /**
+   * The time of the first step in which each message is active and, keyed `cue:<id>`, in which each
+   * cue is visible, in a do-nothing run with this onset.
+   */
   const firstShown = (onsetAt: number): Map<string, number> => {
     const setup = simSetup(env, scenario, { onsetAt });
     const shown = new Map<string, number>();
     const note = (state: SimState): void => {
       for (const message of env.cas.active(contextOf(setup, state), env)) {
         if (!shown.has(message.id)) shown.set(message.id, state.t);
+      }
+      const levels = env.cues.levels(state.quantities);
+      for (const id of onset.cues) {
+        const key = `${CUE_KEY}${id}`;
+        if (!shown.has(key) && cueVisible(levels[id] ?? 0)) shown.set(key, state.t);
       }
     };
     let state = initSim(setup, start);
@@ -875,6 +921,25 @@ function checkRealisticStart(
       add(
         ['annunciations', i],
         `"${id}" shows ${(afterOnsetMs / 1000).toFixed(1)} s after the onset in a realistic run that does nothing; the level Realistic must show it within ${String(showWithinMs / 1000)} s`,
+      );
+    }
+  });
+
+  onset.cues.forEach((id, i) => {
+    const early = lower.get(`${CUE_KEY}${id}`);
+    const late = upper.get(`${CUE_KEY}${id}`);
+    if (early === undefined || late === undefined) {
+      add(
+        ['onset', 'cues', i],
+        `the cue "${id}" is declared but never becomes visible in a realistic run that does nothing; the level Realistic would not show it`,
+      );
+      return;
+    }
+    const afterOnsetMs = Math.max(early - lowerAt, late - upperAt);
+    if (afterOnsetMs > showWithinMs) {
+      add(
+        ['onset', 'cues', i],
+        `the cue "${id}" shows ${(afterOnsetMs / 1000).toFixed(1)} s after the onset in a realistic run that does nothing; the level Realistic must show it within ${String(showWithinMs / 1000)} s`,
       );
     }
   });

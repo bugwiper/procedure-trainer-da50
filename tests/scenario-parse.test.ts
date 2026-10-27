@@ -342,6 +342,7 @@ describe('the Realistic setup in the onset block (plan 03-11, C-58)', () => {
       quantities: { oil_temp_c: 114 },
       parameters: { oil_temp_rate: 3 },
       controls: {},
+      cues: [],
     });
   });
 
@@ -354,7 +355,22 @@ describe('the Realistic setup in the onset block (plan 03-11, C-58)', () => {
       quantities: {},
       parameters: {},
       controls: {},
+      cues: [],
     });
+  });
+
+  it('reads onset.cues as a list of ids, at most four, and rejects a bad id at its entry', () => {
+    const ok = parseScenario(
+      `${MINIMAL}onset:\n  window_s[2]: 5,20\n  cues[2]: flames,cabin_smoke\n`,
+    );
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.value.onset?.cues).toEqual(['flames', 'cabin_smoke']);
+    const many = parseScenario(`${MINIMAL}onset:\n  window_s[2]: 5,20\n  cues[5]: a,b,c,d,e\n`);
+    expect(many.ok).toBe(false);
+    const bad = `${MINIMAL}onset:\n  window_s[2]: 5,20\n  cues[1]: Bad-Id\n`;
+    const issues = issuesOf(bad);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.path).toBe('onset.cues.0');
   });
 
   it('rejects a non-numeric quantity or parameter at the line of the key', () => {

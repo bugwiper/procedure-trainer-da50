@@ -797,9 +797,15 @@ body,
   }
 }
 
+/* The cabin smoke drifts slowly (Phase 5, C-02). */
+.panel-svg .w-smoke-drift {
+  animation: w-drift 7s ease-in-out infinite alternate;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .panel-svg .w-flicker,
-  .panel-svg .w-flicker-smoke {
+  .panel-svg .w-flicker-smoke,
+  .panel-svg .w-smoke-drift {
     animation: none;
   }
 }

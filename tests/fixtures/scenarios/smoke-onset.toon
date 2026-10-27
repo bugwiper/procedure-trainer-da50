@@ -1,0 +1,35 @@
+# Test fixture, not a shipped scenario (Phase 5, C-07): smoke in the cabin begins at the onset and the only cue the scenario declares is the cabin smoke. It lives under tests/ so that no pack lists it and the blueprint gate does not read it.
+format: 1
+id: smoke-onset
+title: SMOKE FIXTURE
+source:
+  document: "Test fixture"
+  issue: "none"
+  section: "Synthetic scenario for the cabin smoke cue"
+  verified: "2026-10-27"
+disclaimer: training-aid
+briefing:
+  situation: "Smoke begins to fill the cabin in cruise flight. No message is shown on the primary flight display."
+initial:
+  controls:
+    lv.env_circ: recirc
+annunciations[0]:
+procedure[1]:
+  - kind: group
+    id: immediate
+    ordered: false
+    steps[1]:
+      - id: circ_air_fresh
+        severity: critical
+        text: Circulating air fresh
+        done:
+          check: state
+          control: lv.env_circ
+          is: fresh
+forbidden[0]:
+parameters:
+  smoke_source: 1
+# The smoke of the level Realistic begins at a random second inside this window; the cue is the only sign, and the lint checks that it shows within seconds of the onset.
+onset:
+  window_s[2]: 5,20
+  cues[1]: cabin_smoke

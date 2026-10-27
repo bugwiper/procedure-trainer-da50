@@ -5,8 +5,9 @@ import { defineQuantities } from '../../engine/quantities';
 // A value on a bound belongs to the lower band, so 125 is high_yellow and 128 is high_red. The
 // colour 'none' marks an unmarked scale range. Every quantity has a base value: its reading at the
 // registry defaults (in-flight cruise), which is also the equilibrium of its model, so the free
-// panel shows cruise and no annunciation fires there. alt2_amps, battery_pct and fire_intensity
-// have no gauge (hidden quantities); the Amps gauge shows alternator 1 (C-10).
+// panel shows cruise and no annunciation fires there. alt2_amps, battery_pct, fire_intensity and the
+// windscreen quantities (smoke_density, ice_pilot, ice_copilot, oil_film) have no gauge (hidden
+// quantities); the Amps gauge shows alternator 1 (C-10).
 // Data only: facts and numbers, no AFM wording.
 
 /**
@@ -23,6 +24,12 @@ const FUEL_SCALE = 10_000_000;
  * 5 % of the slowest step.
  */
 const OIL_TEMP_SCALE = 10_000;
+
+/**
+ * The windscreen quantities (smoke, ice, oil film) move slowly: a lag step near its target is below
+ * 0.005, which the default scale of 0.01 would round away and stall short of the target.
+ */
+const SLOW_SCALE = 10_000;
 
 export const DA50RG_QUANTITIES = defineQuantities([
   {
@@ -240,6 +247,17 @@ export const DA50RG_QUANTITIES = defineQuantities([
     min: 0,
     max: 100,
     base: 0,
+    bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
+  },
+  {
+    // Hidden: no gauge. The smoke in the cabin, 0 when there is none (Phase 5, C-02). It follows a
+    // scenario parameter; the cabin_smoke cue draws it over the panel. One unmarked band.
+    id: 'smoke_density',
+    unit: '%',
+    min: 0,
+    max: 100,
+    base: 0,
+    scale: SLOW_SCALE,
     bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
   },
 ]);

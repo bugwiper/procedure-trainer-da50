@@ -70,6 +70,16 @@ describe('the DA50 RG cue table', () => {
     expect(DA50RG_CUES.levels({ ...base, fire_intensity: 100 })['flames']).toBe(1);
   });
 
+  it('shows no cabin smoke at the base values and full smoke from a dense cabin', () => {
+    const base = DA50RG_QUANTITIES.baseValues();
+    expect(DA50RG_CUES.levels(base)['cabin_smoke']).toBe(0);
+    expect(DA50RG_CUES.levels({ ...base, smoke_density: 70 })['cabin_smoke']).toBe(1);
+    expect(DA50RG_CUES.levels({ ...base, smoke_density: 100 })['cabin_smoke']).toBe(1);
+    expect(cueVisible(DA50RG_CUES.levels({ ...base, smoke_density: 10 })['cabin_smoke'] ?? 0)).toBe(
+      true,
+    );
+  });
+
   it('reads a missing quantity as the start of the range', () => {
     expect(DA50RG_CUES.levels({})['flames']).toBe(0);
   });

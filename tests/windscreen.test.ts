@@ -4,9 +4,10 @@ import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { CUE_VISIBLE_LEVEL } from '../src/engine/cues';
 import { flameOpacity, flameScale } from '../src/ui/panel/windscreen/cue-layers';
+import { CabinSmoke, SMOKE_MAX_OPACITY, smokeOpacity } from '../src/ui/panel/windscreen/CabinSmoke';
 import { Windscreen } from '../src/ui/panel/windscreen/Windscreen';
 import { OPENING_PATH } from '../src/ui/panel/windscreen/geometry';
-import { WINDSCREEN_REFERENCE } from './layout-reference';
+import { PANEL_VIEWBOX, WINDSCREEN_REFERENCE } from './layout-reference';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { El } from './vnode-walk';
 
@@ -234,5 +235,65 @@ describe('the cowl', () => {
       return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
     };
     for (const body of stops) expect(luma(stroke)).toBeLessThan(luma(body) - 40);
+  });
+});
+
+describe('the cabin smoke cue (Phase 5, C-02)', () => {
+  const smoke = (level: number): El => expand(CabinSmoke({ level }));
+
+  it('opacity follows the level and never exceeds the readable maximum', () => {
+    expect(smokeOpacity(0)).toBe(0);
+    expect(smokeOpacity(0.5)).toBeLessThan(smokeOpacity(1));
+    expect(smokeOpacity(1)).toBe(SMOKE_MAX_OPACITY);
+    expect(SMOKE_MAX_OPACITY).toBeLessThanOrEqual(0.75);
+    expect(Number(smoke(0.4).props['opacity'])).toBe(smokeOpacity(0.4));
+  });
+
+  it('never takes a press: pointer-events none, aria-hidden, no handler, no text', () => {
+    const tree = smoke(1);
+    expect(tree.props['data-cue']).toBe('cabin_smoke');
+    expect(tree.props['pointer-events']).toBe('none');
+    expect(tree.props['aria-hidden']).toBe('true');
+    const offenders = findElements(tree, (el) =>
+      Object.keys(el.props).some((key) => /^on[A-Z]/.test(key) || key === 'data-hit'),
+    );
+    expect(offenders).toEqual([]);
+    expect(findElements(tree, (el) => el.tag === 'text' || el.tag === 'tspan')).toEqual([]);
+  });
+
+  it.each(FORBIDDEN_TAGS)('uses no %s element', (tag) => {
+    expect(findElements(smoke(1), (el) => el.tag === tag)).toEqual([]);
+  });
+
+  it('has its own w- gradients of at most three stops and references only those', () => {
+    const tree = smoke(1);
+    const gradients = findElements(
+      tree,
+      (el) => el.tag === 'linearGradient' || el.tag === 'radialGradient',
+    );
+    expect(gradients.length).toBeGreaterThan(0);
+    for (const gradient of gradients) {
+      expect(String(gradient.props['id']).startsWith('w-')).toBe(true);
+      expect(findElements(gradient, (el) => el.tag === 'stop').length).toBeLessThanOrEqual(3);
+    }
+    const defined = new Set(gradients.map((g) => String(g.props['id'])));
+    const used = new Set<string>();
+    for (const el of findElements(tree, () => true)) {
+      for (const value of Object.values(el.props)) {
+        if (typeof value !== 'string') continue;
+        for (const match of value.matchAll(/url\(#([^)]+)\)/g)) used.add(match[1] ?? '');
+      }
+    }
+    expect(used.size).toBeGreaterThan(0);
+    for (const id of used) expect(defined.has(id), id).toBe(true);
+  });
+
+  it('covers the whole extent with a haze, so no region is left clear', () => {
+    const haze = findElements(smoke(1), (el) => el.tag === 'rect')[0];
+    expect(Number(haze?.props['y'])).toBe(-WINDSCREEN_REFERENCE.h);
+    expect(Number(haze?.props['width'])).toBeGreaterThanOrEqual(PANEL_VIEWBOX.w);
+    expect(Number(haze?.props['y']) + Number(haze?.props['height'])).toBeGreaterThanOrEqual(
+      PANEL_VIEWBOX.h,
+    );
   });
 });

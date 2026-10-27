@@ -102,6 +102,11 @@ const FIRE_OIL_RISE = 30;
 const FIRE_COOLANT_RISE = 30;
 const FIRE_GEARBOX_RISE = 40;
 
+// Cabin smoke (Phase 5, C-02): the hidden smoke density (0 to 100) lags toward the full scale times
+// the scenario parameter smoke_source. No ventilation effect is modelled (the printed checklists
+// of Phase 5.1 decide that). Compressed, an instructor-review value.
+const SMOKE_TAU_MS = 15_000;
+
 function lever(id: string): DetentLeverDef {
   const def = DA50RG.get(id);
   if (def?.kind !== 'detent-lever') throw new Error(`physics needs the detent lever "${id}"`);
@@ -188,6 +193,13 @@ function fireFeed(inputs: PhysicsInputs): number {
   const pump = pumpPowered(inputs);
   if (running(inputs)) return pump ? FIRE_FEED_RUNNING_PUMP : FIRE_FEED_RUNNING;
   return pump ? FIRE_FEED_PUMP_ONLY : 0;
+}
+
+/** The full scale of the smoke density: the top of its one band. */
+const SMOKE_FULL = bandTop('smoke_density', 'unmarked');
+
+function smokeTarget(inputs: PhysicsInputs): number {
+  return SMOKE_FULL * parameterOf(inputs, 'smoke_source');
 }
 
 function fireTarget(inputs: PhysicsInputs): number {
@@ -326,6 +338,8 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'alt2_short', min: 0, max: 1, normal: 0 },
       // 0 is no fire; 1 is a fire that burns while fuel feeds it (the Engine Fire scenario).
       { id: 'engine_fire', min: 0, max: 1, normal: 0 },
+      // 0 is a clear cabin; 1 is a source that fills it with smoke (a scenario of Phase 5.1).
+      { id: 'smoke_source', min: 0, max: 1, normal: 0 },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),
@@ -358,6 +372,7 @@ export const DA50RG_PHYSICS = definePhysics(
       lag('alt1_fault', STEP_MS, (inputs) => (acuFault(inputs, 1) ? 1 : 0)),
       lag('alt2_fault', STEP_MS, (inputs) => (acuFault(inputs, 2) ? 1 : 0)),
       lag('fire_intensity', FIRE_TAU_MS, fireTarget),
+      lag('smoke_density', SMOKE_TAU_MS, smokeTarget),
     ],
     trips: [
       {

@@ -212,6 +212,9 @@ export const MAX_ONSET_S = 120;
 
 const onsetSecond = z.number().min(1).max(MAX_ONSET_S);
 
+/** The most cue ids one onset lists. */
+export const MAX_ONSET_CUES = 4;
+
 /**
  * The onset of the failure in the level Realistic (D-05, C-29): the failure begins by itself at a
  * random time inside `window_s` seconds (first at most second). A scenario without it does not
@@ -221,7 +224,9 @@ const onsetSecond = z.number().min(1).max(MAX_ONSET_S);
  * parameters). Both are read only when an onset is declared and a run has one; Easy and Medium
  * never read them. `message_within_s` is the latest second after the onset by which every listed
  * annunciation must show in a Realistic run that does nothing; lint rule L15 checks it. It is
- * absent for a quick failure (the lint default applies).
+ * absent for a quick failure (the lint default applies). `cues` (Phase 5) are the visual cues of
+ * the aircraft (the windscreen layer) that must show within the same bound; lint rules L23 and L24
+ * check them, and an onset needs at least one annunciation or one cue.
  */
 export const Onset = z.strictObject({
   window_s: z
@@ -232,6 +237,7 @@ export const Onset = z.strictObject({
   /** Control state the simulation sets by itself at the onset (the faulted controls of a variant). */
   controls: z.record(z.string(), z.string()).default({}),
   message_within_s: onsetSecond.optional(),
+  cues: z.array(nodeId).max(MAX_ONSET_CUES).default([]),
 });
 
 /** The most variants one scenario declares, and the highest weight of one. */
