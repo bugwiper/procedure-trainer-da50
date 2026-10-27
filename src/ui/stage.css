@@ -846,7 +846,35 @@ body,
   }
 }
 
+/* The take-off roll scrolls toward the viewer (Phase 5, A-05): every mark scales about the vanishing
+   point (its custom properties, set by RollMarks) to the place of the next mark nearer, once per
+   period, then the row repeats. --w-roll-period is the one speed constant; Phase 5.1 drives it from
+   the ground speed. */
+.panel-svg .w-roll-mark {
+  --w-roll-period: 0.9s;
+  transform-origin: 0 0;
+  animation: w-roll var(--w-roll-period) linear infinite;
+}
+
+@keyframes w-roll {
+  from {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(var(--roll-mid));
+  }
+
+  to {
+    transform: scale(var(--roll-to));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .panel-svg .w-roll-mark {
+    animation: none;
+  }
+
   .panel-svg .w-spray {
     animation: none;
   }

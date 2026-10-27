@@ -3,7 +3,7 @@ import { SCENE_IDS } from '../../../aircraft/da50rg/scenes';
 import type { SceneId } from '../../../aircraft/da50rg/scenes';
 import { OPENING, SCENE_CENTRE_X } from './geometry';
 
-// The three views out of the windscreen (Phase 5, W-04, W-07): flat vector art in the opening, no
+// The four views out of the windscreen (Phase 5, W-04, W-07): flat vector art in the opening, no
 // text (G-0), the layer's own `w-` paints (SceneDefs). Every scene shares one horizon height and
 // one vanishing point (the strut at SCENE_CENTRE_X), so the cowl and the cues sit the same way in
 // each. The record is typed by the scene ids of the aircraft data: a scene without art fails the
@@ -37,6 +37,7 @@ export function SceneDefs() {
       {vertical('w-sky-roll', '#3a76b8', '#7eb0dc', '#cfe3f2')}
       {vertical('w-grass', '#86a56a', null, '#4f7a3a')}
       {vertical('w-runway', '#6c7075', null, '#3f4347')}
+      {vertical('w-cloud', '#b4bbc2', '#d3d8dc', '#e3e6e8')}
     </>
   );
 }
@@ -280,29 +281,53 @@ function ParkedScene() {
   );
 }
 
-function TakeoffRollScene() {
-  const bottomHalf = 640;
-  const dashes: JSX.Element[] = [];
-  for (let k = 0; k < 14; k++) {
-    const d0 = 1 + k * 0.7;
-    const d1 = d0 + 0.32;
-    const y0 = yAtDepth(d1);
-    const y1 = yAtDepth(d0);
-    const w0 = (24 * (y0 - HORIZON_Y)) / DEPTH / 2;
-    const w1 = (24 * (y1 - HORIZON_Y)) / DEPTH / 2;
-    dashes.push(
-      <polygon
+/** Number of runway marks that scroll: centre dashes, each with a pair of edge marks. */
+const ROLL_MARKS = 15;
+/** Depth pitch between two marks, dash length in depth, edge mark offset from the centre line. */
+const ROLL_PITCH = 0.7;
+const ROLL_LENGTH = 0.32;
+const ROLL_EDGE_OFFSET = 700;
+
+/**
+ * The scrolling marks of the take-off roll (Phase 5, A-05). Each mark is drawn relative to the
+ * vanishing point and carries two custom properties for its CSS animation (stage.css, w-roll): it
+ * scales about the vanishing point to the place of the next mark nearer to the viewer, which is
+ * the perspective of moving forward; the whole row then repeats unchanged. The speed is one
+ * constant in stage.css; Phase 5.1 ties it to the ground speed. No timer, no state.
+ */
+function RollMarks() {
+  const marks: JSX.Element[] = [];
+  for (let k = 0; k < ROLL_MARKS; k++) {
+    const d0 = 1 + k * ROLL_PITCH;
+    const d1 = d0 + ROLL_LENGTH;
+    const far = DEPTH / d1;
+    const near = DEPTH / d0;
+    const mid = d0 / (d0 - ROLL_PITCH / 2);
+    const end = d0 / (d0 - ROLL_PITCH);
+    const bar = (centre: number, half: number) =>
+      poly([
+        [centre - half / d1, far],
+        [centre + half / d1, far],
+        [centre + half / d0, near],
+        [centre - half / d0, near],
+      ]);
+    marks.push(
+      <g
         key={k}
-        points={poly([
-          [SCENE_CENTRE_X - w0, y0],
-          [SCENE_CENTRE_X + w0, y0],
-          [SCENE_CENTRE_X + w1, y1],
-          [SCENE_CENTRE_X - w1, y1],
-        ])}
-        fill="#f1f1ea"
-      />,
+        class="w-roll-mark"
+        style={`--roll-mid:${mid.toFixed(4)};--roll-to:${end.toFixed(4)}`}
+      >
+        <polygon points={bar(0, 12)} fill="#f1f1ea" />
+        <polygon points={bar(-ROLL_EDGE_OFFSET, 8)} fill="#f1f1ea" />
+        <polygon points={bar(ROLL_EDGE_OFFSET, 8)} fill="#f1f1ea" />
+      </g>,
     );
   }
+  return <g transform={`translate(${SCENE_CENTRE_X} ${HORIZON_Y})`}>{marks}</g>;
+}
+
+function TakeoffRollScene() {
+  const bottomHalf = 640;
   const edge = (side: -1 | 1) => (
     <polygon
       key={side}
@@ -344,7 +369,7 @@ function TakeoffRollScene() {
           fill-opacity={0.35}
         />
       ))}
-      {/* The runway: surface, edge lines, centre dashes and the threshold bars at the near end. */}
+      {/* The runway: surface, edge lines and the scrolling marks. */}
       <polygon
         points={poly([
           [xAt(-bottomHalf, BOTTOM_Y), BOTTOM_Y],
@@ -356,7 +381,7 @@ function TakeoffRollScene() {
       />
       {edge(-1)}
       {edge(1)}
-      {dashes}
+      <RollMarks />
       <rect
         x={LEFT}
         y={HORIZON_Y - 4}
@@ -369,11 +394,44 @@ function TakeoffRollScene() {
   );
 }
 
+/** Flight in cloud (IMC): one grey-white sheet with soft lighter and darker bands, no horizon. */
+const CLOUD_BANDS = [
+  [0.02, 0.05, '#8e979f', 0.1],
+  [0.1, 0.1, '#ffffff', 0.18],
+  [0.24, 0.07, '#8e979f', 0.14],
+  [0.38, 0.14, '#ffffff', 0.16],
+  [0.55, 0.08, '#8e979f', 0.12],
+  [0.66, 0.16, '#ffffff', 0.2],
+  [0.78, 0.06, '#ffffff', 0.14],
+  [0.86, 0.1, '#8e979f', 0.12],
+] as const;
+
+function CloudScene() {
+  return (
+    <g data-scene="cloud">
+      <rect x={LEFT} y={TOP} width={OPENING.w} height={OPENING.h} fill="url(#w-cloud)" />
+      {CLOUD_BANDS.map(([at, share, fill, opacity]) => (
+        <rect
+          key={at}
+          x={LEFT}
+          y={TOP + OPENING.h * at}
+          width={OPENING.w}
+          height={OPENING.h * share}
+          rx={40}
+          fill={fill}
+          fill-opacity={opacity}
+        />
+      ))}
+    </g>
+  );
+}
+
 /** The art of each scene, typed by the scene ids of the aircraft data. */
 export const SCENES: Readonly<Record<SceneId, () => JSX.Element>> = {
   parked: ParkedScene,
   takeoff_roll: TakeoffRollScene,
   cruise: CruiseScene,
+  cloud: CloudScene,
 };
 
 /** True when `id` is a scene of the aircraft data. */

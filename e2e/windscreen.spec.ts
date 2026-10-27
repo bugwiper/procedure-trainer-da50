@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { chooseScenario, startRealistic, startScenario } from './support/session';
 import { FULL_VIEWBOX, activateAt, afterPairWindow, doubleActivateAt } from './support/zoom';
 import type { Point } from './support/zoom';
@@ -118,7 +119,7 @@ test('Engine Fire on Realistic shows no flames at the start and flames within 15
   await expect(page.locator(FLAMES)).toHaveCount(1, { timeout: 15_000 });
 });
 
-for (const scene of ['parked', 'takeoff_roll', 'cruise']) {
+for (const scene of SCENE_IDS) {
   test(`?scene=${scene} shows that scene alone over the windscreen on the free panel`, async ({
     page,
   }) => {
@@ -170,4 +171,39 @@ test('the briefing already shows the scene of the scenario', async ({ page, hasT
   await expect(page.locator('[data-layer="windscreen"] [data-scene="parked"]')).toHaveCount(1);
   await chooseScenario(page, hasTouch, FIRE);
   await expect(page.locator('[data-layer="windscreen"] [data-scene="cruise"]')).toHaveCount(1);
+});
+
+test('the take-off roll marks scroll, and stand still with reduced motion', async ({ page }) => {
+  const marks = '[data-scene="takeoff_roll"] .w-roll-mark';
+  const animation = () =>
+    page
+      .locator(marks)
+      .first()
+      .evaluate((el) => getComputedStyle(el).animationName);
+  await page.goto('./?scene=takeoff_roll');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  expect(await page.locator(marks).count()).toBeGreaterThan(0);
+  expect(await animation()).toBe('w-roll');
+  // The marks really move: a mark's box changes over time.
+  const box = () =>
+    page
+      .locator(marks)
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().height);
+  const first = await box();
+  await expect.poll(box).not.toBe(first);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  expect(await animation()).toBe('none');
+  const still = await box();
+  await page.waitForTimeout(300);
+  expect(await box()).toBe(still);
+});
+
+test('the other scenes have no moving marks', async ({ page }) => {
+  for (const scene of SCENE_IDS) {
+    if (scene === 'takeoff_roll') continue;
+    await page.goto(`./?scene=${scene}`);
+    await expect(page.getByTestId('panel')).toBeVisible();
+    await expect(page.locator('.w-roll-mark')).toHaveCount(0);
+  }
 });

@@ -2,10 +2,10 @@ import { defineScenes } from '../../engine/scenes';
 
 /**
  * The views out of the windscreen (Phase 5, W-07): the aircraft on the apron in front of a hangar,
- * the take-off roll on a runway, and cruise flight. The art of each is in
+ * the take-off roll on a runway, cruise flight and flight in cloud (IMC, for icing). The art of each is in
  * src/ui/panel/windscreen/scenes.tsx, typed by this tuple, so a missing scene fails the typecheck.
  */
-export const SCENE_IDS = ['parked', 'takeoff_roll', 'cruise'] as const;
+export const SCENE_IDS = ['parked', 'takeoff_roll', 'cruise', 'cloud'] as const;
 
 export type SceneId = (typeof SCENE_IDS)[number];
 

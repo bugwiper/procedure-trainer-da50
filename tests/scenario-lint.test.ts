@@ -327,6 +327,11 @@ describe('L22: scene (phase 05, W-07)', () => {
     expect(checkScenario(withScene(id), DA50RG_ENV).ok).toBe(true);
   });
 
+  it('knows the cloud scene', () => {
+    expect(DA50RG_ENV.scenes.ids).toContain('cloud');
+    expect(checkScenario(withScene('cloud'), DA50RG_ENV).ok).toBe(true);
+  });
+
   it('rejects an unknown scene at scene, with the line of the field and the known ids', () => {
     const text = withScene('night');
     expect(issuesOf(text)).toEqual([

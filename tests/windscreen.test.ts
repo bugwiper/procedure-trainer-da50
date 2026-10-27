@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_CUES } from '../src/aircraft/da50rg/cues';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
@@ -18,6 +19,7 @@ import {
   veilOpacity,
 } from '../src/ui/panel/windscreen/Ice';
 import { CabinSmoke, SMOKE_MAX_OPACITY, smokeOpacity } from '../src/ui/panel/windscreen/CabinSmoke';
+import { SCENES } from '../src/ui/panel/windscreen/scenes';
 import { Windscreen } from '../src/ui/panel/windscreen/Windscreen';
 import { OPENING_PATH } from '../src/ui/panel/windscreen/geometry';
 import { PANEL_VIEWBOX, WINDSCREEN_REFERENCE } from './layout-reference';
@@ -191,6 +193,52 @@ describe('the scenes', () => {
       for (const name of used) expect(defined.has(name), name).toBe(true);
       for (const name of defined) expect(name.startsWith('w-'), name).toBe(true);
     });
+  });
+});
+
+describe('the cloud scene and the moving runway (phase 05 plan 03, A-05)', () => {
+  const css = readFileSync(new URL('../src/ui/stage.css', import.meta.url), 'utf8');
+  const marks = (id: string): El[] =>
+    findElements(render({}, id), (el) => String(el.props['class'] ?? '').includes('w-roll-mark'));
+
+  it('the scene ids are the keys of the art record, the cloud among them', () => {
+    expect([...SCENE_IDS].sort()).toEqual(Object.keys(SCENES).sort());
+    expect(SCENE_IDS).toContain('cloud');
+  });
+
+  it('the cloud scene is one sheet: no horizon, no landscape, no moving part', () => {
+    const tree = render({}, 'cloud');
+    const scene = findElements(tree, (el) => el.props['data-scene'] === 'cloud')[0] as El;
+    const paints = findElements(scene, (el) => typeof el.props['fill'] === 'string').map((el) =>
+      String(el.props['fill']),
+    );
+    expect(paints[0]).toBe('url(#w-cloud)');
+    expect(findElements(scene, (el) => el.tag === 'polygon' || el.tag === 'path')).toEqual([]);
+    expect(marks('cloud')).toEqual([]);
+  });
+
+  it('only the take-off roll carries the scrolling marks', () => {
+    for (const id of SCENE_IDS) {
+      if (id === 'takeoff_roll') expect(marks(id).length).toBeGreaterThan(0);
+      else expect(marks(id)).toEqual([]);
+    }
+  });
+
+  it('every mark brings both animation properties, the end beyond the middle beyond 1', () => {
+    for (const mark of marks('takeoff_roll')) {
+      const style = String(mark.props['style']);
+      const mid = Number(/--roll-mid:([\d.]+)/.exec(style)?.[1]);
+      const end = Number(/--roll-to:([\d.]+)/.exec(style)?.[1]);
+      expect(mid).toBeGreaterThan(1);
+      expect(end).toBeGreaterThan(mid);
+    }
+  });
+
+  it('the scrolling is CSS only, at one named speed, and stops under reduced motion', () => {
+    expect(css).toMatch(/\.panel-svg \.w-roll-mark\s*\{[^}]*--w-roll-period:/);
+    expect(css).toMatch(/@keyframes w-roll\b/);
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(reduced).toMatch(/\.w-roll-mark\s*\{\s*animation:\s*none/);
   });
 });
 
