@@ -476,9 +476,23 @@ Plans:
 
 **Goal**: A windscreen area above the panel shows the situation (parked in front of a hangar, takeoff roll, cruise flight over simple landscape) and failure cues driven by the simulation quantities: engine fire flames and smoke outside, smoke inside the cabin partly hiding the instrument panel, a freezing windscreen with ice crystals and milky vision that warm air removes slowly and the WIND SHIELD TKS spray removes visibly (pilot side only). A Realistic run without briefing gives the pilot something to see; the scene and the onset cue of each scenario are declared in scenario data and checked by lint. Optional extras chosen by the owner on 2026-10-27: oil streaks on the windscreen, a stopped propeller on engine failure, night and dusk scenes, cloud for icing, aural cues (Web Audio), a moving runway on the takeoff roll. Source: .planning/todos/pending/2026-10-23-realistic-level-visual-cues.md (owner spec section).
 **Depends on**: Phase 3.1
-**Requirements**: TBD (to be defined when the phase is planned)
+**Requirements**: PNL-17, PNL-18, PNL-19, SCN-12
 
-**Plans**: TBD
+**Plans:** 3 plans (lean form, see WORKFLOW.md)
+
+Plans:
+
+**Wave 1**
+
+- [ ] 05-01 — Tracer: the panel space grows upward (extent, region `windscreen`, zoom and fit gates by data), the windscreen frame and three scenes (parked, takeoff roll, cruise), the `scene` field with lint L22, the cue table and Engine Fire flames and smoke from fire_intensity on every level
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 05-02 — Declared onset cue (`onset.cues`, lint L23 and L24, Engine Fire declares flames), cabin smoke over the panel, windscreen ice with warm air and the WIND SHIELD spray on the pilot side, preview flags for review, the stopped propeller and oil streaks if they fit
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 05-03 — Aural cues with Web Audio (caution, warning, engine drone; the Sound control, off by default), the cloud scene and the moving runway, the phase-end documentation and todos
 
 ### Phase 5.1: Ground and takeoff emergencies (INSERTED)
 
@@ -539,7 +553,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
-| 5. Windscreen and failure cues                        | 0/TBD          | Not started | -          |
+| 5. Windscreen and failure cues                        | 0/3            | Not started | -          |
 | 5.1 Ground and takeoff emergencies                    | 0/TBD          | Not started | -          |
 | 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
