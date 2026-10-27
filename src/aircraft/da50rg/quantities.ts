@@ -281,4 +281,15 @@ export const DA50RG_QUANTITIES = defineQuantities([
     scale: SLOW_SCALE,
     bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
   },
+  {
+    // Hidden: no gauge. The oil film on the windscreen from an oil leak (Phase 5, C-06): grows while
+    // the engine runs and never decays. The oil_streaks cue draws it. One unmarked band.
+    id: 'oil_film',
+    unit: '%',
+    min: 0,
+    max: 100,
+    base: 0,
+    scale: SLOW_SCALE,
+    bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
+  },
 ]);

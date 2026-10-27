@@ -1,3 +1,4 @@
+import { cueVisible } from '../../../engine/cues';
 import { OPENING, OPENING_PATH, SCENE_CENTRE_X, mirrorX } from './geometry';
 
 // The parts of the windscreen that do not change with the scene (Phase 5, W-04), after the owner's
@@ -5,7 +6,8 @@ import { OPENING, OPENING_PATH, SCENE_CENTRE_X, mirrorX } from './geometry';
 // opening, a central strut from the overhead console strip at the top centre down into the glare
 // shield, the silver engine cowl low in the centre with a clearly darker edge and shade (the
 // owner notes a silver cowl blends into cloud), and a translucent propeller blade at about 11
-// o'clock. Flat vector, the layer's own `w-` paints, no text (G-0).
+// o'clock that turns crisp when the engine stops (prop_stopped). Flat vector, the layer's own `w-`
+// paints, no text (G-0).
 
 /** Paints of these parts, part of the layer's own defs. */
 export function FrameDefs() {
@@ -117,19 +119,49 @@ export function CanopyFrame() {
   );
 }
 
-/** The translucent propeller blade at about 11 o'clock, from the hub behind the cowl up to the left. */
-export function Blade() {
+/** Opacity of the blur wedge of the turning propeller. */
+export const BLUR_OPACITY = 0.4;
+
+/**
+ * The propeller at about 11 o'clock, from the hub behind the cowl up to the left: a translucent
+ * blur wedge while the engine turns. It fades with `stopped`, the prop_stopped level (0 to 1), and
+ * StoppedBlade takes over as the engine stops.
+ */
+export function Blade({ stopped = 0 }: { stopped?: number }) {
   return (
     <path
       data-part="blade"
       d="M1129 -88 L943 -349 L916 -332 L1071 -52 Z"
       fill="#14171a"
-      fill-opacity={0.4}
+      fill-opacity={BLUR_OPACITY * (1 - stopped)}
       stroke="#0b0c0e"
-      stroke-opacity={0.5}
+      stroke-opacity={0.5 * (1 - stopped)}
       stroke-width={3}
       stroke-linejoin="round"
     />
+  );
+}
+
+/** The crisp blade of a stopped propeller: opaque, narrower than the wedge, with a lit leading edge. */
+export function StoppedBlade({ level }: { level: number }) {
+  if (!cueVisible(level)) return null;
+  return (
+    <g data-part="blade_stopped" data-cue="prop_stopped" data-level={level} opacity={level}>
+      <path
+        d="M1120 -82 L938 -344 Q926 -341 926 -331 L1080 -58 Z"
+        fill="#101215"
+        stroke="#050607"
+        stroke-width={3}
+        stroke-linejoin="round"
+      />
+      <path
+        d="M1112 -84 L934 -338"
+        fill="none"
+        stroke="#8b949d"
+        stroke-width={3}
+        stroke-linecap="round"
+      />
+    </g>
   );
 }
 

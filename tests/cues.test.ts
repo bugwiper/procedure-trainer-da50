@@ -89,6 +89,21 @@ describe('the DA50 RG cue table', () => {
     expect(levels['ice_copilot_side']).toBe(0.5);
   });
 
+  it('reads the propeller cue from the rpm and runs it the other way: 600 is level 0, 0 is level 1', () => {
+    const base = DA50RG_QUANTITIES.baseValues();
+    expect(DA50RG_CUES.levels(base)['prop_stopped']).toBe(0);
+    expect(DA50RG_CUES.levels({ ...base, rpm: 600 })['prop_stopped']).toBe(0);
+    expect(DA50RG_CUES.levels({ ...base, rpm: 300 })['prop_stopped']).toBe(0.5);
+    expect(DA50RG_CUES.levels({ ...base, rpm: 0 })['prop_stopped']).toBe(1);
+  });
+
+  it('shows the oil streaks from the oil film: clear at the base, full at 50', () => {
+    const base = DA50RG_QUANTITIES.baseValues();
+    expect(DA50RG_CUES.levels(base)['oil_streaks']).toBe(0);
+    expect(DA50RG_CUES.levels({ ...base, oil_film: 25 })['oil_streaks']).toBe(0.5);
+    expect(DA50RG_CUES.levels({ ...base, oil_film: 100 })['oil_streaks']).toBe(1);
+  });
+
   it('reads a missing quantity as the start of the range', () => {
     expect(DA50RG_CUES.levels({})['flames']).toBe(0);
   });

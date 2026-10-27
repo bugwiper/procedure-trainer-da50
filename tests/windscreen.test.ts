@@ -5,6 +5,13 @@ import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { CUE_VISIBLE_LEVEL } from '../src/engine/cues';
 import { flameOpacity, flameScale } from '../src/ui/panel/windscreen/cue-layers';
 import {
+  OIL_MAX_OPACITY,
+  OIL_TABLE_SIZE,
+  oilOpacity,
+  oilStreakCount,
+} from '../src/ui/panel/windscreen/OilStreaks';
+import { BLUR_OPACITY } from '../src/ui/panel/windscreen/frame';
+import {
   CRYSTAL_TABLE_SIZE,
   VEIL_MAX_OPACITY,
   crystalCount,
@@ -449,6 +456,86 @@ describe('the ice cues and the spray (Phase 5, C-05, owner answers of 2026-10-27
         findElements(tree, (el) => el.props['data-cue'] === id).length +
         findElements(smoke, (el) => el.props['data-cue'] === id).length;
       expect(drawn, id).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('the stopped propeller (Phase 5, C-06)', () => {
+  const rpmAt = (rpm: number): Record<string, number> =>
+    DA50RG_CUES.levels({ ...DA50RG_QUANTITIES.baseValues(), rpm });
+  const wedge = (tree: El): El =>
+    findElements(tree, (el) => el.props['data-part'] === 'blade')[0] as El;
+  const crisp = (tree: El): El[] =>
+    findElements(tree, (el) => el.props['data-part'] === 'blade_stopped');
+
+  it('shows the blur wedge and no crisp blade while the engine turns', () => {
+    const tree = render(rpmAt(1995));
+    expect(Number(wedge(tree).props['fill-opacity'])).toBe(BLUR_OPACITY);
+    expect(crisp(tree)).toEqual([]);
+  });
+
+  it('fades the wedge and shows the crisp blade as the level rises', () => {
+    const half = render(rpmAt(300));
+    expect(Number(wedge(half).props['fill-opacity'])).toBeLessThan(BLUR_OPACITY);
+    expect(Number(wedge(half).props['fill-opacity'])).toBeGreaterThan(0);
+    expect(crisp(half)).toHaveLength(1);
+    expect(Number(crisp(half)[0]?.props['opacity'])).toBe(0.5);
+    const stopped = render(rpmAt(0));
+    expect(Number(wedge(stopped).props['fill-opacity'])).toBe(0);
+    expect(Number(crisp(stopped)[0]?.props['opacity'])).toBe(1);
+    expect(crisp(stopped)[0]?.props['data-cue']).toBe('prop_stopped');
+  });
+
+  it('draws the crisp blade from the visible level and not below', () => {
+    expect(crisp(render(rpmAt(600 - 0.5)))).toEqual([]);
+    expect(crisp(render(rpmAt(600 - CUE_VISIBLE_LEVEL * 600 + 1)))).toEqual([]);
+    expect(crisp(render(rpmAt(600 - CUE_VISIBLE_LEVEL * 600 - 1)))).toHaveLength(1);
+  });
+
+  it('reads no cue on a bare level table: the wedge as before', () => {
+    expect(Number(wedge(render({})).props['fill-opacity'])).toBe(BLUR_OPACITY);
+  });
+});
+
+describe('the oil streaks (Phase 5, C-06)', () => {
+  const oilAt = (film: number): Record<string, number> =>
+    DA50RG_CUES.levels({ ...DA50RG_QUANTITIES.baseValues(), oil_film: film });
+  const streaks = (tree: El): El[] =>
+    findElements(tree, (el) => el.props['data-cue'] === 'oil_streaks');
+  const pathOf = (tree: El): string =>
+    String(findElements(streaks(tree)[0] as El, (el) => el.tag === 'path')[0]?.props['d']);
+
+  it('draws nothing on clear glass or below the visible level', () => {
+    expect(streaks(render(oilAt(0)))).toEqual([]);
+    expect(streaks(render({}))).toEqual([]);
+    expect(streaks(render(oilAt(CUE_VISIBLE_LEVEL * 50 - 0.5)))).toEqual([]);
+  });
+
+  it('draws streaks from the visible level, more of them and darker with the level', () => {
+    expect(streaks(render(oilAt(CUE_VISIBLE_LEVEL * 50 + 0.5)))).toHaveLength(1);
+    expect(oilStreakCount(0.1)).toBeGreaterThanOrEqual(1);
+    expect(oilStreakCount(0.1)).toBeLessThan(oilStreakCount(0.6));
+    expect(oilStreakCount(1)).toBe(OIL_TABLE_SIZE);
+    expect(oilOpacity(0.2)).toBeLessThan(oilOpacity(0.8));
+    expect(oilOpacity(1)).toBe(OIL_MAX_OPACITY);
+  });
+
+  it('adds streaks from a fixed table: the same on every render, more is a longer path', () => {
+    const a = pathOf(render(oilAt(15)));
+    expect(a).toBe(pathOf(render(oilAt(15))));
+    const more = pathOf(render(oilAt(35)));
+    expect(more.startsWith(a)).toBe(true);
+    expect(more.length).toBeGreaterThan(a.length);
+  });
+
+  it('keeps the flat-vector rules: one path, no paint reference, no text, no filter', () => {
+    const tree = streaks(render(oilAt(50)))[0] as El;
+    expect(findElements(tree, (el) => el.tag === 'path')).toHaveLength(1);
+    expect(findElements(tree, (el) => el.tag === 'text')).toEqual([]);
+    for (const tag of FORBIDDEN_TAGS)
+      expect(findElements(tree, (el) => el.tag === tag)).toEqual([]);
+    for (const el of findElements(tree, () => true)) {
+      for (const value of Object.values(el.props)) expect(String(value)).not.toContain('url(');
     }
   });
 });

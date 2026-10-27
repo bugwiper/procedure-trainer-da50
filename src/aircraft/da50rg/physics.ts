@@ -121,6 +121,10 @@ const ICE_WARM_CLEAR_PER_MIN = 6;
 const ICE_SPRAY_CLEAR_PER_MIN = 6_000;
 const WINDSHIELD_SPRAY_MS = 10_000;
 
+// Oil on the windscreen (Phase 5, C-06): the oil film (0 to 100) grows by OIL_FILM_PER_MIN times the
+// scenario parameter oil_leak while the engine runs and never decays. An instructor-review value.
+const OIL_FILM_PER_MIN = 30;
+
 function lever(id: string): DetentLeverDef {
   const def = DA50RG.get(id);
   if (def?.kind !== 'detent-lever') throw new Error(`physics needs the detent lever "${id}"`);
@@ -372,6 +376,8 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'smoke_source', min: 0, max: 1, normal: 0 },
       // 0 is a clear windscreen; 1 is a windscreen that ices over at ICE_ACCRETE_PER_MIN.
       { id: 'ice_accretion', min: 0, max: 1, normal: 0 },
+      // 0 is no oil leak; 1 is a leak that smears the windscreen at OIL_FILM_PER_MIN while the engine runs.
+      { id: 'oil_leak', min: 0, max: 1, normal: 0 },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),
@@ -407,6 +413,12 @@ export const DA50RG_PHYSICS = definePhysics(
       lag('smoke_density', SMOKE_TAU_MS, smokeTarget),
       { quantity: 'ice_pilot', mode: 'rate', perMinute: (inputs) => icePerMinute(inputs, true) },
       { quantity: 'ice_copilot', mode: 'rate', perMinute: (inputs) => icePerMinute(inputs, false) },
+      {
+        quantity: 'oil_film',
+        mode: 'rate',
+        perMinute: (inputs) =>
+          running(inputs) ? OIL_FILM_PER_MIN * parameterOf(inputs, 'oil_leak') : 0,
+      },
     ],
     trips: [
       {

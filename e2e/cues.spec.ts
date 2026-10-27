@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { WINDSHIELD_SPRAY_ACTIVE } from '../src/aircraft/da50rg/indicators';
+import { startScenario } from './support/session';
 
 // The failure cues the simulation drives (Phase 5, plan 02), seen through the preview flags of the
 // free panel (?q= and ?flags=), which also run against the live site: cabin smoke, windscreen ice
@@ -136,4 +137,49 @@ test('the spray flag shows the spray on the pilot half only', async ({ page }) =
 test('an unknown flag name shows no spray', async ({ page }) => {
   await open(page, '?flags=deice.nothing');
   await expect(page.locator(SPRAY)).toHaveCount(0);
+});
+
+const WEDGE = '[data-part="blade"]';
+const CRISP = '[data-part="blade_stopped"]';
+const OIL = '[data-cue="oil_streaks"]';
+
+test('the turning propeller shows the blur wedge and no crisp blade', async ({ page }) => {
+  await open(page, '');
+  await expect(page.locator(WEDGE)).toHaveCount(1);
+  await expect(page.locator(WEDGE)).toHaveAttribute('fill-opacity', '0.4');
+  await expect(page.locator(CRISP)).toHaveCount(0);
+});
+
+test('?q=rpm:0 shows the crisp blade and a faded wedge', async ({ page }) => {
+  await open(page, '?q=rpm:0');
+  await expect(page.locator(CRISP)).toHaveCount(1);
+  await expect(page.locator(WEDGE)).toHaveAttribute('fill-opacity', '0');
+  const crisp = await boxOf(page, CRISP);
+  const ws = await boxOf(page, '[data-region-id="windscreen"] [data-region-frame]');
+  expect(crisp).not.toBeNull();
+  expect(ws).not.toBeNull();
+  if (crisp === null || ws === null) return;
+  expect(crisp.left).toBeGreaterThanOrEqual(ws.left - TOLERANCE);
+  expect(crisp.right).toBeLessThanOrEqual(ws.right + TOLERANCE);
+  expect(crisp.top).toBeGreaterThanOrEqual(ws.top - TOLERANCE);
+});
+
+test('?q=oil_film:50 shows the oil streaks over the glass, none without it', async ({ page }) => {
+  await open(page, '');
+  await expect(page.locator(OIL)).toHaveCount(0);
+  await open(page, '?q=oil_film:50');
+  await expect(page.locator(OIL)).toHaveCount(1);
+  expect(await page.locator(`${OIL} text`).count()).toBe(0);
+});
+
+test('ENGINE MASTER off in a run stops the propeller within seconds', async ({
+  page,
+  hasTouch,
+}) => {
+  test.setTimeout(60_000);
+  await open(page, '');
+  await startScenario(page, hasTouch, 'engine.eng-fire-in-flight', 'easy');
+  await expect(page.locator(CRISP)).toHaveCount(0);
+  await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
+  await expect(page.locator(CRISP)).toHaveCount(1, { timeout: 15_000 });
 });

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { WINDSHIELD_SPRAY_ACTIVE } from '../src/aircraft/da50rg/indicators';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
+import { cueVisible } from '../src/engine/cues';
 import { initialQuantities } from '../src/engine/predicates';
 import { Run } from '../src/engine/run';
 import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
@@ -243,5 +244,86 @@ describe('windscreen ice (C-04)', () => {
       }
       expect(quantity(live.state.quantities, 'ice_copilot')).toBeGreaterThan(80);
     });
+  });
+});
+
+// The cheap extras (C-06): a stopped propeller from the engine speed, the oil film from a leak.
+describe('the stopped propeller (C-06)', () => {
+  const MASTER_OFF: SimEvent[] = [{ t: 0, id: 'sw.engine_master', value: 'off' }];
+  const levelOf = (rpm: number): number => DA50RG_ENV.cues.levels({ rpm })['prop_stopped'] ?? -1;
+
+  it('reads the base rpm as level 0: no stopped propeller on the free panel or in an untouched run', () => {
+    const base = DA50RG_ENV.quantities.baseValues();
+    expect(DA50RG_ENV.cues.levels(base)['prop_stopped']).toBe(0);
+    const state = run(fixture({}), 5 * MINUTE_MS);
+    expect(DA50RG_ENV.cues.levels(state.quantities)['prop_stopped']).toBe(0);
+  });
+
+  it('runs the cue the other way: 600 rpm is level 0, 0 rpm is level 1', () => {
+    expect(levelOf(600)).toBe(0);
+    expect(levelOf(0)).toBe(1);
+    expect(levelOf(300)).toBe(0.5);
+    expect(levelOf(2300)).toBe(0);
+  });
+
+  it('ENGINE MASTER off brings the cue above the visible mark within seconds', () => {
+    const early = run(fixture({}), 500, MASTER_OFF).quantities;
+    expect(cueVisible(DA50RG_ENV.cues.levels(early)['prop_stopped'] ?? 0)).toBe(false);
+    const state = run(fixture({}), 6_000, MASTER_OFF).quantities;
+    expect(cueVisible(DA50RG_ENV.cues.levels(state)['prop_stopped'] ?? 0)).toBe(true);
+  });
+
+  it('the FUEL selector OFF stops it too', () => {
+    const state = run(fixture({}), 8_000, [{ t: 0, id: 'sw.fuel_valve', value: 'off' }]).quantities;
+    expect(cueVisible(DA50RG_ENV.cues.levels(state)['prop_stopped'] ?? 0)).toBe(true);
+  });
+});
+
+describe('the oil film (C-06)', () => {
+  it('grows at 30 per minute times the leak parameter while the engine runs', () => {
+    for (const leak of [1, 0.5]) {
+      const q = run(fixture({ oil_leak: leak }), MINUTE_MS).quantities;
+      expect(quantity(q, 'oil_film'), String(leak)).toBeCloseTo(30 * leak, 1);
+    }
+  });
+
+  it('stays clear with the normal parameter', () => {
+    expect(quantity(run(fixture({}), 10 * MINUTE_MS).quantities, 'oil_film')).toBe(0);
+  });
+
+  it('stops growing with the engine off and never decays', () => {
+    const events: SimEvent[] = [{ t: 30_000, id: 'sw.engine_master', value: 'off' }];
+    const at = (ms: number): number =>
+      quantity(run(fixture({ oil_leak: 1 }), ms, events).quantities, 'oil_film');
+    expect(at(30_000)).toBeCloseTo(15, 1);
+    expect(at(MINUTE_MS)).toBe(at(31_000));
+    expect(at(5 * MINUTE_MS)).toBe(at(31_000));
+    expect(at(31_000)).toBeGreaterThan(14);
+  });
+
+  it('is capped at 100', () => {
+    expect(quantity(run(fixture({ oil_leak: 1 }), 10 * MINUTE_MS).quantities, 'oil_film')).toBe(
+      100,
+    );
+  });
+
+  it('a live run equals the replay at every step, to the last digit', () => {
+    const scenario = fixture({ oil_leak: 0.6 });
+    const setup = simSetup(DA50RG_ENV, scenario);
+    const begin = initialQuantities(scenario, DA50RG_ENV.quantities);
+    const store = new PanelStore(DA50RG);
+    store.reset(scenario.initial.controls);
+    const live = new Run({ setup, store, start: begin });
+    for (let n = 1; n <= 500; n++) {
+      if (n === 200) store.dispatch('sw.engine_master', 'off', live.clock.now());
+      live.step();
+      const replay = simulate(setup, {
+        events: store.events(),
+        start: begin,
+        untilMs: n * STEP_MS,
+      });
+      expect(live.state.quantities, `step ${String(n)}`).toEqual(replay.state.quantities);
+    }
+    expect(quantity(live.state.quantities, 'oil_film')).toBeGreaterThan(0);
   });
 });
