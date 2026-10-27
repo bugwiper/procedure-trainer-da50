@@ -167,6 +167,7 @@ test('console levers open in their in-flight defaults', async ({ page }) => {
     'lv.env_circ': 'fresh',
     'lv.parking_brake': 'off',
     'lv.toe_brakes': 'released',
+    'lv.door_release': 'locked',
     'lv.cowl_flap': 'closed',
     'lv.power': 'p70',
   };

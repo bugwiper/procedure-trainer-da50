@@ -7,6 +7,7 @@ import type { PressTarget } from '../press-targets';
 import { BatBody } from '../skins/Bat';
 import { RockerBody } from '../skins/Rocker';
 import { SoftkeyCap } from '../frames/SoftkeysFrame';
+import { WindowBody } from '../skins/Window';
 
 /**
  * Drawn position of the state at `index`: a two-state toggle draws low and high, a three-state
@@ -131,6 +132,8 @@ export function Toggle({ def, bridge }: WidgetProps<ToggleDef>) {
         <RockerBody def={def} position={position} pressed={pressed.value} />
       ) : skin === 'bat' ? (
         <BatBody def={def} position={position} pressed={pressed.value} />
+      ) : skin === 'window' ? (
+        <WindowBody open={isSecond} pressed={pressed.value} />
       ) : (
         <SoftkeyBody isSecond={isSecond} pressed={pressed.value} />
       )}

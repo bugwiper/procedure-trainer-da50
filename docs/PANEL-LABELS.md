@@ -147,6 +147,15 @@ One latching control drawn as two pedals on the floor of the pilot's footwell. T
 |----|-----------------|-------------------|-------|--------------|
 | `lv.toe_brakes` (new in plan 05.1-01) | none (accessible name TOE BRAKES only) | none; a tap toggles both pedals, there is no dragging | owner decision 2026-10-27, place is an assumption | `controls/pedals.ts`, `src/ui/panel/skins/Pedals.tsx` |
 
+## Cabin openings (regions `door_arm` and `side_window`, Phase 5.1)
+
+Two separate controls, by the owner's answers of 2026-10-27: the RED door release lever and the oval emergency window are not one control. Neither prints text; the state shows by position only (a lever lying along its arm rest or pulled up; an oval window in its frame or ajar). Both places are assumptions for the owner's review. Neither has a physics effect; the scenarios grade them by state.
+
+| Id | Static label(s) | Position placards | Basis | File to edit |
+|----|-----------------|-------------------|-------|--------------|
+| `lv.door_release` (new in plan 05.1-01) | none (accessible name DOOR RELEASE only); a red lever, locked it lies flat in the arm rest at the left edge, open it is pulled up as a red plate | none; a tap toggles the lever, there is no dragging | owner answers 2026-10-27, place is an assumption | `controls/cabin.ts`, `src/ui/panel/skins/DoorRelease.tsx` |
+| `sw.emerg_window` (new in plan 05.1-01) | none (accessible name EMERGENCY WINDOW only); an oval in the side pane at the far left of the windscreen, drawn ajar when open | none; a click toggles it, there is no lever and no dragging | owner answers 2026-10-27, place is an assumption | `controls/cabin.ts`, `src/ui/panel/skins/Window.tsx` |
+
 ## Session area (trainer part, region `scenario_area`)
 
 The session pad in the co-pilot legroom is trainer content, not an aircraft part, and has no registry control. Its button text is static caps text; nothing on it changes with a state (only the rim while a press is pending).

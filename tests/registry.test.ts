@@ -4,8 +4,9 @@ import {
   BREAKER_GROUPS,
   BUTTON_SKINS,
   LEVER_SKINS,
-  TAP_TOGGLE_SKINS,
   RegistryError,
+  TAP_TOGGLE_SKINS,
+  TOGGLE_SKINS,
   defineRegistry,
   guardIdFor,
   legalStates,
@@ -407,6 +408,15 @@ describe('three-position toggles (plan 18, Table T2)', () => {
     expectRejected([toggle('sw.k3', { ...mid, skin: 'softkey' })], 'sw.k3');
   });
 
+  it('the window skin has exactly two states and no size, colour or ball (Phase 5.1)', () => {
+    expect(TOGGLE_SKINS).toContain('window');
+    expect(() => build([toggle('sw.w2', { skin: 'window' })])).not.toThrow();
+    expectRejected([toggle('sw.w3', { ...mid, skin: 'window' })], 'exactly two');
+    expectRejected([toggle('sw.wc', { skin: 'window', colour: 'red' })], 'sw.wc');
+    expectRejected([toggle('sw.ws', { skin: 'window', size: 'S' })], 'sw.ws');
+    expectRejected([toggle('sw.wb', { skin: 'window', ball: true })], 'sw.wb');
+  });
+
   it('rejects a guarded toggle with three states (data cast around the types)', () => {
     expectRejected(
       [
@@ -586,6 +596,17 @@ describe('tap-toggle levers (R2-4.2)', () => {
   });
 });
 
+describe('tap-toggle skins of Phase 5.1 (toe brakes, door release)', () => {
+  it('toe-brakes and door-release go with tapToggle, both or neither', () => {
+    for (const skin of ['toe-brakes', 'door-release'] as const) {
+      expect(TAP_TOGGLE_SKINS, skin).toContain(skin);
+      expect(() => build([lever('lv.t', { ...TAP_TOGGLE, skin })]), skin).not.toThrow();
+      expectRejected([lever('lv.t', { ...TAP_TOGGLE, skin, tapToggle: undefined })], skin);
+    }
+    expectRejected([lever('lv.t', { ...TAP_TOGGLE, skin: 'pull-ecs' })], 'tapToggle');
+  });
+});
+
 const LEVER_THREE: DetentLeverDef['detents'] = [
   { id: 'up', label: 'UP', pos: 0 },
   { id: 'mid', label: 'MID', pos: 0.5 },
@@ -595,8 +616,9 @@ const LEVER_THREE: DetentLeverDef['detents'] = [
 describe('lever skins', () => {
   it('accepts every skin of the vocabulary and none', () => {
     expect(LEVER_SKINS).toContain('power-grip');
-    expect(LEVER_SKINS).toHaveLength(11);
+    expect(LEVER_SKINS).toHaveLength(12);
     expect(LEVER_SKINS).toContain('toe-brakes');
+    expect(LEVER_SKINS).toContain('door-release');
     expect(LEVER_SKINS).toContain('pull-ecs');
     expect(LEVER_SKINS).not.toContain('bat-small');
     expect(LEVER_SKINS).toContain('parking-flap');

@@ -118,6 +118,13 @@ function holds(a: Subject, relation: Relation, b: Subject | number): boolean {
   }
 }
 
+/**
+ * The regions above the panel (Phase 5.1): the windscreen and the emergency window nested in
+ * it. The one named exception of the viewBox gate and of both no-overlap gates; the nesting
+ * itself is asserted explicitly in the test after the extent gate.
+ */
+const ABOVE_PANEL = ['windscreen', 'side_window'];
+
 describe('viewBox and regions', () => {
   it('uses the true panel proportions with the 180 unit right extension (D-21, U-01)', () => {
     expect(VIEWBOX).toEqual(PANEL_VIEWBOX);
@@ -158,9 +165,9 @@ describe('viewBox and regions', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('every region lies inside the viewBox, except the windscreen above it', () => {
+  it('every region lies inside the viewBox, except the windscreen above it and the window nested in it', () => {
     const box: Rect = { x: 0, y: 0, w: VIEWBOX.w, h: VIEWBOX.h };
-    for (const r of DA50RG.regions.filter((region) => region.id !== 'windscreen')) {
+    for (const r of DA50RG.regions.filter((region) => !ABOVE_PANEL.includes(region.id))) {
       expect(inside(r.bounds, box), r.id).toBe(true);
     }
   });
@@ -177,6 +184,25 @@ describe('viewBox and regions', () => {
       h: WINDSCREEN_REFERENCE.h,
     });
     expect(DA50RG.regions.find((r) => r.id === 'windscreen')?.controlIds).toEqual([]);
+  });
+
+  it('the side_window region is nested inside the windscreen region and listed before it (P-07)', () => {
+    expect(regionBounds('side_window')).toEqual({ x: 6, y: -280, w: 112, h: 210 });
+    expect(inside(regionBounds('side_window'), regionBounds('windscreen'))).toBe(true);
+    const ids = DA50RG.regions.map((r) => r.id);
+    // The zoom takes the first region that contains the tapped point, so the window comes first.
+    expect(ids.indexOf('side_window')).toBeGreaterThanOrEqual(0);
+    expect(ids.indexOf('side_window')).toBeLessThan(ids.indexOf('windscreen'));
+    expect(DA50RG.regions.find((r) => r.id === 'side_window')?.controlIds).toEqual([
+      'sw.emerg_window',
+    ]);
+    // The windscreen region itself is unchanged: the same bounds, still no control.
+    expect(regionBounds('windscreen')).toEqual({
+      x: 0,
+      y: -WINDSCREEN_REFERENCE.h,
+      w: PANEL_VIEWBOX.w,
+      h: WINDSCREEN_REFERENCE.h,
+    });
   });
 
   it('the four breaker regions have the Table B1 bounds, typed in independently of the data', () => {
@@ -199,6 +225,7 @@ describe('viewBox and regions', () => {
         const a = regions[i];
         const b = regions[j];
         if (a === undefined || b === undefined) continue;
+        if (ABOVE_PANEL.includes(a.id) && ABOVE_PANEL.includes(b.id)) continue; // the nested pair
         expect(overlaps(a.bounds, b.bounds), `${a.id} / ${b.id}`).toBe(false);
       }
     }
@@ -778,6 +805,7 @@ describe('avionics unit regions and plates (plan 06)', () => {
         const a = regions[i];
         const b = regions[j];
         if (a === undefined || b === undefined) continue;
+        if (ABOVE_PANEL.includes(a.id) && ABOVE_PANEL.includes(b.id)) continue; // the nested pair
         expect(overlaps(a.bounds, b.bounds), `${a.id} / ${b.id}`).toBe(false);
       }
     }
@@ -1508,6 +1536,12 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
    */
   const OWNER_ECS_REGION = 'under_panel_ecs';
   /**
+   * The red door release lever (Phase 5.1, P-09): low at the left edge, at the pilot's arm rest.
+   * The owner accepted the place on 2026-10-27 as an assumption for his review; its region reaches
+   * into the reserved legroom like the ECS pull. It has no plate.
+   */
+  const OWNER_DOOR_REGION = 'door_arm';
+  /**
    * The simplified transponder (phase 03, D-11) stood in the pilot's footroom until Phase 5.1; it
    * now stands right of the session pad (task 05.1-01-2) and its plate is checked below.
    */
@@ -1565,14 +1599,16 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     }
   });
 
-  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions, the owner-placed under_panel_ecs region (2026-10-22) and the Phase 5.1 pedals region and plate', () => {
+  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions, the owner-placed under_panel_ecs region (2026-10-22), the owner-placed door_arm region (2026-10-27) and the Phase 5.1 pedals region and plate', () => {
     const plates = PLATES.filter((p) => overlaps(rectOf(p), PILOT_LEGROOM)).map((p) => p.id);
     expect(plates).toEqual([P51_PEDALS_PLATE]);
     const regions = DA50RG.regions
       .filter((r) => overlaps(r.bounds, PILOT_LEGROOM))
       .map((r) => r.id)
       .sort();
-    expect(regions).toEqual([...LEGROOM_EXCEPTIONS, OWNER_ECS_REGION, P51_PEDALS_REGION].sort());
+    expect(regions).toEqual(
+      [...LEGROOM_EXCEPTIONS, OWNER_ECS_REGION, OWNER_DOOR_REGION, P51_PEDALS_REGION].sort(),
+    );
   });
 
   it('the pedals plate carries the pedals region and lies wholly inside the legroom (P-02)', () => {

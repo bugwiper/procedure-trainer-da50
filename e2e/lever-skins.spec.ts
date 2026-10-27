@@ -231,6 +231,29 @@ test('TOE BRAKES are two pedals under one control: a tap presses both, a second 
   await expect(brakes).toHaveAttribute('data-state', 'released');
 });
 
+test('the DOOR RELEASE lever lies along its arm rest, a tap pulls it up and a second tap lays it back', async ({
+  page,
+  hasTouch,
+}) => {
+  await zoomIntoRegion(page, hasTouch, 'door_arm');
+  const door = control(page, 'lv.door_release');
+  const hit = page.locator('[data-hit="lv.door_release"]');
+  await expect(door).toHaveAttribute('data-state', 'locked');
+  await expect(door).toHaveAttribute('data-skin', 'door-release');
+  await expect(page.locator('[data-detent^="lv.door_release:"]')).toHaveCount(0);
+  await expect(door.locator('[data-door-bar]')).toHaveCount(1);
+  await expect(door.locator('[data-door-plate]')).toHaveCount(0);
+  await activate(hit, hasTouch);
+  await expect(door).toHaveAttribute('data-state', 'open');
+  await expect(door.locator('[data-door-plate]')).toHaveCount(1);
+  await expect(door.locator('[data-door-bar]')).toHaveCount(0);
+  // Nothing is printed on the lever: the state shows by position only.
+  await expect(door.locator('text')).toHaveCount(0);
+  await afterPairWindow(page);
+  await activate(hit, hasTouch);
+  await expect(door).toHaveAttribute('data-state', 'locked');
+});
+
 test('the pedestal levers print no name of their own, the plate placards name them', async ({
   page,
 }) => {

@@ -43,7 +43,7 @@ interface ControlBase {
 }
 
 /** Skin vocabulary (UI-SPEC 8.1 to 8.5). Widgets pick their art by skin; absent means the first. */
-export const TOGGLE_SKINS = ['bat', 'rocker', 'softkey'] as const;
+export const TOGGLE_SKINS = ['bat', 'rocker', 'softkey', 'window'] as const;
 export const ROCKER_SIZES = ['S', 'M', 'L', 'W', 'LIGHT'] as const;
 export const ROCKER_COLOURS = ['white', 'red'] as const;
 export const BUTTON_SKINS = [
@@ -65,12 +65,17 @@ export const LEVER_SKINS = [
   'cowl-slider',
   'pull-ecs',
   'toe-brakes',
+  'door-release',
 ] as const;
 /**
  * Lever skins that go with tapToggle, both or neither: a hinged flap or a pedal pair that a tap
  * flips between exactly two detents and that is drawn by its own body, not by the handle code.
  */
-export const TAP_TOGGLE_SKINS: readonly LeverSkin[] = ['parking-flap', 'toe-brakes'];
+export const TAP_TOGGLE_SKINS: readonly LeverSkin[] = [
+  'parking-flap',
+  'toe-brakes',
+  'door-release',
+];
 /**
  * Looks of a rotary knob. Absent means `round` (the black disc with a pointer line); `selector-bar`
  * is the elongated red selector knob of the FUEL valve (owner decision 2026-10-22).
@@ -721,6 +726,11 @@ function checkSkinFields(def: ToggleDef | GuardedToggleDef): void {
   if (def.states.length === 3 && skin === 'softkey') {
     throw new RegistryError(
       `toggle "${def.id}" has three states but its skin is "softkey"; only the rocker and bat skins have a middle position`,
+    );
+  }
+  if (skin === 'window' && def.states.length !== 2) {
+    throw new RegistryError(
+      `toggle "${def.id}" has ${def.states.length} states but its skin is "window" (exactly two required: closed and open)`,
     );
   }
   if (skin === 'rocker') {

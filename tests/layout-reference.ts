@@ -102,6 +102,12 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   // The toe brakes (Phase 5.1, P-02): one latching control drawn as two pedals on the floor of the
   // pilot's footwell, below the transponder plate (region pedals at 300, 1150; centre 180, 55).
   { id: 'lv.toe_brakes', x: 480, y: 1205, tol: 8, review: true },
+  // The red door release lever (Phase 5.1, P-09, owner 2026-10-27): low at the left edge, at the
+  // pilot's arm rest (region door_arm at 4, 1000; centre 48, 120). The place is an assumption.
+  { id: 'lv.door_release', x: 52, y: 1120, tol: 8, review: true },
+  // The emergency window (Phase 5.1, P-07): the oval in the side pane at the far left of the
+  // windscreen extent, above the panel (region side_window at 6, -280; centre 56, 105).
+  { id: 'sw.emerg_window', x: 62, y: -175, tol: 8, review: true },
 ];
 
 /**
@@ -408,6 +414,10 @@ export const ORDERING: readonly OrderRow[] = [
 export const ALL_REGION_IDS: readonly string[] = [
   // The windscreen of phase 5: invisible geometry above the panel, art only, no control.
   'windscreen',
+  // The emergency window of Phase 5.1: a narrow region nested inside the windscreen region, one control.
+  'side_window',
+  // The door release lever of Phase 5.1: at the pilot's arm rest, one control.
+  'door_arm',
   'lights',
   'deice',
   'deice_switches',
@@ -487,4 +497,6 @@ export const UNDER_PANEL_REGIONS: readonly string[] = [
   'transponder',
   // The toe brakes (Phase 5.1) sit below the panel, on the floor of the pilot's footwell.
   'pedals',
+  // The door release lever (Phase 5.1, owner 2026-10-27) lies low at the left edge, at the arm rest.
+  'door_arm',
 ];

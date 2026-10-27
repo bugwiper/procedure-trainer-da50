@@ -8,6 +8,7 @@ import type { WidgetProps } from '../ControlWidget';
 import { DRAG_START_PX } from '../press-arbiter';
 import { registerPressTarget, seqOf } from '../press-targets';
 import type { PressTarget } from '../press-targets';
+import { DoorReleaseBody } from '../skins/DoorRelease';
 import { FlapBody } from '../skins/Flap';
 import { PedalsBody } from '../skins/Pedals';
 import {
@@ -158,7 +159,7 @@ export interface LeverBodyProps {
 }
 
 /**
- * Body of a tap-toggle lever (R2-4.2): the hinged flap (or the pedal pair of the skin toe-brakes) and one hit over the whole footprint. No
+ * Body of a tap-toggle lever (R2-4.2): the hinged flap (or the pedal pair of the skin toe-brakes, or the door lever of the skin door-release) and one hit over the whole footprint. No
  * track, tick, legend or marker; prints no text. Pure, no hooks.
  */
 function TapToggleBody({
@@ -183,6 +184,8 @@ function TapToggleBody({
     >
       {def.skin === 'toe-brakes' ? (
         <PedalsBody def={def} state={state} pressed={pressed === true} />
+      ) : def.skin === 'door-release' ? (
+        <DoorReleaseBody def={def} state={state} pressed={pressed === true} />
       ) : (
         <FlapBody def={def} state={state} pressed={pressed === true} />
       )}

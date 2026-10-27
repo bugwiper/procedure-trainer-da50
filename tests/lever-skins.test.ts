@@ -7,7 +7,8 @@ import type { DispatchResult } from '../src/engine/store';
 import { VIEW_PROFILES } from '../src/aircraft/da50rg/panel';
 import { createPanelBridge } from '../src/ui/bridge';
 import { fitScale, targetSide, zoomRect } from '../src/ui/panel/viewport';
-import { FLAP, FlapBody, flapPlate } from '../src/ui/panel/skins/Flap';
+import { doorPlate } from '../src/ui/panel/skins/DoorRelease';
+import { FLAP, FlapBody, PLATE, flapPlate } from '../src/ui/panel/skins/Flap';
 import {
   ECS_GROWTH,
   ECS_HEAD_R,
@@ -734,6 +735,68 @@ describe('PARKING BRAKE flap geometry (R2-4.2, R3-4.1)', () => {
     expect(placard?.lines).toEqual(['PARKING', 'BRAKE']);
     expect(placard?.near).toBe('lv.parking_brake');
     for (const d of brake.detents) expect(texts(body(brake, d.id)), d.id).toEqual([]);
+  });
+});
+
+describe('TOE BRAKES and DOOR RELEASE (Phase 5.1)', () => {
+  const EXPECTED: Record<string, readonly [skin: string, hit: { w: number; h: number }]> = {
+    'lv.toe_brakes': ['toe-brakes', { w: 260, h: 90 }],
+    'lv.door_release': ['door-release', { w: 56, h: 176 }],
+  };
+
+  it('are nameless tap-toggle levers with two detents, one hit and no markers or track art', () => {
+    for (const [id, [skin, hit]] of Object.entries(EXPECTED)) {
+      const def = lever(id);
+      expect(def.skin, id).toBe(skin);
+      expect(def.tapToggle, id).toBe(true);
+      expect(def.nameless, id).toBe(true);
+      expect(def.hit, id).toEqual(hit);
+      expect(def.detents, id).toHaveLength(2);
+      expect(def.markers, id).toBeUndefined();
+      for (const d of def.detents) {
+        const tree = body(def, d.id);
+        expect(
+          findElements(tree, (el) => 'data-detent' in el.props),
+          `${id}/${d.id}`,
+        ).toHaveLength(0);
+        expect(
+          findElements(tree, (el) => 'data-hit' in el.props),
+          `${id}/${d.id}`,
+        ).toHaveLength(1);
+        expect(texts(tree), `${id}/${d.id}`).toEqual([]);
+      }
+    }
+  });
+
+  it('start released and locked (in flight), and a tap goes to the other detent', () => {
+    expect(lever('lv.toe_brakes').default).toBe('released');
+    expect(lever('lv.door_release').default).toBe('locked');
+    expect(tapToggleTarget(lever('lv.toe_brakes'), 'released')).toBe('applied');
+    expect(tapToggleTarget(lever('lv.toe_brakes'), 'applied')).toBe('released');
+    expect(tapToggleTarget(lever('lv.door_release'), 'locked')).toBe('open');
+    expect(tapToggleTarget(lever('lv.door_release'), 'open')).toBe('locked');
+  });
+
+  it('the pedals press both pads and the door lever stands up as a plate when open', () => {
+    const released = body(lever('lv.toe_brakes'), 'released');
+    const applied = body(lever('lv.toe_brakes'), 'applied');
+    expect(findElements(released, (el) => 'data-pedal' in el.props)).toHaveLength(2);
+    expect(findElements(applied, (el) => el.props['data-pedals'] === 'applied')).toHaveLength(1);
+    const padFill = (tree: El): unknown[] =>
+      findElements(tree, (el) => 'data-pedal-pad' in el.props).map((el) => el.props['fill']);
+    expect(padFill(applied)).not.toEqual(padFill(released));
+    const locked = body(lever('lv.door_release'), 'locked');
+    const open = body(lever('lv.door_release'), 'open');
+    expect(findElements(locked, (el) => 'data-door-bar' in el.props)).toHaveLength(1);
+    expect(findElements(locked, (el) => 'data-door-plate' in el.props)).toHaveLength(0);
+    expect(findElements(open, (el) => 'data-door-plate' in el.props)).toHaveLength(1);
+    expect(findElements(open, (el) => 'data-door-bar' in el.props)).toHaveLength(0);
+  });
+
+  it('the pulled door plate rises about 90 units, four times the 22 of the parking flap', () => {
+    const [a, , c] = doorPlate();
+    expect(a.y - c.y).toBe(90);
+    expect(a.y - c.y).toBeGreaterThanOrEqual(3.5 * PLATE.rise);
   });
 });
 

@@ -13,6 +13,7 @@ import type {
 import { BatBody } from '../src/ui/panel/skins/Bat';
 import { BreakerBody } from '../src/ui/panel/skins/Breaker';
 import { RockerBody } from '../src/ui/panel/skins/Rocker';
+import { WindowBody } from '../src/ui/panel/skins/Window';
 import { PushButtonBody } from '../src/ui/panel/skins/PushButton';
 import type { PressedSide } from '../src/ui/panel/skins/PushButton';
 import { LeverBody } from '../src/ui/panel/widgets/DetentLever';
@@ -144,10 +145,15 @@ describe('tap-toggle lever (parking flap) text is state-independent', () => {
   const BODY_MARKER: Readonly<Record<string, string>> = {
     'parking-flap': 'data-flap',
     'toe-brakes': 'data-pedals',
+    'door-release': 'data-door',
   };
 
-  it('the PARKING BRAKE flap and the TOE BRAKES pedals print no text in either state', () => {
-    expect(flapLevers.map((d) => d.id).sort()).toEqual(['lv.parking_brake', 'lv.toe_brakes']);
+  it('the PARKING BRAKE flap, the TOE BRAKES pedals and the DOOR RELEASE lever print no text in either state', () => {
+    expect(flapLevers.map((d) => d.id).sort()).toEqual([
+      'lv.door_release',
+      'lv.parking_brake',
+      'lv.toe_brakes',
+    ]);
     for (const def of flapLevers) {
       for (const detent of def.detents) {
         const tree = expand(
@@ -169,6 +175,29 @@ describe('tap-toggle lever (parking flap) text is state-independent', () => {
           findElements(tree, (el) => 'data-state-text' in el.props),
           id,
         ).toHaveLength(0);
+        expect(countElements(tree), id).toBeLessThanOrEqual(20);
+      }
+    }
+  });
+});
+
+describe('window toggle (emergency window) text is state-independent', () => {
+  const windows = DA50RG.controls.filter(
+    (c): c is ToggleDef => c.kind === 'toggle' && c.skin === 'window',
+  );
+
+  it('the emergency window prints no text in either state, pressed or not, with a handful of elements', () => {
+    expect(windows.map((d) => d.id)).toEqual(['sw.emerg_window']);
+    for (const open of [false, true]) {
+      for (const pressed of [false, true]) {
+        const tree = expand(WindowBody({ open, pressed }));
+        const id = `${String(open)}/${String(pressed)}`;
+        expect(textStrings(tree), id).toEqual([]);
+        expect(
+          findElements(tree, (el) => 'data-state-text' in el.props),
+          id,
+        ).toHaveLength(0);
+        expect(countElements(tree), id).toBeLessThanOrEqual(12);
       }
     }
   });

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { afterPairWindow } from './support/zoom';
+import { FULL_VIEWBOX, afterPairWindow, backgroundPoint, doubleActivateAt } from './support/zoom';
 
 // Switch skins (PNL-11, D-08): the rocker half pressed follows the state on every device.
 
@@ -161,4 +161,42 @@ test('the guarded ALTERNATE toggle is a bat that follows its state once the guar
   await afterPairWindow(page);
   await activate(page.locator('[data-hit="sw.deice_alternate"]'), hasTouch);
   await expect(sw).toHaveAttribute('data-state', 'off');
+});
+
+test('the EMERGENCY WINDOW oval toggles by a click or tap, is drawn ajar when open and prints no text', async ({
+  page,
+  hasTouch,
+}) => {
+  const win = control(page, 'sw.emerg_window');
+  const hit = page.locator('[data-hit="sw.emerg_window"]');
+  await expect(win).toHaveAttribute('data-skin', 'window');
+  await expect(win).toHaveAttribute('data-state', 'closed');
+  await expect(win.locator('[data-window="closed"]')).toHaveCount(1);
+  await expect(win.locator('[data-window-gap]')).toHaveCount(0);
+  await activate(hit, hasTouch);
+  await expect(win).toHaveAttribute('data-state', 'open');
+  await expect(win.locator('[data-window="open"]')).toHaveCount(1);
+  await expect(win.locator('[data-window-gap]')).toHaveCount(1);
+  await expect(win.locator('text')).toHaveCount(0);
+  await afterPairWindow(page);
+  await activate(hit, hasTouch);
+  await expect(win).toHaveAttribute('data-state', 'closed');
+  await expect(win.locator('[data-window-gap]')).toHaveCount(0);
+});
+
+test('a double tap on the pane beside the oval zooms into the side window and out again', async ({
+  page,
+  hasTouch,
+}) => {
+  const p = await backgroundPoint(page, 'side_window');
+  await doubleActivateAt(page, p, hasTouch);
+  await expect(page.getByTestId('panel')).not.toHaveAttribute('viewBox', FULL_VIEWBOX);
+  const view = (await page.getByTestId('panel').getAttribute('viewBox')) ?? '';
+  // The view is the small region around the pane, not the whole windscreen.
+  expect(Number(view.split(' ')[2])).toBeLessThan(400);
+  await afterPairWindow(page);
+  await expect(page.locator('[data-control-id="sw.emerg_window"]')).toHaveAttribute(
+    'data-state',
+    'closed',
+  );
 });

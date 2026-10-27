@@ -16,6 +16,7 @@ import { defineRegistry } from '../../engine/registry';
 import type { Rect, RegionDef, Size } from '../../engine/registry';
 import { BREAKER_CONTROLS, CB_REGIONS } from './controls/breakers';
 import { BUTTON_CONTROLS } from './controls/buttons';
+import { CABIN_CONTROLS } from './controls/cabin';
 import { DEICE_CONTROLS } from './controls/deice';
 import { ENGINE_CONTROLS } from './controls/engine';
 import { KNOB_CONTROLS } from './controls/knobs';
@@ -66,6 +67,11 @@ export const VIEW_PROFILES: {
 };
 
 export const REGIONS: readonly RegionDef[] = [
+  // The emergency window (Phase 5.1, P-07): the oval in the side pane at the far left of the
+  // windscreen extent. Its region is NESTED inside the windscreen region and listed before it,
+  // because the zoom takes the first region that contains the tapped point. The one named
+  // exception of the no-overlap gates (tests/layout.test.ts).
+  { id: 'side_window', name: 'SIDE WINDOW', bounds: { x: 6, y: -280, w: 112, h: 210 } },
   // The windscreen above the panel (Phase 5, W-03): invisible geometry for the zoom, art only, no
   // control. It owns the space above y 0 and nothing else.
   {
@@ -156,6 +162,10 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'transponder', name: 'TRANSPONDER', bounds: { x: 1800, y: 780, w: 320, h: 200 } },
   // The toe brakes (Phase 5.1, P-02): the floor of the pilot's footwell. Holds the one control lv.toe_brakes, drawn as two pedals.
   { id: 'pedals', name: 'PEDALS', bounds: { x: 300, y: 1150, w: 360, h: 110 } },
+  // The red door release lever (Phase 5.1, P-09): low at the left edge, at the pilot's arm rest.
+  // The place is an assumption for the owner's review; it reaches into the reserved pilot legroom
+  // (a named exception of the legroom gate, next to the ECS pull).
+  { id: 'door_arm', name: 'DOOR RELEASE', bounds: { x: 4, y: 1000, w: 96, h: 240 } },
 ];
 
 export const DA50RG = defineRegistry({
@@ -177,5 +187,6 @@ export const DA50RG = defineRegistry({
     ...BREAKER_CONTROLS,
     ...SQUAWK_CONTROLS,
     ...PEDALS_CONTROLS,
+    ...CABIN_CONTROLS,
   ],
 });

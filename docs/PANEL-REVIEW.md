@@ -241,6 +241,19 @@ Trainer simplification accepted by the owner on 2026-10-27: one latching control
 |----|---------|-----------------------|----------------------------|--------------|-------------------|--------|----------------|
 | `lv.toe_brakes` | none | detent-lever with the tap-toggle option, toe-brakes skin: two pedals, nameless, no legends, hit 260 x 90 | RELEASED (pedals up), APPLIED (both pads pressed); default RELEASED; a tap toggles, no dragging | 480, 1205 (8) | the place is an assumption; real pedals are two separate controls held by the feet | none | `controls/pedals.ts`, `skins/Pedals.tsx` |
 
+## Cabin openings (regions `door_arm` and `side_window`, Phase 5.1)
+
+Two separate controls, by the owner's answers of 2026-10-27. Both places are assumptions for the owner's review; neither is a fidelity item yet.
+
+The door release lever is the RED lever low at the left edge, at the pilot's arm rest. Locked it lies flat along a dark recess in the arm rest; open it is pulled up and stands as a red plate in the same pseudo-perspective as the parking flap, about four times as long. A tap toggles it. The region `door_arm` (name DOOR RELEASE, x 4, y 1000, 96 x 240) has no plate; it reaches into the reserved pilot legroom like the ECS pull (a named exception of the legroom gate). Nothing else lies left of x 280 below the ALTERNATE STATIC pull.
+
+The emergency window is the oval in the side pane at the far left of the whole panel space, in the left canopy-frame side of the windscreen extent where the side window of the real cockpit is. A click toggles it; it is drawn ajar (a slim lit gap, the far side swung in) when open. The region `side_window` (name SIDE WINDOW, x 6, y -280, 112 x 210) is nested inside the art-only windscreen region and listed before it, because a double tap zooms into the first region that contains the point; the windscreen region itself is unchanged. It has no plate: the pane is drawn by the skin inside the region.
+
+| Id | Placard | Assumed kind and skin | Assumed states and default | Centre (tol) | What is uncertain | Photos | File to change |
+|----|---------|-----------------------|----------------------------|--------------|-------------------|--------|----------------|
+| `lv.door_release` | none | detent-lever with the tap-toggle option, door-release skin: red lever, nameless, no legends, hit 56 x 176 | LOCKED (lies flat), OPEN (pulled up); default LOCKED; a tap toggles, no dragging | 52, 1120 (8) | the place at the pilot's arm rest, the size and the red plate look are assumptions | none | `controls/cabin.ts`, `skins/DoorRelease.tsx` |
+| `sw.emerg_window` | none | toggle, window skin: oval in the side pane, nameless, hit 64 x 140 | CLOSED, OPEN (ajar); default CLOSED; a click toggles | 62, -175 (8) | the place in the left canopy frame, the oval size 60 x 116 and the pane look are assumptions | none | `controls/cabin.ts`, `skins/Window.tsx` |
+
 ## Shell and placards (static art, no region)
 
 All static art lives in `src/ui/panel/PanelShell.tsx` and carries no handler; plates are data in `src/aircraft/da50rg/plates.ts` and placards are data in `src/aircraft/da50rg/placards.ts`. Outline coordinates are redrawn approximations of the photo silhouettes (U-12). The plate rectangles below are the ones the art-fit gate (`e2e/art-fit.spec.ts`) measures every control and caption against; the open list of that gate is empty, so every control, lamp and caption lies on its plate.

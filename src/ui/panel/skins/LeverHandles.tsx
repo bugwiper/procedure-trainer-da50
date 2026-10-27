@@ -49,6 +49,7 @@ export const LEVER_ART: Readonly<Record<LeverSkin, SkinArt>> = {
   // Drawn by FlapBody, never by the handle code; the numbers only keep the table type-complete.
   'parking-flap': { along: 0, across: 0, tick: 0, tickColour: '#4a525c' },
   'toe-brakes': { along: 0, across: 0, tick: 0, tickColour: '#4a525c' },
+  'door-release': { along: 0, across: 0, tick: 0, tickColour: '#4a525c' },
   'env-slider': { along: 7, across: 11, tick: 6, tickColour: '#6b7580' },
   // White round head r 14, up to 10 % larger when pulled, drawn up to ECS_TILT to the left.
   'pull-ecs': { along: 16, across: 22, tick: 8, tickColour: '#6b7580' },
@@ -225,6 +226,7 @@ export function LeverHandle({ skin, axis, dragging, pull = 0 }: LeverHandleProps
       );
     case 'parking-flap':
     case 'toe-brakes':
+    case 'door-release':
       return null;
     case 'pull-ecs': {
       // White round head with the static text ECS SHUTOFF. Pulled, it moves a few units to the
@@ -403,6 +405,7 @@ export function LeverTrack({ skin, length, axis, handleAt }: LeverTrackProps) {
       return <Slot axis={axis} w={8} length={length} pad={12} />;
     case 'parking-flap':
     case 'toe-brakes':
+    case 'door-release':
       return null;
     case 'env-slider':
       return <Slot axis={axis} w={4} length={length} pad={14} />;
