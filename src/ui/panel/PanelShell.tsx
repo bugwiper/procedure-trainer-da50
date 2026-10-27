@@ -4,6 +4,7 @@ import {
   BRACKET_GROUPS,
   BRACKET_TITLE_DROP,
   ENV_BOXES,
+  ENV_TEMPERATURE_CONTROL,
   ENV_TITLE,
   GEAR_BLOCK,
   HEADING_FRAME,
@@ -245,7 +246,7 @@ export interface TemperatureTriangle {
  * cold stop. Positioned from the lever in the registry, never from literals.
  */
 export function temperatureTriangle(registry: Registry): TemperatureTriangle | undefined {
-  const def = registry.get('lv.env_temp');
+  const def = registry.get(ENV_TEMPERATURE_CONTROL);
   if (def === undefined || def.kind !== 'detent-lever') return undefined;
   const region = registry.regions.find((r) => r.id === def.region);
   if (region === undefined) return undefined;

@@ -136,6 +136,9 @@ export const ENV_BOXES: readonly GroupBoxDef[] = [
   { id: 'circulating-air', title: 'CIRCULATING AIR', x: 970, y: 990, w: 186, h: 40 },
 ];
 
+/** The TEMPERATURE lever the triangle beside its slot is drawn from (aircraft data, so no UI file names a control). */
+export const ENV_TEMPERATURE_CONTROL = 'lv.env_temp';
+
 /** Title of the whole environmental control plate and its centre, above the group boxes. */
 export const ENV_TITLE = { text: 'ENVIRONMENTAL CONTROL', x: 1062, y: 766 } as const;
 
