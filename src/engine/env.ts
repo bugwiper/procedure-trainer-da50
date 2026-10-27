@@ -6,6 +6,7 @@ import type { CueSet } from './cues';
 import type { Physics } from './physics';
 import type { QuantitySet } from './quantities';
 import type { Registry } from './registry';
+import type { SceneSet } from './scenes';
 
 export interface AircraftEnv {
   readonly registry: Registry;
@@ -15,4 +16,6 @@ export interface AircraftEnv {
   readonly physics: Physics;
   /** The visual cues of the windscreen layer (Phase 5): quantities read as levels. */
   readonly cues: CueSet;
+  /** The views out of the windscreen a scenario may name (Phase 5). */
+  readonly scenes: SceneSet;
 }

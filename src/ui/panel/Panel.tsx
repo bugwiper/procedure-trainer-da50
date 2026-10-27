@@ -1,5 +1,6 @@
 import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
+import { DEFAULT_SCENE } from '../../aircraft/da50rg/scenes';
 import type { PanelBridge } from '../bridge';
 import type { Session } from '../session';
 import { ControlWidget } from './ControlWidget';
@@ -44,9 +45,6 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
 const SHOW_REGIONS =
   typeof location !== 'undefined' && new URLSearchParams(location.search).get('regions') === '1';
 
-/** Task 1 tracer: the one plain scene; the scene of the session replaces it (W-07). */
-const SCENE = 'cruise';
-
 /**
  * Root panel SVG. Iterates regions and their controls; carries no pointer handlers
  * (neutral areas emit nothing, D-09). Pointer handling lives on widget hit rects only; the
@@ -72,7 +70,7 @@ export function Panel({ bridge, session }: { bridge: PanelBridge; session?: Sess
     >
       <rect data-testid="panel-background" x={x} y={y} width={w} height={h} fill="#14171c" />
       <Defs />
-      <Windscreen scene={SCENE} cues={bridge.cueLevels.value} />
+      <Windscreen scene={session?.scene.value ?? DEFAULT_SCENE} cues={bridge.cueLevels.value} />
       <PanelShell registry={registry} />
       {registry.regions.map((region) => (
         <g

@@ -8,6 +8,7 @@ source:
   section: AFM 03A-02 ALTN 2 FAIL
   verified: "2026-10-23"
 disclaimer: training-aid
+scene: cruise
 briefing:
   situation: "You are in cruise flight when the yellow ALTN 2 FAIL message appears on the primary flight display. The second Amps pointer has dropped to zero. The engine runs normally and the bus voltage is normal."
 initial:

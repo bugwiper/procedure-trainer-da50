@@ -8,6 +8,7 @@ source:
   section: AFM 03-08 ENG OIL TEMP
   verified: "2026-10-23"
 disclaimer: training-aid
+scene: cruise
 briefing:
   situation: "You are in cruise flight when the red ENG OIL TEMP message appears on the primary flight display. The oil temperature reading is high. The oil pressure is indicated in the green range and the engine otherwise runs smoothly."
 initial:

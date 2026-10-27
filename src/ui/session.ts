@@ -16,7 +16,7 @@
 // after the onset seed; the engine resolves it into the scenario the run uses (resolveVariant), the
 // draw is recorded (the signal `variant`, then Recording.variant) and only the debrief names it.
 
-import { signal } from '@preact/signals';
+import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import type { VirtualClock } from '../engine/clock';
 import type { AircraftEnv } from '../engine/env';
@@ -110,6 +110,11 @@ export interface SessionDeps {
   readonly rng: () => number;
   /** Called when a run starts, after the panel took the scenario's initial state. */
   readonly onRunStart: () => void;
+  /**
+   * The scene of the free panel (W-09: the ?scene flag, a known id); absent means the aircraft's
+   * default scene. A briefing or a run overrides it.
+   */
+  readonly freeScene?: string;
 }
 
 export interface Session {
@@ -118,6 +123,12 @@ export interface Session {
   readonly scenario: ReadonlySignal<Scenario | null>;
   /** The scenario the briefing shows; null outside the briefing. */
   readonly briefing: ReadonlySignal<Briefed | null>;
+  /**
+   * The view out of the windscreen (Phase 5, W-07, W-08): the scene of the briefing's scenario,
+   * else of the run's (current or last) scenario, else the free-panel scene. The same on every
+   * level, from the briefing until RESET.
+   */
+  readonly scene: ReadonlySignal<string>;
   /** The grade of the last run; null until graded, cleared at the next start. */
   readonly result: ReadonlySignal<GradeResult | null>;
   /** True while a pack loads; presses on the session area are ignored meanwhile. */
@@ -237,6 +248,14 @@ export function createSession(deps: SessionDeps): Session {
   const screen = signal<Screen>('free');
   const scenario = signal<Scenario | null>(null);
   const briefing = signal<Briefed | null>(null);
+  const freeScene =
+    deps.freeScene !== undefined && env.scenes.has(deps.freeScene)
+      ? deps.freeScene
+      : env.scenes.default;
+  const scene = computed<string>(() => {
+    const shown = briefing.value?.scenario ?? scenario.value;
+    return shown === null ? freeScene : (shown.scene ?? env.scenes.default);
+  });
   const result = signal<GradeResult | null>(null);
   const busy = signal(false);
   const loadFailure = signal<LoadFailure | null>(null);
@@ -481,6 +500,7 @@ export function createSession(deps: SessionDeps): Session {
     screen,
     scenario,
     briefing,
+    scene,
     result,
     busy,
     loadFailure,

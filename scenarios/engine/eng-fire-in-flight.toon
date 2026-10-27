@@ -8,6 +8,7 @@ source:
   section: AFM 03-33 ENGINE FIRE IN FLIGHT
   verified: "2026-10-23"
 disclaimer: training-aid
+scene: cruise
 briefing:
   situation: "You are in cruise flight when you see smoke and flames coming from the engine compartment. No message is shown on the primary flight display. The engine temperatures are rising and the fire is growing."
 initial:

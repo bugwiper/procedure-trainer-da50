@@ -24,12 +24,20 @@ import type { Level } from './session';
 
 const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
 
+/**
+ * Development flag, read once: ?scene=<id> sets the scene of the free panel (a known id only), so
+ * the owner and the e2e see every scene before scenarios name them. A session overrides it.
+ */
+const FLAG_SCENE =
+  typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('scene');
+
 // The session owns randomness and the run clock; a run starts on the full panel (UI-SPEC).
 const session = createSession({
   bridge,
   packs: { provider: VITE_PACKS, policy: OPEN_ACCESS },
   env: DA50RG_ENV,
   rng: Math.random,
+  ...(FLAG_SCENE === null ? {} : { freeScene: FLAG_SCENE }),
   onRunStart: () => {
     zoomOut(bridge.registry.extent);
   },

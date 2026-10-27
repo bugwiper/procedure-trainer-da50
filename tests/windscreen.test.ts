@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_CUES } from '../src/aircraft/da50rg/cues';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
+import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { CUE_VISIBLE_LEVEL } from '../src/engine/cues';
 import { flameOpacity, flameScale } from '../src/ui/panel/windscreen/cue-layers';
 import { Windscreen } from '../src/ui/panel/windscreen/Windscreen';
+import { OPENING_PATH } from '../src/ui/panel/windscreen/geometry';
 import { WINDSCREEN_REFERENCE } from './layout-reference';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { El } from './vnode-walk';
@@ -69,12 +71,109 @@ describe('the windscreen layer', () => {
     for (const id of used) expect(defined.has(id), id).toBe(true);
   });
 
-  it('draws the opening over the whole windscreen height', () => {
+  it('clips to the arched opening, which spans the windscreen height and runs under the shield', () => {
     const clip = findElements(full, (el) => el.tag === 'clipPath');
     expect(clip).toHaveLength(1);
-    const rect = findElements(clip[0] as El, (el) => el.tag === 'rect')[0];
-    expect(rect?.props['y']).toBe(-WINDSCREEN_REFERENCE.h);
-    expect(Number(rect?.props['height'])).toBeGreaterThanOrEqual(WINDSCREEN_REFERENCE.h);
+    const path = findElements(clip[0] as El, (el) => el.tag === 'path')[0];
+    expect(path?.props['d']).toBe(OPENING_PATH);
+    const ys = [...OPENING_PATH.matchAll(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g)].map((m) =>
+      Number(m[2]),
+    );
+    // The arch reaches up to the overhead strip and down below the glare shield top.
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(-WINDSCREEN_REFERENCE.h);
+    expect(Math.min(...ys)).toBeLessThan(-WINDSCREEN_REFERENCE.h * 0.9);
+    expect(Math.max(...ys)).toBeGreaterThanOrEqual(100);
+  });
+});
+
+describe('the frame parts', () => {
+  const full = render({});
+  const part = (name: string): El[] => findElements(full, (el) => el.props['data-part'] === name);
+
+  it.each(['frame', 'strut', 'overhead', 'blade', 'cowl'])('draws the %s', (name) => {
+    expect(part(name)).toHaveLength(1);
+  });
+
+  it('puts the strut over the hump of the glare shield at x 1130', () => {
+    const strut = findElements(part('strut')[0] as El, (el) => el.tag === 'polygon')[0];
+    const xs = String(strut?.props['points'])
+      .split(' ')
+      .map((p) => Number(p.split(',')[0]));
+    expect((Math.min(...xs) + Math.max(...xs)) / 2).toBe(1130);
+  });
+
+  it('cuts the opening out of the frame with the even-odd rule', () => {
+    const body = findElements(full, (el) => el.props['data-frame-body'] !== undefined)[0];
+    expect(body?.props['fill-rule']).toBe('evenodd');
+  });
+
+  it('draws the blade translucent and above the hub, to the left of the strut', () => {
+    const blade = part('blade')[0];
+    expect(Number(blade?.props['fill-opacity'])).toBeLessThan(0.7);
+    expect(Number(blade?.props['fill-opacity'])).toBeGreaterThan(0);
+  });
+
+  it('keeps the z-order: scene, blade, cowl, cues inside the clip, the frame after them', () => {
+    const name = (c: El): string =>
+      [c.props['data-part'], c.props['data-scene'], c.props['data-layer']].find(
+        (v): v is string => typeof v === 'string',
+      ) ?? c.tag;
+    const order = (full.children as El[]).map((c) => `${c.tag}:${name(c)}`);
+    expect(order.at(-1)).toBe('g:frame');
+    const clipped = (full.children as El[]).find((c) => c.props['clip-path'] !== undefined) as El;
+    const inner = (clipped.children as El[]).map(name);
+    expect(inner).toEqual(['cruise', 'blade', 'cowl', 'cues']);
+  });
+});
+
+describe('the scenes', () => {
+  it('there is one scene per id of the aircraft data, the default among them', () => {
+    expect(SCENE_IDS).toContain(DEFAULT_SCENE);
+    expect(new Set(SCENE_IDS).size).toBe(SCENE_IDS.length);
+  });
+
+  it.each([...SCENE_IDS])('%s renders its own distinct data-scene group', (id) => {
+    const tree = render({}, id);
+    const groups = findElements(tree, (el) => el.props['data-scene'] !== undefined);
+    expect(groups.map((g) => g.props['data-scene'])).toEqual([id]);
+    expect(tree.props['data-scene-id']).toBe(id);
+    expect(findElements(groups[0] as El, () => true).length).toBeGreaterThan(8);
+  });
+
+  it('the scenes differ in their art', () => {
+    const sizes = SCENE_IDS.map((id) => JSON.stringify(render({}, id).children).length);
+    expect(new Set(sizes).size).toBe(SCENE_IDS.length);
+  });
+
+  it('an unknown id falls back to the default scene', () => {
+    const tree = render({}, 'no_such_scene');
+    expect(findElements(tree, (el) => el.props['data-scene'] === DEFAULT_SCENE)).toHaveLength(1);
+  });
+
+  describe.each([...SCENE_IDS])('%s keeps the flat-vector rules', (id) => {
+    const tree = render(flamesAt(60), id);
+    it('holds no text', () => {
+      expect(findElements(tree, (el) => el.tag === 'text' || el.tag === 'tspan')).toEqual([]);
+    });
+    it.each(FORBIDDEN_TAGS)('uses no %s element', (tag) => {
+      expect(findElements(tree, (el) => el.tag === tag)).toEqual([]);
+    });
+    it('references only ids its own defs define', () => {
+      const defined = new Set(
+        findElements(tree, (el) => typeof el.props['id'] === 'string').map((el) =>
+          String(el.props['id']),
+        ),
+      );
+      const used = new Set<string>();
+      for (const el of findElements(tree, () => true)) {
+        for (const value of Object.values(el.props)) {
+          if (typeof value !== 'string') continue;
+          for (const match of value.matchAll(/url\(#([^)]+)\)/g)) used.add(match[1] ?? '');
+        }
+      }
+      for (const name of used) expect(defined.has(name), name).toBe(true);
+      for (const name of defined) expect(name.startsWith('w-'), name).toBe(true);
+    });
   });
 });
 

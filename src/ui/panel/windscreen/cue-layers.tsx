@@ -6,8 +6,8 @@ import { cueVisible } from '../../../engine/cues';
 // the layer's own `w-` paints, no text (G-0). Size and opacity follow the level; the flicker is a
 // CSS animation of stage.css that stops under reduced motion.
 
-/** Where the fire stands on the cowl, in panel space. */
-export const FLAME_BASE = { x: 1130, y: -52 } as const;
+/** Where the fire stands on the cowl, in panel space: right of the strut, so it is not hidden by it. */
+export const FLAME_BASE = { x: 1300, y: -40 } as const;
 
 /** Flame size and opacity from the level: 0.1 shows a small flame, 1 a developed fire. */
 export function flameScale(level: number): number {
@@ -30,10 +30,10 @@ export function Flames({ level }: { level: number }) {
       opacity={opacity}
     >
       <g class="w-flicker-smoke">
-        <circle cx={-6} cy={-190} r={36} fill="#2f3338" fill-opacity={0.55} />
-        <circle cx={-28} cy={-238} r={46} fill="#3a3f45" fill-opacity={0.48} />
-        <circle cx={-58} cy={-288} r={52} fill="#454a51" fill-opacity={0.4} />
-        <circle cx={-92} cy={-326} r={44} fill="#50555c" fill-opacity={0.3} />
+        <circle cx={6} cy={-190} r={36} fill="#2f3338" fill-opacity={0.55} />
+        <circle cx={28} cy={-238} r={46} fill="#3a3f45" fill-opacity={0.48} />
+        <circle cx={58} cy={-288} r={52} fill="#454a51" fill-opacity={0.4} />
+        <circle cx={92} cy={-326} r={44} fill="#50555c" fill-opacity={0.3} />
       </g>
       <g class="w-flicker">
         <path

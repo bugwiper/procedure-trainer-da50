@@ -275,6 +275,11 @@ export const Scenario = z.strictObject({
     verified: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'must be a date YYYY-MM-DD' }),
   }),
   disclaimer: z.enum(DISCLAIMER_IDS),
+  /**
+   * The view out of the windscreen (Phase 5, W-07); absent means the aircraft's default scene.
+   * Whether the id exists is lint L22, the default is aircraft data.
+   */
+  scene: nodeId.optional(),
   briefing: z.strictObject({ situation: wordsBetween(1, 60) }),
   initial: z.strictObject({
     controls: z.record(z.string(), z.string()).default({}),

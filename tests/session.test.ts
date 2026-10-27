@@ -66,6 +66,7 @@ function rig(
     policy?: AccessPolicy;
     rng?: () => number;
     listFails?: boolean;
+    freeScene?: string;
   } = {},
 ): Rig {
   const files = options.files ?? { 'eng-oil-temp-green': BLUEPRINT };
@@ -96,6 +97,7 @@ function rig(
     env: DA50RG_ENV,
     rng: options.rng ?? (() => 0),
     onRunStart,
+    ...(options.freeScene === undefined ? {} : { freeScene: options.freeScene }),
   });
   return { session, bridge, onRunStart, loads };
 }
@@ -1528,5 +1530,59 @@ describe('level hints', () => {
       'Briefing without the checklist.',
       'No briefing. The failure starts by itself.',
     ]);
+  });
+});
+
+describe('scene (phase 05, W-07 to W-09)', () => {
+  const PARKED = BLUEPRINT.replace('scene: cruise', 'scene: parked');
+  const NO_SCENE = BLUEPRINT.replace('scene: cruise\n', '');
+  if (PARKED === BLUEPRINT || NO_SCENE === BLUEPRINT)
+    throw new Error('the scene line was not found');
+
+  it('is the aircraft default on the free panel, or the known id of the free-panel flag', () => {
+    expect(rig().session.scene.value).toBe(DA50RG_ENV.scenes.default);
+    expect(rig({ freeScene: 'takeoff_roll' }).session.scene.value).toBe('takeoff_roll');
+    expect(rig({ freeScene: 'no_such_scene' }).session.scene.value).toBe(DA50RG_ENV.scenes.default);
+  });
+
+  it.each(['easy', 'medium', 'realistic'] as const)(
+    'shows the scenario scene from the briefing until RESET on %s',
+    async (level) => {
+      const r = rig({ files: { 'eng-oil-temp-green': PARKED }, freeScene: 'takeoff_roll' });
+      expect(r.session.scene.value).toBe('takeoff_roll');
+      await r.session.newSituation();
+      expect(r.session.screen.value).toBe('briefing');
+      expect(r.session.scene.value).toBe('parked');
+      r.session.setLevel(level);
+      if (level !== 'realistic') r.session.startRun();
+      expect(r.session.screen.value).toBe('running');
+      expect(r.session.scene.value).toBe('parked');
+      r.session.complete();
+      expect(r.session.scene.value).toBe('parked');
+      r.session.closeDebrief();
+      expect(r.session.scene.value).toBe('parked');
+      r.session.resetPanel();
+      expect(r.session.screen.value).toBe('free');
+      expect(r.session.scene.value).toBe('takeoff_roll');
+    },
+  );
+
+  it('backing out of the briefing returns to the free-panel scene', async () => {
+    const r = rig({ files: { 'eng-oil-temp-green': PARKED } });
+    await r.session.newSituation();
+    expect(r.session.scene.value).toBe('parked');
+    r.session.backToPanel();
+    expect(r.session.scene.value).toBe(DA50RG_ENV.scenes.default);
+  });
+
+  it('a scenario without a scene shows the aircraft default, not the free-panel flag', async () => {
+    const r = rig({ files: { 'eng-oil-temp-green': NO_SCENE }, freeScene: 'takeoff_roll' });
+    await r.session.newSituation();
+    expect(r.session.scene.value).toBe(DA50RG_ENV.scenes.default);
+  });
+
+  it('the shipped scenarios all name a scene of the aircraft', () => {
+    expect(DA50RG_ENV.scenes.has('cruise')).toBe(true);
+    expect(BLUEPRINT).toContain('scene: cruise');
   });
 });

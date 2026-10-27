@@ -315,6 +315,36 @@ describe('L8: groups under a branch decided during the run', () => {
   });
 });
 
+describe('L22: scene (phase 05, W-07)', () => {
+  const withScene = (id: string): string =>
+    swap(MINIMAL, 'disclaimer: training-aid', `disclaimer: training-aid\nscene: ${id}`);
+
+  it('passes when the scene is absent, the default applies', () => {
+    expect(checkScenario(MINIMAL, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it.each([...DA50RG_ENV.scenes.ids])('passes the known scene %s', (id) => {
+    expect(checkScenario(withScene(id), DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('rejects an unknown scene at scene, with the line of the field and the known ids', () => {
+    const text = withScene('night');
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'scene',
+        message: `unknown scene "night"; known scenes: ${DA50RG_ENV.scenes.ids.join(', ')}`,
+        line: lineOf(text, 'scene: night'),
+        col: colOf(text, 'scene: night', 'scene'),
+      },
+    ]);
+  });
+
+  it('rejects a scene id that does not match the id pattern in the schema', () => {
+    const result = checkScenario(withScene('Night-Sky'), DA50RG_ENV);
+    expect(result.ok).toBe(false);
+  });
+});
+
 describe('L12: physics parameters', () => {
   const withParameters = (lines: string): string =>
     swap(

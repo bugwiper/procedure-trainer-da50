@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { startRealistic, startScenario } from './support/session';
+import { chooseScenario, startRealistic, startScenario } from './support/session';
 import { FULL_VIEWBOX, activateAt, afterPairWindow, doubleActivateAt } from './support/zoom';
 import type { Point } from './support/zoom';
 
@@ -116,4 +116,58 @@ test('Engine Fire on Realistic shows no flames at the start and flames within 15
   await startRealistic(page, hasTouch, FIRE);
   await expect(page.locator(FLAMES)).toHaveCount(0);
   await expect(page.locator(FLAMES)).toHaveCount(1, { timeout: 15_000 });
+});
+
+for (const scene of ['parked', 'takeoff_roll', 'cruise']) {
+  test(`?scene=${scene} shows that scene alone over the windscreen on the free panel`, async ({
+    page,
+  }) => {
+    await page.goto(`./?scene=${scene}`);
+    await expect(page.getByTestId('panel')).toBeVisible();
+    await expect(page.locator('[data-layer="windscreen"] [data-scene]')).toHaveCount(1);
+    await expect(page.locator(`[data-layer="windscreen"] [data-scene="${scene}"]`)).toHaveCount(1);
+    const art = await boxOf(page, `[data-scene="${scene}"]`);
+    const ws = await windscreenBox(page);
+    expect(art).not.toBeNull();
+    if (art === null) return;
+    // The scene fills the windscreen box (and runs on under the glare shield).
+    expect(art.left).toBeLessThanOrEqual(ws.left + TOLERANCE);
+    expect(art.right).toBeGreaterThanOrEqual(ws.right - TOLERANCE);
+    expect(art.top).toBeLessThanOrEqual(ws.top + TOLERANCE);
+    expect(art.bottom).toBeGreaterThanOrEqual(ws.bottom - TOLERANCE);
+    expect(
+      await page.locator('[data-layer="windscreen"] text, [data-layer="windscreen"] tspan').count(),
+    ).toBe(0);
+    // No scene text node anywhere in the layer, not even whitespace-only text with content.
+    const text = await page
+      .locator('[data-layer="windscreen"]')
+      .evaluate((el) => el.textContent ?? '');
+    expect(text.trim()).toBe('');
+  });
+}
+
+test('an unknown ?scene falls back to the default scene', async ({ page }) => {
+  await page.goto('./?scene=night');
+  await expect(page.locator('[data-layer="windscreen"] [data-scene="cruise"]')).toHaveCount(1);
+});
+
+for (const level of ['easy', 'medium'] as const) {
+  test(`a started scenario shows the cruise scene on ${level}`, async ({ page, hasTouch }) => {
+    await page.goto('./?scene=parked');
+    await startScenario(page, hasTouch, FIRE, level);
+    await expect(page.locator('[data-layer="windscreen"] [data-scene="cruise"]')).toHaveCount(1);
+  });
+}
+
+test('a started scenario shows the cruise scene on Realistic', async ({ page, hasTouch }) => {
+  await page.goto('./?scene=parked');
+  await startRealistic(page, hasTouch, FIRE);
+  await expect(page.locator('[data-layer="windscreen"] [data-scene="cruise"]')).toHaveCount(1);
+});
+
+test('the briefing already shows the scene of the scenario', async ({ page, hasTouch }) => {
+  await page.goto('./?scene=parked');
+  await expect(page.locator('[data-layer="windscreen"] [data-scene="parked"]')).toHaveCount(1);
+  await chooseScenario(page, hasTouch, FIRE);
+  await expect(page.locator('[data-layer="windscreen"] [data-scene="cruise"]')).toHaveCount(1);
 });

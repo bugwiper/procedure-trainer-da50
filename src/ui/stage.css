@@ -793,7 +793,7 @@ body,
     transform: translate(0, 0);
   }
   to {
-    transform: translate(-10px, -6px);
+    transform: translate(10px, -6px);
   }
 }
 

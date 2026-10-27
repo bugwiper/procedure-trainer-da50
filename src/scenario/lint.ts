@@ -27,6 +27,7 @@
 // fail) and the solution of the variant (it must pass) per variant, in the Easy form and, with an
 // onset, in the Realistic form at both ends of the window. L21 keeps the variants apart: no step
 // that applies in one variant makes a forbidden item of another variant true at its start.
+// L22 (Phase 5) checks the optional `scene`: it must name a scene of the aircraft.
 // checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
 // the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
@@ -116,6 +117,11 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
       }
     });
   };
+
+  // L22: the scene names a view of the aircraft (the default applies when it is absent).
+  if (scenario.scene !== undefined && !env.scenes.has(scenario.scene)) {
+    add(['scene'], `unknown scene "${scenario.scene}"; known scenes: ${env.scenes.ids.join(', ')}`);
+  }
 
   for (const [id, state] of Object.entries(scenario.initial.controls)) {
     const def = env.registry.get(id);
