@@ -113,6 +113,13 @@ describe('the frame parts', () => {
     expect(part(name)).toHaveLength(1);
   });
 
+  it('draws the overhead strip as the roll bar only: one plain shape, no knobs or switches', () => {
+    const bar = part('overhead')[0] as El;
+    const shapes = findElements(bar, (el) => el.tag !== 'g');
+    expect(shapes.map((el) => el.tag)).toEqual(['path']);
+    expect(findElements(bar, (el) => el.tag === 'rect' || el.tag === 'circle')).toEqual([]);
+  });
+
   it('puts the strut over the hump of the glare shield at x 1130', () => {
     const strut = findElements(part('strut')[0] as El, (el) => el.tag === 'polygon')[0];
     const xs = String(strut?.props['points'])
@@ -234,13 +241,6 @@ describe('the cloud scene and the moving runway (phase 05 plan 03, A-05)', () =>
     }
   });
 
-  it('the scrolling is CSS only, at one named speed, and stops under reduced motion', () => {
-    expect(css).toMatch(/\.panel-svg \.w-roll-mark\s*\{[^}]*--w-roll-period:/);
-    expect(css).toMatch(/@keyframes w-roll\b/);
-    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
-    expect(reduced).toMatch(/\.w-roll-mark\s*\{\s*animation:\s*none/);
-  });
-});
   it('the edge lights sit on the runway edge lines and the dashes on the centre line', () => {
     // A point on a line through the vanishing point keeps x / y constant: the runway edge lines
     // run from 610 to 634 units from the centre at the bottom edge (the mark's own frame is the
@@ -267,6 +267,13 @@ describe('the cloud scene and the moving runway (phase 05 plan 03, A-05)', () =>
     }
   });
 
+  it('the scrolling is CSS only, at one named speed, and stops under reduced motion', () => {
+    expect(css).toMatch(/\.panel-svg \.w-roll-mark\s*\{[^}]*--w-roll-period:/);
+    expect(css).toMatch(/@keyframes w-roll\b/);
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(reduced).toMatch(/\.w-roll-mark\s*\{\s*animation:\s*none/);
+  });
+});
 
 describe('the flames cue', () => {
   it('is absent below the visible level, on the free panel and at the Realistic start', () => {

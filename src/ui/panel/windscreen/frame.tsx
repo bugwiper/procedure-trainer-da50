@@ -3,7 +3,7 @@ import { OPENING, OPENING_PATH, SCENE_CENTRE_X, mirrorX } from './geometry';
 
 // The parts of the windscreen that do not change with the scene (Phase 5, W-04), after the owner's
 // cockpit photo and in own words: a dark canopy frame left, right and above around a wide arched
-// opening, a central strut from the overhead console strip at the top centre down into the glare
+// opening, a central strut from the overhead roll bar at the top centre down into the glare
 // shield, the silver engine cowl low in the centre with a clearly darker edge and shade (the
 // owner notes a silver cowl blends into cloud), and a translucent propeller blade at about 11
 // o'clock that turns crisp when the engine stops (prop_stopped). Flat vector, the layer's own `w-`
@@ -38,7 +38,7 @@ const OUTER_PATH = `M${OPENING.x} ${OPENING.y} H${OPENING.x + OPENING.w} V${OPEN
 
 /**
  * The canopy frame: the extent with the arched opening cut out, the strut and the overhead
- * console strip. Drawn after the scene and the cues, so it covers their edges.
+ * roll bar. Drawn after the scene and the cues, so it covers their edges.
  */
 export function CanopyFrame() {
   return (
@@ -74,38 +74,13 @@ export function CanopyFrame() {
         />
       </g>
       <g data-part="overhead">
-        <rect
-          x={SCENE_CENTRE_X - 380}
-          y={OPENING.y}
-          width={760}
-          height={74}
-          rx={14}
+        {/* The overhead roll bar: the arched padded bar across the top, nothing on it. */}
+        <path
+          d={`M${SCENE_CENTRE_X - 380} ${OPENING.y} H${SCENE_CENTRE_X + 380} V${OPENING.y + 52} Q${SCENE_CENTRE_X} ${OPENING.y + 96} ${SCENE_CENTRE_X - 380} ${OPENING.y + 52} Z`}
           fill="#1b1d20"
           stroke="#3a3f45"
           stroke-width={3}
-        />
-        {[-300, -210, -120, 120, 210, 300].map((dx) => (
-          <rect
-            key={dx}
-            x={SCENE_CENTRE_X + dx - 26}
-            y={OPENING.y + 24}
-            width={52}
-            height={26}
-            rx={5}
-            fill="#2a2e33"
-            stroke="#464c53"
-            stroke-width={2}
-          />
-        ))}
-        <rect
-          x={SCENE_CENTRE_X - 70}
-          y={OPENING.y + 20}
-          width={140}
-          height={34}
-          rx={6}
-          fill="#111315"
-          stroke="#464c53"
-          stroke-width={2}
+          stroke-linejoin="round"
         />
       </g>
       {/* Screw heads along the pillars: small round marks, no text. */}
