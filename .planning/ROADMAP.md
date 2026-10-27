@@ -500,7 +500,7 @@ Plans:
 **Depends on**: Phase 5
 **Requirements**: PNL-20, SCN-13, SES-08, CNT-05
 
-**Plans:** 1/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 2/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -510,7 +510,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 05.1-02 — Tracer: the checklist view in the AFM form (letter marks, italic sub-headings, WARNING and CAUTION blocks) with Engine Fire on Ground; Electrical Fire with Smoke on Ground (engine running or stopped as variants, smoke model); Smoke and Fire During Take-Off (abort and no abort as two scenarios)
+- [x] 05.1-02 — Tracer: the checklist view in the AFM form (letter marks, italic sub-headings, WARNING and CAUTION blocks) with Engine Fire on Ground; Electrical Fire with Smoke on Ground (engine running or stopped as variants, smoke model); Smoke and Fire During Take-Off (abort and no abort as two scenarios)
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
@@ -568,7 +568,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
 | 5. Windscreen and failure cues                        | 3/3 | Complete    | 2026-10-27 |
-| 5.1 Ground and takeoff emergencies                    | 1/3 | In Progress | -          |
+| 5.1 Ground and takeoff emergencies                    | 2/3 | In Progress | -          |
 | 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |
