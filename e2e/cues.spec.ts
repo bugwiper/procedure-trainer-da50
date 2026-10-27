@@ -139,21 +139,30 @@ test('an unknown flag name shows no spray', async ({ page }) => {
   await expect(page.locator(SPRAY)).toHaveCount(0);
 });
 
-const WEDGE = '[data-part="blade"]';
+const DISC = '[data-part="disc"]';
 const CRISP = '[data-part="blade_stopped"]';
 const OIL = '[data-cue="oil_streaks"]';
 
-test('the turning propeller shows the blur wedge and no crisp blade', async ({ page }) => {
-  await open(page, '');
-  await expect(page.locator(WEDGE)).toHaveCount(1);
-  await expect(page.locator(WEDGE)).toHaveAttribute('fill-opacity', '0.4');
-  await expect(page.locator(CRISP)).toHaveCount(0);
+// Two states: spinning (faint disc, no blade) and stopped (crisp blade, no disc).
+test('the turning propeller shows the faint disc and no blade', async ({ page }) => {
+  await open(page, '?q=rpm:600');
+  await expect(page.locator(DISC)).toHaveCount(1);
+  await expect(page.locator(DISC)).toHaveAttribute('fill-opacity', '0.1');
+  await expect(page.locator(CRISP)).toHaveAttribute('opacity', '0');
+  await open(page, '?q=rpm:100');
+  await expect(page.locator(DISC)).toHaveAttribute('fill-opacity', '0.1');
+  await expect(page.locator(CRISP)).toHaveAttribute('opacity', '0');
 });
 
-test('?q=rpm:0 shows the crisp blade and a faded wedge', async ({ page }) => {
+test('?q=rpm:0 shows the crisp blade and no disc', async ({ page }) => {
   await open(page, '?q=rpm:0');
   await expect(page.locator(CRISP)).toHaveCount(1);
-  await expect(page.locator(WEDGE)).toHaveAttribute('fill-opacity', '0');
+  await expect(page.locator(CRISP)).toHaveAttribute('opacity', '1');
+  await expect(page.locator(DISC)).toHaveAttribute('fill-opacity', '0');
+  await open(page, '?q=rpm:99');
+  await expect(page.locator(CRISP)).toHaveAttribute('opacity', '1');
+  await expect(page.locator(DISC)).toHaveAttribute('fill-opacity', '0');
+  await open(page, '?q=rpm:0');
   const crisp = await boxOf(page, CRISP);
   const ws = await boxOf(page, '[data-region-id="windscreen"] [data-region-frame]');
   expect(crisp).not.toBeNull();
@@ -179,7 +188,7 @@ test('ENGINE MASTER off in a run stops the propeller within seconds', async ({
   test.setTimeout(60_000);
   await open(page, '');
   await startScenario(page, hasTouch, 'engine.eng-fire-in-flight', 'easy');
-  await expect(page.locator(CRISP)).toHaveCount(0);
+  await expect(page.locator(CRISP)).toHaveAttribute('opacity', '0');
   await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
-  await expect(page.locator(CRISP)).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator(CRISP)).toHaveAttribute('opacity', '1', { timeout: 20_000 });
 });

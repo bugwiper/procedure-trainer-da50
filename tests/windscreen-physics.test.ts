@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { WINDSHIELD_SPRAY_ACTIVE } from '../src/aircraft/da50rg/indicators';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
-import { cueVisible } from '../src/engine/cues';
 import { initialQuantities } from '../src/engine/predicates';
 import { Run } from '../src/engine/run';
 import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
@@ -259,23 +258,24 @@ describe('the stopped propeller (C-06)', () => {
     expect(DA50RG_ENV.cues.levels(state.quantities)['prop_stopped']).toBe(0);
   });
 
-  it('runs the cue the other way: 600 rpm is level 0, 0 rpm is level 1', () => {
-    expect(levelOf(600)).toBe(0);
-    expect(levelOf(0)).toBe(1);
-    expect(levelOf(300)).toBe(0.5);
+  it('is a two-state cue split at the engine-stopped line: 100 rpm and above is level 0, below it level 1', () => {
     expect(levelOf(2300)).toBe(0);
+    expect(levelOf(600)).toBe(0);
+    expect(levelOf(100)).toBe(0);
+    expect(levelOf(99)).toBe(1);
+    expect(levelOf(0)).toBe(1);
   });
 
-  it('ENGINE MASTER off brings the cue above the visible mark within seconds', () => {
+  it('ENGINE MASTER off brings the cue to 1 within seconds, not at once', () => {
     const early = run(fixture({}), 500, MASTER_OFF).quantities;
-    expect(cueVisible(DA50RG_ENV.cues.levels(early)['prop_stopped'] ?? 0)).toBe(false);
-    const state = run(fixture({}), 6_000, MASTER_OFF).quantities;
-    expect(cueVisible(DA50RG_ENV.cues.levels(state)['prop_stopped'] ?? 0)).toBe(true);
+    expect(DA50RG_ENV.cues.levels(early)['prop_stopped']).toBe(0);
+    const state = run(fixture({}), 12_000, MASTER_OFF).quantities;
+    expect(DA50RG_ENV.cues.levels(state)['prop_stopped']).toBe(1);
   });
 
   it('the FUEL selector OFF stops it too', () => {
     const state = run(fixture({}), 8_000, [{ t: 0, id: 'sw.fuel_valve', value: 'off' }]).quantities;
-    expect(cueVisible(DA50RG_ENV.cues.levels(state)['prop_stopped'] ?? 0)).toBe(true);
+    expect(DA50RG_ENV.cues.levels(state)['prop_stopped']).toBe(1);
   });
 });
 

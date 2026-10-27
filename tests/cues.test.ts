@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
-import { DA50RG_CUES } from '../src/aircraft/da50rg/cues';
+import { DA50RG_CUES, ENGINE_RPM_STOPPED } from '../src/aircraft/da50rg/cues';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { CUE_VISIBLE_LEVEL, CueError, cueLevel, cueVisible, defineCues } from '../src/engine/cues';
 
@@ -89,12 +89,17 @@ describe('the DA50 RG cue table', () => {
     expect(levels['ice_copilot_side']).toBe(0.5);
   });
 
-  it('reads the propeller cue from the rpm and runs it the other way: 600 is level 0, 0 is level 1', () => {
+  it('reads the propeller cue from the rpm as two states split at ENGINE_RPM_STOPPED', () => {
     const base = DA50RG_QUANTITIES.baseValues();
+    const at = (rpm: number): number => DA50RG_CUES.levels({ ...base, rpm })['prop_stopped'] ?? -1;
     expect(DA50RG_CUES.levels(base)['prop_stopped']).toBe(0);
-    expect(DA50RG_CUES.levels({ ...base, rpm: 600 })['prop_stopped']).toBe(0);
-    expect(DA50RG_CUES.levels({ ...base, rpm: 300 })['prop_stopped']).toBe(0.5);
-    expect(DA50RG_CUES.levels({ ...base, rpm: 0 })['prop_stopped']).toBe(1);
+    expect(at(2300)).toBe(0);
+    expect(at(600)).toBe(0);
+    expect(at(ENGINE_RPM_STOPPED)).toBe(0);
+    expect(at(ENGINE_RPM_STOPPED - 1)).toBe(1);
+    expect(at(0)).toBe(1);
+    // The engine drone uses the same line (tests/aural.test.ts).
+    expect(ENGINE_RPM_STOPPED).toBe(100);
   });
 
   it('shows the oil streaks from the oil film: clear at the base, full at 50', () => {

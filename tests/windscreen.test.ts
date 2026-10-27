@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DA50RG_CUES } from '../src/aircraft/da50rg/cues';
+import { DA50RG_CUES, ENGINE_RPM_STOPPED } from '../src/aircraft/da50rg/cues';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { CUE_VISIBLE_LEVEL } from '../src/engine/cues';
@@ -11,7 +11,7 @@ import {
   oilOpacity,
   oilStreakCount,
 } from '../src/ui/panel/windscreen/OilStreaks';
-import { BLUR_OPACITY } from '../src/ui/panel/windscreen/frame';
+import { DISC_OPACITY, PROP_FADE_S } from '../src/ui/panel/windscreen/frame';
 import {
   CRYSTAL_TABLE_SIZE,
   VEIL_MAX_OPACITY,
@@ -123,9 +123,12 @@ describe('the frame parts', () => {
   const full = render({});
   const part = (name: string): El[] => findElements(full, (el) => el.props['data-part'] === name);
 
-  it.each(['frame', 'strut', 'overhead', 'blade', 'cowl'])('draws the %s', (name) => {
-    expect(part(name)).toHaveLength(1);
-  });
+  it.each(['frame', 'strut', 'overhead', 'disc', 'blade_stopped', 'cowl'])(
+    'draws the %s',
+    (name) => {
+      expect(part(name)).toHaveLength(1);
+    },
+  );
 
   it('draws the overhead strip as the roll bar only: one plain shape, no knobs or switches', () => {
     const bar = part('overhead')[0] as El;
@@ -147,13 +150,14 @@ describe('the frame parts', () => {
     expect(body?.props['fill-rule']).toBe('evenodd');
   });
 
-  it('draws the blade translucent and above the hub, to the left of the strut', () => {
-    const blade = part('blade')[0];
-    expect(Number(blade?.props['fill-opacity'])).toBeLessThan(0.7);
-    expect(Number(blade?.props['fill-opacity'])).toBeGreaterThan(0);
+  it('draws the spinning propeller as a very faint disc', () => {
+    const disc = part('disc')[0];
+    expect(Number(disc?.props['fill-opacity'])).toBe(DISC_OPACITY);
+    expect(DISC_OPACITY).toBeGreaterThanOrEqual(0.08);
+    expect(DISC_OPACITY).toBeLessThanOrEqual(0.12);
   });
 
-  it('keeps the z-order: scene, blade, cowl, cues inside the clip, the frame after them', () => {
+  it('keeps the z-order: scene, disc, blade, cowl, cues inside the clip, the frame after them', () => {
     const name = (c: El): string =>
       [c.props['data-part'], c.props['data-scene'], c.props['data-layer']].find(
         (v): v is string => typeof v === 'string',
@@ -162,7 +166,7 @@ describe('the frame parts', () => {
     expect(order.at(-1)).toBe('g:frame');
     const clipped = (full.children as El[]).find((c) => c.props['clip-path'] !== undefined) as El;
     const inner = (clipped.children as El[]).map(name);
-    expect(inner).toEqual(['cruise', 'blade', 'cowl', 'ice', 'cues']);
+    expect(inner).toEqual(['cruise', 'disc', 'blade_stopped', 'cowl', 'ice', 'cues']);
   });
 });
 
@@ -663,40 +667,52 @@ describe('the ice cues and the spray (Phase 5, C-05, owner answers of 2026-10-27
   });
 });
 
-describe('the stopped propeller (Phase 5, C-06)', () => {
+describe('the propeller (Phase 5, C-06): a faint disc while it turns, a crisp blade when it stands', () => {
   const rpmAt = (rpm: number): Record<string, number> =>
     DA50RG_CUES.levels({ ...DA50RG_QUANTITIES.baseValues(), rpm });
-  const wedge = (tree: El): El =>
-    findElements(tree, (el) => el.props['data-part'] === 'blade')[0] as El;
-  const crisp = (tree: El): El[] =>
-    findElements(tree, (el) => el.props['data-part'] === 'blade_stopped');
-
-  it('shows the blur wedge and no crisp blade while the engine turns', () => {
-    const tree = render(rpmAt(1995));
-    expect(Number(wedge(tree).props['fill-opacity'])).toBe(BLUR_OPACITY);
-    expect(crisp(tree)).toEqual([]);
+  const disc = (tree: El): El =>
+    findElements(tree, (el) => el.props['data-part'] === 'disc')[0] as El;
+  const blade = (tree: El): El =>
+    findElements(tree, (el) => el.props['data-part'] === 'blade_stopped')[0] as El;
+  const state = (tree: El): { disc: number; blade: number } => ({
+    disc: Number(disc(tree).props['fill-opacity']),
+    blade: Number(blade(tree).props['opacity']),
   });
 
-  it('fades the wedge and shows the crisp blade as the level rises', () => {
-    const half = render(rpmAt(300));
-    expect(Number(wedge(half).props['fill-opacity'])).toBeLessThan(BLUR_OPACITY);
-    expect(Number(wedge(half).props['fill-opacity'])).toBeGreaterThan(0);
-    expect(crisp(half)).toHaveLength(1);
-    expect(Number(crisp(half)[0]?.props['opacity'])).toBe(0.5);
+  it('rpm 600 and the cruise show the disc only', () => {
+    for (const rpm of [1995, 600, ENGINE_RPM_STOPPED]) {
+      expect(state(render(rpmAt(rpm))), String(rpm)).toEqual({ disc: DISC_OPACITY, blade: 0 });
+    }
+  });
+
+  it('rpm 0 shows the blade only', () => {
     const stopped = render(rpmAt(0));
-    expect(Number(wedge(stopped).props['fill-opacity'])).toBe(0);
-    expect(Number(crisp(stopped)[0]?.props['opacity'])).toBe(1);
-    expect(crisp(stopped)[0]?.props['data-cue']).toBe('prop_stopped');
+    expect(state(stopped)).toEqual({ disc: 0, blade: 1 });
+    expect(blade(stopped).props['data-cue']).toBe('prop_stopped');
   });
 
-  it('draws the crisp blade from the visible level and not below', () => {
-    expect(crisp(render(rpmAt(600 - 0.5)))).toEqual([]);
-    expect(crisp(render(rpmAt(600 - CUE_VISIBLE_LEVEL * 600 + 1)))).toEqual([]);
-    expect(crisp(render(rpmAt(600 - CUE_VISIBLE_LEVEL * 600 - 1)))).toHaveLength(1);
+  it('switches at the engine-stopped line and nowhere else: no cross-fade per rpm', () => {
+    expect(state(render(rpmAt(ENGINE_RPM_STOPPED)))).toEqual({ disc: DISC_OPACITY, blade: 0 });
+    expect(state(render(rpmAt(ENGINE_RPM_STOPPED - 1)))).toEqual({ disc: 0, blade: 1 });
+    for (const rpm of [0, 20, 60, 99, 100, 150, 300, 600, 2300]) {
+      const s = state(render(rpmAt(rpm)));
+      expect([0, 1]).toContain(s.blade);
+      expect([0, DISC_OPACITY]).toContain(s.disc);
+    }
   });
 
-  it('reads no cue on a bare level table: the wedge as before', () => {
-    expect(Number(wedge(render({})).props['fill-opacity'])).toBe(BLUR_OPACITY);
+  it('fades between the two states within a few tenths of a second', () => {
+    expect(PROP_FADE_S).toBeGreaterThan(0);
+    expect(PROP_FADE_S).toBeLessThanOrEqual(0.5);
+    for (const part of [disc(render(rpmAt(0))), blade(render(rpmAt(0)))]) {
+      expect(String((part.props['style'] as { transition: string }).transition)).toContain(
+        `${PROP_FADE_S}s`,
+      );
+    }
+  });
+
+  it('reads no cue on a bare level table as the engine turning', () => {
+    expect(state(render({}))).toEqual({ disc: DISC_OPACITY, blade: 0 });
   });
 });
 

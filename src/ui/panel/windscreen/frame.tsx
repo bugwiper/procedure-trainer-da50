@@ -1,12 +1,11 @@
-import { cueVisible } from '../../../engine/cues';
 import { OPENING, OPENING_PATH, SCENE_CENTRE_X, mirrorX } from './geometry';
 
 // The parts of the windscreen that do not change with the scene (Phase 5, W-04), after the owner's
 // cockpit photo and in own words: a dark canopy frame left, right and above around a wide arched
 // opening, a central strut from the overhead roll bar at the top centre down into the glare
 // shield, the silver engine cowl low in the centre with a clearly darker edge and shade (the
-// owner notes a silver cowl blends into cloud), and a translucent propeller blade at about 11
-// o'clock that turns crisp when the engine stops (prop_stopped). Flat vector, the layer's own `w-`
+// owner notes a silver cowl blends into cloud), and an almost transparent propeller disc while the
+// engine turns and a crisp blade at about 11 o'clock only when it stands still (prop_stopped). Flat vector, the layer's own `w-`
 // paints, no text (G-0).
 
 /** Paints of these parts, part of the layer's own defs. */
@@ -94,34 +93,52 @@ export function CanopyFrame() {
   );
 }
 
-/** Opacity of the blur wedge of the turning propeller. */
-export const BLUR_OPACITY = 0.4;
+/** Opacity of the spinning propeller disc: faint, so sky, clouds and the cowl show through it. */
+export const DISC_OPACITY = 0.1;
+
+/** The fade between the disc and the blade when the propeller stops or starts, in seconds. */
+export const PROP_FADE_S = 0.4;
+
+/** The propeller stands still when its cue level is above 0 (the engine below ENGINE_RPM_STOPPED). */
+export function propStopped(level: number): boolean {
+  return level > 0;
+}
+
+const FADE = `opacity ${PROP_FADE_S}s linear, fill-opacity ${PROP_FADE_S}s linear`;
 
 /**
- * The propeller at about 11 o'clock, from the hub behind the cowl up to the left: a translucent
- * blur wedge while the engine turns. It fades with `stopped`, the prop_stopped level (0 to 1), and
- * StoppedBlade takes over as the engine stops.
+ * The turning propeller: an almost transparent grey-blue disc around the hub, behind the cowl and
+ * the frame, with no blade in it. It is shown while the engine turns and fades out as the
+ * propeller stops; the cue level (prop_stopped) only switches between the two states.
  */
-export function Blade({ stopped = 0 }: { stopped?: number }) {
+export function Disc({ level = 0 }: { level?: number }) {
   return (
-    <path
-      data-part="blade"
-      d="M1129 -88 L943 -349 L916 -332 L1071 -52 Z"
-      fill="#14171a"
-      fill-opacity={BLUR_OPACITY * (1 - stopped)}
-      stroke="#0b0c0e"
-      stroke-opacity={0.5 * (1 - stopped)}
-      stroke-width={3}
-      stroke-linejoin="round"
+    <circle
+      data-part="disc"
+      cx={1125}
+      cy={-70}
+      r={340}
+      fill="#6d7f90"
+      fill-opacity={propStopped(level) ? 0 : DISC_OPACITY}
+      style={{ transition: FADE }}
     />
   );
 }
 
-/** The crisp blade of a stopped propeller: opaque, narrower than the wedge, with a lit leading edge. */
+/**
+ * The crisp blade of a stopped propeller at about 11 o'clock: opaque, with a lit leading edge. It
+ * is in the tree at all times and fades in as the propeller stops, so the change does not pop.
+ */
 export function StoppedBlade({ level }: { level: number }) {
-  if (!cueVisible(level)) return null;
+  const stopped = propStopped(level);
   return (
-    <g data-part="blade_stopped" data-cue="prop_stopped" data-level={level} opacity={level}>
+    <g
+      data-part="blade_stopped"
+      data-cue="prop_stopped"
+      data-level={level}
+      opacity={stopped ? 1 : 0}
+      style={{ transition: FADE }}
+    >
       <path
         d="M1120 -82 L938 -344 Q926 -341 926 -331 L1080 -58 Z"
         fill="#101215"

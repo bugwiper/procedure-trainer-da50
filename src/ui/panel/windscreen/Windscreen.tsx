@@ -1,7 +1,7 @@
 import { DEFAULT_SCENE } from '../../../aircraft/da50rg/scenes';
 import { cueVisible } from '../../../engine/cues';
 import { CueLayers } from './cue-layers';
-import { Blade, CanopyFrame, Cowl, FrameDefs, StoppedBlade } from './frame';
+import { CanopyFrame, Cowl, Disc, FrameDefs, StoppedBlade } from './frame';
 import { Ice } from './Ice';
 import { OilStreaks } from './OilStreaks';
 import { SCENES, SceneDefs, isSceneId } from './scenes';
@@ -10,7 +10,7 @@ import { SCENES, SceneDefs, isSceneId } from './scenes';
 // shell, so the glare shield covers its lower edge. Pure component of its props (the scene id and
 // the cue levels), flat vector art with its own `w-` paints, no text, no handler, pointer-events
 // none, outside the region groups (the region `windscreen` is invisible geometry for the zoom).
-// Order: the scene, the blade (a crisp one once the engine stops), the cowl, the oil streaks, the
+// Order: the scene, the propeller (a faint disc while the engine turns, a crisp blade once it stands), the cowl, the oil streaks, the
 // ice and the cue layers, clipped to the opening; then the canopy frame over their edges. The oil and
 // the ice lie on the glass over the scene, the blade and the cowl; the flames are drawn over them so
 // the cue stays readable.
@@ -37,7 +37,7 @@ export function Windscreen({
       </defs>
       <g clip-path="url(#w-opening)">
         <Scene />
-        <Blade stopped={cues['prop_stopped'] ?? 0} />
+        <Disc level={cues['prop_stopped'] ?? 0} />
         <StoppedBlade level={cues['prop_stopped'] ?? 0} />
         <Cowl />
         {cueVisible(oil) ? <OilStreaks level={oil} /> : null}

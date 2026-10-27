@@ -4,6 +4,7 @@
 // The sounds themselves (what a "caution" or an "engine" sounds like) live in sounds.ts. A tone is
 // the aircraft's own sound, never feedback on right or wrong.
 
+import { ENGINE_RPM_STOPPED } from '../../aircraft/da50rg/cues';
 import type { ActiveCas } from '../../engine/cas';
 
 /** The one-shot tones. A caution appearing is one short "bing"; a warning appearing is a pulsed tone. */
@@ -70,8 +71,8 @@ export function auralStep(state: AuralState, cas: readonly ActiveCas[], runMs: n
 // The engine sound follows the rpm quantity. Instructor-review values, all in one place.
 /** The rpm at which the sound reaches its full pitch and level (about the cruise rpm). */
 export const ENGINE_RPM_REF = 2300;
-/** Below this rpm the engine counts as stopped and is silent (a run-down tail never reaches 0 exactly). */
-export const ENGINE_RPM_STOPPED = 100;
+/** Below this rpm the engine counts as stopped and is silent (a run-down tail never reaches 0 exactly); defined once with the windscreen propeller cue. */
+export { ENGINE_RPM_STOPPED };
 /** The fundamental in Hz at an rpm of 0. */
 export const ENGINE_HZ_IDLE = 48;
 /** How far the fundamental rises from rpm 0 to ENGINE_RPM_REF, in Hz. */
