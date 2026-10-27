@@ -478,7 +478,7 @@ Plans:
 **Depends on**: Phase 3.1
 **Requirements**: PNL-17, PNL-18, PNL-19, SCN-12
 
-**Plans:** 1/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 2/3 plans executed (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -488,7 +488,7 @@ Plans:
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 05-02 — Declared onset cue (`onset.cues`, lint L23 and L24, Engine Fire declares flames), cabin smoke over the panel, windscreen ice with warm air and the WIND SHIELD spray on the pilot side, preview flags for review, the stopped propeller and oil streaks if they fit
+- [x] 05-02 — Declared onset cue (`onset.cues`, lint L23 and L24, Engine Fire declares flames), cabin smoke over the panel, windscreen ice with warm air and the WIND SHIELD spray on the pilot side, preview flags for review, the stopped propeller and oil streaks if they fit
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
@@ -553,7 +553,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 3. Reactive Scenarios and Initial Pack                | 14/14          | Complete    | 2026-10-23 |
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
-| 5. Windscreen and failure cues                        | 1/3 | In Progress | -          |
+| 5. Windscreen and failure cues                        | 2/3 | In Progress | -          |
 | 5.1 Ground and takeoff emergencies                    | 0/TBD          | Not started | -          |
 | 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
