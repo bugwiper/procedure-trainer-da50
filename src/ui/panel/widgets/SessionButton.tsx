@@ -1,5 +1,5 @@
 import { useSignal } from '@preact/signals';
-import { SESSION_LAYOUT, labelBaseline } from '../session-area';
+import { SESSION_LAYOUT, labelAnchorX, labelBaseline } from '../session-area';
 import type { LocalRect } from '../session-area';
 import { registerPressTarget } from '../press-targets';
 import type { PressTarget } from '../press-targets';
@@ -97,7 +97,7 @@ export function SessionButton({
         pointer-events="none"
       />
       <text
-        x={SESSION_LAYOUT.label.anchorX}
+        x={labelAnchorX(rect)}
         y={labelBaseline(rect)}
         text-anchor="middle"
         font-size={SESSION_LAYOUT.label.size}

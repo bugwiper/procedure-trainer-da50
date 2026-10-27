@@ -11,6 +11,7 @@ import {
   zoomIntoRegion,
 } from './support/zoom';
 import type { Point } from './support/zoom';
+import { SESSION_LAYOUT, pageCount } from '../src/ui/panel/session-area';
 import { startScenario, shippedScenarios } from './support/session';
 
 // SES-01 (phase 02, plan 10): the session area in the co-pilot legroom is as safe to use as every
@@ -133,10 +134,39 @@ test('@hooks a double tap on CHOOSE SITUATION lists once and picks no row', asyn
   await afterPairWindow(page);
   // The second press fell on a row or CLOSE LIST of the fresh list and was shielded.
   await expect(page.locator('[data-session-hit^="session.row."]')).toHaveCount(
-    shippedScenarios().length,
+    Math.min(shippedScenarios().length, SESSION_LAYOUT.choose.maxRows),
   );
   await expect(dialogs(page)).toHaveCount(0);
   expect(await events(page)).toEqual([]);
+});
+
+test('the list pages when there are more situations than rows, and shows NEXT PAGE only then', async ({
+  page,
+  hasTouch,
+}) => {
+  const total = shippedScenarios().length;
+  const rows = SESSION_LAYOUT.choose.maxRows;
+  const pages = pageCount(total);
+  await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
+  const listed = page.locator('[data-session-hit^="session.row."]');
+  await expect(listed).toHaveCount(Math.min(total, rows));
+  const next = page.locator('[data-session-hit="session.next"]');
+  await expect(next).toHaveCount(pages > 1 ? 1 : 0);
+  if (pages === 1) return;
+  const seen: string[] = [];
+  for (let page_ = 0; page_ < pages; page_++) {
+    const ids = await listed.evaluateAll((els) =>
+      els.map((el) => el.getAttribute('data-session-hit') ?? ''),
+    );
+    expect(ids.length).toBeLessThanOrEqual(rows);
+    seen.push(...ids);
+    await afterPairWindow(page);
+    await activate(next, hasTouch);
+  }
+  // Every situation appears on exactly one page, and the page after the last is the first again.
+  expect(new Set(seen).size).toBe(total);
+  expect(seen).toHaveLength(total);
+  await expect(listed).toHaveCount(Math.min(total, rows));
 });
 
 // RESET returns the panel to its original state: registry defaults, base quantities, no run, no

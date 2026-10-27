@@ -148,13 +148,13 @@ export const REGIONS: readonly RegionDef[] = [
   // Session area (phase 02, D-14 amended): the NEW SITUATION and CHOOSE SITUATION buttons in the
   // co-pilot legroom right of the centre console, below the face plate. Real-geometry exception of
   // the 02 UI-SPEC: it is trainer content, not an aircraft part, and carries no registry control.
-  { id: 'scenario_area', name: 'SESSION', bounds: { x: 1300, y: 780, w: 820, h: 480 } },
-  // Simplified transponder (phase 03, D-11): a temporary trainer part inside the reserved pilot
-  // legroom by owner decision; its position is not a fidelity item and it is replaced later by the
-  // transponder of the PFD. Holds the one code-entry control kp.squawk.
-  { id: 'transponder', name: 'TRANSPONDER', bounds: { x: 300, y: 900, w: 360, h: 200 } },
-  // The toe brakes (Phase 5.1, P-02): the floor of the pilot's footwell, below the transponder
-  // plate. Holds the one control lv.toe_brakes, drawn as two pedals.
+  { id: 'scenario_area', name: 'SESSION', bounds: { x: 1300, y: 780, w: 440, h: 480 } },
+  // Simplified transponder (phase 03, D-11): a temporary trainer part; its position is not a
+  // fidelity item and it is replaced later by the transponder of the PFD. Since Phase 5.1 it sits
+  // in the co-pilot footwell beside the session buttons (it left the pilot's footwell for the toe
+  // brakes). Holds the one code-entry control kp.squawk.
+  { id: 'transponder', name: 'TRANSPONDER', bounds: { x: 1800, y: 780, w: 320, h: 200 } },
+  // The toe brakes (Phase 5.1, P-02): the floor of the pilot's footwell. Holds the one control lv.toe_brakes, drawn as two pedals.
   { id: 'pedals', name: 'PEDALS', bounds: { x: 300, y: 1150, w: 360, h: 110 } },
 ];
 

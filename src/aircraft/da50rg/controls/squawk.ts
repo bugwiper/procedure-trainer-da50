@@ -2,7 +2,8 @@ import type { CodeEntryKeyDef, ControlSpec } from '../../../engine/registry';
 
 // The simplified transponder (D-11, PNL-07): a TRAINER PART, temporary. It will be replaced later by
 // the transponder of the PFD, so its position (the pilot's legroom, by owner decision) is
-// not a fidelity item. One control whose state is the committed four-digit code, keys 0 to 7 and a
+// not a fidelity item (since Phase 5.1 it sits in the co-pilot footwell beside the session
+// buttons, the pilot's footwell holds the toe brakes). One control whose state is the committed four-digit code, keys 0 to 7 and a
 // clear key; the partial entry lives in the widget and never reaches the store. Nothing here is
 // read from the aircraft: cb.xpdr is the breaker of the real unit, this is the squawk entry.
 
@@ -26,7 +27,7 @@ export const SQUAWK_CONTROLS: readonly ControlSpec[] = [
     kind: 'code-entry',
     label: 'TRANSPONDER',
     region: 'transponder',
-    x: 180,
+    x: 160,
     y: 100,
     // Tight around the readout and the keys: the rest of the region stays background for the zoom tap (PNL-09).
     hit: { w: 252, h: 140 },

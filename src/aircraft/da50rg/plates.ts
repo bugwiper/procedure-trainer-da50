@@ -96,12 +96,12 @@ export const PLATES: readonly PlateDef[] = [
   // Session pad (phase 02, D-14 amended): real-geometry exception of the 02 UI-SPEC. It sits in the
   // co-pilot legroom right of the centre console, below the face plate, and carries the trainer's
   // session buttons (region scenario_area, no registry controls).
-  { id: 'session-pad', x: 1280, y: 760, w: 860, h: 520, rx: 18, regions: ['scenario_area'] },
+  { id: 'session-pad', x: 1280, y: 760, w: 480, h: 520, rx: 18, regions: ['scenario_area'] },
   // Simplified transponder (phase 03, D-11): the plate around the region transponder, 20 units
-  // larger on every side. A temporary trainer part in the pilot's legroom, by owner decision.
-  { id: 'transponder-pad', x: 280, y: 880, w: 400, h: 240, rx: 12, regions: ['transponder'] },
+  // larger on every side. A temporary trainer part, since Phase 5.1 right of the session pad.
+  { id: 'transponder-pad', x: 1780, y: 760, w: 360, h: 240, rx: 12, regions: ['transponder'] },
   // The toe brakes (Phase 5.1, P-02): the pedal plate on the floor of the pilot's footwell, 20
-  // units larger than its region on every side but 10 clear of the transponder plate above.
+  // units larger than its region on every side.
   { id: 'pedals-pad', x: 280, y: 1130, w: 400, h: 150, rx: 12, regions: ['pedals'] },
 ];
 

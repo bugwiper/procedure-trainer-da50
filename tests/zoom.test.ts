@@ -922,9 +922,9 @@ describe('Full panel button corner (R2-T1, D-13)', () => {
     expect(buttonBox('bl', screen)).toEqual({ x: 8, y: 400 - BUTTON_INSET - 44, w: 112, h: 44 });
   });
 
-  it('on the portrait phone exactly deice_switches and engine_controls have no free corner (known list)', () => {
+  it('on the portrait phone exactly deice_switches, engine_controls and cb_low have no free corner (known list)', () => {
     const screen = { w: 393, h: 631 };
-    const known = new Set(['deice_switches', 'engine_controls']);
+    const known = new Set(['deice_switches', 'engine_controls', 'cb_low']);
     const covered: string[] = [];
     for (const region of DA50RG.regions) {
       const view = zoomRect(region.bounds, VIEWBOX);
@@ -932,7 +932,9 @@ describe('Full panel button corner (R2-T1, D-13)', () => {
       if (!free) covered.push(region.id);
     }
     // Reason: the zoomed deice and engine regions are nearly as tall as the narrow screen, so all
-    // three corners lie over a control. Best effort on the portrait phone; a stale entry or a new
+    // three corners lie over a control. cb_low (Phase 5.1): the thin lower breaker row is so wide
+    // and flat that the tall portrait view shows the transponder keypad below it, which now stands
+    // at the right edge of the co-pilot footwell. Best effort on the portrait phone; a stale entry or a new
     // region fails this test so an improvement or a regression is noticed.
     expect(covered.sort()).toEqual([...known].sort());
   });
@@ -960,17 +962,21 @@ describe('HTML chrome type scale (UI-SPEC Typography)', () => {
 // Phase 02 plan 10 (U-05, U-07, SES-01): the session area at every zoom level. The region origin
 // and the local button rectangles (UI-SPEC "Session Control Area", Table Z1) are typed in by hand.
 describe('session area zoom (plan 02-10)', () => {
-  const REGION: Rect = { x: 1300, y: 780, w: 820, h: 480 };
-  /** New, choose, reset, close and the four choose rows, as global rectangles. */
+  const REGION: Rect = { x: 1300, y: 780, w: 440, h: 480 };
+  /**
+   * New, choose, reset, close, next and the four choose rows, as global rectangles (Phase 5.1: the
+   * region is 440 wide, the buttons 370, CLOSE LIST and NEXT PAGE 177 each with 16 between them).
+   */
   const SESSION_TARGETS: readonly Rect[] = [
-    { x: 1335, y: 800, w: 750, h: 120 },
-    { x: 1335, y: 940, w: 750, h: 120 },
-    { x: 1335, y: 1080, w: 750, h: 120 },
-    { x: 1335, y: 800, w: 750, h: 80 },
-    { x: 1335, y: 890, w: 750, h: 80 },
-    { x: 1335, y: 980, w: 750, h: 80 },
-    { x: 1335, y: 1070, w: 750, h: 80 },
-    { x: 1335, y: 1160, w: 750, h: 80 },
+    { x: 1335, y: 800, w: 370, h: 120 },
+    { x: 1335, y: 940, w: 370, h: 120 },
+    { x: 1335, y: 1080, w: 370, h: 120 },
+    { x: 1335, y: 800, w: 177, h: 80 },
+    { x: 1528, y: 800, w: 177, h: 80 },
+    { x: 1335, y: 890, w: 370, h: 80 },
+    { x: 1335, y: 980, w: 370, h: 80 },
+    { x: 1335, y: 1070, w: 370, h: 80 },
+    { x: 1335, y: 1160, w: 370, h: 80 },
   ];
   const profiles = [
     ['phone', VIEW_PROFILES.phone],
@@ -989,7 +995,7 @@ describe('session area zoom (plan 02-10)', () => {
   for (const [name, screen] of profiles) {
     it(`every session button and row reaches ${MIN_TAP_PX} px high when zoomed on the ${name} profile`, () => {
       const view = zoomRect(REGION, VIEWBOX);
-      expect(view).toEqual({ x: 1290, y: 770, w: 840, h: 500 });
+      expect(view).toEqual({ x: 1290, y: 770, w: 460, h: 500 });
       const scale = fitScale(view, screen);
       for (const t of SESSION_TARGETS) {
         expect(t.h * scale, `${t.y} on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);

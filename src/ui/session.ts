@@ -36,6 +36,7 @@ import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
 import type { Scenario } from '../scenario/schema';
 import type { PanelBridge } from './bridge';
+import { pageCount } from './panel/session-area';
 
 export type Screen = 'free' | 'choosing' | 'briefing' | 'running' | 'debrief';
 
@@ -140,6 +141,8 @@ export interface Session {
   readonly empty: ReadonlySignal<boolean>;
   /** The entries the choose view lists, in manifest order; filled by openChooser. */
   readonly choices: ReadonlySignal<readonly Choice[]>;
+  /** The page (0-based) of the choose view; 0 whenever the chooser opens or closes. */
+  readonly choosePage: ReadonlySignal<number>;
   /** The session-hit id of the button that started the current load; null otherwise. */
   readonly busyKey: ReadonlySignal<string | null>;
   /** The virtual clock of the current run; null outside a run. */
@@ -180,6 +183,8 @@ export interface Session {
   resetPanel(): void;
   /** Choosing only: back to the free panel. */
   closeChooser(): void;
+  /** Choosing only: the next page of the choose view; after the last page it wraps to the first. */
+  nextPage(): void;
   /** Choosing and not busy only: opens the briefing of that entry (`key` names the pressed row). */
   chooseScenario(ref: ScenarioRef, key?: string): Promise<void>;
   /** Dismisses the "No situations available" message. */
@@ -261,6 +266,7 @@ export function createSession(deps: SessionDeps): Session {
   const loadFailure = signal<LoadFailure | null>(null);
   const empty = signal(false);
   const choices = signal<readonly Choice[]>([]);
+  const choosePage = signal(0);
   const busyKey = signal<string | null>(null);
   const confirm = signal<PendingAction | null>(null);
   /** The request that produced the current loadFailure, so retryLoad repeats exactly that. */
@@ -293,6 +299,7 @@ export function createSession(deps: SessionDeps): Session {
     clock.value = null;
     confirm.value = null;
     choices.value = [];
+    choosePage.value = 0;
     empty.value = false;
     loadFailure.value = null;
     lastRequest = null;
@@ -463,6 +470,7 @@ export function createSession(deps: SessionDeps): Session {
         return;
       }
       choices.value = listed.choices;
+      choosePage.value = 0;
       screen.value = 'choosing';
     });
   };
@@ -506,6 +514,7 @@ export function createSession(deps: SessionDeps): Session {
     loadFailure,
     empty,
     choices,
+    choosePage,
     busyKey,
     confirm,
     clock,
@@ -545,7 +554,12 @@ export function createSession(deps: SessionDeps): Session {
     closeChooser() {
       if (screen.peek() !== 'choosing' || busy.peek()) return;
       choices.value = [];
+      choosePage.value = 0;
       screen.value = 'free';
+    },
+    nextPage() {
+      if (screen.peek() !== 'choosing' || busy.peek()) return;
+      choosePage.value = (choosePage.peek() + 1) % pageCount(choices.peek().length);
     },
     async chooseScenario(ref, key = `session.row.${ref.pack}.${ref.scenario}`) {
       if (screen.peek() !== 'choosing' || busy.peek()) return;

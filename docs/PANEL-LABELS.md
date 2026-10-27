@@ -133,7 +133,7 @@ The four pull handles below the face plate. PULL is printed on the handle of the
 
 ## Transponder (trainer part, D-11)
 
-A simplified transponder for the squawk code (phase 03, owner decision D-11). It is a temporary trainer part in the pilot's legroom, not an aircraft part; it is replaced later by the transponder of the PFD. The housing prints the name and the legends of its keys, all static. The readout window shows the code and is the one recorded exception to G-0.1: it follows the control state (the typed digits padded with dashes, else the committed code). `cb.xpdr` in the circuit-breaker table is the breaker of the real unit, not this part.
+A simplified transponder for the squawk code (phase 03, owner decision D-11). It is a temporary trainer part, not an aircraft part (since Phase 5.1 it stands right of the session pad in the co-pilot footwell, the pilot's footwell holds the toe brakes); it is replaced later by the transponder of the PFD. The housing prints the name and the legends of its keys, all static. The readout window shows the code and is the one recorded exception to G-0.1: it follows the control state (the typed digits padded with dashes, else the committed code). `cb.xpdr` in the circuit-breaker table is the breaker of the real unit, not this part.
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
@@ -141,7 +141,7 @@ A simplified transponder for the squawk code (phase 03, owner decision D-11). It
 
 ## Toe brakes (region `pedals`, Phase 5.1)
 
-One latching control drawn as two pedals on the floor of the pilot's footwell, below the transponder plate. The owner accepted this simplification on 2026-10-27: a finger cannot hold a pedal while the other hand works the panel, and a step reads one control. It prints no text; the position shows the state (applied: both toe pads pressed, darker and lower).
+One latching control drawn as two pedals on the floor of the pilot's footwell. The owner accepted this simplification on 2026-10-27: a finger cannot hold a pedal while the other hand works the panel, and a step reads one control. It prints no text; the position shows the state (applied: both toe pads pressed, darker and lower).
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
@@ -155,6 +155,7 @@ The session pad in the co-pilot legroom is trainer content, not an aircraft part
 |----|-----------------|-------------------|-------|--------------|
 | `session.new` | NEW SITUATION | none | existing, phase 02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx` |
 | `session.choose` | CHOOSE SITUATION | none | existing, phase 02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx` |
+| `session.next` | NEXT PAGE (the choose list shows four situations per page; the button stands beside CLOSE LIST and only when there are more than four, after the last page it wraps to the first) | none | owner-visible need of Phase 5.1 (more than four situations), new trainer part | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
 | `session.reset` | RESET | none; third button under CHOOSE SITUATION, same size and press behaviour | owner request (2026-10-23), new trainer part | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
 
 ## Environmental control

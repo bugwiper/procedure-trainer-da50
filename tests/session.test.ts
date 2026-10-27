@@ -15,8 +15,7 @@ import { parseScenario } from '../src/scenario/parse';
 import { OPEN_ACCESS, createPackProvider } from '../src/scenario/packs';
 import type { AccessPolicy } from '../src/scenario/packs';
 import { createPanelBridge } from '../src/ui/bridge';
-import { VITE_PACKS } from '../src/scenario/packs-vite';
-import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
+import { SESSION_LAYOUT, pageCount, pageSlice } from '../src/ui/panel/session-area';
 import { reasonLines } from '../src/ui/debrief-text';
 import { attachClockDriver } from '../src/ui/clock-driver';
 import { LEVELS, LEVEL_HINTS, RUN_ERROR_PATH, createSession, pickRandom } from '../src/ui/session';
@@ -676,12 +675,93 @@ describe('load failure, retry and dismiss (U-16, U-18)', () => {
   });
 });
 
-describe('choose list guard (U-08)', () => {
-  it('the shipped manifests list at most as many scenarios as the choose view has rows', async () => {
-    const metas = await VITE_PACKS.listPacks();
-    const total = metas.reduce((sum, meta) => sum + meta.scenarios.length, 0);
-    expect(total).toBeGreaterThan(0);
-    expect(total).toBeLessThanOrEqual(SESSION_LAYOUT.choose.maxRows);
+describe('choose list paging (Phase 5.1, P-06)', () => {
+  /** A manifest of nine scenarios (the first page is full, the third holds one). */
+  const NINE = Array.from({ length: 9 }, (_, i) => `s${String(i + 1)}`);
+  const MANIFEST_NINE = `format: 1
+title: Engine
+free: true
+scenarios[${String(NINE.length)}]:
+${NINE.map((id) => `  - id: ${id}\n    title: SITUATION ${id}\n    file: ${id}`).join('\n')}
+`;
+  const nineRig = (): Rig =>
+    rig({
+      manifest: MANIFEST_NINE,
+      files: Object.fromEntries(
+        NINE.map((id) => [id, BLUEPRINT.replace('id: eng-oil-temp-green', `id: ${id}`)]),
+      ),
+    });
+  const rows = SESSION_LAYOUT.choose.maxRows;
+  const onPage = (r: Rig): string[] =>
+    pageSlice(r.session.choices.value, r.session.choosePage.value).map((c) => c.scenario);
+
+  it('lists every situation on exactly one page and at most maxRows on a page', async () => {
+    const r = nineRig();
+    await r.session.openChooser();
+    expect(r.session.choices.value.map((c) => c.scenario)).toEqual(NINE);
+    expect(pageCount(NINE.length)).toBe(Math.ceil(NINE.length / rows));
+    const seen: string[] = [];
+    for (let page = 0; page < pageCount(NINE.length); page++) {
+      expect(r.session.choosePage.value).toBe(page);
+      const listed = onPage(r);
+      expect(listed.length).toBeGreaterThan(0);
+      expect(listed.length).toBeLessThanOrEqual(rows);
+      seen.push(...listed);
+      r.session.nextPage();
+    }
+    expect(seen).toEqual(NINE);
+  });
+
+  it('nextPage wraps from the last page to the first', async () => {
+    const r = nineRig();
+    await r.session.openChooser();
+    const pages = pageCount(NINE.length);
+    for (let i = 0; i < pages; i++) r.session.nextPage();
+    expect(r.session.choosePage.value).toBe(0);
+    expect(onPage(r)).toEqual(NINE.slice(0, rows));
+  });
+
+  it('starts on the first page whenever the chooser opens', async () => {
+    const r = nineRig();
+    await r.session.openChooser();
+    r.session.nextPage();
+    expect(r.session.choosePage.value).toBe(1);
+    r.session.closeChooser();
+    expect(r.session.choosePage.value).toBe(0);
+    await r.session.openChooser();
+    expect(r.session.choosePage.value).toBe(0);
+    r.session.nextPage();
+    r.session.resetPanel();
+    expect(r.session.screen.value).toBe('free');
+    expect(r.session.choosePage.value).toBe(0);
+  });
+
+  it('a row of a later page opens its briefing', async () => {
+    const r = nineRig();
+    await r.session.openChooser();
+    r.session.nextPage();
+    const choice = pageSlice(r.session.choices.value, r.session.choosePage.value)[0];
+    expect(choice?.scenario).toBe(NINE[rows]);
+    if (choice !== undefined) await r.session.chooseScenario(choice);
+    expect(r.session.screen.value).toBe('briefing');
+  });
+
+  it('nextPage does nothing outside the choose view, and one page stays one page', async () => {
+    const r = rig({ manifest: MANIFEST_TWO });
+    r.session.nextPage();
+    expect(r.session.choosePage.value).toBe(0);
+    await r.session.openChooser();
+    expect(pageCount(r.session.choices.value.length)).toBe(1);
+    r.session.nextPage();
+    expect(r.session.choosePage.value).toBe(0);
+  });
+
+  it('counts at least one page for no situation and pages every count (T-05.1-02)', () => {
+    expect(pageCount(0)).toBe(1);
+    expect(pageCount(rows)).toBe(1);
+    expect(pageCount(rows + 1)).toBe(2);
+    expect(pageSlice([], 0)).toEqual([]);
+    expect(pageSlice([1, 2, 3], 5)).toEqual([]);
   });
 });
 

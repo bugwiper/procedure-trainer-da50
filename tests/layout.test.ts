@@ -129,12 +129,15 @@ describe('viewBox and regions', () => {
     }
     // The circuit-breaker regions (cb_*) are the new content of the widened strip. The session
     // area (phase 02) is trainer content in the legroom below the face plate; it carries no
-    // control or lamp, so the claim about pre-phase controls and lamps still holds.
+    // control or lamp, so the claim about pre-phase controls and lamps still holds. The transponder
+    // (trainer part, one control, not a pre-phase fidelity item) stands right of the session pad
+    // since Phase 5.1.
     const rights = DA50RG.regions
       .filter(
         (r) =>
           !r.id.startsWith('cb_') &&
           r.id !== 'scenario_area' &&
+          r.id !== 'transponder' &&
           r.id !== 'windscreen' &&
           r.bounds.x + r.bounds.w > 1980,
       )
@@ -1493,8 +1496,8 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     w: p.w,
     h: p.h,
   });
-  const SESSION_PLATE: Rect = { x: 1280, y: 760, w: 860, h: 520 };
-  const SESSION_REGION: Rect = { x: 1300, y: 780, w: 820, h: 480 };
+  const SESSION_PLATE: Rect = { x: 1280, y: 760, w: 480, h: 520 };
+  const SESSION_REGION: Rect = { x: 1300, y: 780, w: 440, h: 480 };
   const PILOT_LEGROOM: Rect = { x: 20, y: 760, w: 910, h: 530 };
   /** The two under-panel regions that existed before phase 2 and reach into the top of the legroom. */
   const LEGROOM_EXCEPTIONS = ['under_panel_left', 'under_panel_centre'];
@@ -1505,15 +1508,17 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
    */
   const OWNER_ECS_REGION = 'under_panel_ecs';
   /**
-   * The simplified transponder (phase 03, D-11): the owner placed it in the pilot's footroom, a
-   * temporary trainer part whose position is not a fidelity item. Its region and its plate are the
-   * only new parts allowed in the reserved legroom.
+   * The simplified transponder (phase 03, D-11) stood in the pilot's footroom until Phase 5.1; it
+   * now stands right of the session pad (task 05.1-01-2) and its plate is checked below.
    */
   const D11_TRANSPONDER_REGION = 'transponder';
   const D11_TRANSPONDER_PLATE = 'transponder-pad';
+  /** The transponder plate of Phase 5.1, typed in by hand (P-05). */
+  const TRANSPONDER_PLATE: Rect = { x: 1780, y: 760, w: 360, h: 240 };
+  const TRANSPONDER_REGION: Rect = { x: 1800, y: 780, w: 320, h: 200 };
   /**
-   * The toe brakes (Phase 5.1, P-02): the floor of the pilot's footwell, below the transponder
-   * plate. Its region and its plate are the second pair of parts allowed in the reserved legroom.
+   * The toe brakes (Phase 5.1, P-02): the floor of the pilot's footwell. Its region and its plate
+   * are the only new parts allowed in the reserved legroom.
    */
   const P51_PEDALS_REGION = 'pedals';
   const P51_PEDALS_PLATE = 'pedals-pad';
@@ -1521,7 +1526,7 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
   it('the session-pad plate has the Table Z1 rectangle (rx 18) and carries scenario_area only', () => {
     const plate = PLATES.find((p) => p.id === 'session-pad');
     expect(plate).toBeDefined();
-    expect([plate?.x, plate?.y, plate?.w, plate?.h, plate?.rx]).toEqual([1280, 760, 860, 520, 18]);
+    expect([plate?.x, plate?.y, plate?.w, plate?.h, plate?.rx]).toEqual([1280, 760, 480, 520, 18]);
     expect([...(plate?.regions ?? [])]).toEqual(['scenario_area']);
   });
 
@@ -1560,19 +1565,17 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     }
   });
 
-  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions, the owner-placed under_panel_ecs region (2026-10-22) and the D-11 transponder region and plate and the Phase 5.1 pedals region and plate', () => {
+  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions, the owner-placed under_panel_ecs region (2026-10-22) and the Phase 5.1 pedals region and plate', () => {
     const plates = PLATES.filter((p) => overlaps(rectOf(p), PILOT_LEGROOM)).map((p) => p.id);
-    expect(plates.sort()).toEqual([D11_TRANSPONDER_PLATE, P51_PEDALS_PLATE].sort());
+    expect(plates).toEqual([P51_PEDALS_PLATE]);
     const regions = DA50RG.regions
       .filter((r) => overlaps(r.bounds, PILOT_LEGROOM))
       .map((r) => r.id)
       .sort();
-    expect(regions).toEqual(
-      [...LEGROOM_EXCEPTIONS, OWNER_ECS_REGION, D11_TRANSPONDER_REGION, P51_PEDALS_REGION].sort(),
-    );
+    expect(regions).toEqual([...LEGROOM_EXCEPTIONS, OWNER_ECS_REGION, P51_PEDALS_REGION].sort());
   });
 
-  it('the pedals plate carries the pedals region, lies wholly inside the legroom and clear of the transponder plate (P-02)', () => {
+  it('the pedals plate carries the pedals region and lies wholly inside the legroom (P-02)', () => {
     const plate = PLATES.find((p) => p.id === P51_PEDALS_PLATE);
     expect(plate).toBeDefined();
     if (plate === undefined) return;
@@ -1583,20 +1586,22 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     expect(region.y - plate.y).toBe(20);
     expect(plate.x + plate.w - (region.x + region.w)).toBe(20);
     expect(plate.y + plate.h - (region.y + region.h)).toBeGreaterThanOrEqual(20);
-    const transponder = PLATES.find((p) => p.id === D11_TRANSPONDER_PLATE);
-    expect(transponder).toBeDefined();
-    if (transponder === undefined) return;
-    expect(plate.y - (transponder.y + transponder.h)).toBeGreaterThanOrEqual(10);
   });
 
-  it('the transponder plate carries the transponder region and lies wholly inside the legroom (D-11)', () => {
+  it('the transponder plate has the Table Z1 rectangle, carries the transponder region, lies right of the session plate, inside the viewBox and outside the legroom (P-05)', () => {
     const plate = PLATES.find((p) => p.id === D11_TRANSPONDER_PLATE);
     expect(plate).toBeDefined();
     if (plate === undefined) return;
+    expect(rectOf(plate)).toEqual(TRANSPONDER_PLATE);
     expect([...plate.regions]).toEqual([D11_TRANSPONDER_REGION]);
-    expect(inside(rectOf(plate), PILOT_LEGROOM)).toBe(true);
-    const region = regionBounds(D11_TRANSPONDER_REGION);
+    expect(regionBounds(D11_TRANSPONDER_REGION)).toEqual(TRANSPONDER_REGION);
+    expect(inside(rectOf(plate), { x: 0, y: 0, w: PANEL_VIEWBOX.w, h: PANEL_VIEWBOX.h })).toBe(
+      true,
+    );
+    expect(plate.x).toBeGreaterThanOrEqual(SESSION_PLATE.x + SESSION_PLATE.w);
+    expect(overlaps(rectOf(plate), PILOT_LEGROOM)).toBe(false);
     // 20 units of plate on every side of the region, as for the session pad.
+    const region = regionBounds(D11_TRANSPONDER_REGION);
     expect(region.x - plate.x).toBe(20);
     expect(region.y - plate.y).toBe(20);
     expect(plate.x + plate.w - (region.x + region.w)).toBe(20);

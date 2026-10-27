@@ -12,8 +12,8 @@ const KEY_FACE = { fill: '#2b3138', stroke: '#566069' } as const;
 const WINDOW_FACE = { fill: '#07090c', stroke: '#566069' } as const;
 const INK = '#e6e9ed';
 
-/** Half sides of the housing: the region is 360 x 200 and the housing lies inside it with 4 units to spare. */
-const HOUSING_HALF = { w: 176, h: 96 } as const;
+/** Half sides of the housing: the region is 320 x 200 (Phase 5.1; it was 360 wide) and the housing lies inside it with 4 units to spare. */
+const HOUSING_HALF = { w: 156, h: 96 } as const;
 
 /**
  * The simplified transponder (D-11, PNL-07): a dark housing, a readout window and one key per

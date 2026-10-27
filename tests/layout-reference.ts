@@ -95,9 +95,10 @@ export const REFERENCE_POSITIONS: readonly ReferencePosition[] = [
   { id: 'lv.cowl_flap', x: 1058, y: 1192, tol: 8, review: true },
   // FUEL selector (owner decision 2026-10-22): bottom left of the pedestal, next to the throttle.
   { id: 'sw.fuel_valve', x: 1005, y: 1258, tol: 8, review: true },
-  // Simplified transponder (phase 03, D-11): a temporary trainer part in the pilot's legroom; the
-  // position is an assumption, not a fidelity item (region transponder at 300, 900; centre 180, 100).
-  { id: 'kp.squawk', x: 480, y: 1000, tol: 8, review: true },
+  // Simplified transponder (phase 03, D-11): a temporary trainer part; the position is an
+  // assumption, not a fidelity item. Since Phase 5.1 it stands right of the session pad (region
+  // transponder at 1800, 780; centre 160, 100).
+  { id: 'kp.squawk', x: 1960, y: 880, tol: 8, review: true },
   // The toe brakes (Phase 5.1, P-02): one latching control drawn as two pedals on the floor of the
   // pilot's footwell, below the transponder plate (region pedals at 300, 1150; centre 180, 55).
   { id: 'lv.toe_brakes', x: 480, y: 1205, tol: 8, review: true },
@@ -392,16 +393,11 @@ export const ORDERING: readonly OrderRow[] = [
     'region:mfd',
   ]),
   ...CB_STRIP_ROW.map((id): OrderRow => [id, 'below', 'region:mfd']),
-  // Simplified transponder (phase 03, D-11): in the pilot's legroom, below the switch row and left
-  // of the centre console and of the session area. A trainer part, so the rows only keep it out of
-  // the way of the real panel.
-  ['kp.squawk', 'below', 'region:switch_bank'],
-  ['kp.squawk', 'left-of', 'region:pedestal'],
-  ['kp.squawk', 'left-of', 'region:scenario_area'],
-  // The toe brakes (Phase 5.1): on the floor of the pilot's footwell, below the switch row and left
-  // of the centre console.
-  ['lv.toe_brakes', 'below', 'region:switch_bank'],
-  ['lv.toe_brakes', 'left-of', 'region:pedestal'],
+  // Simplified transponder (phase 03, D-11), since Phase 5.1 right of the session pad in the
+  // co-pilot footwell: below the lower breaker row and right of the session area. A trainer part, so the
+  // rows only keep it out of the way of the real panel.
+  ['kp.squawk', 'right-of', 'region:scenario_area'],
+  ['kp.squawk', 'below', 'region:cb_low'],
 ];
 
 /**

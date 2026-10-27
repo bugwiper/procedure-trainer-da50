@@ -4,8 +4,7 @@ import type { ControlSpec } from '../../../engine/registry';
 // simplification the owner accepted on 2026-10-27. A real pilot holds the pedals; here a tap
 // applies both and a second tap releases them, so a finger can work the rest of the panel. A step
 // reads one control (the predicate vocabulary is closed). The ground speed model of physics.ts
-// reads it. Its place is an assumption: the floor of the pilot's footwell, below the transponder
-// plate.
+// reads it. Its place is an assumption: the floor of the pilot's footwell.
 
 export const PEDALS_CONTROLS: readonly ControlSpec[] = [
   {

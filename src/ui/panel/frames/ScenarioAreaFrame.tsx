@@ -1,13 +1,15 @@
 import { useRef } from 'preact/hooks';
 import { INPUT_SHIELD_MS } from '../../screens/Modal';
-import { SESSION_LAYOUT } from '../session-area';
+import { SESSION_LAYOUT, pageCount, pageSlice } from '../session-area';
 import { SessionButton } from '../widgets/SessionButton';
 import type { FrameProps } from './MfdFrame';
 
 /**
  * The session area in the co-pilot legroom (D-14, region scenario_area). Main view: NEW SITUATION,
  * CHOOSE SITUATION and RESET at their SESSION_LAYOUT rectangles. Choose view (state choosing): CLOSE LIST
- * and up to four rows, one per scenario of an allowed pack, titled from the pack manifest. Trainer
+ * and one page of up to four rows, one per scenario of an allowed pack, titled from the pack
+ * manifest; NEXT PAGE beside CLOSE LIST only when there are more rows than one page holds, and it
+ * wraps to the first page (Phase 5.1). Trainer
  * content, not an aircraft control: it is drawn only when a session is passed, and nothing here
  * touches the store. The text follows the session state, never a control state (U-06).
  *
@@ -34,8 +36,10 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
   };
 
   if (choosing) {
-    const { close, rows, maxRows } = SESSION_LAYOUT.choose;
+    const { close, next: nextRect, rows } = SESSION_LAYOUT.choose;
     const ignoreUntil = shownAt.current + INPUT_SHIELD_MS;
+    const choices = session.choices.value;
+    const pages = pageCount(choices.length);
     return (
       <g data-session-area data-session-view="choose">
         <SessionButton
@@ -49,7 +53,20 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
             session.closeChooser();
           })}
         />
-        {session.choices.value.slice(0, maxRows).map((choice, index) => {
+        {pages > 1 ? (
+          <SessionButton
+            key="session.next"
+            id="session.next"
+            rect={nextRect}
+            label="NEXT PAGE"
+            ariaLabel="Next page of situations"
+            ignoreUntil={ignoreUntil}
+            onActivate={idle(() => {
+              session.nextPage();
+            })}
+          />
+        ) : null}
+        {pageSlice(choices, session.choosePage.value).map((choice, index) => {
           const rect = rows[index];
           if (rect === undefined) return null;
           const id = `session.row.${choice.pack}.${choice.scenario}`;
