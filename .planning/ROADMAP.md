@@ -496,7 +496,7 @@ Plans:
 
 ### Phase 5.1: Ground and takeoff emergencies (INSERTED)
 
-**Goal**: The panel and the pack cover emergencies on the ground and during takeoff: two rudder pedals with toe brakes (service brakes) in the pilot's footwell and a ground speed on the takeoff roll, the transponder moved into the co-pilot footwell beside the situation buttons, the oval emergency window that can be opened, and the scenarios engine fire on ground, engine fire on takeoff (abort possible and not possible), electrical fire with smoke on ground and in flight, and unintentional flight into icing, each with its printed checklist verbatim (edition 4.1) and its scene from Phase 5. Source: .planning/todos/pending/2026-10-23-realistic-level-visual-cues.md (owner spec section).
+**Goal**: The panel and the pack cover emergencies on the ground and during takeoff: two rudder pedals with toe brakes (service brakes) in the pilot's footwell and a ground speed on the takeoff roll, the transponder moved into the co-pilot footwell beside the situation buttons, the oval emergency window that can be opened and the red door release lever (two separate controls), and the scenarios engine fire on ground, engine fire on takeoff (abort possible and not possible), electrical fire with smoke on ground and in flight, and unintentional flight into icing, each with its printed checklist verbatim (edition 4.1) and its scene from Phase 5. Source: .planning/todos/pending/2026-10-23-realistic-level-visual-cues.md (owner spec section).
 **Depends on**: Phase 5
 **Requirements**: PNL-20, SCN-13, SES-08, CNT-05
 
@@ -506,7 +506,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 05.1-01 — Tracer: toe brakes (one latching pedal-pair control in the pilot's footwell) with a ground speed that drives the take-off roll scene; the transponder moved beside the situation buttons and a chooser that pages; the emergency window release lever at the far left
+- [ ] 05.1-01 — Tracer: toe brakes (one latching pedal-pair control in the pilot's footwell) with a ground speed that drives the take-off roll scene; the transponder moved beside the situation buttons and a chooser that pages; the red door release lever at the left edge and the emergency window oval in the side pane at the far left
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
