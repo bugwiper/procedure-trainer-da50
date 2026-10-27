@@ -28,6 +28,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-17**: A windscreen area above the instrument panel shows the situation of the scenario (parked in front of a hangar, takeoff roll, cruise over simple landscape, cloud for icing) as flat vector art with no text; the panel space grows upward without moving any existing part, the full view always includes the windscreen and it is its own zoom region, so the zoom, layout and tap-size gates still hold on desktop, tablet and phone
 - [x] **PNL-18**: Failure cues are drawn from the simulation quantities, never from the DOM: engine fire flames and smoke outside the windscreen, cabin smoke over the instrument panel that never blocks a press, windscreen ice that warm air from the windscreen air control removes slowly and the WIND SHIELD spray clears on the pilot side only, and the cheap extras (stopped propeller, oil streaks)
 - [x] **PNL-19**: Aural cues are synthesised with Web Audio (a caution tone, one short bing, a warning tone, an engine drone that follows the rpm), are off until the user turns them on with a control that is not a panel label, and sound only during a live run
+- [ ] **PNL-20**: The pilot's footwell has toe brakes (the service brakes, not the parking brake) on two pedals; the take-off roll has a ground speed that POWER above idle raises and the brakes lower, and the roll scene runs at that speed and stands at 0; the transponder sits in the co-pilot footwell beside the situation buttons; the oval emergency window at the far left has a red release lever that opens it
 
 ### Scenario Engine
 
@@ -43,6 +44,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-10**: The simulation can change a control by itself (a circuit breaker that pops at the onset, or pops again when pushed in while the fault is present), identically in the live run and in every replay
 - [x] **SCN-11**: The electrical system is a bus model (main, essential, battery, hot and avionics buses, bus tie relay, alternators, ESS BUS, ELECT. MASTER, breakers, battery) derived from control states and parameters; the ALTN 1 FAIL and ALTN 2 FAIL cautions come from an alternator control unit model, not from a current threshold
 - [x] **SCN-12**: A scenario declares its scene and its onset cues in data; lint rejects an unknown scene or cue, a cue visible at the Realistic start, a cue a do-nothing Realistic run does not show in time, and an onset that lists neither an annunciation nor a cue (L22 to L24)
+- [ ] **SCN-13**: A checklist can be shown as the AFM prints it: letter row marks, italic sub-headings, WARNING and CAUTION blocks and comment rows; lint keeps the marks in one run and the comment styles to the table form
 
 ### Session & Debrief
 
@@ -53,6 +55,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **SES-05**: A "Further actions" section offers non-panel actions as a fixed list, e.g. monitor oil pressure, declare MAYDAY, brief passengers, plus a graded landing-decision ladder (continue flight / safety landing on suitable field / emergency landing on next field / outlanding if necessary)
 - [ ] **SES-06**: User can retry the scenario or move to the next situation
 - [x] **SES-07**: A running scenario survives a failing step listener (the error is shown and the run ends cleanly) and a run that reaches the 30-minute cap ends exactly as its replay does
+- [ ] **SES-08**: CHOOSE SITUATION lists any number of situations in pages of four with a NEXT PAGE button
 
 ### Content
 
@@ -60,6 +63,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **CNT-02**: An authoring guide explains how to add scenarios and validate them
 - [x] **CNT-03**: A content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is decided before any procedure text is committed
 - [x] **CNT-04**: The pack contains an ALTN 2 FAIL scenario with its checklist as printed and several causes behind the one message
+- [ ] **CNT-05**: The pack contains Engine Fire on Ground, Electrical Fire with Smoke on Ground (engine running or stopped), Smoke and Fire During Take-Off (abort and no abort), Electrical Fire in Flight and Unintentional Flight Into Icing, each with its printed AFM page, its scene and its cues
 
 ### Platform & Business
 
@@ -148,6 +152,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PNL-18 | Phase 5 | Complete |
 | PNL-19 | Phase 5 | Complete |
 | SCN-12 | Phase 5 | Complete |
+| PNL-20 | Phase 5.1 | Pending |
+| SCN-13 | Phase 5.1 | Pending |
+| SES-08 | Phase 5.1 | Pending |
+| CNT-05 | Phase 5.1 | Pending |
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |
@@ -158,8 +166,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLT-02 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 46 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1; SCN-11, PNL-16, CNT-04 added 2026-10-23 for phase 4; PNL-17, PNL-18, PNL-19, SCN-12 added 2026-10-27 for phase 5)
-- Mapped to phases: 46
+- v1 requirements: 50 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1; SCN-11, PNL-16, CNT-04 added 2026-10-23 for phase 4; PNL-17, PNL-18, PNL-19, SCN-12 added 2026-10-27 for phase 5; PNL-20, SCN-13, SES-08, CNT-05 added 2026-10-27 for phase 5.1)
+- Mapped to phases: 50
 - Unmapped: 0 ✓
 
 ---
