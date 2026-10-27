@@ -25,9 +25,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-14**: The gear indicator is three separate green lights (each green or off; all three green = down and locked) plus a separate red light (red or off; on for unsafe or in transition; all off for up and locked; GEAR TEST lights all four); the flap lights (UP, T/O, LDG) follow flap state; lamps are derived from control state and nothing pulses; transition timing arrives with Phase 3
 - [x] **PNL-15**: A single click or tap never zooms; a double click (mouse) or double tap (touch) zooms into the tapped region and, while zoomed, zooms fully out again (also from intermediate pinch levels), on the panel background and on a latching control (toggle, rocker, breaker, guard, brake flap, lever marker, FAN spot): the first tap actuates at once and the recognised pair retracts it from the action log, so the control ends in its original state, and a pair across two different controls is not a double tap; a double press on a momentary or drag control stays two presses and never zooms (a momentary control commits after 100 ms held still); a press that moves beyond 10 px (touch) or 5 px (mouse) or gains a second finger pans or pinches the view instead of operating the control; the "Full panel" button is never hidden by the footer and never covers a control
 - [x] **PNL-16**: The MFD engine page shows the electrical system in one Electrical box: an Amps bar with one pointer for each alternator (1 and 2) and a Volts bar, with the yellow and red alert styling of the other gauges and static marks only
-- [ ] **PNL-17**: A windscreen area above the instrument panel shows the situation of the scenario (parked in front of a hangar, takeoff roll, cruise over simple landscape, cloud for icing) as flat vector art with no text; the panel space grows upward without moving any existing part, the full view always includes the windscreen and it is its own zoom region, so the zoom, layout and tap-size gates still hold on desktop, tablet and phone
-- [ ] **PNL-18**: Failure cues are drawn from the simulation quantities, never from the DOM: engine fire flames and smoke outside the windscreen, cabin smoke over the instrument panel that never blocks a press, windscreen ice that warm air from the windscreen air control removes slowly and the WIND SHIELD spray clears on the pilot side only, and the cheap extras (stopped propeller, oil streaks)
-- [ ] **PNL-19**: Aural cues are synthesised with Web Audio (a caution chime, a warning tone, an engine drone that follows the rpm), are off until the user turns them on with a control that is not a panel label, and sound only during a live run
+- [x] **PNL-17**: A windscreen area above the instrument panel shows the situation of the scenario (parked in front of a hangar, takeoff roll, cruise over simple landscape, cloud for icing) as flat vector art with no text; the panel space grows upward without moving any existing part, the full view always includes the windscreen and it is its own zoom region, so the zoom, layout and tap-size gates still hold on desktop, tablet and phone
+- [x] **PNL-18**: Failure cues are drawn from the simulation quantities, never from the DOM: engine fire flames and smoke outside the windscreen, cabin smoke over the instrument panel that never blocks a press, windscreen ice that warm air from the windscreen air control removes slowly and the WIND SHIELD spray clears on the pilot side only, and the cheap extras (stopped propeller, oil streaks)
+- [x] **PNL-19**: Aural cues are synthesised with Web Audio (a caution tone, one short bing, a warning tone, an engine drone that follows the rpm), are off until the user turns them on with a control that is not a panel label, and sound only during a live run
 
 ### Scenario Engine
 
@@ -42,7 +42,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-09**: A scenario can declare several causes (variants) behind one failure, each with its own start state, parameters and applying steps; one is drawn by seed on every level, recorded with the run, replayed by the grader and named in the debrief after the run
 - [x] **SCN-10**: The simulation can change a control by itself (a circuit breaker that pops at the onset, or pops again when pushed in while the fault is present), identically in the live run and in every replay
 - [x] **SCN-11**: The electrical system is a bus model (main, essential, battery, hot and avionics buses, bus tie relay, alternators, ESS BUS, ELECT. MASTER, breakers, battery) derived from control states and parameters; the ALTN 1 FAIL and ALTN 2 FAIL cautions come from an alternator control unit model, not from a current threshold
-- [ ] **SCN-12**: A scenario declares its scene and its onset cues in data; lint rejects an unknown scene or cue, a cue visible at the Realistic start, a cue a do-nothing Realistic run does not show in time, and an onset that lists neither an annunciation nor a cue (L22 to L24)
+- [x] **SCN-12**: A scenario declares its scene and its onset cues in data; lint rejects an unknown scene or cue, a cue visible at the Realistic start, a cue a do-nothing Realistic run does not show in time, and an onset that lists neither an annunciation nor a cue (L22 to L24)
 
 ### Session & Debrief
 
@@ -144,10 +144,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCN-11 | Phase 4 | Complete |
 | PNL-16 | Phase 4 | Complete |
 | CNT-04 | Phase 4 | Complete |
-| PNL-17 | Phase 5 | Pending |
-| PNL-18 | Phase 5 | Pending |
-| PNL-19 | Phase 5 | Pending |
-| SCN-12 | Phase 5 | Pending |
+| PNL-17 | Phase 5 | Complete |
+| PNL-18 | Phase 5 | Complete |
+| PNL-19 | Phase 5 | Complete |
+| SCN-12 | Phase 5 | Complete |
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |

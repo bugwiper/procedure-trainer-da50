@@ -521,12 +521,13 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
   };
   const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
 
-  it('has Phase 4: owner review as the last section after Phase 3.1, Phase 3 and Phase 2 and keeps Round 5 and Round 4', () => {
+  it('has Phase 5: owner review as the last section after Phase 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Phase 4: owner review');
-    expect(headings[headings.length - 2]).toBe('## Phase 3.1: owner review');
-    expect(headings[headings.length - 3]).toBe('## Phase 3: owner review');
-    expect(headings[headings.length - 4]).toBe('## Phase 2: owner review');
+    expect(headings[headings.length - 1]).toBe('## Phase 5: owner review');
+    expect(headings[headings.length - 2]).toBe('## Phase 4: owner review');
+    expect(headings[headings.length - 3]).toBe('## Phase 3.1: owner review');
+    expect(headings[headings.length - 4]).toBe('## Phase 3: owner review');
+    expect(headings[headings.length - 5]).toBe('## Phase 2: owner review');
     expect(headings).toContain('## Round 5: morning review');
     expect(headings).toContain('## Round 4: morning review');
   });
@@ -730,7 +731,8 @@ describe('phase 3.1 owner review (plan 03.1-03)', () => {
 
 describe('phase 4 owner review (plan 04-03)', () => {
   const at = review.search(/^## Phase 4: owner review/m);
-  const section = at === -1 ? '' : review.slice(at);
+  const end = review.search(/^## Phase 5: owner review/m);
+  const section = at === -1 ? '' : review.slice(at, end === -1 ? undefined : end);
 
   it('has the section, points to the grading rules and says nothing was pushed', () => {
     expect(at).toBeGreaterThan(-1);
@@ -754,5 +756,33 @@ describe('phase 4 owner review (plan 04-03)', () => {
     expect(section).toMatch(/free panel/i);
     expect(section).toMatch(/fixed base readings/i);
     expect(section).not.toMatch(/Volts[^.]*\b(open|unclear|question)\b/i);
+  });
+});
+
+describe('phase 5 owner review (plan 05-03)', () => {
+  const at = review.search(/^## Phase 5: owner review/m);
+  const section = at === -1 ? '' : review.slice(at);
+
+  it('has the section, points to the grading rules and says nothing was pushed', () => {
+    expect(at).toBeGreaterThan(-1);
+    expect(section).toContain('GRADING.md');
+    expect(section).toMatch(/nothing was pushed/i);
+  });
+
+  it('is short, has no unfilled item, quotes no private material and numbers its items without a gap', () => {
+    expect(section).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b|@@/i);
+    expect(section).not.toMatch(/\.input\//);
+    const numbers = section
+      .split('\n')
+      .map((line) => /^(\d+)\. /.exec(line)?.[1])
+      .filter((n): n is string => n !== undefined)
+      .map(Number);
+    expect(numbers.length).toBeLessThanOrEqual(8);
+    expect(numbers).toEqual(numbers.map((_, i) => i + 1));
+  });
+
+  it('names the three preview flags and the Sound control', () => {
+    for (const flag of ['?scene=', '?q=', '&flags=']) expect(section).toContain(flag);
+    expect(section).toMatch(/Sound/);
   });
 });

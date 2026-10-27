@@ -1,40 +1,24 @@
 ---
 created: 2026-10-23
-title: Visual cues for failures on the Realistic level (windscreen)
+title: Visual cues for failures on the Realistic level (windscreen): what remains for Phase 5.1
 area: panel
-source: owner instructor review and first live test of phase 3
+source: owner instructor review and first live test of phase 3; owner spec of 2026-10-27
 ---
 
-Engine Fire on Realistic cannot be solved: at the onset nothing visible happens and there is no briefing, so the pilot does not know what is expected. The CAS and the gauges give no cue for a fire.
+Phase 5 is done: the windscreen, the scenes parked, take-off roll, cruise and cloud, the engine fire flames, cabin smoke, windscreen ice with warm air and the WIND SHIELD spray, the stopped propeller, oil streaks and the aural cues exist. The record of what was built and the original text are in [the done file](../done/2026-10-23-realistic-level-visual-cues-phase5.md). The night and dusk scenes are their own todo (`2026-10-27-night-dusk-scenes.md`).
 
-## Owner idea
+## Left for Phase 5.1 (scenarios that use the cues, and new panel parts)
 
-Extend the panel upward to show a windscreen (plain blue sky). Scenarios draw static cues there: fire and smoke for an engine fire, an iced windscreen later, and others. This also helps immersion. Alternative: a pop-up that states what the pilot would experience at that moment.
+**Scenarios that need the printed checklists** (verbatim, edition 4.1, from the owner): engine fire on ground, electrical fire with smoke on ground, engine fire on takeoff (abort and no abort), engine fire in flight (exists), electrical fire in flight, unintentional flight into icing. They use the scenes, the smoke and the ice that Phase 5 built (the printed checklists differ per flight phase: in each the scenario names its scene).
 
-## To decide
+**Electrical fire with smoke in the cabin** (on the ground and in flight): the smoke overlay exists (`smoke_density`, `smoke_source`); the scenarios and their checklists do not.
 
-- Decided 2026-10-23: this is Phase 5, Windscreen and failure cues (after Phase 3.1). The panel space (2180 x 1300) and the phone zoom regions change.
-- G-0: the windscreen is art, not panel text; no label changes with state.
-- Each scenario declares its onset cue in the scenario data (schema, lint, blueprint gate); a Realistic do-nothing run must show the cue (extends lint L14).
-- Easy and Medium keep their briefing; decide whether they show the cue too.
+**Icing** (abnormal "Unintentional flight into icing conditions", supplement in .input/FIKI_AFM.pdf): the visual side exists; the scenario does not. Aerodynamic effects (speed loss from wing ice) come later with the physics.
 
-## Owner spec for the windscreen phase (2026-10-27)
-
-A cockpit-view picture from the owner shows the intended look (to be attached; ask again if missing). Written down from the owner's message:
-
-**Scenes (flight phase shown through the windscreen).** The scenario declares the situation: parked in front of a hangar, accelerating on the runway (takeoff roll), cruise flight (sky above, simple landscape below; the default for most situations). Each is explained in the briefing text and also visible.
-
-**Engine fire.** Flames and smoke in front of the windscreen, coming from the front, outside. Needed in several flight phases because the printed checklists differ: engine fire on the ground, engine fire on takeoff (if the takeoff can be aborted, if it cannot), engine fire in flight. The existing Engine Fire in flight scenario gets its cue first.
-
-**Electrical fire with smoke in the cabin** (on the ground and in flight): smoke that partly hides the instrument panel, so the user sees the smoke is inside the cockpit, not outside like the engine fire.
-
-**Icing** (abnormal "Unintentional flight into icing conditions", supplement in .input/FIKI_AFM.pdf): the windscreen freezes, ice crystals grow, vision turns milky. Warm air onto the windscreen (central pedestal control) removes the ice slowly. The WIND SHIELD button of the de-ice panel sprays TKS fluid on the pilot's side only, visibly, and the ice then disappears. Aerodynamic effects (speed loss from wing ice) come later with the physics; only the visualisation now. Wing de-ice (airframe) is what removes the later aerodynamic effects.
+**Runway speed from the ground speed.** The take-off roll scrolls at one constant speed (`--w-roll-period` in `src/ui/stage.css`); Phase 5.1 drives it from the ground speed.
 
 **New panel parts the owner named for the takeoff-roll scenarios.**
+
 - Two rudder pedals with toe brakes in the pilot's footwell, simulating the service brakes (not the parking brake).
 - The transponder moves right into the co-pilot footwell beside the situation buttons (until it is integrated into the PFD).
 - At the far left an outline of the small oval emergency window in the side pane that can be opened (the engine fire checklist item "emergency front windows ... open as necessary"; the owner will check the exact wording).
-
-**Needs from the owner later:** the printed checklists (verbatim, edition 4.1) for: engine fire on ground, electrical fire with smoke on ground, engine fire on takeoff abort and no abort, engine fire in flight (exists), electrical fire in flight, unintentional flight into icing.
-
-**Ideas offered by Claude (owner to pick):** oil streaks on the windscreen (oil leak, loss of oil pressure), stopped propeller disc on engine failure, night and dusk scenes (NVFR checklists, electrical failures), cloud/IMC scene for icing, aural cues with Web Audio (caution chime, engine sound following rpm), a runway that moves while accelerating.
