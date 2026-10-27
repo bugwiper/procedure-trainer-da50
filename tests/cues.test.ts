@@ -80,6 +80,15 @@ describe('the DA50 RG cue table', () => {
     );
   });
 
+  it('shows the ice of each side from its own quantity: clear at the base, full at 60', () => {
+    const base = DA50RG_QUANTITIES.baseValues();
+    const levels = DA50RG_CUES.levels({ ...base, ice_pilot: 60, ice_copilot: 30 });
+    expect(DA50RG_CUES.levels(base)['ice_pilot_side']).toBe(0);
+    expect(DA50RG_CUES.levels(base)['ice_copilot_side']).toBe(0);
+    expect(levels['ice_pilot_side']).toBe(1);
+    expect(levels['ice_copilot_side']).toBe(0.5);
+  });
+
   it('reads a missing quantity as the start of the range', () => {
     expect(DA50RG_CUES.levels({})['flames']).toBe(0);
   });

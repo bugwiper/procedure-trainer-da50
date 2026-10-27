@@ -31,8 +31,13 @@ export function CabinSmoke({ level }: { level: number }) {
       aria-hidden="true"
       pointer-events="none"
       opacity={smokeOpacity(level)}
+      clip-path="url(#w-smoke-clip)"
     >
       <defs>
+        {/* The puffs end at the edge of the panel space, not in the letterbox beside it. */}
+        <clipPath id="w-smoke-clip">
+          <rect x={0} y={-WINDSCREEN_H} width={VIEWBOX.w} height={VIEWBOX.h + WINDSCREEN_H} />
+        </clipPath>
         <linearGradient id="w-smoke-haze" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="#8d9298" stop-opacity={0.4} />
           <stop offset="0.5" stop-color="#8d9298" stop-opacity={0.85} />

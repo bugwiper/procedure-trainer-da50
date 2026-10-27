@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { WINDSHIELD_SPRAY_ACTIVE } from '../src/aircraft/da50rg/indicators';
 
 // The failure cues the simulation drives (Phase 5, plan 02), seen through the preview flags of the
 // free panel (?q= and ?flags=), which also run against the live site: cabin smoke, windscreen ice
@@ -76,4 +77,63 @@ test('a smoke level below the visible one, or an unknown or out-of-range entry, 
   await expect(page.locator(SMOKE)).toHaveCount(0);
   await open(page, '?q=smoke_density:500');
   await expect(page.locator(SMOKE)).toHaveCount(0);
+});
+
+const ICE_PILOT = '[data-cue="ice_pilot_side"]';
+const ICE_COPILOT = '[data-cue="ice_copilot_side"]';
+const SPRAY = '[data-spray="pilot"]';
+const TOLERANCE = 1.5;
+
+test('no ice and no spray on the free panel', async ({ page }) => {
+  await open(page, '');
+  await expect(page.locator(ICE_PILOT)).toHaveCount(0);
+  await expect(page.locator(ICE_COPILOT)).toHaveCount(0);
+  await expect(page.locator(SPRAY)).toHaveCount(0);
+});
+
+test('?q=ice_pilot:80,ice_copilot:80 shows both veils, one on each half of the windscreen', async ({
+  page,
+}) => {
+  await open(page, '?q=ice_pilot:80,ice_copilot:80');
+  await expect(page.locator(ICE_PILOT)).toHaveCount(1);
+  await expect(page.locator(ICE_COPILOT)).toHaveCount(1);
+  const pilot = await boxOf(page, ICE_PILOT);
+  const copilot = await boxOf(page, ICE_COPILOT);
+  const ws = await boxOf(page, '[data-region-id="windscreen"] [data-region-frame]');
+  expect(pilot).not.toBeNull();
+  expect(copilot).not.toBeNull();
+  expect(ws).not.toBeNull();
+  if (pilot === null || copilot === null || ws === null) return;
+  // The pilot half is the left one, the halves meet at the strut and fill the opening.
+  expect(pilot.left).toBeLessThanOrEqual(ws.left + TOLERANCE);
+  expect(copilot.right).toBeGreaterThanOrEqual(ws.right - TOLERANCE);
+  expect(Math.abs(pilot.right - copilot.left)).toBeLessThanOrEqual(TOLERANCE);
+  expect(await page.locator(`${ICE_PILOT} text, ${ICE_COPILOT} text`).count()).toBe(0);
+  await expect(page.locator(SPRAY)).toHaveCount(0);
+});
+
+test('one side iced shows that side only', async ({ page }) => {
+  await open(page, '?q=ice_copilot:60');
+  await expect(page.locator(ICE_COPILOT)).toHaveCount(1);
+  await expect(page.locator(ICE_PILOT)).toHaveCount(0);
+});
+
+test('the spray flag shows the spray on the pilot half only', async ({ page }) => {
+  await open(page, `?q=ice_pilot:80,ice_copilot:80&flags=${WINDSHIELD_SPRAY_ACTIVE}`);
+  await expect(page.locator(SPRAY)).toHaveCount(1);
+  const spray = await boxOf(page, SPRAY);
+  const pilot = await boxOf(page, ICE_PILOT);
+  const copilot = await boxOf(page, ICE_COPILOT);
+  expect(spray).not.toBeNull();
+  expect(pilot).not.toBeNull();
+  expect(copilot).not.toBeNull();
+  if (spray === null || pilot === null || copilot === null) return;
+  expect(spray.right).toBeLessThanOrEqual(copilot.left + TOLERANCE);
+  expect(spray.left).toBeLessThanOrEqual(pilot.left + TOLERANCE);
+  await expect(page.locator(`${SPRAY} text`)).toHaveCount(0);
+});
+
+test('an unknown flag name shows no spray', async ({ page }) => {
+  await open(page, '?flags=deice.nothing');
+  await expect(page.locator(SPRAY)).toHaveCount(0);
 });

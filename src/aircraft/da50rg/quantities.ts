@@ -260,4 +260,25 @@ export const DA50RG_QUANTITIES = defineQuantities([
     scale: SLOW_SCALE,
     bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
   },
+  {
+    // Hidden: no gauge. The ice on the pilot (left) and the co-pilot (right) half of the windscreen,
+    // 0 when clear (Phase 5, C-04). It builds from a scenario parameter, warm air toward the
+    // windscreen melts it very slowly and the WIND SHIELD spray clears the pilot side. One unmarked band.
+    id: 'ice_pilot',
+    unit: '%',
+    min: 0,
+    max: 100,
+    base: 0,
+    scale: SLOW_SCALE,
+    bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
+  },
+  {
+    id: 'ice_copilot',
+    unit: '%',
+    min: 0,
+    max: 100,
+    base: 0,
+    scale: SLOW_SCALE,
+    bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
+  },
 ]);

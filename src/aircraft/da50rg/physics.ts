@@ -5,7 +5,7 @@ import { travelPercent } from '../../engine/predicates';
 import type { DetentLeverDef } from '../../engine/registry';
 import { STEP_MS } from '../../engine/sim';
 import { acuFault, electricalState } from './electrical';
-import { DEICE_MAX_ACTIVE } from './indicators';
+import { DEICE_MAX_ACTIVE, WINDSHIELD_SPRAY_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
 import { OIL_TEMP_RISE_RATE_CURVE } from './oil-temp-curve';
 import { PROP_SPEED_CURVE } from './prop-curve';
@@ -107,6 +107,20 @@ const FIRE_GEARBOX_RISE = 40;
 // of Phase 5.1 decide that). Compressed, an instructor-review value.
 const SMOKE_TAU_MS = 15_000;
 
+// Windscreen ice (Phase 5, C-04) and the WIND SHIELD spray. All values are instructor-review
+// values, none is an AFM figure. Per half of the windscreen the ice (0 to 100) grows by
+// ICE_ACCRETE_PER_MIN times the parameter ice_accretion. Warm air toward the windscreen (DIRECTION
+// at DEFROST, TEMPERATURE at 75 or WARM) melts it only very slowly (owner, 2026-10-27): light icing
+// clears over many minutes and heavy icing is hardly slowed. Pressing WIND SHIELD sprays the pilot
+// side (the left half) for WINDSHIELD_SPRAY_MS of run time; the airflow carries the fluid upward
+// and the ice on that side is gone directly, within about a second (ICE_SPRAY_CLEAR_PER_MIN), with
+// no accretion while the spray runs. The co-pilot side is untouched. Afterwards the pilot side
+// accretes again while the parameter is above 0 (no exit-from-icing model before Phase 5.1).
+const ICE_ACCRETE_PER_MIN = 40;
+const ICE_WARM_CLEAR_PER_MIN = 6;
+const ICE_SPRAY_CLEAR_PER_MIN = 6_000;
+const WINDSHIELD_SPRAY_MS = 10_000;
+
 function lever(id: string): DetentLeverDef {
   const def = DA50RG.get(id);
   if (def?.kind !== 'detent-lever') throw new Error(`physics needs the detent lever "${id}"`);
@@ -200,6 +214,22 @@ const SMOKE_FULL = bandTop('smoke_density', 'unmarked');
 
 function smokeTarget(inputs: PhysicsInputs): number {
   return SMOKE_FULL * parameterOf(inputs, 'smoke_source');
+}
+
+/** Warm air toward the windscreen: DIRECTION at DEFROST with TEMPERATURE at 75 or WARM. */
+function warmAirToWindscreen(inputs: PhysicsInputs): boolean {
+  const temperature = stateOf(inputs, 'lv.env_temp');
+  return (
+    stateOf(inputs, 'lv.env_direction') === 'defrost' &&
+    (temperature === 't75' || temperature === 'warm')
+  );
+}
+
+/** Ice change per minute on one half of the windscreen; `pilot` is the left half, the one the spray reaches. */
+function icePerMinute(inputs: PhysicsInputs, pilot: boolean): number {
+  if (pilot && inputs.flags[WINDSHIELD_SPRAY_ACTIVE] === true) return -ICE_SPRAY_CLEAR_PER_MIN;
+  const warm = warmAirToWindscreen(inputs) ? ICE_WARM_CLEAR_PER_MIN : 0;
+  return ICE_ACCRETE_PER_MIN * parameterOf(inputs, 'ice_accretion') - warm;
 }
 
 function fireTarget(inputs: PhysicsInputs): number {
@@ -340,6 +370,8 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'engine_fire', min: 0, max: 1, normal: 0 },
       // 0 is a clear cabin; 1 is a source that fills it with smoke (a scenario of Phase 5.1).
       { id: 'smoke_source', min: 0, max: 1, normal: 0 },
+      // 0 is a clear windscreen; 1 is a windscreen that ices over at ICE_ACCRETE_PER_MIN.
+      { id: 'ice_accretion', min: 0, max: 1, normal: 0 },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),
@@ -373,6 +405,8 @@ export const DA50RG_PHYSICS = definePhysics(
       lag('alt2_fault', STEP_MS, (inputs) => (acuFault(inputs, 2) ? 1 : 0)),
       lag('fire_intensity', FIRE_TAU_MS, fireTarget),
       lag('smoke_density', SMOKE_TAU_MS, smokeTarget),
+      { quantity: 'ice_pilot', mode: 'rate', perMinute: (inputs) => icePerMinute(inputs, true) },
+      { quantity: 'ice_copilot', mode: 'rate', perMinute: (inputs) => icePerMinute(inputs, false) },
     ],
     trips: [
       {
@@ -394,8 +428,7 @@ export const DA50RG_PHYSICS = definePhysics(
       // D-04, SCN-06: pressing MAX with the de-ice mode on HIGH lights the top amber lamp for 120 s
       // of run time; leaving HIGH puts it out at once. A press with the mode on NORM or OFF starts
       // nothing, and a press during the run is ignored. The lamps read the flag, never the button.
-      // Still deferred (D-04): ANNUN-TEST, the WIND SHIELD spray, the ICE LIGHT effect and the ELT
-      // lamp in RESET / TEST.
+      // Still deferred (D-04): ANNUN-TEST, the ICE LIGHT effect and the ELT lamp in RESET / TEST.
       {
         id: 'deice_max',
         on: { control: 'btn.deice_max', value: 'pressed' },
@@ -403,6 +436,16 @@ export const DA50RG_PHYSICS = definePhysics(
         flag: DEICE_MAX_ACTIVE,
         durationMs: DEICE_MAX_RUN_MS,
         clearsWhen: (controls) => controls['sw.deice_mode'] !== 'high',
+      },
+      // C-04: pressing WIND SHIELD sprays the windscreen for 10 s of run time, whatever the mode; a
+      // press during the spray is ignored and nothing ends it early.
+      {
+        id: 'windshield_spray',
+        on: { control: 'btn.deice_windshield', value: 'pressed' },
+        when: () => true,
+        flag: WINDSHIELD_SPRAY_ACTIVE,
+        durationMs: WINDSHIELD_SPRAY_MS,
+        clearsWhen: () => false,
       },
     ],
   },

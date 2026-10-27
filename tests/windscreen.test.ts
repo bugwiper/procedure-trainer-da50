@@ -4,6 +4,12 @@ import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { CUE_VISIBLE_LEVEL } from '../src/engine/cues';
 import { flameOpacity, flameScale } from '../src/ui/panel/windscreen/cue-layers';
+import {
+  CRYSTAL_TABLE_SIZE,
+  VEIL_MAX_OPACITY,
+  crystalCount,
+  veilOpacity,
+} from '../src/ui/panel/windscreen/Ice';
 import { CabinSmoke, SMOKE_MAX_OPACITY, smokeOpacity } from '../src/ui/panel/windscreen/CabinSmoke';
 import { Windscreen } from '../src/ui/panel/windscreen/Windscreen';
 import { OPENING_PATH } from '../src/ui/panel/windscreen/geometry';
@@ -22,8 +28,8 @@ const FORBIDDEN_TAGS = [
   'foreignObject',
 ];
 
-const render = (cues: Record<string, number>, scene = 'cruise'): El =>
-  expand(Windscreen({ scene, cues }));
+const render = (cues: Record<string, number>, scene = 'cruise', spray = false): El =>
+  expand(Windscreen({ scene, cues, spray }));
 
 const flamesAt = (fire: number): Record<string, number> =>
   DA50RG_CUES.levels({ ...DA50RG_QUANTITIES.baseValues(), fire_intensity: fire });
@@ -73,7 +79,10 @@ describe('the windscreen layer', () => {
   });
 
   it('clips to the arched opening, which spans the windscreen height and runs under the shield', () => {
-    const clip = findElements(full, (el) => el.tag === 'clipPath');
+    const clip = findElements(
+      full,
+      (el) => el.tag === 'clipPath' && el.props['id'] === 'w-opening',
+    );
     expect(clip).toHaveLength(1);
     const path = findElements(clip[0] as El, (el) => el.tag === 'path')[0];
     expect(path?.props['d']).toBe(OPENING_PATH);
@@ -123,7 +132,7 @@ describe('the frame parts', () => {
     expect(order.at(-1)).toBe('g:frame');
     const clipped = (full.children as El[]).find((c) => c.props['clip-path'] !== undefined) as El;
     const inner = (clipped.children as El[]).map(name);
-    expect(inner).toEqual(['cruise', 'blade', 'cowl', 'cues']);
+    expect(inner).toEqual(['cruise', 'blade', 'cowl', 'ice', 'cues']);
   });
 });
 
@@ -276,7 +285,12 @@ describe('the cabin smoke cue (Phase 5, C-02)', () => {
       expect(String(gradient.props['id']).startsWith('w-')).toBe(true);
       expect(findElements(gradient, (el) => el.tag === 'stop').length).toBeLessThanOrEqual(3);
     }
-    const defined = new Set(gradients.map((g) => String(g.props['id'])));
+    const defined = new Set(
+      findElements(tree, (el) => typeof el.props['id'] === 'string').map((el) =>
+        String(el.props['id']),
+      ),
+    );
+    for (const id of defined) expect(id.startsWith('w-'), id).toBe(true);
     const used = new Set<string>();
     for (const el of findElements(tree, () => true)) {
       for (const value of Object.values(el.props)) {
@@ -295,5 +309,146 @@ describe('the cabin smoke cue (Phase 5, C-02)', () => {
     expect(Number(haze?.props['y']) + Number(haze?.props['height'])).toBeGreaterThanOrEqual(
       PANEL_VIEWBOX.h,
     );
+  });
+});
+
+describe('the ice cues and the spray (Phase 5, C-05, owner answers of 2026-10-27)', () => {
+  const iceAt = (pilot: number, copilot: number): Record<string, number> =>
+    DA50RG_CUES.levels({
+      ...DA50RG_QUANTITIES.baseValues(),
+      ice_pilot: pilot,
+      ice_copilot: copilot,
+    });
+  const side = (tree: El, name: 'pilot' | 'copilot'): El[] =>
+    findElements(tree, (el) => el.props['data-cue'] === `ice_${name}_side`);
+  const spray = (tree: El): El[] =>
+    findElements(tree, (el) => el.props['data-spray'] !== undefined);
+  const crystalPath = (el: El): string =>
+    String(findElements(el, (e) => e.tag === 'path')[0]?.props['d']);
+
+  it('draws nothing on clear glass or below the visible level', () => {
+    expect(side(render(iceAt(0, 0)), 'pilot')).toEqual([]);
+    expect(side(render(iceAt(0, 0)), 'copilot')).toEqual([]);
+    const below = CUE_VISIBLE_LEVEL * 60 - 0.5;
+    expect(side(render(iceAt(below, below)), 'pilot')).toEqual([]);
+    expect(side(render(iceAt(below, below)), 'copilot')).toEqual([]);
+  });
+
+  it('draws each side from its own level, the other one stays clear', () => {
+    expect(side(render(iceAt(40, 0)), 'pilot')).toHaveLength(1);
+    expect(side(render(iceAt(40, 0)), 'copilot')).toEqual([]);
+    expect(side(render(iceAt(0, 40)), 'pilot')).toEqual([]);
+    expect(side(render(iceAt(0, 40)), 'copilot')).toHaveLength(1);
+  });
+
+  it('clips each side to its own half of the opening, split at the strut', () => {
+    const tree = render(iceAt(60, 60));
+    const clips = findElements(
+      tree,
+      (el) => el.tag === 'clipPath' && String(el.props['id']).startsWith('w-ice-'),
+    );
+    expect(clips.map((c) => c.props['id'])).toEqual(['w-ice-pilot', 'w-ice-copilot']);
+    const [left, right] = clips.map((c) => findElements(c, (e) => e.tag === 'rect')[0]);
+    expect(Number(left?.props['x']) + Number(left?.props['width'])).toBe(1130);
+    expect(Number(right?.props['x'])).toBe(1130);
+    expect(side(tree, 'pilot')[0]?.props['clip-path']).toBe('url(#w-ice-pilot)');
+    expect(side(tree, 'copilot')[0]?.props['clip-path']).toBe('url(#w-ice-copilot)');
+  });
+
+  it('thickens the veil with the level and never exceeds the maximum', () => {
+    expect(veilOpacity(0.2)).toBeLessThan(veilOpacity(0.8));
+    expect(veilOpacity(1)).toBe(VEIL_MAX_OPACITY);
+    expect(VEIL_MAX_OPACITY).toBeLessThanOrEqual(0.7);
+  });
+
+  it('adds crystals with the level from a fixed table, the same on every render', () => {
+    expect(crystalCount(0.1)).toBeGreaterThanOrEqual(1);
+    expect(crystalCount(0.1)).toBeLessThan(crystalCount(0.5));
+    expect(crystalCount(0.5)).toBeLessThan(crystalCount(1));
+    expect(crystalCount(1)).toBe(CRYSTAL_TABLE_SIZE);
+    const a = crystalPath(side(render(iceAt(30, 0)), 'pilot')[0] as El);
+    const b = crystalPath(side(render(iceAt(30, 0)), 'pilot')[0] as El);
+    const more = crystalPath(side(render(iceAt(50, 0)), 'pilot')[0] as El);
+    expect(a).toBe(b);
+    expect(more.startsWith(a)).toBe(true);
+    expect(more.length).toBeGreaterThan(a.length);
+    expect(String(side(render(iceAt(30, 0)), 'pilot')[0]?.props['data-crystals'])).toBe(
+      String(crystalCount(0.5)),
+    );
+  });
+
+  it('keeps the crystals of the two sides apart (different tables)', () => {
+    const tree = render(iceAt(60, 60));
+    expect(crystalPath(side(tree, 'pilot')[0] as El)).not.toBe(
+      crystalPath(side(tree, 'copilot')[0] as El),
+    );
+  });
+
+  it('shows the spray only while the flag is set, and then on the pilot half only', () => {
+    expect(spray(render(iceAt(0, 0)))).toEqual([]);
+    expect(spray(render(iceAt(60, 60), 'cruise', false))).toEqual([]);
+    const on = spray(render(iceAt(0, 0), 'cruise', true));
+    expect(on).toHaveLength(1);
+    expect(on[0]?.props['data-spray']).toBe('pilot');
+    expect(on[0]?.props['clip-path']).toBe('url(#w-ice-pilot)');
+    const streaks = findElements(on[0] as El, (el) => el.props['class'] === 'w-spray')[0];
+    const xs = [
+      ...String(streaks?.props['d']).matchAll(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g),
+    ].map((m) => Number(m[1]));
+    expect(xs.length).toBeGreaterThan(0);
+    for (const x of xs) expect(x).toBeLessThan(1130);
+  });
+
+  it('runs the streaks upward: every streak ends higher than it starts', () => {
+    const on = spray(render(iceAt(0, 0), 'cruise', true))[0] as El;
+    const d = String(findElements(on, (el) => el.props['class'] === 'w-spray')[0]?.props['d']);
+    for (const streak of d.split('M').filter((part) => part !== '')) {
+      const ys = [...streak.matchAll(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g)].map((m) =>
+        Number(m[2]),
+      );
+      expect(ys.at(-1) as number).toBeLessThan(ys[0] as number);
+    }
+  });
+
+  it('keeps the flat-vector rules at full ice with the spray: no text, no filter, own w- ids', () => {
+    const tree = render({ ...flamesAt(60), ...iceAt(60, 60) }, 'cruise', true);
+    expect(findElements(tree, (el) => el.tag === 'text' || el.tag === 'tspan')).toEqual([]);
+    for (const tag of FORBIDDEN_TAGS) {
+      expect(
+        findElements(tree, (el) => el.tag === tag),
+        tag,
+      ).toEqual([]);
+    }
+    const ids = findElements(tree, (el) => typeof el.props['id'] === 'string').map((el) =>
+      String(el.props['id']),
+    );
+    for (const id of ids) expect(id.startsWith('w-'), id).toBe(true);
+    const used = new Set<string>();
+    for (const el of findElements(tree, () => true)) {
+      for (const value of Object.values(el.props)) {
+        if (typeof value !== 'string') continue;
+        for (const match of value.matchAll(/url\(#([^)]+)\)/g)) used.add(match[1] ?? '');
+      }
+    }
+    for (const id of used) expect(ids.includes(id), id).toBe(true);
+  });
+
+  it('is compact: both sides and the spray add a handful of elements, not hundreds', () => {
+    const clear = findElements(render({}), () => true).length;
+    const iced = findElements(render(iceAt(60, 60), 'cruise', true), () => true).length;
+    expect(iced - clear).toBeLessThan(25);
+  });
+
+  it('every cue of the aircraft table has art: the windscreen layer or the cabin overlay', () => {
+    const levels: Record<string, number> = {};
+    for (const id of DA50RG_CUES.ids) levels[id] = 1;
+    const tree = render(levels, 'cruise', true);
+    const smoke = expand(CabinSmoke({ level: 1 }));
+    for (const id of DA50RG_CUES.ids) {
+      const drawn =
+        findElements(tree, (el) => el.props['data-cue'] === id).length +
+        findElements(smoke, (el) => el.props['data-cue'] === id).length;
+      expect(drawn, id).toBeGreaterThan(0);
+    }
   });
 });

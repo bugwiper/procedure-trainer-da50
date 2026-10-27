@@ -802,7 +802,27 @@ body,
   animation: w-drift 7s ease-in-out infinite alternate;
 }
 
+/* The WIND SHIELD spray (Phase 5, C-04): pale streaks run upward along their paths, which are drawn
+   from the sill to the top. */
+.panel-svg .w-spray {
+  stroke-dasharray: 90 70;
+  animation: w-spray 1.1s linear infinite;
+}
+
+@keyframes w-spray {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -160;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .panel-svg .w-spray {
+    animation: none;
+  }
+
   .panel-svg .w-flicker,
   .panel-svg .w-flicker-smoke,
   .panel-svg .w-smoke-drift {

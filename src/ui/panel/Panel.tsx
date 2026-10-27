@@ -1,5 +1,6 @@
 import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
+import { WINDSHIELD_SPRAY_ACTIVE } from '../../aircraft/da50rg/indicators';
 import { DEFAULT_SCENE } from '../../aircraft/da50rg/scenes';
 import { cueVisible } from '../../engine/cues';
 import type { PanelBridge } from '../bridge';
@@ -63,6 +64,7 @@ export function Panel({ bridge, session }: { bridge: PanelBridge; session?: Sess
   }, [registry, bridge]);
   const cues = bridge.cueLevels.value;
   const smoke = cues['cabin_smoke'] ?? 0;
+  const spray = bridge.flags.value[WINDSHIELD_SPRAY_ACTIVE] === true;
   return (
     <svg
       ref={svgRef}
@@ -74,7 +76,7 @@ export function Panel({ bridge, session }: { bridge: PanelBridge; session?: Sess
     >
       <rect data-testid="panel-background" x={x} y={y} width={w} height={h} fill="#14171c" />
       <Defs />
-      <Windscreen scene={session?.scene.value ?? DEFAULT_SCENE} cues={cues} />
+      <Windscreen scene={session?.scene.value ?? DEFAULT_SCENE} cues={cues} spray={spray} />
       <PanelShell registry={registry} />
       {registry.regions.map((region) => (
         <g

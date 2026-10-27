@@ -12,10 +12,17 @@ import { DA50RG } from './panel';
  * physics.ts sets it: pressing btn.deice_max while sw.deice_mode is high starts a 120 s run on the
  * run's virtual clock, and leaving the high mode ends it at once. It only exists during a run; on
  * the free panel no simulation runs, so the top lamp stays dark there. The lamps read the flag and
- * the mode, never the button (T-01.1-42). ANNUN-TEST, the WIND SHIELD spray, the ICE LIGHT effect
- * and the ELT lamp in RESET / TEST stay deferred (D-04).
+ * the mode, never the button (T-01.1-42). ANNUN-TEST, the ICE LIGHT effect and the ELT lamp in
+ * RESET / TEST stay deferred (D-04).
  */
 export const DEICE_MAX_ACTIVE = 'deice.max_active';
+
+/**
+ * Flag set while the WIND SHIELD spray runs (Phase 5, C-04). The reaction `windshield_spray` in
+ * physics.ts sets it when btn.deice_windshield is pressed; the ice model and the windscreen layer
+ * read it. It drives no lamp.
+ */
+export const WINDSHIELD_SPRAY_ACTIVE = 'deice.windshield_spray';
 
 /** Flag for the gear moving or disagreeing with the lever; nothing sets it yet (deferred). */
 export const GEAR_IN_TRANSIT = 'gear.in_transit';

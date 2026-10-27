@@ -12,6 +12,9 @@ export const DA50RG_CUES = defineCues(
     // Smoke in the cabin over the panel (C-02): smoke_density runs 0 to 100; the overlay is at full
     // strength from 70.
     { id: 'cabin_smoke', quantity: 'smoke_density', from: 0, to: 70 },
+    // Ice on the windscreen, per half (C-05): the veil is at full strength from 60.
+    { id: 'ice_pilot_side', quantity: 'ice_pilot', from: 0, to: 60 },
+    { id: 'ice_copilot_side', quantity: 'ice_copilot', from: 0, to: 60 },
   ],
   DA50RG_QUANTITIES,
 );
