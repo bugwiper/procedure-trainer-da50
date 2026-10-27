@@ -248,6 +248,105 @@ describe('Electrical Fire with Smoke on Ground', () => {
   });
 });
 
+// Electrical Fire in Flight: the AFM page with its two WARNING blocks, graded on the two masters,
+// the circulating air and the ECS shut-off; the window and the door rows are optional (I-01).
+describe('Electrical Fire in Flight', () => {
+  const scenario = load('scenarios/fire/elec-fire-flight.toon');
+  const golden = events(
+    ['sw.av_master', 'off'],
+    ['sw.elect_master', 'off'],
+    ['lv.env_circ', 'fresh'],
+    ['lv.ecs_shutoff', 'pulled'],
+  );
+  const smokeAt = (log: readonly RecordedEvent[], atS: number): number =>
+    simulate(simSetup(DA50RG_ENV, scenario), {
+      events: log,
+      start: initialQuantities(scenario, DA50RG_ENV.quantities),
+      untilMs: atS * SECOND_MS,
+    }).state.quantities['smoke_density'] ?? Number.NaN;
+
+  it('is graded on the four critical steps and lists the window and the door as optional', () => {
+    const result = run(scenario, golden);
+    expect(result.result).toBe('pass');
+    const severities = Object.fromEntries(result.steps.map((s) => [s.id, s.severity]));
+    expect(severities).toEqual({
+      av_master_off: 'critical',
+      elect_master_off: 'critical',
+      circ_air_fresh: 'critical',
+      ecs_pulled: 'critical',
+      windows_open: 'optional',
+      doors_open: 'optional',
+    });
+  });
+
+  it('passes with the optional window and door steps open or not, in any order', () => {
+    const optional = events(['sw.emerg_window', 'open'], ['lv.door_release', 'open']);
+    const later = optional.map((e) => ({ ...e, t: e.t + 10 * SECOND_MS }));
+    expect(run(scenario, [...golden, ...later]).result).toBe('pass');
+    // The door credited before any critical step, as in flight the landing is not simulated.
+    const early = run(scenario, [
+      ...events(['lv.door_release', 'open']),
+      ...golden.map((e) => ({ ...e, t: e.t + SECOND_MS })),
+    ]);
+    expect(early.result).toBe('pass');
+    expect(credited(early, 'doors_open')).toBe(true);
+    expect(
+      run(
+        scenario,
+        [...golden].reverse().map((e, i) => ({ ...e, t: (i + 1) * SECOND_MS })),
+      ).result,
+    ).toBe('pass');
+  });
+
+  it('fails when any one critical step is missing', () => {
+    for (let skip = 0; skip < golden.length; skip++) {
+      const log = golden.filter((_, i) => i !== skip);
+      expect(failed(run(scenario, log)), golden[skip]?.id).toBe(true);
+    }
+  });
+
+  it('fails a run that does nothing and ends it in the outcome cabin_smoke_full', () => {
+    expect(failed(run(scenario, []))).toBe(true);
+    expect(run(scenario, [], 300 * SECOND_MS).outcome?.id).toBe('cabin_smoke_full');
+  });
+
+  it('keeps the smoke with the circulating air on recirc, then clears it under the golden actions', () => {
+    const start = initialQuantities(scenario, DA50RG_ENV.quantities);
+    expect(start['smoke_density']).toBe(40);
+    expect(smokeAt([], 40)).toBeGreaterThan(80);
+    // The golden run is done by 4 s; the smoke is below the cue's visible level within 60 s.
+    const cleared = smokeAt(golden, 60);
+    expect(cleared).toBeLessThan(20);
+    // Fresh air alone does not clear a live source, the electrical master does.
+    expect(smokeAt(events(['lv.env_circ', 'fresh']), 40)).toBeGreaterThan(80);
+  });
+
+  it('clears faster with the window open', () => {
+    const withWindow = smokeAt(
+      [...golden, ...events(['sw.emerg_window', 'open']).map((e) => ({ ...e, t: 5 * SECOND_MS }))],
+      30,
+    );
+    expect(withWindow).toBeLessThan(smokeAt(golden, 30));
+  });
+
+  it('clears the cue below the visible level in a golden Realistic replay', () => {
+    const log = golden.map((e) => ({ ...e, t: e.t + 10 * SECOND_MS }));
+    const levels = realisticLevels(scenario, 4 * SECOND_MS, 90 * SECOND_MS, log);
+    expect(cueVisible(levels['cabin_smoke'] ?? 1)).toBe(false);
+  });
+
+  it('shows the cabin smoke within the lint bound after a Realistic onset', () => {
+    const levels = realisticLevels(scenario, 4 * SECOND_MS, 12 * SECOND_MS);
+    expect(cueVisible(levels['cabin_smoke'] ?? 0)).toBe(true);
+    expect(cueVisible(realisticLevels(scenario, 4 * SECOND_MS, 0)['cabin_smoke'] ?? 0)).toBe(false);
+  });
+
+  it('keeps the static 140 knots on the PFD in flight', () => {
+    const start = initialQuantities(scenario, DA50RG_ENV.quantities);
+    expect(start['airspeed_kt']).toBe(DA50RG_ENV.quantities.baseValues()['airspeed_kt']);
+  });
+});
+
 // Smoke and Fire During Take-Off: two scenarios, the abort and the no abort (S-06).
 describe('Smoke and Fire During Take-Off, the abort', () => {
   const scenario = load('scenarios/fire/takeoff-fire-abort.toon');

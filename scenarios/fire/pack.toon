@@ -2,7 +2,7 @@
 format: 1
 title: Fire and smoke
 free: true
-scenarios[4]:
+scenarios[5]:
   - id: eng-fire-ground
     title: ENGINE FIRE GROUND
     file: eng-fire-ground
@@ -15,3 +15,6 @@ scenarios[4]:
   - id: takeoff-fire-no-abort
     title: T/O FIRE NO ABORT
     file: takeoff-fire-no-abort
+  - id: elec-fire-flight
+    title: ELEC FIRE FLIGHT
+    file: elec-fire-flight

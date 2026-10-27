@@ -1,0 +1,134 @@
+# ELECTRICAL FIRE WITH SMOKE in flight (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decisions 2026-10-23 and 2026-10-27): the heading, both WARNING blocks, every item, action and sub-heading as printed. The row marks are the letters A to H of the AFM page that was compared. ASSUMPTION for the owner: the booklet may print numbers 1 to 8 instead; the marks are plain data (the `number` fields), so swapping them is one edit per row plus the typed table in tests/checklist-reference.ts. The Emergency Windows row is an optional step on the window (printed "if required"); the Doors row is an optional step on the door release lever (the simulation has no landing, so the rows below the sub-heading may be done at any time and are credited whenever the door opens); the precautionary landing and the evacuation have no panel action and stay lines. All other text is own wording. The smoke source, the outcome threshold and hold time and the onset window are instructor-review values.
+format: 1
+id: elec-fire-flight
+title: ELEC FIRE FLIGHT
+source:
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
+  section: AFM 03-34 ELECTRICAL FIRE WITH SMOKE IN FLIGHT
+  verified: "2026-10-27"
+disclaimer: training-aid
+scene: cruise
+briefing:
+  situation: "You are in cruise flight when you smell burning plastic and smoke fills the cabin. No message is shown on the primary flight display. The smoke is getting thicker and its source seems to be electrical. The cabin air is set to recirculate."
+initial:
+  controls:
+    lv.env_circ: recirc
+  quantities:
+    smoke_density: 40
+parameters:
+  smoke_source: 1
+annunciations[0]:
+checklist:
+  form: table
+  heading: Electrical Fire in Flight
+procedure[11]:
+  - kind: comment
+    style: warning
+    text: "IN THE EVENT OF SMOKE OR FIRE, PREPARE TO LAND THE AIRPLANE WITHOUT DELAY WHILE COMPLETING FIRE SUPPRESSION AND/OR SMOKE EVACUATION PROCEDURES. IF IT CANNOT BE VISUALLY VERIFIED THAT THE FIRE HAS BEEN COMPLETELY EXTINGUISHED, WHETHER THE SMOKE HAS CLEARED OR NOT, LAND IMMEDIATELY."
+  - kind: group
+    id: grp_av_master
+    ordered: false
+    steps[1]:
+      - id: av_master_off
+        severity: critical
+        number: A
+        text: AVIONIC MASTER
+        action: "OFF"
+        done:
+          check: state
+          control: sw.av_master
+          is: off
+  - kind: comment
+    style: warning
+    text: "SWITCHING OFF THE ELECT. MASTER WILL LEAD TO TOTAL FAILURE OF ALL ELECTRONIC AND ELECTRIC EQUIPMENT."
+  - kind: group
+    id: grp_elect_master
+    ordered: false
+    steps[1]:
+      - id: elect_master_off
+        severity: critical
+        number: B
+        text: ELECT. MASTER
+        action: "OFF"
+        done:
+          check: state
+          control: sw.elect_master
+          is: off
+  - kind: group
+    id: grp_circ_air
+    ordered: false
+    steps[1]:
+      - id: circ_air_fresh
+        severity: critical
+        number: C
+        text: CIRCULATING AIR
+        action: FRESH AIR
+        done:
+          check: state
+          control: lv.env_circ
+          is: fresh
+  - kind: group
+    id: grp_ecs_pull
+    ordered: false
+    steps[1]:
+      - id: ecs_pulled
+        severity: critical
+        number: D
+        text: ECS shut-off
+        action: PULL
+        done:
+          check: state
+          control: lv.ecs_shutoff
+          is: pulled
+  - kind: group
+    id: grp_windows
+    ordered: false
+    steps[1]:
+      - id: windows_open
+        severity: optional
+        number: E
+        text: Emergency Windows
+        action: OPEN if required
+        done:
+          check: state
+          control: sw.emerg_window
+          is: open
+  - kind: line
+    number: F
+    text: Perform a precautionary landing on the nearest airfield.
+  - kind: comment
+    style: subheading
+    text: When Airplane Has Stopped
+  - kind: group
+    id: grp_doors
+    ordered: false
+    steps[1]:
+      - id: doors_open
+        severity: optional
+        number: G
+        text: Doors
+        action: open
+        done:
+          check: state
+          control: lv.door_release
+          is: open
+  - kind: line
+    number: H
+    text: Airplane
+    action: evacuate immediately
+# The outcome ends the run as a fail when the cabin stays full of smoke; the density and the hold time are instructor-review values.
+outcomes[1]:
+  - id: cabin_smoke_full
+    text: Cabin full of smoke
+    hold_s: 30
+    when:
+      check: quantity
+      quantity: smoke_density
+      op: gte
+      value: 95
+# The smoke of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
+# The smoke shows over the panel, since the scenario lists no message; the lint checks that it shows within seconds of the onset.
+onset:
+  window_s[2]: 2,6
+  cues[1]: cabin_smoke

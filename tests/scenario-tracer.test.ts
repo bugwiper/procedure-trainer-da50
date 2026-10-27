@@ -381,6 +381,7 @@ describe('the pack seam', () => {
             title: 'T/O FIRE NO ABORT',
             file: 'takeoff-fire-no-abort',
           },
+          { id: 'elec-fire-flight', title: 'ELEC FIRE FLIGHT', file: 'elec-fire-flight' },
         ],
       },
     ]);

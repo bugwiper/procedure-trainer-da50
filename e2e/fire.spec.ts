@@ -310,3 +310,83 @@ test('@hooks T/O FIRE NO ABORT: the four critical rows grade PASS, the window an
     );
   }
 });
+
+// Electrical Fire in Flight: smoke over the panel at the start on Easy, cleared by the golden
+// actions; the window and the door are optional rows.
+const FLIGHT_ROW = 'fire.elec-fire-flight';
+
+/** AVIONIC MASTER off, ELECT. MASTER off, CIRCULATING AIR fresh, the ECS shut-off pulled. */
+async function flightGolden(page: Page, hasTouch: boolean): Promise<void> {
+  await activate(page.locator('[data-hit="sw.av_master"]'), hasTouch);
+  await expect(control(page, 'sw.av_master')).toHaveAttribute('data-state', 'off');
+  await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
+  await expect(control(page, 'sw.elect_master')).toHaveAttribute('data-state', 'off');
+  await activate(page.locator('[data-detent="lv.env_circ:fresh"]'), hasTouch);
+  await expect(control(page, 'lv.env_circ')).toHaveAttribute('data-state', 'fresh');
+  await activate(page.locator('[data-detent="lv.ecs_shutoff:pulled"]'), hasTouch);
+  await expect(control(page, 'lv.ecs_shutoff')).toHaveAttribute('data-state', 'pulled');
+}
+
+test('@hooks Electrical Fire in Flight: smoke over the cruise scene from the start, the golden run clears it and grades PASS', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  await startScenario(page, hasTouch, FLIGHT_ROW, 'easy');
+  await expect(page.locator(scene('cruise'))).toHaveCount(1);
+  await expect(page.locator(SMOKE)).toHaveCount(1);
+  await expect(control(page, 'lv.env_circ')).toHaveAttribute('data-state', 'recirc');
+  // The aircraft flies: the PFD keeps the static airspeed.
+  await expect(page.locator(READOUT)).toHaveText('140');
+
+  await flightGolden(page, hasTouch);
+  await expect(page.locator(SMOKE)).toHaveCount(0, { timeout: CLEARS_WITHIN_MS });
+
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  for (const id of ['av_master_off', 'elect_master_off', 'circ_air_fresh', 'ecs_pulled']) {
+    await expect(page.locator(`[data-step-id="${id}"]`)).toHaveAttribute('data-verdict', 'Done');
+  }
+  for (const id of ['windows_open', 'doors_open']) {
+    await expect(page.locator(`[data-step-id="${id}"]`)).toHaveAttribute(
+      'data-verdict',
+      'Not done',
+    );
+  }
+});
+
+test('@hooks Electrical Fire in Flight: the optional door is credited when it opens, and a run without the masters grades FAIL', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  await startScenario(page, hasTouch, FLIGHT_ROW, 'easy');
+  await openDoor(page, hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+  await expect(page.locator('[data-step-id="doors_open"]')).toHaveAttribute('data-verdict', 'Done');
+  await expect(page.locator('[data-step-id="elect_master_off"]')).toHaveAttribute(
+    'data-verdict',
+    'Missed',
+  );
+});
+
+test('the ninth situation, Electrical Fire in Flight, stands on page 3 of CHOOSE SITUATION', async ({
+  page,
+  hasTouch,
+}) => {
+  const all = shippedScenarios();
+  const rows = SESSION_LAYOUT.choose.maxRows;
+  const index = all.findIndex((entry) => entry.row === FLIGHT_ROW);
+  expect(index).toBeGreaterThanOrEqual(0);
+  const pageOfRow = Math.floor(index / rows);
+  await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
+  await page.waitForTimeout(500);
+  for (let turned = 0; turned < pageOfRow; turned++) {
+    await expect(page.locator(`[data-session-hit="session.row.${FLIGHT_ROW}"]`)).toHaveCount(0);
+    await afterPairWindow(page);
+    await activate(page.locator('[data-session-hit="session.next"]'), hasTouch);
+  }
+  await expect(page.locator(`[data-session-hit="session.row.${FLIGHT_ROW}"]`)).toHaveCount(1);
+  expect(pageOfRow).toBe(2);
+});

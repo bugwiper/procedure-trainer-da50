@@ -79,6 +79,35 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
       { kind: 'row', number: 'F', item: 'Airplane', action: 'evacuate immediately' },
     ],
   },
+  'elec-fire-flight': {
+    form: 'table',
+    heading: 'Electrical Fire in Flight',
+    rows: [
+      {
+        kind: 'comment',
+        style: 'warning',
+        text: 'IN THE EVENT OF SMOKE OR FIRE, PREPARE TO LAND THE AIRPLANE WITHOUT DELAY WHILE COMPLETING FIRE SUPPRESSION AND/OR SMOKE EVACUATION PROCEDURES. IF IT CANNOT BE VISUALLY VERIFIED THAT THE FIRE HAS BEEN COMPLETELY EXTINGUISHED, WHETHER THE SMOKE HAS CLEARED OR NOT, LAND IMMEDIATELY.',
+      },
+      { kind: 'row', number: 'A', item: 'AVIONIC MASTER', action: 'OFF' },
+      {
+        kind: 'comment',
+        style: 'warning',
+        text: 'SWITCHING OFF THE ELECT. MASTER WILL LEAD TO TOTAL FAILURE OF ALL ELECTRONIC AND ELECTRIC EQUIPMENT.',
+      },
+      { kind: 'row', number: 'B', item: 'ELECT. MASTER', action: 'OFF' },
+      { kind: 'row', number: 'C', item: 'CIRCULATING AIR', action: 'FRESH AIR' },
+      { kind: 'row', number: 'D', item: 'ECS shut-off', action: 'PULL' },
+      { kind: 'row', number: 'E', item: 'Emergency Windows', action: 'OPEN if required' },
+      {
+        kind: 'row',
+        number: 'F',
+        item: 'Perform a precautionary landing on the nearest airfield.',
+      },
+      { kind: 'comment', style: 'subheading', text: 'When Airplane Has Stopped' },
+      { kind: 'row', number: 'G', item: 'Doors', action: 'open' },
+      { kind: 'row', number: 'H', item: 'Airplane', action: 'evacuate immediately' },
+    ],
+  },
   'takeoff-fire-abort': {
     form: 'table',
     heading: 'Smoke and Fire During Take-Off',
@@ -237,6 +266,7 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
 export const PRINTED_FILES: Readonly<Record<string, string>> = {
   'eng-fire-ground': 'scenarios/fire/eng-fire-ground.toon',
   'elec-fire-ground': 'scenarios/fire/elec-fire-ground.toon',
+  'elec-fire-flight': 'scenarios/fire/elec-fire-flight.toon',
   'takeoff-fire-abort': 'scenarios/fire/takeoff-fire-abort.toon',
   'takeoff-fire-no-abort': 'scenarios/fire/takeoff-fire-no-abort.toon',
   'elec-altn1-fail': 'scenarios/electrical/elec-altn1-fail.toon',
