@@ -44,7 +44,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-10**: The simulation can change a control by itself (a circuit breaker that pops at the onset, or pops again when pushed in while the fault is present), identically in the live run and in every replay
 - [x] **SCN-11**: The electrical system is a bus model (main, essential, battery, hot and avionics buses, bus tie relay, alternators, ESS BUS, ELECT. MASTER, breakers, battery) derived from control states and parameters; the ALTN 1 FAIL and ALTN 2 FAIL cautions come from an alternator control unit model, not from a current threshold
 - [x] **SCN-12**: A scenario declares its scene and its onset cues in data; lint rejects an unknown scene or cue, a cue visible at the Realistic start, a cue a do-nothing Realistic run does not show in time, and an onset that lists neither an annunciation nor a cue (L22 to L24)
-- [x] **SCN-13**: A checklist can be shown as the AFM prints it: letter row marks, italic sub-headings, WARNING and CAUTION blocks and comment rows; lint keeps the marks in one run and the comment styles to the table form
+- [x] **SCN-13**: A checklist can be shown as the booklet or the AFM prints it: number or letter row marks, comment rows, a boxed reference, italic sub-headings, WARNING and CAUTION blocks (the shipped fire, take-off and icing checklists follow the booklet edition 4.1, plan 05.1-04); lint keeps the marks in one run and the comment styles to the table form
 
 ### Session & Debrief
 

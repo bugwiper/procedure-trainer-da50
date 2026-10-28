@@ -515,6 +515,7 @@ Plans:
 **Wave 3** _(blocked on Wave 2 completion)_
 
 - [x] 05.1-03 — Tracer: Electrical Fire in Flight; Unintentional Flight Into Icing (the icing area ends, the spray keeps the pilot side clear); the phase-end documentation, requirements, todos and gates
+- [x] 05.1-04 — Direct rework: the fire and icing checklists follow the booklet edition 4.1 (number marks, booklet wording and comment rows, one Electric Fire / Smoke on Ground list, icing page 23 with the ICE PROTECTION FAILURE follow-on)
 
 ### Phase 6: Fuel, tank and engine fidelity and the engine page
 

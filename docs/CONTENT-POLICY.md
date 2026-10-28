@@ -26,7 +26,7 @@ A line the author adds that is not printed (for example an own graded step for a
 
 The line cap of the scenario schema is a layout bound for the screen, not a legal limit and not a style rule.
 
-Decided by the project owner on 2026-10-23, confirmed on 2026-10-27 for the WARNING and CAUTION blocks and the letter row marks of the ground and take-off checklists. It replaces the limit of 12 words per line and the own-words rule that the project owner decided on 2026-10-20 (option-a), for checklist text only.
+Decided by the project owner on 2026-10-23, confirmed on 2026-10-27 for the WARNING and CAUTION blocks and the letter row marks of the ground and take-off checklists. Confirmed on 2026-10-28: the checklist booklet edition 4.1 is the binding source, so a checklist follows the booklet page (number marks, its comment lines) where the AFM page differs. It replaces the limit of 12 words per line and the own-words rule that the project owner decided on 2026-10-20 (option-a), for checklist text only.
 
 ## 3. What must never be committed
 
