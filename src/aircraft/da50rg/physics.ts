@@ -4,6 +4,7 @@ import type { PhysicsInputs, QuantityModel } from '../../engine/physics';
 import { travelPercent } from '../../engine/predicates';
 import type { DetentLeverDef } from '../../engine/registry';
 import { DEFAULT_SCALE, STEP_MS, quantise } from '../../engine/sim';
+import { DEICE_HIGH_GPH, DEICE_NORM_GPH } from './deice-endurance';
 import { acuFault, electricalState } from './electrical';
 import { DEICE_MAX_ACTIVE, WINDSHIELD_PROTECT_ACTIVE, WINDSHIELD_SPRAY_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
@@ -148,7 +149,7 @@ const SMOKE_CLEAR_WINDOW = 1;
 const ICE_ACCRETE_PER_MIN = 40;
 const ICE_WARM_CLEAR_PER_MIN = 6;
 const ICE_SPRAY_CLEAR_PER_MIN = 6_000;
-const WINDSHIELD_SPRAY_MS = 10_000;
+export const WINDSHIELD_SPRAY_MS = 10_000;
 const WINDSHIELD_PROTECT_MS = 600_000;
 const MS_PER_MINUTE = 60_000;
 /** The icing area lasts this long (run time); the exposure quantity fills its 0 to 100 in that time. */
@@ -518,7 +519,33 @@ function airspeedTarget(inputs: PhysicsInputs): number {
 }
 
 /** The de-ice MAX run lasts 120 s of run time (owner finding G-1). */
-const DEICE_MAX_RUN_MS = 120_000;
+export const DEICE_MAX_RUN_MS = 120_000;
+
+// The de-ice fluid (Phase 6, plan 02, E-08; the owner's TKS figures of 2026-10-28, D-11): the tank
+// quantity deice_qty_gal falls by the flow of the de-ice mode, NORM 3 and HIGH 6 US gal/h (the same
+// constants the engine page uses for the endurance, deice-endurance.ts). One MAX activation takes
+// 0.4 gal in total over its 120 s run, taking the place of the HIGH flow during the run (open
+// owner point: whether the 0.4 gal come on top of the HIGH flow is a one-line change). One WIND
+// SHIELD spray takes 40 ml over its 10 s, on top of the mode flow (a separate nozzle). Volumes are
+// constants with the unit in the name; the conversion uses + - * / only.
+export const DEICE_MAX_ACTIVATION_GAL = 0.4;
+export const DEICE_SPRAY_ML = 40;
+export const ML_PER_US_GAL = 3785.41;
+const DEICE_SPRAY_GAL = DEICE_SPRAY_ML / ML_PER_US_GAL;
+
+/** The fluid flow of the de-ice system in US gallons per minute, negative: the tank empties. */
+function deiceFluidPerMinute(inputs: PhysicsInputs): number {
+  const mode = stateOf(inputs, 'sw.deice_mode');
+  const maxRun = mode === 'high' && inputs.flags[DEICE_MAX_ACTIVE] === true;
+  let used = 0;
+  if (maxRun) used = DEICE_MAX_ACTIVATION_GAL / (DEICE_MAX_RUN_MS / MS_PER_MINUTE);
+  else if (mode === 'high') used = DEICE_HIGH_GPH / MINUTES_PER_HOUR;
+  else if (mode === 'norm') used = DEICE_NORM_GPH / MINUTES_PER_HOUR;
+  if (inputs.flags[WINDSHIELD_SPRAY_ACTIVE] === true) {
+    used += DEICE_SPRAY_GAL / (WINDSHIELD_SPRAY_MS / MS_PER_MINUTE);
+  }
+  return -used;
+}
 
 // A shorted alternator pops its breaker again soon after the pilot pushes it in (phase 3.1, V-09;
 // alternator 2 in phase 4, E-08). The 2 s are an instructor-review value, not an AFM figure.
@@ -629,6 +656,8 @@ export const DA50RG_PHYSICS = definePhysics(
           running(inputs) ? OIL_FILM_PER_MIN * parameterOf(inputs, 'oil_leak') : 0,
       },
       { quantity: 'ground_speed_kt', mode: 'rate', perMinute: groundSpeedPerMinute },
+      // The de-ice fluid of the engine page: the mode flow, the MAX run and the WIND SHIELD spray (E-08).
+      { quantity: 'deice_qty_gal', mode: 'rate', perMinute: deiceFluidPerMinute },
       // The reading follows the target within one step (like the control unit flags).
       lag('airspeed_kt', STEP_MS, airspeedTarget),
     ],
@@ -652,7 +681,9 @@ export const DA50RG_PHYSICS = definePhysics(
       // D-04, SCN-06: pressing MAX with the de-ice mode on HIGH lights the top amber lamp for 120 s
       // of run time; leaving HIGH puts it out at once. A press with the mode on NORM or OFF starts
       // nothing, and a press during the run is ignored. The lamps read the flag, never the button.
-      // Still deferred (D-04): ANNUN-TEST, the ICE LIGHT effect and the ELT lamp in RESET / TEST.
+      // The flag also drives the fluid: the 0.4 gal of one activation leave the tank over the run
+      // (deiceFluidPerMinute). ANNUN TEST lights the lamps (indicators.ts). Still deferred (D-04): the
+      // ICE LIGHT effect (night only) and the ELT lamp in RESET / TEST (no source for its behaviour).
       {
         id: 'deice_max',
         on: { control: 'btn.deice_max', value: 'pressed' },
@@ -662,7 +693,8 @@ export const DA50RG_PHYSICS = definePhysics(
         clearsWhen: (controls) => controls['sw.deice_mode'] !== 'high',
       },
       // C-04: pressing WIND SHIELD sprays the windscreen for 10 s of run time, whatever the mode; a
-      // press during the spray is ignored and nothing ends it early.
+      // press during the spray is ignored and nothing ends it early. The spray also takes its 40 ml
+      // from the de-ice fluid (deiceFluidPerMinute).
       {
         id: 'windshield_spray',
         on: { control: 'btn.deice_windshield', value: 'pressed' },

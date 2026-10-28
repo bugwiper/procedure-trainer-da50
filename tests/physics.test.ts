@@ -461,9 +461,21 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
     return value;
   };
 
-  it('every quantity has exactly one model', () => {
+  /** The static display values of the engine page (Phase 6, E-05): no model moves them. */
+  const STATIC_DISPLAY = ['oxygen_psi', 'rudder_trim_pct', 'service_hours'];
+
+  it('every quantity has exactly one model, except the static display values of the engine page', () => {
     const modelled = DA50RG_PHYSICS.models.map((m) => m.quantity).sort();
-    expect(modelled).toEqual(DA50RG_QUANTITIES.all.map((d) => d.id).sort());
+    const expected = DA50RG_QUANTITIES.all
+      .map((d) => d.id)
+      .filter((id) => !STATIC_DISPLAY.includes(id))
+      .sort();
+    expect(modelled).toEqual(expected);
+  });
+
+  it('the static display values keep their value through a run', () => {
+    const after = settle({}, 5 * MINUTE);
+    for (const id of STATIC_DISPLAY) expect(q(after, id), id).toBe(baseOf(id));
   });
 
   it('C-09: at the registry defaults every lag target equals the base', () => {

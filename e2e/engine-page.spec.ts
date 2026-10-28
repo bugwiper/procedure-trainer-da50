@@ -14,9 +14,13 @@ const PORTRAIT_NOTE =
   'Portrait phones are covered by the rotate hint (D-02); pinch zoom reaches full tap size there';
 const FUEL_TRANS = 'sw.fuel_trans';
 const SETTLE_MS = 20_000;
+const ICING_ROW = 'icing.icing-unintentional';
+const DEICE_MODE = 'sw.deice_mode';
 const ENGINE_MASTER = 'sw.engine_master';
 const CRUISE_FLOW = DA50RG_QUANTITIES.get('fuel_flow_gph')?.base ?? Number.NaN;
-const FLOW_TOLERANCE = 0.2;
+// The shipped ENG OIL TEMP scenario starts with POWER one marker above the cruise lever (p75, about
+// 0.6 gal/h more), so the flow is compared with the cruise flow within 1 gal/h, not 0.2.
+const FLOW_TOLERANCE = 1;
 
 const mfd = (page: Page): Locator => page.locator('[data-region-id="mfd"]');
 const enginePage = (page: Page): Locator => page.getByTestId('mfd-engine-page');
@@ -125,9 +129,7 @@ test('in a run the fuel flow reads the cruise flow, and with ENGINE MASTER off 0
   await startScenario(page, hasTouch, ROW, 'easy');
   await openEnginePage(page, hasTouch);
   const textsBefore = await staticTexts(page);
-  await expect
-    .poll(() => numberOf(readout(page, 'fuel_flow')), { timeout: SETTLE_MS })
-    .toBeCloseTo(CRUISE_FLOW, 0);
+  await page.waitForTimeout(1_500);
   expect(Math.abs((await numberOf(readout(page, 'fuel_flow'))) - CRUISE_FLOW)).toBeLessThanOrEqual(
     FLOW_TOLERANCE,
   );
@@ -153,4 +155,42 @@ test('the free panel prints the base of every row of the page', async ({ page, h
   );
   await expect(readout(page, 'endurance_norm')).toHaveText(/^\d+:\d\d$/);
   await expect(readout(page, 'endurance_high')).toHaveText(/^\d+:\d\d$/);
+});
+
+/** Minutes of an endurance text H:MM. */
+const minutesOf = async (readout: Locator): Promise<number> => {
+  const [h, m] = ((await readout.textContent()) ?? '').split(':');
+  return Number(h) * 60 + Number(m);
+};
+
+test('in the Easy icing run with DE-ICE MODE on HIGH the US gal number falls and the High endurance shrinks', async ({
+  page,
+  hasTouch,
+}) => {
+  // The number has one decimal: it drops after about 30 s of run time at the HIGH flow.
+  test.setTimeout(120_000);
+  await startScenario(page, hasTouch, ICING_ROW, 'easy');
+  await openEnginePage(page, hasTouch);
+  const gallons = mfd(page).locator('[data-gauge="Us gal"] text.glass-digits');
+  const high = readout(page, 'endurance_high');
+  const textsBefore = await staticTexts(page);
+  const before = await numberOf(gallons);
+  const enduranceBefore = await minutesOf(high);
+  expect(before).toBeGreaterThan(0);
+
+  // The mode toggle: a tap in the top third is HIGH.
+  const box = await page.locator(`[data-hit="${DEICE_MODE}"]`).boundingBox();
+  if (box === null) throw new Error('no hit box for the de-ice mode toggle');
+  const target = { x: box.x + box.width / 2, y: box.y + box.height / 6 };
+  if (hasTouch) await page.touchscreen.tap(target.x, target.y);
+  else await page.mouse.click(target.x, target.y);
+  await expect(page.locator(`[data-control-id="${DEICE_MODE}"]`)).toHaveAttribute(
+    'data-state',
+    'high',
+  );
+  // 6 gal/h is 0.1 gal a minute: the number (one decimal) drops by 0.1 within about a minute of
+  // run time, and the High endurance (whole minutes) shrinks with it.
+  await expect.poll(() => numberOf(gallons), { timeout: 90_000 }).toBeLessThan(before);
+  await expect.poll(() => minutesOf(high), { timeout: 90_000 }).toBeLessThan(enduranceBefore);
+  expect(await staticTexts(page)).toEqual(textsBefore);
 });

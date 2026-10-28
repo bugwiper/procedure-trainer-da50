@@ -201,7 +201,7 @@ describe('DA50RG indicators', () => {
       15,
       'none',
     ]);
-    expect(def?.reads).toEqual(['sw.deice_mode']);
+    expect(def?.reads).toEqual(['sw.deice_mode', 'sw.deice_ice_light']);
     expect(DA50RG.get('lt.deice_norm')).toBeUndefined();
     for (const [mode, expected] of [
       ['off', false],
@@ -250,12 +250,47 @@ describe('DA50RG indicators', () => {
     }
   });
 
+  it('ANNUN TEST on the ICE LIGHT switch lights all three de-ice lamps, whatever the mode and the flag (E-09)', () => {
+    const lamps = ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm'];
+    for (const mode of ['off', 'norm', 'high']) {
+      for (const flag of [false, true]) {
+        const flags: Record<string, boolean> = flag ? { [DEICE_MAX_ACTIVE]: true } : {};
+        const lit = litMap({ 'sw.deice_mode': mode, 'sw.deice_ice_light': 'annun_test' }, flags);
+        const id = `${mode} flag ${String(flag)}`;
+        expect(
+          lamps.map((l) => lit[l]),
+          id,
+        ).toEqual([true, true, true]);
+        expect(deiceLamps(mode, flag, true), id).toEqual({ max: true, high: true, norm: true });
+      }
+    }
+  });
+
+  it('the ICE LIGHT switch at off or ice_light leaves the lamps to the mode, as before (E-09)', () => {
+    for (const light of ['off', 'ice_light']) {
+      for (const [mode, high, norm] of [
+        ['off', false, false],
+        ['norm', false, true],
+        ['high', true, false],
+      ] as const) {
+        const lit = litMap({ 'sw.deice_mode': mode, 'sw.deice_ice_light': light });
+        expect([lit['lt.deice_max'], lit['lt.deice_high'], lit['lt.deice_norm']]).toEqual([
+          false,
+          high,
+          norm,
+        ]);
+      }
+    }
+    // The pure function keeps its two-argument form: no lamp test unless asked for.
+    expect(deiceLamps('off', false)).toEqual({ max: false, high: false, norm: false });
+  });
+
   it('the MAX button itself lights nothing: only the flag and the mode do', () => {
     const lit = litMap({ 'sw.deice_mode': 'high', 'btn.deice_max': 'pressed' });
     expect(lit['lt.deice_max']).toBe(false);
     expect(lit['lt.deice_high']).toBe(true);
     for (const id of ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm']) {
-      expect(DA50RG_INDICATORS.get(id)?.reads, id).toEqual(['sw.deice_mode']);
+      expect(DA50RG_INDICATORS.get(id)?.reads, id).toEqual(['sw.deice_mode', 'sw.deice_ice_light']);
     }
     expect(DA50RG_INDICATORS.get('lt.deice_max')?.flags).toEqual([DEICE_MAX_ACTIVE]);
     // The store default (mode off) leaves all three dark.

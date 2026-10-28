@@ -223,19 +223,31 @@ const COWL_LAMPS: readonly IndicatorSpec[] = [
 // De-ice mode lamps (owner finding G-1, G-0.3): three lamps right of the MODE toggle, top to bottom
 // amber, amber, white, no captions. NORM lights the white lamp; HIGH lights the middle amber lamp;
 // the top amber lamp lights only while a MAX run is active (flag DEICE_MAX_ACTIVE) and the mode is
-// high. The lamps never read the MAX button: the press alone lights nothing.
+// high. The lamps never read the MAX button: the press alone lights nothing. ANNUN TEST (Phase 6,
+// plan 02, E-09): while the ICE LIGHT switch stands at ANNUN TEST all three lamps light, whatever
+// the mode is. Which lamps the real test lights is not in any source of the project; the three lamps
+// of the system are an assumption the owner confirms (docs/PANEL-REVIEW.md, Phase 6). The ICE LIGHT
+// position itself still has no effect (it matters at night only, a deferred todo).
 const DEICE_MODE = 'sw.deice_mode';
+const DEICE_ICE_LIGHT = 'sw.deice_ice_light';
+const ANNUN_TEST = 'annun_test';
 
-/** The three lamps of Table I2 as a pure function of the mode and the MAX flag. */
+/** The three lamps of Table I2 as a pure function of the mode, the MAX flag and the lamp test. */
 export function deiceLamps(
   mode: StateId,
   maxActive: boolean,
+  annunTest = false,
 ): { readonly max: boolean; readonly high: boolean; readonly norm: boolean } {
+  if (annunTest) return { max: true, high: true, norm: true };
   return { max: maxActive && mode === 'high', high: mode === 'high', norm: mode === 'norm' };
 }
 
 function deiceOf(inputs: IndicatorInputs) {
-  return deiceLamps(inputs.controls[DEICE_MODE] ?? '', inputs.flags[DEICE_MAX_ACTIVE] === true);
+  return deiceLamps(
+    inputs.controls[DEICE_MODE] ?? '',
+    inputs.flags[DEICE_MAX_ACTIVE] === true,
+    inputs.controls[DEICE_ICE_LIGHT] === ANNUN_TEST,
+  );
 }
 
 const DEICE_LAMPS: readonly IndicatorSpec[] = [
@@ -248,7 +260,7 @@ const DEICE_LAMPS: readonly IndicatorSpec[] = [
     r: 15,
     colour: 'amber',
     caption: 'none',
-    reads: [DEICE_MODE],
+    reads: [DEICE_MODE, DEICE_ICE_LIGHT],
     flags: [DEICE_MAX_ACTIVE],
     lit: (inputs) => deiceOf(inputs).max,
   },
@@ -261,7 +273,7 @@ const DEICE_LAMPS: readonly IndicatorSpec[] = [
     r: 15,
     colour: 'amber',
     caption: 'none',
-    reads: [DEICE_MODE],
+    reads: [DEICE_MODE, DEICE_ICE_LIGHT],
     lit: (inputs) => deiceOf(inputs).high,
   },
   {
@@ -273,7 +285,7 @@ const DEICE_LAMPS: readonly IndicatorSpec[] = [
     r: 15,
     colour: 'white',
     caption: 'none',
-    reads: [DEICE_MODE],
+    reads: [DEICE_MODE, DEICE_ICE_LIGHT],
     lit: (inputs) => deiceOf(inputs).norm,
   },
 ];

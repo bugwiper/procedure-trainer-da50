@@ -75,8 +75,9 @@ export const DEICE_CONTROLS: readonly ControlSpec[] = [
   {
     // One three-position toggle (owner finding G-1, plan 22): bottom to top ANNUN-TEST, OFF, ICE
     // LIGHT, default OFF (Q-02: maintained, no spring return). Nameless: the placards ICE LIGHT,
-    // OFF and ANNUN- / TEST (placards.ts) name the positions. Neither the ice light nor the
-    // annunciator self-test has a simulated effect yet; both come with the scenarios.
+    // OFF and ANNUN- / TEST (placards.ts) name the positions. At ANNUN TEST the three de-ice lamps
+    // light (indicators.ts, Phase 6); the ice light has no simulated effect yet (it matters at night,
+    // with the deferred dusk and night scenes).
     id: 'sw.deice_ice_light',
     kind: 'toggle',
     label: 'ICE LIGHT',

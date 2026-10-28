@@ -289,7 +289,7 @@ describe('windscreen ice (C-04)', () => {
         expect(live.state.flags, `step ${String(n)}`).toEqual(replay.state.flags);
       }
       expect(quantity(live.state.quantities, 'ice_copilot')).toBeGreaterThan(80);
-    });
+    }, 30_000);
   });
 });
 

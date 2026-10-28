@@ -183,6 +183,36 @@ test('de-ice lamps: NORM lights only the white lamp, HIGH only the middle amber 
   await expectLit('false', 'false', 'false');
 });
 
+test('ANNUN TEST on the ICE LIGHT switch lights the three de-ice lamps whatever the mode, and OFF puts them out', async ({
+  page,
+  hasTouch,
+}) => {
+  const hit = page.locator('[data-hit="sw.deice_ice_light"]');
+  const lamps = ['lt.deice_max', 'lt.deice_high', 'lt.deice_norm'] as const;
+  const tapAt = async (fraction: number, state: string) => {
+    await afterPairWindow(page);
+    const box = await hit.boundingBox();
+    if (box === null) throw new Error('no hit box for the ICE LIGHT toggle');
+    const position = { x: box.width / 2, y: box.height * fraction };
+    if (hasTouch) await hit.tap({ position });
+    else await hit.click({ position });
+    await expect(page.locator('[data-control-id="sw.deice_ice_light"]')).toHaveAttribute(
+      'data-state',
+      state,
+    );
+  };
+  for (const id of lamps) await expect(lamp(page, id)).toHaveAttribute('data-lit', 'false');
+  // The bottom third is ANNUN TEST: all three lamps light with the mode on OFF.
+  await tapAt(5 / 6, 'annun_test');
+  for (const id of lamps) await expect(lamp(page, id)).toHaveAttribute('data-lit', 'true');
+  // The middle third is OFF: they go out again.
+  await tapAt(1 / 2, 'off');
+  for (const id of lamps) await expect(lamp(page, id)).toHaveAttribute('data-lit', 'false');
+  // The lamps print no text of their own in the test either.
+  await tapAt(5 / 6, 'annun_test');
+  for (const id of lamps) await expect(lamp(page, id).locator('text')).toHaveCount(0);
+});
+
 test('@hooks lever moves record only lv.gear events and a tap on a lamp records none', async ({
   page,
   hasTouch,
