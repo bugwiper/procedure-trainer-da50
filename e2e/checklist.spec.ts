@@ -167,7 +167,7 @@ test('the Easy briefing of ALTN 1 FAIL reads like the printed table', async ({
   await noSidewaysScroll(briefing);
 });
 
-test('the Easy briefing of Engine Fire on Ground reads like the AFM page: letter marks and an italic sub-heading', async ({
+test('the Easy briefing of Engine Fire on Ground reads like the booklet page: number marks and plain comment rows', async ({
   page,
   hasTouch,
 }) => {
@@ -178,14 +178,36 @@ test('the Easy briefing of Engine Fire on Ground reads like the AFM page: letter
   await expect(list).toBeVisible();
   await expectTable(list, 'eng-fire-ground');
   await expectAlignment(list);
-  // The sub-heading is italic and bold, and the letters are the marks of the rows.
-  const sub = list.locator('li[data-style="subheading"] .outline-text');
-  await expect(sub).toHaveCSS('font-style', 'italic');
-  await expect(sub).toHaveCSS('font-weight', '700');
+  // The booklet has no italic sub-heading here; the numbers are the marks of the rows.
+  await expect(list.locator('li[data-style]')).toHaveCount(0);
   const marks = await list.locator('.outline-number').allTextContents();
   expect(marks).toEqual(rows(table.rows).map((row) => String(row.number)));
+  expect(marks).toEqual(['1', '2', '3', '4']);
   await noSidewaysScroll(briefing);
 });
+
+for (const [id, row] of [
+  ['elec-fire-ground', 'fire.elec-fire-ground'],
+  ['takeoff-fire-abort', 'fire.takeoff-fire-abort'],
+  ['takeoff-fire-no-abort', 'fire.takeoff-fire-no-abort'],
+  ['elec-fire-flight', 'fire.elec-fire-flight'],
+  ['icing-unintentional', 'icing.icing-unintentional'],
+] as const) {
+  test(`the Easy briefing of ${id} reads like the booklet table, numbers and comment rows as printed`, async ({
+    page,
+    hasTouch,
+  }) => {
+    const table = printedTable(id);
+    const briefing = await openBriefing(page, hasTouch, row);
+    await expect(briefing.getByTestId('checklist-title')).toHaveText(table.heading);
+    const list = briefing.getByTestId('briefing-outline').locator('ul.outline-table').first();
+    await expect(list).toBeVisible();
+    await expectTable(list, id);
+    await expectAlignment(list);
+    await expect(list.locator('li[data-style]')).toHaveCount(0);
+    await noSidewaysScroll(briefing);
+  });
+}
 
 /** The printed markers in reading order; the children of items for which `hide` is true are left out. */
 function printedMarkers(

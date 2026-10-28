@@ -1,9 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { parseScenario } from '../src/scenario/parse';
 import { SESSION_LAYOUT, pageCount } from '../src/ui/panel/session-area';
-import { forceVariant, startScenario, shippedScenarios } from './support/session';
+import { startScenario, shippedScenarios } from './support/session';
 import { activate, activateAt, afterPairWindow, leaveZoom, zoomIntoRegion } from './support/zoom';
 
 // The fire and smoke pack (Phase 5.1, plan 02) as the pilot meets it on the built panel: the
@@ -116,63 +114,62 @@ test('the fire situations stand on the pages of CHOOSE SITUATION after the four 
   }
 });
 
-// Electrical Fire with Smoke on Ground: smoke over the panel from the start, cleared by ELECT.
-// MASTER off, and the two causes (engine running or stopped) drawn by seed.
+// Electric Fire / Smoke on Ground: smoke over the panel from the start with the engine running,
+// cleared by ELECT. MASTER off; ONE checklist of five rows as in the booklet (no variants).
 const SMOKE = '[data-cue="cabin_smoke"]';
-const ELEC_FILE = 'fire/elec-fire-ground';
 const ELEC_ROW = 'fire.elec-fire-ground';
-const elecScenario = parseScenario(
-  readFileSync(new URL(`../scenarios/${ELEC_FILE}.toon`, import.meta.url), 'utf8'),
-);
-if (!elecScenario.ok) throw new Error(`${ELEC_FILE} does not parse`);
-const ELEC_VARIANTS = elecScenario.value.variants;
 const PORTRAIT_NOTE =
   'Portrait phones are covered by the rotate hint (D-02); pinch zoom reaches full tap size there';
 /** The smoke clears within about 20 s of the master off (rate 2, from 40); the spec allows 40 s. */
 const CLEARS_WITHIN_MS = 40_000;
 
-for (const variant of ELEC_VARIANTS) {
-  test(`@hooks Electrical Fire on Ground, cause ${variant.id}: smoke from the start, the golden run clears it and grades PASS`, async ({
-    page,
-    hasTouch,
-  }, testInfo) => {
-    test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
-    await forceVariant(page, ELEC_FILE, variant.id);
-    await startScenario(page, hasTouch, ELEC_ROW, 'easy');
-    await expect(page.locator(scene('parked'))).toHaveCount(1);
-    await expect(page.locator(SMOKE)).toHaveCount(1);
-    const stopped = variant.controls['sw.engine_master'] === 'off';
-    await expect(control(page, 'sw.engine_master')).toHaveAttribute(
-      'data-state',
-      stopped ? 'off' : 'on',
-    );
+test('@hooks Electric Fire / Smoke on Ground: smoke from the start, the golden run clears it and grades PASS', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  await startScenario(page, hasTouch, ELEC_ROW, 'easy');
+  await expect(page.locator(scene('parked'))).toHaveCount(1);
+  await expect(page.locator(SMOKE)).toHaveCount(1);
+  // One list, no cause: the engine runs at the start and the debrief names no cause.
+  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'on');
 
-    await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
-    await expect(control(page, 'sw.elect_master')).toHaveAttribute('data-state', 'off');
-    // The source is gone: the smoke thins and the cue is no longer drawn.
-    await expect(page.locator(SMOKE)).toHaveCount(0, { timeout: CLEARS_WITHIN_MS });
+  // Row 1: Electric master OFF. The source is gone: the smoke thins and the cue is no longer drawn.
+  await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
+  await expect(control(page, 'sw.elect_master')).toHaveAttribute('data-state', 'off');
+  await expect(page.locator(SMOKE)).toHaveCount(0, { timeout: CLEARS_WITHIN_MS });
 
-    if (!stopped) {
-      await activate(page.locator('[data-detent="lv.power:p0"]'), hasTouch);
-      await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p0');
-      await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
-      await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'off');
-      await zoomIntoRegion(page, hasTouch, 'pedestal');
-      await tapFuelSelectorRight(page, hasTouch);
-      await afterPairWindow(page);
-      await tapFuelSelectorRight(page, hasTouch);
-      await expect(control(page, 'sw.fuel_valve')).toHaveAttribute('data-state', 'off');
-      await leaveZoom(page, hasTouch);
-    }
-    await openDoor(page, hasTouch);
+  // Row 2: Power lever GROUND IDLE (GI).
+  await activate(page.locator('[data-detent="lv.power:p0"]'), hasTouch);
+  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p0');
+  // Row 3: Fuel valve OFF (two taps on the zoomed pedestal).
+  await zoomIntoRegion(page, hasTouch, 'pedestal');
+  await tapFuelSelectorRight(page, hasTouch);
+  await afterPairWindow(page);
+  await tapFuelSelectorRight(page, hasTouch);
+  await expect(control(page, 'sw.fuel_valve')).toHaveAttribute('data-state', 'off');
+  await leaveZoom(page, hasTouch);
+  // Row 4: Engine master OFF.
+  await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
+  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'off');
+  // Row 5: Doors OPEN.
+  await openDoor(page, hasTouch);
 
-    await activate(page.getByTestId('procedure-complete'), hasTouch);
-    await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
-    await expect(page.getByTestId('debrief-variant')).toHaveText(`Cause: ${variant.debrief}`);
-  });
-}
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.getByTestId('debrief-variant')).toHaveCount(0);
+  for (const id of [
+    'elect_master_off',
+    'power_idle',
+    'fuel_valve_off',
+    'engine_master_off',
+    'door_open',
+  ]) {
+    await expect(page.locator(`[data-step-id="${id}"]`)).toHaveAttribute('data-verdict', 'Done');
+  }
+});
 
-test('@hooks Electrical Fire on Ground without the master off grades FAIL and keeps the smoke', async ({
+test('@hooks Electric Fire / Smoke on Ground without the master off grades FAIL and keeps the smoke', async ({
   page,
   hasTouch,
 }) => {
