@@ -29,6 +29,10 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-18**: Failure cues are drawn from the simulation quantities, never from the DOM: engine fire flames and smoke outside the windscreen, cabin smoke over the instrument panel that never blocks a press, windscreen ice that warm air from the windscreen air control removes slowly and the WIND SHIELD spray clears on the pilot side only, and the cheap extras (stopped propeller, oil streaks)
 - [x] **PNL-19**: Aural cues are synthesised with Web Audio (a caution tone, one short bing, a warning tone, an engine drone that follows the rpm), are off until the user turns them on with a control that is not a panel label, and sound only during a live run
 - [x] **PNL-20**: The pilot's footwell has toe brakes (the service brakes, not the parking brake) on two pedals; the take-off roll has a ground speed that POWER above idle raises and the brakes lower, and the roll scene runs at that speed and stands at 0; the transponder sits in the co-pilot footwell beside the situation buttons; the red door lock lever at the far left opens the door and the oval emergency window above it is a separate control that opens by a click
+- [ ] **PNL-21**: The MFD engine page has the layout of the real page in three columns (Load and RPM arcs; Oil Pres, Oil Temp, Coolant Temp and Gearbox Temp bars and Rudder Trim; a Fuel box with one combined left and right quantity bar, Fuel Temp for both tanks, Fuel Press, FFlow GPH and a Fuel Calculator; the Electrical, Oxygen, De-Ice with its Endurance and Total Service boxes); the layout is data, every label is static, fuel, oil, coolant and gearbox readings follow the simulation, oxygen, rudder trim and total service are static display values
+- [ ] **PNL-22**: The de-ice fluid quantity and its Norm and High endurance follow the de-ice mode, the MAX run and the WIND SHIELD spray, and ANNUN TEST on the ICE LIGHT switch lights the de-ice lamps
+- [ ] **PNL-23**: Inside a situation the PFD airspeed, altitude, vertical speed, pitch and bank come from simulated quantities (a rolling horizon, sliding tapes, a vertical speed readout; heading stays static) while the free panel keeps its static readings
+- [ ] **PNL-24**: Whenever PITOT/STALL HEAT is off the PFD shows two yellow messages, PITOT HEAT and STALL HEAT; on the ground the stall heat cuts out a few seconds after the heat is on and STALL HEAT returns, airborne it does not
 
 ### Scenario Engine
 
@@ -45,6 +49,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-11**: The electrical system is a bus model (main, essential, battery, hot and avionics buses, bus tie relay, alternators, ESS BUS, ELECT. MASTER, breakers, battery) derived from control states and parameters; the ALTN 1 FAIL and ALTN 2 FAIL cautions come from an alternator control unit model, not from a current threshold
 - [x] **SCN-12**: A scenario declares its scene and its onset cues in data; lint rejects an unknown scene or cue, a cue visible at the Realistic start, a cue a do-nothing Realistic run does not show in time, and an onset that lists neither an annunciation nor a cue (L22 to L24)
 - [x] **SCN-13**: A checklist can be shown as the booklet or the AFM prints it: number or letter row marks, comment rows, a boxed reference, italic sub-headings, WARNING and CAUTION blocks (the shipped fire, take-off and icing checklists follow the booklet edition 4.1, plan 05.1-04); lint keeps the marks in one run and the comment styles to the table form
+- [ ] **SCN-14**: The fuel system is a model: two tanks of 26 US gal, the FUEL selector picks the tank, the common-rail return always flows into the left tank, FUEL TRANS pumps 60 US gal/h from the right to the left tank with a white FUEL TRANS advisory on the PFD, fuel flow, gallons used, calculator values and the fuel temperatures (left outside air temperature + 8 C, right left - 2 C) derive from the simulated state with + - * / only
+- [ ] **SCN-15**: A scenario scripts its flight in data (start quantities and an optional profile section of flight-profile parameters in force from the first second: level, climb, descent, bank, stopped, and the engine-stopped glide), identically in the live run and in every replay; lint rule L25 checks the profile against the aircraft
 
 ### Session & Debrief
 
@@ -156,6 +162,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCN-13 | Phase 5.1 | Complete |
 | SES-08 | Phase 5.1 | Complete |
 | CNT-05 | Phase 5.1 | Complete |
+| PNL-21 | Phase 6 | Pending |
+| PNL-22 | Phase 6 | Pending |
+| PNL-23 | Phase 6 | Pending |
+| PNL-24 | Phase 6 | Pending |
+| SCN-14 | Phase 6 | Pending |
+| SCN-15 | Phase 6 | Pending |
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |
@@ -166,8 +178,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLT-02 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 50 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1; SCN-11, PNL-16, CNT-04 added 2026-10-23 for phase 4; PNL-17, PNL-18, PNL-19, SCN-12 added 2026-10-27 for phase 5; PNL-20, SCN-13, SES-08, CNT-05 added 2026-10-27 for phase 5.1)
-- Mapped to phases: 50 (PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27)
+- v1 requirements: 56 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1; SCN-11, PNL-16, CNT-04 added 2026-10-23 for phase 4; PNL-17, PNL-18, PNL-19, SCN-12 added 2026-10-27 for phase 5; PNL-20, SCN-13, SES-08, CNT-05 added 2026-10-27 for phase 5.1; PNL-21, PNL-22, PNL-23, PNL-24, SCN-14, SCN-15 added 2026-10-28 for phase 6)
+- Mapped to phases: 56 (PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27; the six requirements of phase 6 are pending)
 - Unmapped: 0 ✓
 
 ---

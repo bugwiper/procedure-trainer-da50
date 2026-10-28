@@ -519,11 +519,29 @@ Plans:
 
 ### Phase 6: Fuel, tank and engine fidelity and the engine page
 
-**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. No free-panel simulation (owner decision 2026-10-27: too complex for too little gain); the simulation stays situation-based, and normal procedures become situations of their own, for example the alternator test of the normal checklist with ESS BUS on and off (the owner supplies the printed pages). The PFD becomes live inside situations: altitude, attitude and the other readings come from the simulated quantities (the airspeed on the takeoff roll is already driven in Phase 5.1; in flight a static 140 knots stays until then; owner decision 2026-10-27). Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and 2026-10-22-free-panel-simulation.md.
+**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. No free-panel simulation (owner decision 2026-10-27: too complex for too little gain); the simulation stays situation-based. Normal procedures as situations of their own, for example the alternator test of the normal checklist with ESS BUS on and off, wait for the owner's printed pages and are not part of this phase (D-02). The PFD becomes live inside situations: airspeed, altitude, vertical speed and attitude come from simulated quantities along a flight profile scripted per scenario (the airspeed on the takeoff roll is already driven in Phase 5.1; the static 140 knots stays on the free panel only; owner decision 2026-10-27; heading is not included). The folded todos are the de-ice fluid and ANNUN TEST, the pitot and stall heat messages; the emergency landing continuation moves to Phase 7. No new fuel scenarios (models and displays only). Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and 2026-10-22-free-panel-simulation.md; decisions in 06-CONTEXT.md.
 **Depends on**: Phase 4
-**Requirements**: TBD (to be defined when the phase is planned)
+**Requirements**: SCN-14, PNL-21, PNL-22, SCN-15, PNL-23, PNL-24
 
-**Plans**: TBD
+**Plans:** 0/4 plans complete (lean form, see WORKFLOW.md)
+
+Plans:
+
+**Wave 1**
+
+- [ ] 06-01 — Fuel model: two tanks of 26 gal with the FUEL selector, supply, burn and return flow into the left tank, FUEL TRANS at 60 gal/h with the white FUEL TRANS advisory (new CAS level), fuel temperatures from the outside air temperature, fuel flow, gallons used and the calculator values
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 06-02 — Engine page in the three columns of the real page as layout data (combined fuel gauge, fuel box with calculator, rudder trim, oxygen, de-ice with endurance, total service), live fuel, oil, coolant and gearbox; the de-ice fluid model and ANNUN TEST (folded de-ice todo)
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 06-03 — Live PFD: the scenario profile section and lint L25, flight regimes (ground, powered, engine stopped), altitude, vertical speed, pitch and bank, rolling horizon and tapes, the profile of every shipped scenario
+
+**Wave 4** _(blocked on Wave 3 completion)_
+
+- [ ] 06-04 — PITOT HEAT and STALL HEAT cautions with the ground cut-out (folded todo), the icing situation adapted by a heat-off variant, and the phase-end documentation
 
 ### Phase 7: Training Mode, Further Actions and Repeat Loop
 
