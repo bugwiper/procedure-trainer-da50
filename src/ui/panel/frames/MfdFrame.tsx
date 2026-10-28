@@ -8,6 +8,8 @@ import {
 import type { DisplayId } from '../../../aircraft/da50rg/avionics';
 import { ENGINE_PAGE } from '../../../aircraft/da50rg/engine-page';
 import type { PageEntry } from '../../../aircraft/da50rg/engine-page';
+import { deiceEndurance } from '../../../aircraft/da50rg/deice-endurance';
+import { formatEndurance, fuelCalculator } from '../../../aircraft/da50rg/fuel-calculator';
 import { DA50RG_QUANTITIES } from '../../../aircraft/da50rg/quantities';
 import type { BandColour, QuantityId } from '../../../engine/quantities';
 import type { Region } from '../../../engine/registry';
@@ -226,14 +228,42 @@ const VOLTS: GaugeSpec = quantityGauge('Volts', 'bus_volts', 1);
 
 type Quantities = Readonly<Record<QuantityId, number>>;
 
+/** A reading that is a finite number, else the fallback (a text node never prints NaN). */
+const finiteOr = (value: number | undefined, fallback: number): number =>
+  value !== undefined && Number.isFinite(value) ? value : fallback;
+
 /** The reading of a gauge: its quantity when the bridge has a value, else the quantity's base. */
 function readingOf(g: GaugeSpec, quantities: Quantities): number {
-  return quantities[g.quantity] ?? g.value;
+  return finiteOr(quantities[g.quantity], g.value);
 }
+
+/** Every quantity of the bridge, the base of the ones it has no value for. */
+function withBases(quantities: Quantities): Quantities {
+  return { ...DA50RG_QUANTITIES.baseValues(), ...quantities };
+}
+
+const ROW_LABEL = '#aab3bd';
+const ROW_VALUE = '#ffffff';
+/** Baseline of a one-line row below its top, as in the bar gauge. */
+const ROW_BASELINE = 11;
+/** The sub-box rows: first baseline below the box top, the pitch, the side padding. */
+const SUB_ROW_TOP = 16;
+const SUB_ROW_PITCH = 10;
+const SUB_ROW_PAD = 5;
+/** The rudder trim scale: inset from the row ends, line and mark offsets, tick heights. */
+const TRIM_INSET = 12;
+const TRIM_LINE_DY = 14;
+const TRIM_MARK_DY = 32;
+const TRIM_TICK_H = 4;
+const TRIM_TICK_CENTRE_H = 7;
+/** Room for the unit text HRS at the end of the service row. */
+const SERVICE_UNIT_W = 28;
+/** The range where there is none (engine stopped). */
+const NO_RANGE = '---';
 
 /** The value of a quantity by id: the bridge's value, else the quantity's base (0 if unknown). */
 function valueOf(quantity: QuantityId, quantities: Quantities): number {
-  return quantities[quantity] ?? DA50RG_QUANTITIES.get(quantity)?.base ?? 0;
+  return finiteOr(quantities[quantity], DA50RG_QUANTITIES.get(quantity)?.base ?? 0);
 }
 
 export const SCREEN_FILL = GLASS_DARK;
@@ -432,7 +462,198 @@ function PageEntryView({
           ))}
         </BoxFrame>
       );
-    default:
-      return null;
+    case 'flow': {
+      const value = valueOf(entry.quantity, quantities);
+      return (
+        <g data-row={entry.id} pointer-events="none">
+          <text x={entry.rect.x} y={entry.rect.y + ROW_BASELINE} font-size={10} fill={ROW_LABEL}>
+            {entry.label.toUpperCase()}
+          </text>
+          <text
+            class="glass-digits"
+            data-readout={entry.id}
+            x={entry.rect.x + entry.rect.w}
+            y={entry.rect.y + ROW_BASELINE}
+            text-anchor="end"
+            font-size={10}
+            fill={ROW_VALUE}
+          >
+            {value.toFixed(entry.decimals)}
+          </text>
+        </g>
+      );
+    }
+    case 'calculator': {
+      const calc = fuelCalculator(withBases(quantities));
+      const values = [
+        calc.remainGal.toFixed(1),
+        calc.usedGal.toFixed(1),
+        formatEndurance(calc.enduranceMin),
+        calc.rangeNm === null ? NO_RANGE : String(Math.round(calc.rangeNm)),
+      ];
+      const ids = ['calc_remain', 'calc_used', 'calc_endurance', 'calc_range'];
+      return (
+        <BoxFrame id={entry.id} title={entry.title} {...rectProps(entry)}>
+          {entry.labels.map((label, i) => (
+            <SubRow
+              key={label}
+              id={ids[i] ?? label}
+              label={label}
+              value={values[i] ?? ''}
+              x={entry.rect.x}
+              w={entry.rect.w}
+              y={entry.rect.y + SUB_ROW_TOP + i * SUB_ROW_PITCH}
+            />
+          ))}
+        </BoxFrame>
+      );
+    }
+    case 'endurance': {
+      const found = deiceEndurance(valueOf(entry.quantity, quantities));
+      const values = [formatEndurance(found.normMin), formatEndurance(found.highMin)];
+      const ids = ['endurance_norm', 'endurance_high'];
+      return (
+        <BoxFrame id={entry.id} title={entry.title} {...rectProps(entry)}>
+          {entry.labels.map((label, i) => (
+            <SubRow
+              key={label}
+              id={ids[i] ?? label}
+              label={label}
+              value={values[i] ?? ''}
+              x={entry.rect.x}
+              w={entry.rect.w}
+              y={entry.rect.y + SUB_ROW_TOP + i * SUB_ROW_PITCH}
+            />
+          ))}
+        </BoxFrame>
+      );
+    }
+    case 'trim': {
+      const def = DA50RG_QUANTITIES.get(entry.quantity);
+      const min = def?.min ?? -100;
+      const max = def?.max ?? 100;
+      const value = Math.min(max, Math.max(min, valueOf(entry.quantity, quantities)));
+      const scaleAt = (v: number): number =>
+        entry.rect.x + TRIM_INSET + ((v - min) / (max - min)) * (entry.rect.w - 2 * TRIM_INSET);
+      const lineY = entry.rect.y + TRIM_LINE_DY;
+      const ticks = [min, min + (max - min) / 4, min + (max - min) / 2, max - (max - min) / 4, max];
+      const pointerX = scaleAt(value);
+      return (
+        <g data-row={entry.id} pointer-events="none">
+          <line
+            x1={scaleAt(min)}
+            y1={lineY}
+            x2={scaleAt(max)}
+            y2={lineY}
+            stroke={ROW_LABEL}
+            stroke-width={1.5}
+          />
+          {ticks.map((t, i) => (
+            <line
+              key={t}
+              x1={scaleAt(t)}
+              y1={lineY}
+              x2={scaleAt(t)}
+              y2={lineY + (i === 2 ? TRIM_TICK_CENTRE_H : TRIM_TICK_H)}
+              stroke={ROW_LABEL}
+              stroke-width={1.5}
+            />
+          ))}
+          <path
+            data-trim-pointer
+            d={`M ${pointerX} ${lineY - 1} l -4 -6 l 8 0 z`}
+            fill={ROW_VALUE}
+          />
+          <text
+            x={scaleAt(min)}
+            y={entry.rect.y + TRIM_MARK_DY}
+            text-anchor="middle"
+            font-size={8}
+            fill={ROW_LABEL}
+          >
+            {entry.marks[0]}
+          </text>
+          <text
+            x={scaleAt(max)}
+            y={entry.rect.y + TRIM_MARK_DY}
+            text-anchor="middle"
+            font-size={8}
+            fill={ROW_LABEL}
+          >
+            {entry.marks[1]}
+          </text>
+        </g>
+      );
+    }
+    case 'service': {
+      const value = valueOf(entry.quantity, quantities);
+      return (
+        <g data-row={entry.id} pointer-events="none">
+          <text
+            class="glass-digits"
+            data-readout={entry.id}
+            x={entry.rect.x + entry.rect.w - SERVICE_UNIT_W}
+            y={entry.rect.y + ROW_BASELINE}
+            text-anchor="end"
+            font-size={10}
+            fill={ROW_VALUE}
+          >
+            {value.toFixed(entry.decimals)}
+          </text>
+          <text
+            x={entry.rect.x + entry.rect.w}
+            y={entry.rect.y + ROW_BASELINE}
+            text-anchor="end"
+            font-size={10}
+            fill={ROW_LABEL}
+          >
+            {entry.unit}
+          </text>
+        </g>
+      );
+    }
   }
+}
+
+const rectProps = (entry: PageEntry) => ({
+  x: entry.rect.x,
+  y: entry.rect.y,
+  w: entry.rect.w,
+  h: entry.rect.h,
+});
+
+/** One row of a sub-box (calculator, endurance): the static label at the left, the number at the right. */
+function SubRow({
+  id,
+  label,
+  value,
+  x,
+  w,
+  y,
+}: {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly x: number;
+  readonly w: number;
+  readonly y: number;
+}) {
+  return (
+    <g data-row={id} pointer-events="none">
+      <text x={x + SUB_ROW_PAD} y={y} font-size={8} fill={ROW_LABEL}>
+        {label}
+      </text>
+      <text
+        class="glass-digits"
+        data-readout={id}
+        x={x + w - SUB_ROW_PAD}
+        y={y}
+        text-anchor="end"
+        font-size={8}
+        fill={ROW_VALUE}
+      >
+        {value}
+      </text>
+    </g>
+  );
 }

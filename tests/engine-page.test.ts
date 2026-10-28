@@ -11,8 +11,14 @@ import {
   FUEL_QTY_SCALE,
   GAUGE_ROWS,
   INNER_ROWS,
+  CALCULATOR_READOUTS,
+  ENDURANCE_READOUTS,
+  FLOW_ROW,
   LABELS,
   MIN_CELL_H,
+  MIN_ROW_H,
+  SERVICE_ROW,
+  TRIM_ROW,
   PAGE_ZONE,
   ZONE_MARGIN,
 } from './engine-page-reference';
@@ -157,6 +163,14 @@ describe('the layout data against the reference', () => {
     }
   });
 
+  it('gives each text row and sub-box a cell tall enough for its lines', () => {
+    for (const entry of all) {
+      if (entry.kind === 'arc' || entry.kind === 'bar' || entry.kind === 'dual') continue;
+      if (entry.kind === 'frame') continue;
+      expect(entry.rect.h, entry.id).toBeGreaterThanOrEqual(MIN_ROW_H[entry.kind]);
+    }
+  });
+
   it('puts each arc centre and radius inside its cell, with the sweep clear of the neighbours', () => {
     for (const entry of all) {
       if (entry.kind !== 'arc') continue;
@@ -207,7 +221,10 @@ describe('the drawn engine page against the reference', () => {
   const nested = Object.values(INNER_ROWS).flat();
 
   it('draws a box for every framed entry and a gauge for every gauge row, nothing else', () => {
-    const framed = all.filter((e) => e.kind === 'frame').map((e) => e.id);
+    // Frames and the two sub-boxes (calculator, endurance) are drawn as boxes.
+    const framed = all
+      .filter((e) => e.kind === 'frame' || e.kind === 'calculator' || e.kind === 'endurance')
+      .map((e) => e.id);
     expect(boxIds().sort()).toEqual([...framed].sort());
     const gauges = findElements(content, (e) => e.props['data-gauge'] !== undefined).map((e) =>
       String(e.props['data-gauge']),
@@ -266,5 +283,125 @@ describe('the drawn engine page against the reference', () => {
       textOf(e),
     );
     expect(numerals).toEqual(FUEL_QTY_SCALE.map(String));
+  });
+});
+
+describe('the text rows, the sub-boxes and the rudder trim', () => {
+  const draw = (values: Record<string, number>, raw = false) =>
+    expand(
+      MfdFrame({
+        region: mfd,
+        bridge: raw
+          ? ({
+              registry: DA50RG,
+              stateOf: () => ({ value: 'engine' }),
+              quantities: { value: values },
+              cas: { value: [] },
+            } as unknown as PanelBridge)
+          : bridge(values),
+      }),
+    );
+  const readout = (tree: ReturnType<typeof draw>, id: string): string => {
+    const found = findElements(tree, (e) => e.props['data-readout'] === id)[0];
+    if (found === undefined) throw new Error(`no readout ${id}`);
+    return textOf(found);
+  };
+  const base = (id: string): number => DA50RG_QUANTITIES.get(id)?.base ?? Number.NaN;
+
+  it('prints the fuel flow with one decimal from the quantity', () => {
+    expect(readout(draw({ [FLOW_ROW.quantity]: 7.26 }), FLOW_ROW.id)).toBe('7.3');
+    expect(readout(draw({ [FLOW_ROW.quantity]: 0 }), FLOW_ROW.id)).toBe('0.0');
+  });
+
+  it('prints remain, used, endurance and range of the calculator from the quantities', () => {
+    const tree = draw({
+      fuel_qty_lh_gal: 10,
+      fuel_qty_rh_gal: 5.5,
+      fuel_used_gal: 3.2,
+      fuel_flow_gph: 10,
+      airspeed_kt: 100,
+    });
+    expect(CALCULATOR_READOUTS.map((id) => readout(tree, id))).toEqual([
+      '15.5',
+      '3.2',
+      '1:33',
+      '155',
+    ]);
+  });
+
+  it('with the engine stopped the flow reads 0.0, the endurance --:-- and the range has no figure', () => {
+    const tree = draw({ fuel_flow_gph: 0 });
+    expect(readout(tree, FLOW_ROW.id)).toBe('0.0');
+    expect(readout(tree, 'calc_endurance')).toBe('--:--');
+    expect(readout(tree, 'calc_range')).toBe('---');
+  });
+
+  it('prints the Norm and High endurance of the de-ice quantity, and 0:00 when it is empty', () => {
+    // 6.8 gal at the owner flows of 3 and 6 gal/h: 136 and 68 minutes.
+    expect(ENDURANCE_READOUTS.map((id) => readout(draw({ deice_qty_gal: 6.8 }), id))).toEqual([
+      '2:16',
+      '1:08',
+    ]);
+    expect(ENDURANCE_READOUTS.map((id) => readout(draw({ deice_qty_gal: 3.4 }), id))).toEqual([
+      '1:08',
+      '0:34',
+    ]);
+    expect(ENDURANCE_READOUTS.map((id) => readout(draw({ deice_qty_gal: 0 }), id))).toEqual([
+      '0:00',
+      '0:00',
+    ]);
+  });
+
+  it('prints the total service with one decimal', () => {
+    expect(readout(draw({ [SERVICE_ROW.quantity]: 1234.56 }), SERVICE_ROW.id)).toBe('1234.6');
+  });
+
+  it('puts the rudder trim pointer on the scale: left of centre, at centre, right of centre', () => {
+    const def = DA50RG_QUANTITIES.get(TRIM_ROW.quantity);
+    if (def === undefined) throw new Error('no trim quantity');
+    const pointerX = (value: number): number => {
+      const tree = draw({ [TRIM_ROW.quantity]: value });
+      const p = findElements(tree, (e) => e.props['data-trim-pointer'] !== undefined)[0];
+      return Number(/^M ([\d.-]+) /.exec(String(p?.props['d']))?.[1]);
+    };
+    const lo = pointerX(def.min);
+    const mid = pointerX(0);
+    const hi = pointerX(def.max);
+    expect(lo).toBeLessThan(mid);
+    expect(mid).toBeLessThan(hi);
+    expect(mid - lo).toBeCloseTo(hi - mid, 6);
+    expect(pointerX(def.max / 2)).toBeCloseTo((mid + hi) / 2, 6);
+    // A value beyond the range stays on the scale.
+    expect(pointerX(def.max * 3)).toBeCloseTo(hi, 6);
+  });
+
+  it('without a value every box prints the base of its quantity', () => {
+    const tree = draw({}, true);
+    expect(readout(tree, FLOW_ROW.id)).toBe(base(FLOW_ROW.quantity).toFixed(FLOW_ROW.decimals));
+    expect(readout(tree, SERVICE_ROW.id)).toBe(
+      base(SERVICE_ROW.quantity).toFixed(SERVICE_ROW.decimals),
+    );
+    expect(readout(tree, 'endurance_norm')).toBe('2:16');
+    expect(readout(tree, 'calc_remain')).toBe(
+      (base('fuel_qty_lh_gal') + base('fuel_qty_rh_gal')).toFixed(1),
+    );
+  });
+
+  it('never prints NaN or Infinity, whatever a quantity holds (T-06-04)', () => {
+    const bad = Object.fromEntries(
+      DA50RG_QUANTITIES.all.map((d, i) => [
+        d.id,
+        i % 2 === 0 ? Number.NaN : Number.POSITIVE_INFINITY,
+      ]),
+    );
+    const tree = draw(bad, true);
+    const everything = findElements(tree, () => true)
+      .flatMap((e) => e.children)
+      .filter((c): c is string => typeof c === 'string');
+    for (const text of everything) {
+      expect(text, text).not.toMatch(/NaN|Infinity/);
+    }
+    const attrs = findElements(tree, () => true).flatMap((e) => Object.values(e.props));
+    for (const value of attrs) expect(String(value)).not.toMatch(/NaN/);
   });
 });

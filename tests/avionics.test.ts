@@ -497,6 +497,8 @@ const GAUGE_REFERENCE: readonly {
   readonly decimals: number;
   /** A second pointer reading another quantity (the Amps bar); the readouts print without unit. */
   readonly second?: string;
+  /** False: the bar prints the number alone (the label already names the unit). */
+  readonly unit?: boolean;
 }[] = [
   { label: 'RPM', quantity: 'rpm', decimals: 0 },
   { label: 'Load', quantity: 'load_pct', decimals: 0 },
@@ -505,6 +507,10 @@ const GAUGE_REFERENCE: readonly {
   { label: 'Coolant temp', quantity: 'coolant_temp_c', decimals: 0 },
   { label: 'Gearbox temp', quantity: 'gearbox_temp_c', decimals: 0 },
   { label: 'Fuel qty', quantity: 'fuel_qty_lh_gal', decimals: 1, second: 'fuel_qty_rh_gal' },
+  { label: 'Fuel temp', quantity: 'fuel_temp_lh_c', decimals: 0, second: 'fuel_temp_rh_c' },
+  { label: 'Fuel press', quantity: 'fuel_pressure_bar', decimals: 1 },
+  { label: 'Psi', quantity: 'oxygen_psi', decimals: 0, unit: false },
+  { label: 'Us gal', quantity: 'deice_qty_gal', decimals: 1, unit: false },
   { label: 'Volts', quantity: 'bus_volts', decimals: 1 },
   { label: 'Amps', quantity: 'alt1_amps', decimals: 0, second: 'alt2_amps' },
 ];
@@ -627,7 +633,8 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
           expect(readoutsOf(gaugeOf(tree, label)), label).toEqual([shown, shown2]);
           continue;
         }
-        const expected = isArc(pageName, label) ? shown : `${shown} ${def.unit.toUpperCase()}`;
+        const bare = isArc(pageName, label) || refOf(label).unit === false;
+        const expected = bare ? shown : `${shown} ${def.unit.toUpperCase()}`;
         expect(readoutOf(gaugeOf(tree, label)), label).toBe(expected);
       }
     },
@@ -646,7 +653,8 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
         ]);
         continue;
       }
-      const expected = isArc('engine', g.label) ? shown : `${shown} ${def?.unit.toUpperCase()}`;
+      const bare = isArc('engine', g.label) || g.unit === false;
+      const expected = bare ? shown : `${shown} ${def?.unit.toUpperCase()}`;
       expect(readoutOf(gaugeOf(tree, g.label)), g.label).toBe(expected);
     }
   });

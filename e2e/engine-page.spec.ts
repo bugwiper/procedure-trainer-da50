@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { COLUMN_ORDER, GAUGE_ROWS, LABELS } from '../tests/engine-page-reference';
+import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { startScenario } from './support/session';
 import { activate } from './support/zoom';
 
@@ -13,6 +14,9 @@ const PORTRAIT_NOTE =
   'Portrait phones are covered by the rotate hint (D-02); pinch zoom reaches full tap size there';
 const FUEL_TRANS = 'sw.fuel_trans';
 const SETTLE_MS = 20_000;
+const ENGINE_MASTER = 'sw.engine_master';
+const CRUISE_FLOW = DA50RG_QUANTITIES.get('fuel_flow_gph')?.base ?? Number.NaN;
+const FLOW_TOLERANCE = 0.2;
 
 const mfd = (page: Page): Locator => page.locator('[data-region-id="mfd"]');
 const enginePage = (page: Page): Locator => page.getByTestId('mfd-engine-page');
@@ -34,6 +38,8 @@ const numberOf = async (readout: Locator): Promise<number> =>
   Number.parseFloat((await readout.textContent()) ?? 'NaN');
 const fuelQty = (page: Page, which: '1' | '2'): Promise<number> =>
   numberOf(mfd(page).locator(`[data-gauge="Fuel qty"] [data-dual-readout="${which}"]`));
+
+const readout = (page: Page, id: string): Locator => mfd(page).locator(`[data-readout="${id}"]`);
 
 /** Every drawn text of the page that is not a readout number, trimmed. */
 const staticTexts = (page: Page): Promise<string[]> =>
@@ -110,4 +116,41 @@ test('in a run the left fuel quantity rises and the right one falls with FUEL TR
   await expect.poll(() => fuelQty(page, '2'), { timeout: SETTLE_MS }).toBeLessThan(right);
   // Only numbers moved: the static texts are the same.
   expect(await staticTexts(page)).toEqual(textsBefore);
+});
+
+test('in a run the fuel flow reads the cruise flow, and with ENGINE MASTER off 0.0 and no endurance', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, ROW, 'easy');
+  await openEnginePage(page, hasTouch);
+  const textsBefore = await staticTexts(page);
+  await expect
+    .poll(() => numberOf(readout(page, 'fuel_flow')), { timeout: SETTLE_MS })
+    .toBeCloseTo(CRUISE_FLOW, 0);
+  expect(Math.abs((await numberOf(readout(page, 'fuel_flow'))) - CRUISE_FLOW)).toBeLessThanOrEqual(
+    FLOW_TOLERANCE,
+  );
+  await expect(readout(page, 'calc_endurance')).toHaveText(/^\d+:\d\d$/);
+
+  await activate(page.locator(`[data-hit="${ENGINE_MASTER}"]`), hasTouch);
+  await expect(page.locator(`[data-control-id="${ENGINE_MASTER}"]`)).toHaveAttribute(
+    'data-state',
+    'off',
+  );
+  await expect(readout(page, 'fuel_flow')).toHaveText('0.0', { timeout: SETTLE_MS });
+  await expect(readout(page, 'calc_endurance')).toHaveText('--:--');
+  // Numbers changed, words did not.
+  expect(await staticTexts(page)).toEqual(textsBefore);
+  expect(new Set(await staticTexts(page))).toEqual(new Set(LABELS));
+});
+
+test('the free panel prints the base of every row of the page', async ({ page, hasTouch }) => {
+  await openEnginePage(page, hasTouch);
+  await expect(readout(page, 'fuel_flow')).toHaveText(CRUISE_FLOW.toFixed(1));
+  await expect(readout(page, 'service_hours')).toHaveText(
+    (DA50RG_QUANTITIES.get('service_hours')?.base ?? Number.NaN).toFixed(1),
+  );
+  await expect(readout(page, 'endurance_norm')).toHaveText(/^\d+:\d\d$/);
+  await expect(readout(page, 'endurance_high')).toHaveText(/^\d+:\d\d$/);
 });

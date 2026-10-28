@@ -254,6 +254,32 @@ The glass displays, their knob and key columns and the three centre-stack units 
 | Autopilot panel | VOL, PUSH ID (small knob); NAV, PUSH, 1-2 (NAV knob); HDG, PUSH, HDG SYNC (HDG knob); key legends AP, YD, FD, HDG, NAV, APR, ALT, VNV, VS, NOSE UP, FLC, NOSE DN; ALT (ALT knob) | photo read, assumption (the column is the left strip of the MFD in the photos, U2-17) | `avionics.ts` (`AUTOPILOT_PANEL`), `frames/AutopilotPanelFrame.tsx` |
 | Backup EFIS | KTS, FEET, BARO (the labels of the tape display; the numerals and readings are idle artwork, not labels) | photo read, medium confidence (U2-18) | `avionics.ts` (`STANDBY_EFIS`), `frames/StandbyEfisFrame.tsx` |
 
+## MFD engine page text (phase 6)
+
+The engine page of the MFD (page softkey in the engine position) draws three columns of boxes. All its text is static and in capitals on the glass (the frame keeps the capital convention of the gauge boxes); only numbers, pointers and colours move with the simulation, never a word (G-0). The old heading ENGINE inside the glass is gone: the header already reads EIS - Engine, and the real page has no second heading. The layout is data (`src/aircraft/da50rg/engine-page.ts`), the label table of the tests is `tests/engine-page-reference.ts`. The label words are read from the owner's photo of the real page (high confidence); the capital case is a convention. Positions and sizes of the boxes are an owner review item (see `docs/PANEL-REVIEW.md`, section Phase 6).
+
+| Box | Static labels | Basis | File to edit |
+|-----|---------------|-------|--------------|
+| Left column, arc | LOAD (unit %) | photo read, high confidence | `engine-page.ts`, `frames/ArcGauge.tsx` |
+| Left column, bars | OIL PRES, OIL TEMP, COOLANT TEMP, GEARBOX TEMP (each number carries its unit) | photo read, high confidence | `engine-page.ts`, `frames/BarGauge.tsx` |
+| Rudder Trim | RUDDER TRIM, the end marks L and R | photo read, high confidence | `engine-page.ts`, `frames/MfdFrame.tsx` |
+| Middle column, arc | RPM (unit RPM) | photo read, high confidence | `engine-page.ts`, `frames/ArcGauge.tsx` |
+| Fuel box | FUEL, FUEL QTY with the pointer marks L and R and the scale numerals 0, 5, 10, 15, 20, 25; FUEL TEMP with the pointer marks L and R; FUEL PRESS; FFLOW GPH | photo read, high confidence | `engine-page.ts`, `frames/DualGauge.tsx`, `frames/MfdFrame.tsx` |
+| Fuel Calculator | FUEL CALCULATOR, GALLONS REMAIN, GALLONS USED, ENDURANCE, RANGE NM | photo read, high confidence | `engine-page.ts`, `frames/MfdFrame.tsx` |
+| Electrical | ELECTRICAL, AMPS with the pointer marks 1 and 2, VOLTS | photo read, high confidence (phase 4) | `engine-page.ts`, `frames/DualGauge.tsx` |
+| Oxygen | OXYGEN, PSI | photo read, high confidence | `engine-page.ts`, `frames/MfdFrame.tsx` |
+| De-Ice | DE-ICE, US GAL; the Endurance sub-box: ENDURANCE, NORM:, HIGH: | photo read, high confidence | `engine-page.ts`, `frames/MfdFrame.tsx` |
+| Total Service | TOTAL SERVICE, HRS | photo read, high confidence | `engine-page.ts`, `frames/MfdFrame.tsx` |
+
+Layout assumptions, flagged for review (none is an AFM figure; the quantities are in `src/aircraft/da50rg/quantities.ts` and show a static value unless a scenario sets them):
+
+| Quantity | Assumption | Review |
+|----------|------------|--------|
+| `oxygen_psi` | base 1270 psi, scale 0 to 2000, bands red to 250, yellow to 400, green to 1700, unmarked above | owner confirms values and bands |
+| `rudder_trim_pct` | base 0 (neutral), scale -100 to 100, no bands | owner confirms the scale |
+| `service_hours` | base 249.5 h, no bands | owner confirms the figure |
+| `deice_qty_gal` | tank maximum 8.3 US gal (the owner figure), base 6.8, bands red to 1, green above | owner confirms the base and the red limit |
+
 ## Superseded by the owner findings
 
 These ids existed in the first render and were removed by the plan named; the labels they carried (MODE, WIND SHIELD, PUMP 1, PUMP 2, ANNUN TEST) move to the placards of the new ids above.

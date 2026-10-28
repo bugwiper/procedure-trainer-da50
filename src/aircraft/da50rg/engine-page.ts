@@ -73,7 +73,39 @@ export interface CalculatorEntry extends Base {
   readonly labels: readonly [string, string, string, string];
 }
 
-export type PageEntry = ArcEntry | BarEntry | DualEntry | FrameEntry | FlowEntry | CalculatorEntry;
+/** The rudder trim scale: ticks, a pointer from the quantity and the end marks. */
+export interface TrimEntry extends Base {
+  readonly kind: 'trim';
+  readonly quantity: string;
+  readonly marks: readonly [string, string];
+}
+
+/** The de-ice endurance sub-box: the Norm and the High endurance of the de-ice quantity. */
+export interface EnduranceEntry extends Base {
+  readonly kind: 'endurance';
+  readonly title: string;
+  readonly quantity: string;
+  readonly labels: readonly [string, string];
+}
+
+/** The total service row: the number and its unit text. */
+export interface ServiceEntry extends Base {
+  readonly kind: 'service';
+  readonly quantity: string;
+  readonly decimals: number;
+  readonly unit: string;
+}
+
+export type PageEntry =
+  | ArcEntry
+  | BarEntry
+  | DualEntry
+  | FrameEntry
+  | FlowEntry
+  | CalculatorEntry
+  | TrimEntry
+  | EnduranceEntry
+  | ServiceEntry;
 
 export interface PageColumn {
   readonly id: 'left' | 'middle' | 'right';
@@ -137,7 +169,15 @@ export const ENGINE_PAGE: readonly PageColumn[] = [
         kind: 'frame',
         title: 'RUDDER TRIM',
         rect: { x: 10, y: 266, w: 150, h: 50 },
-        rows: [],
+        rows: [
+          {
+            id: 'trim',
+            kind: 'trim',
+            quantity: 'rudder_trim_pct',
+            marks: ['L', 'R'],
+            rect: { x: 16, y: 274, w: 138, h: 36 },
+          },
+        ],
       },
     ],
   },
@@ -161,6 +201,37 @@ export const ENGINE_PAGE: readonly PageColumn[] = [
             marks: ['L', 'R'],
             scale: [0, 5, 10, 15, 20, 25],
             rect: { x: 176, y: 134, w: 142, h: 52 },
+          },
+          {
+            id: 'fuel_temp',
+            kind: 'dual',
+            label: 'Fuel temp',
+            quantity: 'fuel_temp_lh_c',
+            second: 'fuel_temp_rh_c',
+            decimals: 0,
+            marks: ['L', 'R'],
+            rect: { x: 176, y: 188, w: 142, h: 42 },
+          },
+          bar('fuel_press', 'Fuel press', 'fuel_pressure_bar', 1, {
+            x: 176,
+            y: 232,
+            w: 142,
+            h: BAR_H,
+          }),
+          {
+            id: 'fuel_flow',
+            kind: 'flow',
+            label: 'FFlow GPH',
+            quantity: 'fuel_flow_gph',
+            decimals: 1,
+            rect: { x: 176, y: 267, w: 142, h: 14 },
+          },
+          {
+            id: 'fuel_calc',
+            kind: 'calculator',
+            title: 'FUEL CALCULATOR',
+            labels: ['GALLONS REMAIN', 'GALLONS USED', 'ENDURANCE', 'RANGE NM'],
+            rect: { x: 176, y: 284, w: 142, h: 54 },
           },
         ],
       },
@@ -193,21 +264,49 @@ export const ENGINE_PAGE: readonly PageColumn[] = [
         kind: 'frame',
         title: 'OXYGEN',
         rect: { x: 332, y: 131, w: 154, h: 50 },
-        rows: [],
+        rows: [
+          bar('oxygen_psi', 'Psi', 'oxygen_psi', 0, { x: 338, y: 137, w: 142, h: BAR_H }, false),
+        ],
       },
       {
         id: 'deice',
         kind: 'frame',
         title: 'DE-ICE',
         rect: { x: 332, y: 187, w: 154, h: 96 },
-        rows: [],
+        rows: [
+          bar(
+            'deice_qty',
+            'Us gal',
+            'deice_qty_gal',
+            1,
+            { x: 338, y: 193, w: 142, h: BAR_H },
+            false,
+          ),
+          {
+            id: 'deice_endurance',
+            kind: 'endurance',
+            title: 'ENDURANCE',
+            quantity: 'deice_qty_gal',
+            labels: ['NORM:', 'HIGH:'],
+            rect: { x: 338, y: 230, w: 142, h: 46 },
+          },
+        ],
       },
       {
         id: 'service',
         kind: 'frame',
         title: 'TOTAL SERVICE',
         rect: { x: 332, y: 289, w: 154, h: 34 },
-        rows: [],
+        rows: [
+          {
+            id: 'service_hours',
+            kind: 'service',
+            quantity: 'service_hours',
+            decimals: 1,
+            unit: 'HRS',
+            rect: { x: 338, y: 299, w: 142, h: 18 },
+          },
+        ],
       },
     ],
   },

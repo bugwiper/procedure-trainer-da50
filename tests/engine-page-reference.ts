@@ -17,8 +17,12 @@ export const COLUMN_ORDER = {
 
 /** The rows inside a box, from top to bottom. */
 export const INNER_ROWS: Readonly<Record<string, readonly string[]>> = {
-  fuel: ['fuel_qty'],
+  fuel: ['fuel_qty', 'fuel_temp', 'fuel_press', 'fuel_flow', 'fuel_calc'],
   electrical: ['amps', 'volts'],
+  oxygen: ['oxygen_psi'],
+  deice: ['deice_qty', 'deice_endurance'],
+  rudder_trim: ['trim'],
+  service: ['service_hours'],
 };
 
 export type Shape = 'arc' | 'bar' | 'dual';
@@ -90,14 +94,68 @@ export const GAUGE_ROWS: readonly GaugeRow[] = [
     shape: 'dual',
     unit: false,
   },
+  {
+    id: 'fuel_temp',
+    label: 'Fuel temp',
+    quantity: 'fuel_temp_lh_c',
+    second: 'fuel_temp_rh_c',
+    decimals: 0,
+    shape: 'dual',
+    unit: false,
+  },
+  {
+    id: 'fuel_press',
+    label: 'Fuel press',
+    quantity: 'fuel_pressure_bar',
+    decimals: 1,
+    shape: 'bar',
+    unit: true,
+  },
+  {
+    id: 'oxygen_psi',
+    label: 'Psi',
+    quantity: 'oxygen_psi',
+    decimals: 0,
+    shape: 'bar',
+    unit: false,
+  },
+  {
+    id: 'deice_qty',
+    label: 'Us gal',
+    quantity: 'deice_qty_gal',
+    decimals: 1,
+    shape: 'bar',
+    unit: false,
+  },
   { id: 'volts', label: 'Volts', quantity: 'bus_volts', decimals: 1, shape: 'bar', unit: true },
 ];
+
+/** The text rows of the page, which are not gauges: each prints a number from one quantity. */
+export const FLOW_ROW = { id: 'fuel_flow', quantity: 'fuel_flow_gph', decimals: 1 } as const;
+export const SERVICE_ROW = { id: 'service_hours', quantity: 'service_hours', decimals: 1 } as const;
+export const TRIM_ROW = { id: 'trim', quantity: 'rudder_trim_pct' } as const;
+/** The drawn row ids (data-readout) of the calculator and the endurance box, in order. */
+export const CALCULATOR_READOUTS = [
+  'calc_remain',
+  'calc_used',
+  'calc_endurance',
+  'calc_range',
+] as const;
+export const ENDURANCE_READOUTS = ['endurance_norm', 'endurance_high'] as const;
 
 /** The scale numerals of the Fuel Qty bar. */
 export const FUEL_QTY_SCALE = [0, 5, 10, 15, 20, 25] as const;
 
 /** The smallest cell a gauge of each shape needs: 88 for an arc of radius 34, 28 for a bar. */
 export const MIN_CELL_H = { arc: 88, bar: 28 } as const;
+/** The smallest height of the other rows and sub-boxes: one text line, or a title and rows of 8. */
+export const MIN_ROW_H = {
+  flow: 12,
+  calculator: 50,
+  endurance: 40,
+  trim: 34,
+  service: 14,
+} as const;
 
 /**
  * Every static text the page may draw (glass-digits numbers excluded): box titles, gauge labels,
@@ -106,6 +164,8 @@ export const MIN_CELL_H = { arc: 88, bar: 28 } as const;
 export const LABELS: readonly string[] = [
   // box titles
   'FUEL',
+  'FUEL CALCULATOR',
+  'ENDURANCE',
   'ELECTRICAL',
   'RUDDER TRIM',
   'OXYGEN',
@@ -121,6 +181,18 @@ export const LABELS: readonly string[] = [
   'FUEL QTY',
   'AMPS',
   'VOLTS',
+  'FUEL TEMP',
+  'FUEL PRESS',
+  'PSI',
+  'US GAL',
+  // rows and sub-box rows
+  'FFLOW GPH',
+  'GALLONS REMAIN',
+  'GALLONS USED',
+  'RANGE NM',
+  'NORM:',
+  'HIGH:',
+  'HRS',
   // arc units
   '%',
   // pointer marks of the dual bars

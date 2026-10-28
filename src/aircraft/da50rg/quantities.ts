@@ -8,7 +8,10 @@ import { defineQuantities } from '../../engine/quantities';
 // panel shows cruise and no annunciation fires there. alt2_amps, battery_pct, fire_intensity, the
 // windscreen quantities (smoke_density, ice_pilot, ice_copilot, oil_film), ground_speed_kt and the
 // fuel quantities of Phase 6 (fuel_trans_active, fuel_flow_gph, fuel_used_gal) have no gauge of their
-// own (hidden quantities); the Amps gauge shows alternator 1 (C-10). The fuel temperatures, the
+// own (hidden quantities); the Amps gauge shows alternator 1 (C-10). rudder_trim_pct, oxygen_psi,
+// deice_qty_gal and service_hours are static display values of the engine page (Phase 6, plan 02,
+// E-05): no model moves them (the de-ice quantity has a rate model in physics.ts), a scenario may
+// set them, and their bases and bands are layout assumptions, not AFM figures. The fuel temperatures, the
 // two tank quantities (0 to the tank capacity, one band table) and the fuel flow are the Phase 6 fuel
 // model (physics.ts).
 // Data only: facts and numbers, no AFM wording.
@@ -218,6 +221,55 @@ export const DA50RG_QUANTITIES = defineQuantities([
     base: 12,
     scale: FUEL_SCALE,
     bands: [{ id: 'unmarked', colour: 'none', to: 1000 }],
+  },
+  {
+    // Static display value (E-05): the rudder trim position in percent of travel, 0 is neutral. One
+    // unmarked band. The base is a layout assumption.
+    id: 'rudder_trim_pct',
+    unit: '%',
+    min: -100,
+    max: 100,
+    base: 0,
+    bands: [{ id: 'unmarked', colour: 'none', to: 100 }],
+  },
+  {
+    // Static display value (E-05): the oxygen bottle pressure. The base and the bands (red to 250,
+    // yellow to 400, green to 1700, unmarked above) are layout assumptions, not AFM figures.
+    id: 'oxygen_psi',
+    unit: 'psi',
+    min: 0,
+    max: 2000,
+    base: 1270,
+    bands: [
+      { id: 'low_red', colour: 'red', to: 250 },
+      { id: 'low_yellow', colour: 'yellow', to: 400 },
+      { id: 'green', colour: 'green', to: 1700 },
+      { id: 'unmarked', colour: 'none', to: 2000 },
+    ],
+  },
+  {
+    // The de-ice fluid in US gallons. The tank maximum 8.3 is the owner's figure (D-11); the base and
+    // the bands (red to 1, green above) are layout assumptions. Fine scale: a NORM step uses only
+    // 0.00008 gal and the default scale of 0.01 would round it away (physics.ts, plan 02 task 3).
+    id: 'deice_qty_gal',
+    unit: 'gal',
+    min: 0,
+    max: 8.3,
+    base: 6.8,
+    scale: FUEL_SCALE,
+    bands: [
+      { id: 'low_red', colour: 'red', to: 1 },
+      { id: 'green', colour: 'green', to: 8.3 },
+    ],
+  },
+  {
+    // Static display value (E-05): the total service hours of the engine. One unmarked band.
+    id: 'service_hours',
+    unit: 'h',
+    min: 0,
+    max: 99999,
+    base: 249.5,
+    bands: [{ id: 'unmarked', colour: 'none', to: 99999 }],
   },
   {
     id: 'bus_volts',
