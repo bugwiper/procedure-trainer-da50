@@ -48,7 +48,10 @@ export interface PedalsBodyProps {
  */
 export function PedalsBody({ state, pressed }: PedalsBodyProps) {
   const applied = state === 'applied';
-  const drop = applied ? PEDAL_PRESS : 0;
+  // Owner review 2026-10-28: the two looks are swapped against the first version; the pedals
+  // stand lowered while the brake is released and up (pressed against the pads) while applied.
+  const low = !applied;
+  const drop = low ? PEDAL_PRESS : 0;
   return (
     <g data-pedals={applied ? 'applied' : 'released'} pointer-events="none">
       {PEDAL_CENTRES.map((cx) => (
@@ -67,7 +70,7 @@ export function PedalsBody({ state, pressed }: PedalsBodyProps) {
             width={PEDAL.halfW * 2}
             height={PEDAL.height}
             rx={6}
-            fill={applied ? TONE.pressedPlate : TONE.releasedPlate}
+            fill={low ? TONE.pressedPlate : TONE.releasedPlate}
             stroke={TONE.edge}
             stroke-width={1}
           />
@@ -78,7 +81,7 @@ export function PedalsBody({ state, pressed }: PedalsBodyProps) {
             width={(PEDAL.halfW - PEDAL.padInset) * 2}
             height={PEDAL.padHeight}
             rx={3}
-            fill={applied ? TONE.pressedPad : TONE.releasedPad}
+            fill={low ? TONE.pressedPad : TONE.releasedPad}
             stroke={TONE.padEdge}
             stroke-width={1}
           />
