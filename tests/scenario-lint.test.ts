@@ -1053,6 +1053,28 @@ describe('L16 and L17: a checklist as printed (plan 03-13)', () => {
     expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
   });
 
+  it('L16: a mark 1 right after a comment row starts a follow-on checklist and restarts the count', () => {
+    // Rows 1 to 3, a title line, then the follow-on list 1, 2 (the booklet prints ICE PROTECTION FAILURE below).
+    const follow = swap(
+      TABLE,
+      '  - kind: line\n    text: Increase airspeed\n    number: 3',
+      '  - kind: line\n    text: Increase airspeed\n    number: 3\n  - kind: comment\n    text: A follow-on checklist\n  - kind: line\n    text: Grasp firmly\n    number: 1\n  - kind: line\n    text: Press the button\n    number: 2',
+    ).replace('procedure[2]:', 'procedure[5]:');
+    expect(checkScenario(follow, DA50RG_ENV).ok).toBe(true);
+    // Without the title line the repeat of 1 is still a slip, and the new list still counts in order.
+    const bare = swap(follow, '  - kind: comment\n    text: A follow-on checklist\n', '').replace(
+      'procedure[5]:',
+      'procedure[4]:',
+    );
+    expect(issuesOf(bare)[0]?.message).toContain('expected 4');
+    const gap = swap(
+      follow,
+      'text: Press the button\n    number: 2',
+      'text: Press the button\n    number: 3',
+    );
+    expect(issuesOf(gap)[0]?.message).toContain('expected 2');
+  });
+
   it('L16: letters run A, B, C as their place in the alphabet, one style per checklist', () => {
     const lettered = swap(
       swap(swap(TABLE, 'number: 1', 'number: A'), 'number: 2', 'number: B'),

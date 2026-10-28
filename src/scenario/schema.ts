@@ -67,7 +67,7 @@ const marker = z.enum(MARKERS).optional();
 
 /**
  * The row mark printed at the left of a checklist table row: a whole number 1 to 99 or one capital
- * letter A to Z (the ground and take-off checklists print letters). One checklist uses one style.
+ * letter A to Z (the AFM pages print letters, the booklet numbers). One checklist uses one style.
  */
 const rowNumber = z.union([
   z.number().int().min(1).max(99),

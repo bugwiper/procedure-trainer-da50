@@ -586,7 +586,7 @@ function resolveSteps(scenario: Scenario): Step[] {
  * L16 and L17: a checklist as printed. L16: in document order (a group's steps in order, nested
  * nodes where they stand) the numbers present are 1, 2, 3 and so on; a gap, a repeat or a start
  * other than 1 is reported at the number, with the expected and the found number; counting resumes
- * after a higher number and keeps the expected one after a repeat, so one slip is one issue. L16 reads letters as their place in the
+ * after a higher number and keeps the expected one after a repeat, so one slip is one issue; a mark 1 (or A) right after a comment row starts a follow-on checklist and restarts the count. L16 reads letters as their place in the
  * alphabet and reports a mix of numbers and letters once, at the first mismatch. L17: the table form has no decision, branch or
  * marker (a marker is reported at its own key as well); the outline form (the default) has no number, action, comment node, comment style or boxed.
  */
@@ -597,6 +597,9 @@ function checkChecklist(
   const table = scenario.checklist?.form === 'table';
   let expected = 1;
   let letters: boolean | undefined;
+  // A follow-on checklist printed below the first (its own title line, then rows 1, 2, 3 again)
+  // restarts the count: a mark 1 (or A) directly after a comment row begins a new list.
+  let afterComment = false;
   const placeOf = (mark: number | string): number =>
     typeof mark === 'number' ? mark : mark.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
   const shown = (place: number): string =>
@@ -614,6 +617,8 @@ function checkChecklist(
       return;
     }
     const number = placeOf(mark);
+    if (number === 1 && afterComment && expected > 1) expected = 1;
+    afterComment = false;
     if (number === expected) {
       expected++;
       return;
@@ -647,6 +652,7 @@ function checkChecklist(
           if (!table) outlineOnly(here, { number: node.number, action: node.action }, 'outline');
           return;
         case 'comment':
+          afterComment = true;
           if (!table) {
             add(here, 'a comment row is for the table form; this checklist is an outline');
             if (node.style !== undefined) {
