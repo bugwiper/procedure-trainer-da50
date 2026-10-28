@@ -1,20 +1,20 @@
 ---
 gsd_state_version: "1.0"
-current_phase: "5.1"
-current_phase_name: Ground and takeoff emergencies
+current_phase: 6
+current_phase_name: Fuel, tank and engine fidelity and the engine page
 current_plan: Not started
 status: planning
-stopped_at: Phase 5 complete, ready to plan Phase 5.1
-last_updated: "2026-10-27T10:18:12.599Z"
-last_activity: 2026-10-27
-last_activity_desc: Phase 5 complete, transitioned to Phase 5.1
-state_head: 06f6cfd83e7f1a8943817d92cf4a90aa96015912
+stopped_at: Phase 5.1 complete, ready to plan Phase 6
+last_updated: "2026-10-28T09:53:58.841Z"
+last_activity: 2026-10-28
+last_activity_desc: Phase 5.1 complete, transitioned to Phase 6
+state_head: 69211a14a3b3d40a2f2edceed3300a3b4d73d16d
 progress:
   total_phases: 13
-  completed_phases: 6
-  total_plans: 9
+  completed_phases: 7
+  total_plans: 12
   completed_plans: 88
-  percent: 60
+  percent: 70
 ---
 
 # Project State
@@ -28,19 +28,19 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 
 ## Current Position
 
-Phase: 5.1 — Ground and takeoff emergencies
+Phase: 6 — Fuel, tank and engine fidelity and the engine page
 Current Plan: Not started
 Total Plans in Phase: 10
 Status: Ready to plan
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
-Last activity: 2026-10-27 — Phase 5 complete, transitioned to Phase 5.1
+Last activity: 2026-10-28 — Phase 5.1 complete, transitioned to Phase 6
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 98
+- Total plans completed: 102
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -57,6 +57,7 @@ Progress: [██████░░░░] 60%
 | 3.1 | 3 | - | - |
 | 4 | 3 | - | - |
 | 5 | 3 | - | - |
+| 5.1 | 4 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -269,5 +270,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-23T10:34:20.154Z
-Stopped at: Phase 5 complete, ready to plan Phase 5.1
+Stopped at: Phase 5.1 complete, ready to plan Phase 6
 Resume file: None

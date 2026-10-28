@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3.1: Scenario variants and run robustness** (INSERTED) - Several causes behind one failure drawn by seed, a breaker that re-trips, a run that survives a throwing listener and agrees with its replay at the 30-minute cap (completed 2026-10-23)
 - [x] **Phase 4: Electrical system fidelity** - Bus model with bus tie relay, ALT 1 and ALT 2 behaviour, ESS BUS path, combined amps gauge, ALTN 2 FAIL scenario, ALTN checklist fidelity (completed 2026-10-27)
 - [x] **Phase 5: Windscreen and failure cues** - A windscreen area above the panel with scenes (parked, takeoff roll, cruise) and cues driven by the simulation: engine fire flames and smoke, cabin smoke, windscreen ice with warm air and TKS spray; the onset cue declared in scenario data and checked by lint (completed 2026-10-27)
-- [ ] **Phase 5.1: Ground and takeoff emergencies** (INSERTED) - Rudder pedals with service brakes, ground speed on the takeoff roll, the transponder in the co-pilot footwell, the oval emergency window, and the scenarios engine fire on ground, on takeoff (abort and no abort), electrical fire on ground and in flight, unintentional flight into icing
+- [x] **Phase 5.1: Ground and takeoff emergencies** (INSERTED) - Rudder pedals with service brakes, ground speed on the takeoff roll, the transponder in the co-pilot footwell, the oval emergency window, and the scenarios engine fire on ground, on takeoff (abort and no abort), electrical fire on ground and in flight, unintentional flight into icing (completed 2026-10-28)
 - [ ] **Phase 6: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim, the real engine page layout and a live PFD
 - [ ] **Phase 7: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
 - [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop
@@ -500,7 +500,7 @@ Plans:
 **Depends on**: Phase 5
 **Requirements**: PNL-20, SCN-13, SES-08, CNT-05
 
-**Plans:** 3/3 plans executed (lean form, see WORKFLOW.md)
+**Plans:** 4/3 plans complete (lean form, see WORKFLOW.md)
 
 Plans:
 
@@ -569,7 +569,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 3.1. Scenario variants and run robustness             | 3/3 | Complete    | 2026-10-23 |
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
 | 5. Windscreen and failure cues                        | 3/3 | Complete    | 2026-10-27 |
-| 5.1 Ground and takeoff emergencies                    | 3/3 | In Progress | -          |
+| 5.1 Ground and takeoff emergencies                    | 4/3 | Complete    | 2026-10-28 |
 | 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |
