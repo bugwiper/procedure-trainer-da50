@@ -502,7 +502,7 @@ const GAUGE_REFERENCE: readonly {
   { label: 'Oil temp', quantity: 'oil_temp_c', decimals: 0 },
   { label: 'Coolant temp', quantity: 'coolant_temp_c', decimals: 0 },
   { label: 'Gearbox temp', quantity: 'gearbox_temp_c', decimals: 0 },
-  { label: 'Fuel temp', quantity: 'fuel_temp_c', decimals: 0 },
+  { label: 'Fuel temp', quantity: 'fuel_temp_lh_c', decimals: 0 },
   { label: 'Fuel pres', quantity: 'fuel_pressure_bar', decimals: 1 },
   { label: 'Fuel qty LH', quantity: 'fuel_qty_lh_gal', decimals: 1 },
   { label: 'Fuel qty RH', quantity: 'fuel_qty_rh_gal', decimals: 1 },

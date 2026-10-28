@@ -3,7 +3,7 @@ import { definePhysics } from '../../engine/physics';
 import type { PhysicsInputs, QuantityModel } from '../../engine/physics';
 import { travelPercent } from '../../engine/predicates';
 import type { DetentLeverDef } from '../../engine/registry';
-import { STEP_MS } from '../../engine/sim';
+import { DEFAULT_SCALE, STEP_MS, quantise } from '../../engine/sim';
 import { acuFault, electricalState } from './electrical';
 import { DEICE_MAX_ACTIVE, WINDSHIELD_PROTECT_ACTIVE, WINDSHIELD_SPRAY_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
@@ -23,8 +23,8 @@ import { DA50RG_QUANTITIES } from './quantities';
 // instructor-review item (RESEARCH A1, A3), not measured values. No AFM wording; only + - * /
 // (RESEARCH Pitfall 1).
 
-/** Ambient and engine-off temperature, degrees C. */
-const AMBIENT_C = 15;
+// The outside air temperature is the parameter oat_c (normal 15 degrees C); the engine-off targets of
+// the oil, the coolant and the gearbox and the fuel temperatures follow it (Phase 6, D-04c).
 /** Heat the oil must shed with the power at 0 % and per unit of load (0 to 1). */
 const HEAT_BASE = 20;
 const HEAT_PER_LOAD = 80;
@@ -49,6 +49,8 @@ const OIL_PRESSURE_TAU_MS = 2_000;
 const COOLANT_TAU_MS = 40_000;
 const GEARBOX_TAU_MS = 60_000;
 const FUEL_TEMP_TAU_MS = 60_000;
+/** The resolution of the fuel flow reading, 1 / scale gph (the default scale of the quantity). */
+const FUEL_FLOW_SCALE = DA50RG_QUANTITIES.get('fuel_flow_gph')?.scale ?? DEFAULT_SCALE;
 const FUEL_PRESSURE_TAU_MS = 1_000;
 const AMPS_TAU_MS = 1_500;
 const VOLTS_TAU_MS = 1_000;
@@ -58,7 +60,14 @@ const VOLTS_TAU_MS = 1_000;
 const OIL_PRESSURE_PER_PERCENT = 0.01;
 const COOLANT_PER_PERCENT = 0.3;
 const GEARBOX_PER_PERCENT = 0.3;
-const FUEL_TEMP_PER_PERCENT = 0.15;
+
+/**
+ * The left fuel tank settles this many degrees above the outside air temperature (owner,
+ * 2026-10-28, D-04c). The right tank settles `fuel_temp_delta_c` below the left one: the delta is a
+ * parameter a situation sets (normal 3 degrees, the owner range is 2 to 5, other situations may
+ * reverse it), never a constant of the model. Instructor-review data.
+ */
+export const FUEL_TEMP_LH_OFFSET_C = 8;
 /** An open cowl flap cools the coolant by this many degrees. */
 const COWL_OPEN_COOLANT_DROP = 10;
 
@@ -82,11 +91,18 @@ const FUEL_FLOW_BASE_GPH =
   FUEL_FLOW_LOW_POINT.gph - FUEL_FLOW_PER_PERCENT_GPH * FUEL_FLOW_LOW_POINT.loadPercent;
 const MINUTES_PER_HOUR = 60;
 /**
+ * The supply flow of the fuel pump to the engine rail, US gallons per hour, present while the
+ * engine runs (D-04a). The engine burns only part of it; the rest returns to the LEFT tank, whatever
+ * the FUEL selector says. Above the burn at full POWER (14.6 gph) so the return is never negative.
+ * Instructor-review data, not an owner figure.
+ */
+export const FUEL_SUPPLY_GPH = 30;
+/**
  * FUEL TRANS moves this much from the right tank to the left one, gallons per minute: 1 gal/min is
  * exactly the 60 US gal/h of the owner (D-04b). It stops when the right tank is empty or the left
  * tank is full.
  */
-const FUEL_TRANSFER_PER_MIN = 1;
+export const FUEL_TRANSFER_PER_MIN = 1;
 
 // Engine fire (plan 03-08, C-44): aircraft behaviour, compressed, an instructor-review item (RESEARCH
 // A1). The fire intensity (0 to 100) moves toward the product of the scenario's fire parameter,
@@ -200,9 +216,33 @@ function bandTop(quantity: string, band: string): number {
 /** The POWER travel at the registry default: the cruise load every base value belongs to. */
 const CRUISE_PERCENT = travelPercent(POWER, POWER.default);
 
-/** The FUEL selector OFF cuts the fuel to the engine and to the EMERG FUEL PUMP. */
+/** The outside air temperature of the situation, degrees C (the parameter oat_c). */
+function outsideAirC(inputs: PhysicsInputs): number {
+  return parameterOf(inputs, 'oat_c');
+}
+
+const LEFT_TANK = 'fuel_qty_lh_gal';
+const RIGHT_TANK = 'fuel_qty_rh_gal';
+
+/**
+ * The tank the engine draws from, by the FUEL selector: NORMAL the left tank, EMERGENCY the right
+ * tank, OFF none (owner, D-04a).
+ */
+function drawnTank(inputs: PhysicsInputs): typeof LEFT_TANK | typeof RIGHT_TANK | null {
+  const selector = stateOf(inputs, 'sw.fuel_valve');
+  if (selector === 'normal') return LEFT_TANK;
+  if (selector === 'emergency') return RIGHT_TANK;
+  return null;
+}
+
+/**
+ * No fuel reaches the engine and the EMERG FUEL PUMP: the FUEL selector is OFF, or the tank it picks
+ * is empty (starvation, D-04). The engine comes back at once when fuel is available again; no relight
+ * procedure is modelled.
+ */
 function fuelCut(inputs: PhysicsInputs): boolean {
-  return stateOf(inputs, 'sw.fuel_valve') === 'off';
+  const tank = drawnTank(inputs);
+  return tank === null || quantityOf(inputs, tank) <= 0;
 }
 
 /** Engine running: ENGINE MASTER on and the FUEL selector not OFF (NORMAL and EMERGENCY feed alike). */
@@ -307,11 +347,11 @@ function fireTarget(inputs: PhysicsInputs): number {
  */
 function oilTempTarget(inputs: PhysicsInputs): number {
   const fire = FIRE_OIL_RISE * fireShare(inputs);
-  if (!running(inputs)) return AMBIENT_C + fire;
+  if (!running(inputs)) return outsideAirC(inputs) + fire;
   const load = travelPercent(POWER, stateOf(inputs, 'lv.power')) / 100;
   const flap = stateOf(inputs, 'lv.cowl_flap') === 'open' ? COWL_OPEN_COOLING : 1;
   const cooling = parameterOf(inputs, 'oil_cooling') * flap;
-  return AMBIENT_C + (HEAT_BASE + HEAT_PER_LOAD * load) / cooling + fire;
+  return outsideAirC(inputs) + (HEAT_BASE + HEAT_PER_LOAD * load) / cooling + fire;
 }
 
 /**
@@ -334,7 +374,7 @@ function oilPressureTarget(inputs: PhysicsInputs): number {
 /** Coolant: warmer with the load, cooler with the cowl flap open, toward ambient with the engine off. */
 function coolantTarget(inputs: PhysicsInputs): number {
   const fire = FIRE_COOLANT_RISE * fireShare(inputs);
-  if (!running(inputs)) return AMBIENT_C + fire;
+  if (!running(inputs)) return outsideAirC(inputs) + fire;
   const cowl = stateOf(inputs, 'lv.cowl_flap') === 'open' ? COWL_OPEN_COOLANT_DROP : 0;
   return (
     baseOf('coolant_temp_c') +
@@ -346,14 +386,30 @@ function coolantTarget(inputs: PhysicsInputs): number {
 
 function gearboxTarget(inputs: PhysicsInputs): number {
   const fire = FIRE_GEARBOX_RISE * fireShare(inputs);
-  if (!running(inputs)) return AMBIENT_C + fire;
+  if (!running(inputs)) return outsideAirC(inputs) + fire;
   return (
     baseOf('gearbox_temp_c') + (loadPercent(inputs) - CRUISE_PERCENT) * GEARBOX_PER_PERCENT + fire
   );
 }
 
-function fuelTempTarget(inputs: PhysicsInputs): number {
-  return baseOf('fuel_temp_c') + (loadPercent(inputs) - CRUISE_PERCENT) * FUEL_TEMP_PER_PERCENT;
+/** A fuel temperature limit: the top of the first red band (minimum) or of the second yellow band (maximum). */
+const FUEL_TEMP_MIN_C = bandTop('fuel_temp_lh_c', 'low_red');
+const FUEL_TEMP_MAX_C = bandTop('fuel_temp_lh_c', 'high_yellow');
+
+/** A derived fuel temperature never enters a red zone by itself: it is held to the limits. */
+function withinFuelTempLimits(celsius: number): number {
+  if (celsius < FUEL_TEMP_MIN_C) return FUEL_TEMP_MIN_C;
+  return celsius > FUEL_TEMP_MAX_C ? FUEL_TEMP_MAX_C : celsius;
+}
+
+/** Left tank: the outside air temperature plus the offset (D-04c). */
+function fuelTempLeftC(inputs: PhysicsInputs): number {
+  return outsideAirC(inputs) + FUEL_TEMP_LH_OFFSET_C;
+}
+
+/** Right tank: the left tank less the situation's delta; a negative delta puts the right tank above. */
+function fuelTempRightC(inputs: PhysicsInputs): number {
+  return fuelTempLeftC(inputs) - parameterOf(inputs, 'fuel_temp_delta_c');
 }
 
 /**
@@ -380,8 +436,8 @@ function capacityOf(quantity: string): number {
  */
 function fuelTransferPerMinute(inputs: PhysicsInputs): number {
   if (stateOf(inputs, 'sw.fuel_trans') !== 'on') return 0;
-  if (quantityOf(inputs, 'fuel_qty_rh_gal') <= 0) return 0;
-  if (quantityOf(inputs, 'fuel_qty_lh_gal') >= capacityOf('fuel_qty_lh_gal')) return 0;
+  if (quantityOf(inputs, RIGHT_TANK) <= 0) return 0;
+  if (quantityOf(inputs, LEFT_TANK) >= capacityOf(LEFT_TANK)) return 0;
   return FUEL_TRANSFER_PER_MIN;
 }
 
@@ -391,9 +447,50 @@ function fuelFlowGph(inputs: PhysicsInputs): number {
   return FUEL_FLOW_BASE_GPH + FUEL_FLOW_PER_PERCENT_GPH * loadPercent(inputs);
 }
 
-/** The same flow in gallons per minute, the unit of the rate model of the tank. */
+/** The burn in gallons per minute, the unit of the rate model of the tanks. */
 function fuelBurnPerMinute(inputs: PhysicsInputs): number {
   return fuelFlowGph(inputs) / MINUTES_PER_HOUR;
+}
+
+/** The supply flow of the pump in gallons per minute: constant while the engine runs, else 0. */
+function fuelSupplyPerMinute(inputs: PhysicsInputs): number {
+  return running(inputs) ? FUEL_SUPPLY_GPH / MINUTES_PER_HOUR : 0;
+}
+
+/**
+ * The return flow in gallons per minute: supply less burn, back into the LEFT tank while it has
+ * room (below its capacity), else none.
+ */
+function fuelReturnPerMinute(inputs: PhysicsInputs): number {
+  if (quantityOf(inputs, LEFT_TANK) >= capacityOf(LEFT_TANK)) return 0;
+  const supply = fuelSupplyPerMinute(inputs);
+  const burn = fuelBurnPerMinute(inputs);
+  return supply > burn ? supply - burn : 0;
+}
+
+/**
+ * What the drawn tank loses per minute: the whole supply flow that left it, which is the burn plus
+ * the return (more than the displayed fuel flow on EMERGENCY). 0 for a tank that is not drawn.
+ */
+function fuelDrawnLossPerMinute(inputs: PhysicsInputs, tank: string): number {
+  if (drawnTank(inputs) !== tank) return 0;
+  return fuelBurnPerMinute(inputs) + fuelReturnPerMinute(inputs);
+}
+
+/**
+ * The change of the left tank in gallons per minute. Drawn (NORMAL): its loss and its own return
+ * cancel, so it falls by the burn alone. Not drawn: it gains the return flow. Plus the FUEL TRANS
+ * pump. A leak adds one more term here later.
+ */
+function fuelLeftPerMinute(inputs: PhysicsInputs): number {
+  const flow =
+    drawnTank(inputs) === LEFT_TANK ? -fuelBurnPerMinute(inputs) : fuelReturnPerMinute(inputs);
+  return flow + fuelTransferPerMinute(inputs);
+}
+
+/** The change of the right tank in gallons per minute: its loss when drawn, less the FUEL TRANS pump. */
+function fuelRightPerMinute(inputs: PhysicsInputs): number {
+  return -fuelDrawnLossPerMinute(inputs, RIGHT_TANK) - fuelTransferPerMinute(inputs);
 }
 
 /** Change of the ground speed in knots per minute: zero unless the scenario sets ground_roll. */
@@ -473,6 +570,11 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'oil_leak', min: 0, max: 1, normal: 0 },
       // 0 is an aircraft at rest or in flight (the speed holds); 1 is a ground roll (Phase 5.1).
       { id: 'ground_roll', min: 0, max: 1, normal: 0 },
+      // The outside air temperature in degrees C (Phase 6, D-04c); 15 is the normal situation.
+      { id: 'oat_c', min: -40, max: 50, normal: 15 },
+      // How much warmer the left fuel tank is than the right one, degrees C: 3 in the normal situation
+      // (owner range 2 to 5); other situations may differ or reverse it (negative).
+      { id: 'fuel_temp_delta_c', min: -10, max: 10, normal: 3 },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),
@@ -481,17 +583,26 @@ export const DA50RG_PHYSICS = definePhysics(
       lag('oil_temp_c', OIL_TEMP_TAU_MS, oilTempTarget, oilTempRate),
       lag('coolant_temp_c', COOLANT_TAU_MS, coolantTarget),
       lag('gearbox_temp_c', GEARBOX_TAU_MS, gearboxTarget),
-      lag('fuel_temp_c', FUEL_TEMP_TAU_MS, fuelTempTarget),
+      lag('fuel_temp_lh_c', FUEL_TEMP_TAU_MS, (inputs) =>
+        withinFuelTempLimits(fuelTempLeftC(inputs)),
+      ),
+      lag('fuel_temp_rh_c', FUEL_TEMP_TAU_MS, (inputs) =>
+        withinFuelTempLimits(fuelTempRightC(inputs)),
+      ),
+      // The reading follows the flow within one step. The target is held to the resolution of the
+      // reading, so that at the cruise load it equals the base (11.23) like every other anchor (C-09).
+      lag('fuel_flow_gph', STEP_MS, (inputs) => quantise(fuelFlowGph(inputs), FUEL_FLOW_SCALE)),
+      { quantity: 'fuel_used_gal', mode: 'rate', perMinute: fuelBurnPerMinute },
       lag('fuel_pressure_bar', FUEL_PRESSURE_TAU_MS, fuelPressureTarget),
       {
-        quantity: 'fuel_qty_lh_gal',
+        quantity: LEFT_TANK,
         mode: 'rate',
-        perMinute: (inputs) => fuelTransferPerMinute(inputs) - fuelBurnPerMinute(inputs),
+        perMinute: fuelLeftPerMinute,
       },
       {
-        quantity: 'fuel_qty_rh_gal',
+        quantity: RIGHT_TANK,
         mode: 'rate',
-        perMinute: (inputs) => -fuelTransferPerMinute(inputs),
+        perMinute: fuelRightPerMinute,
       },
       lag('alt1_amps', AMPS_TAU_MS, (inputs) => electrical(inputs).alt1Amps),
       lag('alt2_amps', AMPS_TAU_MS, (inputs) => electrical(inputs).alt2Amps),

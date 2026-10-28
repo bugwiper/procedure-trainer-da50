@@ -5,9 +5,12 @@ import { defineQuantities } from '../../engine/quantities';
 // A value on a bound belongs to the lower band, so 125 is high_yellow and 128 is high_red. The
 // colour 'none' marks an unmarked scale range. Every quantity has a base value: its reading at the
 // registry defaults (in-flight cruise), which is also the equilibrium of its model, so the free
-// panel shows cruise and no annunciation fires there. alt2_amps, battery_pct, fire_intensity and the
-// windscreen quantities (smoke_density, ice_pilot, ice_copilot, oil_film) and ground_speed_kt have no gauge (hidden
-// quantities); the Amps gauge shows alternator 1 (C-10).
+// panel shows cruise and no annunciation fires there. alt2_amps, battery_pct, fire_intensity, the
+// windscreen quantities (smoke_density, ice_pilot, ice_copilot, oil_film), ground_speed_kt and the
+// fuel quantities of Phase 6 (fuel_trans_active, fuel_flow_gph, fuel_used_gal) have no gauge of their
+// own (hidden quantities); the Amps gauge shows alternator 1 (C-10). The fuel temperatures, the
+// two tank quantities (0 to the tank capacity, one band table) and the fuel flow are the Phase 6 fuel
+// model (physics.ts).
 // Data only: facts and numbers, no AFM wording.
 
 /**
@@ -19,6 +22,19 @@ const FUEL_SCALE = 10_000_000;
 
 /** Each fuel tank holds this many US gallons (owner, 2026-10-28); both tanks share one band table. */
 export const TANK_CAPACITY_GAL = 26;
+/**
+ * The fuel temperatures follow their target with a 60 s lag (physics.ts): a step of a degree-sized
+ * gap is 1 / 600 of it, which the default scale of 0.01 would round away and stall a few degrees
+ * short of the target. 1e-6 keeps the stall below 0.001 degrees.
+ */
+const FUEL_TEMP_SCALE = 1_000_000;
+const FUEL_TEMP_BANDS = [
+  { id: 'low_red', colour: 'red', to: -25 },
+  { id: 'low_yellow', colour: 'yellow', to: -20 },
+  { id: 'green', colour: 'green', to: 55 },
+  { id: 'high_yellow', colour: 'yellow', to: 60 },
+  { id: 'high_red', colour: 'red', to: 70 },
+] as const;
 const TANK_BANDS = [
   { id: 'low_red', colour: 'red', to: 1 },
   { id: 'green', colour: 'green', to: TANK_CAPACITY_GAL },
@@ -119,18 +135,24 @@ export const DA50RG_QUANTITIES = defineQuantities([
     ],
   },
   {
-    id: 'fuel_temp_c',
+    // The fuel temperature of the left and the right tank (Phase 6, D-04c, D-04d). The red zones start
+    // at the owner's limits, -25 and +60 degrees C; the scale is drawn wider so the red ends show.
+    id: 'fuel_temp_lh_c',
+    unit: '°C',
+    min: -30,
+    max: 70,
+    base: 23,
+    scale: FUEL_TEMP_SCALE,
+    bands: FUEL_TEMP_BANDS,
+  },
+  {
+    id: 'fuel_temp_rh_c',
     unit: '°C',
     min: -30,
     max: 70,
     base: 20,
-    bands: [
-      { id: 'low_red', colour: 'red', to: -25 },
-      { id: 'low_yellow', colour: 'yellow', to: -20 },
-      { id: 'green', colour: 'green', to: 55 },
-      { id: 'high_yellow', colour: 'yellow', to: 60 },
-      { id: 'high_red', colour: 'red', to: 70 },
-    ],
+    scale: FUEL_TEMP_SCALE,
+    bands: FUEL_TEMP_BANDS,
   },
   {
     id: 'fuel_pressure_bar',
@@ -174,6 +196,28 @@ export const DA50RG_QUANTITIES = defineQuantities([
       { id: 'idle', colour: 'none', to: 0.5 },
       { id: 'active', colour: 'none', to: 1 },
     ],
+  },
+  {
+    // The fuel flow in US gallons per hour, derived from the engine state (Phase 6, F-07). The base is
+    // the cruise equilibrium of the fitted line (physics.ts), 3.3 + 0.11333 * 70 = 11.23 gph. One
+    // unmarked band: the engine page draws it as a number.
+    id: 'fuel_flow_gph',
+    unit: 'gph',
+    min: 0,
+    max: 30,
+    base: 11.23,
+    bands: [{ id: 'unmarked', colour: 'none', to: 30 }],
+  },
+  {
+    // The fuel used, US gallons (F-08). The base is the 52 gal capacity less the 40 gal of the two
+    // base tanks. Refuelling and the RST Fuel softkey are not modelled. One unmarked band.
+    id: 'fuel_used_gal',
+    unit: 'gal',
+    min: 0,
+    max: 1000,
+    base: 12,
+    scale: FUEL_SCALE,
+    bands: [{ id: 'unmarked', colour: 'none', to: 1000 }],
   },
   {
     id: 'bus_volts',

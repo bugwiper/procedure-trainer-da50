@@ -32,6 +32,8 @@ describe('?q=id:value,...', () => {
   it('takes the pump flag inside 0 to 1 and ignores 2 (T-06-01)', () => {
     expect(parse('?q=fuel_trans_active:1')).toEqual({ fuel_trans_active: 1 });
     expect(parse('?q=fuel_trans_active:2')).toEqual({});
+    expect(parse('?q=fuel_flow_gph:500')).toEqual({});
+    expect(parse('?q=fuel_flow_gph:12.5')).toEqual({ fuel_flow_gph: 12.5 });
   });
 
   it('keeps the valid entries next to the bad ones', () => {

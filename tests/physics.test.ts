@@ -209,7 +209,7 @@ describe('DA50 oil temperature model (Table P1)', () => {
   const target = (controls: Record<string, string>, cooling: number): number => {
     const inputs: PhysicsInputs = {
       controls: { ...base, ...controls },
-      parameters: { oil_cooling: cooling },
+      parameters: { ...DA50RG_PHYSICS.normalParameters(), oil_cooling: cooling },
       // The fire term of the model reads fire_intensity (plan 03-08): the base reading is 0.
       quantities: DA50RG_QUANTITIES.baseValues(),
       flags: {},
@@ -275,7 +275,7 @@ describe('DA50 oil temperature model (Table P1)', () => {
     const rateAt = (reading: number, controls: Record<string, string> = {}): number =>
       model.rate?.({
         controls: { ...base, ...controls },
-        parameters: { oil_cooling: DEGRADED },
+        parameters: { ...DA50RG_PHYSICS.normalParameters(), oil_cooling: DEGRADED },
         quantities: { ...DA50RG_QUANTITIES.baseValues(), [OIL_TEMP]: reading },
         flags: {},
       }) ?? Number.NaN;
@@ -481,10 +481,10 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
     }
   });
 
-  it('C-09: 600 steps from the base leave every quantity but the two fuel quantities at its base', () => {
+  it('C-09: 600 steps from the base leave every quantity but the tanks and the fuel used at its base', () => {
     const after = settle({}, 600 * STEP_MS);
     for (const def of DA50RG_QUANTITIES.all) {
-      if (def.id.startsWith('fuel_qty')) continue;
+      if (def.id.startsWith('fuel_qty') || def.id === 'fuel_used_gal') continue;
       expect(q(after, def.id), def.id).toBe(def.base);
     }
   });
@@ -608,9 +608,6 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
       const full = settle({ 'lv.power': 'p100' }, 3 * MINUTE);
       expect(q(full, 'coolant_temp_c')).toBeGreaterThan(q(cruise, 'coolant_temp_c'));
       expect(q(full, 'gearbox_temp_c')).toBeGreaterThan(q(cruise, 'gearbox_temp_c'));
-      expect(q(full, 'fuel_temp_c')).toBeGreaterThan(q(cruise, 'fuel_temp_c'));
-      const idle = settle({ 'lv.power': 'p0' }, 3 * MINUTE);
-      expect(q(idle, 'fuel_temp_c')).toBeLessThan(q(cruise, 'fuel_temp_c'));
     });
 
     it('the coolant is lower with the cowl flap open', () => {
@@ -640,8 +637,10 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
       expect(tau('coolant_temp_c')).toBeLessThanOrEqual(60_000);
       expect(tau('gearbox_temp_c')).toBeGreaterThanOrEqual(30_000);
       expect(tau('gearbox_temp_c')).toBeLessThanOrEqual(90_000);
-      expect(tau('fuel_temp_c')).toBeGreaterThanOrEqual(60_000);
-      expect(tau('fuel_temp_c')).toBeLessThanOrEqual(180_000);
+      for (const id of ['fuel_temp_lh_c', 'fuel_temp_rh_c']) {
+        expect(tau(id)).toBeGreaterThanOrEqual(60_000);
+        expect(tau(id)).toBeLessThanOrEqual(180_000);
+      }
     });
   });
 
@@ -1070,8 +1069,13 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
       expect(q(cutPumped, 'fuel_pressure_bar')).toBe(q(cut, 'fuel_pressure_bar'));
     });
 
-    it('EMERGENCY reads like NORMAL for every quantity', () => {
-      expect(settle({ 'sw.fuel_valve': 'emergency' }, MINUTE)).toEqual(settle({}, MINUTE));
+    it('EMERGENCY reads like NORMAL for every quantity but the two tanks (the tanks: tests/fuel-model.test.ts)', () => {
+      const emergency = settle({ 'sw.fuel_valve': 'emergency' }, MINUTE);
+      const normal = settle({}, MINUTE);
+      for (const def of DA50RG_QUANTITIES.all) {
+        if (def.id.startsWith('fuel_qty')) continue;
+        expect(q(emergency, def.id), def.id).toBe(q(normal, def.id));
+      }
     });
   });
 });
