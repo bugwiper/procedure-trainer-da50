@@ -1,7 +1,8 @@
 // CAS rule table engine (D-06, D-06a, D-07a, D-08): an annunciation is derived, never set. A rule
 // is data: an id, the message text, a level and a predicate of the scenario vocabulary over the
 // control states and the named quantities. `active` evaluates the rules for a context and returns
-// the messages in display order (warnings first, then cautions, each in table order). The aircraft
+// the messages in display order (warnings first, then cautions, then advisories, each in table
+// order). The aircraft
 // owns the table (src/aircraft/da50rg/cas.ts); nothing here knows a message or a threshold.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
@@ -9,7 +10,11 @@ import type { Predicate } from '../scenario/schema';
 import { evaluatePredicate, predicateProblems } from './predicates';
 import type { PredicateContext, PredicateEnv } from './predicates';
 
-export type CasLevel = 'warning' | 'caution';
+/** Advisory (Phase 6): a white message such as FUEL TRANS; it never sounds a tone. */
+export type CasLevel = 'warning' | 'caution' | 'advisory';
+
+/** The levels in display order. */
+const CAS_LEVELS: readonly CasLevel[] = ['warning', 'caution', 'advisory'];
 
 export const CAS_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
 export const CAS_TEXT_PATTERN = /^[A-Z0-9/ ]{1,12}$/;
@@ -38,7 +43,7 @@ export interface CasRuleSet {
   get(id: string): CasRule | undefined;
   /** Ids of the controls the rules read, so a caller can supply exactly those states. */
   readonly controlsRead: readonly string[];
-  /** The messages whose rule holds, warnings first, then cautions, each in table order. */
+  /** The messages whose rule holds, warnings first, then cautions, then advisories, each in table order. */
   active(ctx: PredicateContext, env: CasEnv): ActiveCas[];
 }
 
@@ -63,7 +68,7 @@ export function defineCasRules(specs: readonly CasRuleSpec[], env: CasEnv): CasR
     if (!CAS_TEXT_PATTERN.test(spec.text)) {
       fail(`has text "${spec.text}"; 1 to 12 upper case letters, digits, spaces or slashes`);
     }
-    if (spec.level !== 'warning' && spec.level !== 'caution') {
+    if (!CAS_LEVELS.includes(spec.level)) {
       fail(`has unknown level "${String(spec.level)}"`);
     }
     for (const problem of predicateProblems(spec.when, env)) {
@@ -81,7 +86,7 @@ export function defineCasRules(specs: readonly CasRuleSpec[], env: CasEnv): CasR
     controlsRead: Object.freeze([...reads]),
     active(ctx: PredicateContext, activeEnv: CasEnv): ActiveCas[] {
       const holds = (rule: CasRule): boolean => evaluatePredicate(rule.when, ctx, activeEnv);
-      return [...ordered('warning'), ...ordered('caution')]
+      return CAS_LEVELS.flatMap(ordered)
         .filter(holds)
         .map(({ id, text, level }) => ({ id, text, level }));
     },

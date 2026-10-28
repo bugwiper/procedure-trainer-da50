@@ -81,10 +81,12 @@ const FUEL_FLOW_PER_PERCENT_GPH =
 const FUEL_FLOW_BASE_GPH =
   FUEL_FLOW_LOW_POINT.gph - FUEL_FLOW_PER_PERCENT_GPH * FUEL_FLOW_LOW_POINT.loadPercent;
 const MINUTES_PER_HOUR = 60;
-/** FUEL TRANS moves this much from the right tank to the left one, gallons per minute. */
+/**
+ * FUEL TRANS moves this much from the right tank to the left one, gallons per minute: 1 gal/min is
+ * exactly the 60 US gal/h of the owner (D-04b). It stops when the right tank is empty or the left
+ * tank is full.
+ */
 const FUEL_TRANSFER_PER_MIN = 1;
-/** The right tank stops giving at this level. */
-const FUEL_TRANSFER_RH_FLOOR = 1;
 
 // Engine fire (plan 03-08, C-44): aircraft behaviour, compressed, an instructor-review item (RESEARCH
 // A1). The fire intensity (0 to 100) moves toward the product of the scenario's fire parameter,
@@ -364,11 +366,22 @@ function fuelPressureTarget(inputs: PhysicsInputs): number {
   return engine + pump;
 }
 
-/** Gallons per minute moved from the right to the left tank: FUEL TRANS on, RH not empty, LH not full. */
+/** The capacity of a tank: the top of its quantity range (quantities.ts, TANK_CAPACITY_GAL). */
+function capacityOf(quantity: string): number {
+  const def = DA50RG_QUANTITIES.get(quantity);
+  if (def === undefined) throw new Error(`physics needs the quantity "${quantity}"`);
+  return def.max;
+}
+
+/**
+ * Gallons per minute moved from the right to the left tank: FUEL TRANS on, the right tank above 0
+ * and the left tank below its capacity. The pump does not read the electrical state (the pump bus
+ * and breaker are not modelled).
+ */
 function fuelTransferPerMinute(inputs: PhysicsInputs): number {
   if (stateOf(inputs, 'sw.fuel_trans') !== 'on') return 0;
-  if (quantityOf(inputs, 'fuel_qty_rh_gal') <= FUEL_TRANSFER_RH_FLOOR) return 0;
-  if (quantityOf(inputs, 'fuel_qty_lh_gal') >= bandTop('fuel_qty_lh_gal', 'green')) return 0;
+  if (quantityOf(inputs, 'fuel_qty_rh_gal') <= 0) return 0;
+  if (quantityOf(inputs, 'fuel_qty_lh_gal') >= capacityOf('fuel_qty_lh_gal')) return 0;
   return FUEL_TRANSFER_PER_MIN;
 }
 
@@ -491,6 +504,8 @@ export const DA50RG_PHYSICS = definePhysics(
       // The control unit flags follow the logic in one step (E-07); CAS rules read them as bands.
       lag('alt1_fault', STEP_MS, (inputs) => (acuFault(inputs, 1) ? 1 : 0)),
       lag('alt2_fault', STEP_MS, (inputs) => (acuFault(inputs, 2) ? 1 : 0)),
+      // 1 exactly while the transfer pump moves fuel; the FUEL TRANS message reads its band (D-04b).
+      lag('fuel_trans_active', STEP_MS, (inputs) => (fuelTransferPerMinute(inputs) > 0 ? 1 : 0)),
       lag('fire_intensity', FIRE_TAU_MS, fireTarget),
       lag('smoke_density', SMOKE_TAU_MS, smokeTarget, smokeRate),
       { quantity: 'icing_exposure', mode: 'rate', perMinute: icingExposurePerMinute },

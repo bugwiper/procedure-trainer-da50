@@ -13,6 +13,8 @@ const env = { registry: DA50RG_ENV.registry, quantities: DA50RG_ENV.quantities }
 
 /** The two control unit fault flags, 0 at the cruise base state (read from the quantity data). */
 const NO_FAULT = DA50RG_ENV.quantities.get('alt1_fault')?.base ?? Number.NaN;
+/** The pump flag of FUEL TRANS, 0 (idle) at the cruise base state. */
+const NO_PUMP = DA50RG_ENV.quantities.get('fuel_trans_active')?.base ?? Number.NaN;
 /** A flag value inside the fault band of both quantities. */
 const FAULT = DA50RG_ENV.quantities.get('alt1_fault')?.max ?? Number.NaN;
 
@@ -30,6 +32,7 @@ function at(
       oil_pressure_bar: oilPressure,
       alt1_fault: fault1,
       alt2_fault: fault2,
+      fuel_trans_active: NO_PUMP,
     },
   };
 }
@@ -61,9 +64,12 @@ describe('defineCasRules rejects malformed rules', () => {
     expect(() => defineCasRules([rule('a', { text: 'Eng oil' })], env)).toThrow(CasError);
   });
 
-  it('rejects an unknown level', () => {
-    const bad = rule('a', { level: 'advisory' as unknown as 'warning' });
-    expect(() => defineCasRules([bad], env)).toThrow(/level "advisory"/);
+  it('rejects an unknown level and accepts the three known ones', () => {
+    const bad = rule('a', { level: 'status' as unknown as 'warning' });
+    expect(() => defineCasRules([bad], env)).toThrow(/level "status"/);
+    for (const level of ['warning', 'caution', 'advisory'] as const) {
+      expect(() => defineCasRules([rule('a', { level })], env), level).not.toThrow();
+    }
   });
 
   it('rejects a predicate that does not resolve', () => {
@@ -91,6 +97,19 @@ describe('active', () => {
 
   it('orders warnings first, then cautions, each in table order', () => {
     expect(table.active(at(120), env).map((m) => m.id)).toEqual(['w1', 'w2', 'c1', 'c2']);
+  });
+
+  it('lists advisories after the cautions, each level in table order (Phase 6)', () => {
+    const withAdvisories = defineCasRules(
+      [
+        rule('a1', { level: 'advisory', text: 'A ONE' }),
+        rule('c1', { level: 'caution', text: 'C ONE' }),
+        rule('a2', { level: 'advisory', text: 'A TWO' }),
+        rule('w1', { text: 'W ONE' }),
+      ],
+      env,
+    );
+    expect(withAdvisories.active(at(120), env).map((m) => m.id)).toEqual(['w1', 'c1', 'a1', 'a2']);
   });
 
   it('returns id, text and level only', () => {
@@ -237,6 +256,34 @@ describe('DA50 RG table: OIL PRES (plan 03-08, C-46)', () => {
       ENG_OIL_TEMP,
       message,
       ALTN_1_FAIL,
+    ]);
+  });
+});
+
+describe('FUEL TRANS advisory (Phase 6, D-04b)', () => {
+  /** Quantities from the data: the pump flag idle and active. */
+  const FLAG = DA50RG_ENV.quantities.get('fuel_trans_active');
+  const withFlag = (value: number): PredicateContext => ({
+    controls: {},
+    baseline: {},
+    quantities: { ...at(90).quantities, fuel_trans_active: value },
+  });
+
+  it('is a white advisory read from the band of the hidden pump flag', () => {
+    expect(DA50RG_CAS.get('fuel_trans')).toMatchObject({ text: 'FUEL TRANS', level: 'advisory' });
+    expect(DA50RG_CAS.active(withFlag(FLAG?.base ?? Number.NaN), DA50RG_ENV)).toEqual([]);
+    expect(DA50RG_CAS.active(withFlag(FLAG?.max ?? Number.NaN), DA50RG_ENV)).toEqual([
+      { id: 'fuel_trans', text: 'FUEL TRANS', level: 'advisory' },
+    ]);
+  });
+
+  it('comes after a caution and a warning in the display order', () => {
+    const ctx = { ...withFlag(FLAG?.max ?? Number.NaN) };
+    ctx.quantities = { ...ctx.quantities, oil_temp_c: 126, alt1_fault: FAULT };
+    expect(DA50RG_CAS.active(ctx, DA50RG_ENV).map((m) => m.id)).toEqual([
+      'eng_oil_temp',
+      'altn_1_fail',
+      'fuel_trans',
     ]);
   });
 });

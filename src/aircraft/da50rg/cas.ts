@@ -39,6 +39,15 @@ export const DA50RG_CAS = defineCasRules(
       level: 'caution',
       when: { check: 'band', quantity: 'alt2_fault', in: ['fault'] },
     },
+    {
+      id: 'fuel_trans',
+      text: 'FUEL TRANS',
+      // The white message while the FUEL TRANS pump runs (Phase 6, D-04b): an advisory, no tone. It
+      // reads the hidden quantity fuel_trans_active, which physics sets from the transfer rule, so
+      // the message and the pump cannot disagree. Band check: no number here.
+      level: 'advisory',
+      when: { check: 'band', quantity: 'fuel_trans_active', in: ['active'] },
+    },
   ],
   { registry: DA50RG, quantities: DA50RG_QUANTITIES },
 );

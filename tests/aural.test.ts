@@ -17,6 +17,7 @@ import type { AuralState } from '../src/ui/audio/aural';
 const caution: ActiveCas = { id: 'c1', text: 'C ONE', level: 'caution' };
 const caution2: ActiveCas = { id: 'c2', text: 'C TWO', level: 'caution' };
 const warning: ActiveCas = { id: 'w1', text: 'W ONE', level: 'warning' };
+const advisory: ActiveCas = { id: 'a1', text: 'A ONE', level: 'advisory' };
 
 function run(frames: readonly (readonly [number, readonly ActiveCas[]])[]): {
   tones: string[];
@@ -132,6 +133,37 @@ describe('auralStep: the warning repeat', () => {
       run([
         [0, [caution]],
         [WARNING_REPEAT_MS * 3, [caution]],
+      ]).tones,
+    ).toEqual(['caution']);
+  });
+});
+
+describe('auralStep: an advisory never sounds (Phase 6, FUEL TRANS)', () => {
+  it('gives no tone when an advisory appears or stays', () => {
+    expect(
+      run([
+        [0, []],
+        [100, [advisory]],
+        [200, [advisory]],
+        [WARNING_REPEAT_MS * 3, [advisory]],
+      ]).tones,
+    ).toEqual([]);
+  });
+
+  it('does not disturb the repeat of a running warning', () => {
+    const { tones } = run([
+      [0, [warning]],
+      [1000, [warning, advisory]],
+      [WARNING_REPEAT_MS, [warning, advisory]],
+    ]);
+    expect(tones).toEqual(['warning', 'warning']);
+  });
+
+  it('a caution next to an advisory still sounds once', () => {
+    expect(
+      run([
+        [0, [advisory]],
+        [100, [caution, advisory]],
       ]).tones,
     ).toEqual(['caution']);
   });

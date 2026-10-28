@@ -12,8 +12,17 @@ const ROW_STEP = 24;
 const RIGHT_X = 294;
 const LEFT_X = 190;
 const TEXT_BASELINE = 14;
-const LEVEL_FILL: Readonly<Record<CasLevel, string>> = { warning: '#f0443c', caution: '#f2c230' };
-const LEVEL_NAME: Readonly<Record<CasLevel, string>> = { warning: 'Warning', caution: 'Caution' };
+// An advisory is white, the text colour of the glass (Phase 6, FUEL TRANS).
+const LEVEL_FILL: Readonly<Record<CasLevel, string>> = {
+  warning: '#f0443c',
+  caution: '#f2c230',
+  advisory: '#ffffff',
+};
+const LEVEL_NAME: Readonly<Record<CasLevel, string>> = {
+  warning: 'Warning',
+  caution: 'Caution',
+  advisory: 'Advisory',
+};
 
 export interface ChipSlot {
   readonly x: number;

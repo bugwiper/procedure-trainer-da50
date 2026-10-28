@@ -17,6 +17,13 @@ import { defineQuantities } from '../../engine/quantities';
  */
 const FUEL_SCALE = 10_000_000;
 
+/** Each fuel tank holds this many US gallons (owner, 2026-10-28); both tanks share one band table. */
+export const TANK_CAPACITY_GAL = 26;
+const TANK_BANDS = [
+  { id: 'low_red', colour: 'red', to: 1 },
+  { id: 'green', colour: 'green', to: TANK_CAPACITY_GAL },
+] as const;
+
 /**
  * The oil temperature climbs by 0.002 to 0.01 degrees per step in the slow part of its rate curve
  * (oil-temp-curve.ts); the default scale of 0.01 would round that to all or nothing and turn the
@@ -141,26 +148,31 @@ export const DA50RG_QUANTITIES = defineQuantities([
     id: 'fuel_qty_lh_gal',
     unit: 'gal',
     min: 0,
-    max: 30,
+    max: TANK_CAPACITY_GAL,
     base: 20,
     scale: FUEL_SCALE,
-    bands: [
-      { id: 'low_red', colour: 'red', to: 1 },
-      { id: 'green', colour: 'green', to: 25 },
-      { id: 'unmarked', colour: 'none', to: 30 },
-    ],
+    bands: TANK_BANDS,
   },
   {
     id: 'fuel_qty_rh_gal',
     unit: 'gal',
     min: 0,
-    max: 30,
+    max: TANK_CAPACITY_GAL,
     base: 20,
     scale: FUEL_SCALE,
+    bands: TANK_BANDS,
+  },
+  {
+    // Hidden: no gauge. 1 while the FUEL TRANS pump runs, else 0 (Phase 6, D-04b); the white FUEL
+    // TRANS message reads the active band, so no number enters the CAS table.
+    id: 'fuel_trans_active',
+    unit: '',
+    min: 0,
+    max: 1,
+    base: 0,
     bands: [
-      { id: 'low_red', colour: 'red', to: 1 },
-      { id: 'green', colour: 'green', to: 24 },
-      { id: 'unmarked', colour: 'none', to: 30 },
+      { id: 'idle', colour: 'none', to: 0.5 },
+      { id: 'active', colour: 'none', to: 1 },
     ],
   },
   {

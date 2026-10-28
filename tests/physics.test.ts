@@ -674,25 +674,61 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
       expect(cruise).toBeCloseTo(10.1 + ((11.8 - 10.1) * (70 - 60)) / (75 - 60), 2);
     });
 
-    it('FUEL TRANS on moves fuel from the right tank to the left one', () => {
-      const off = settle({}, 2 * MINUTE);
-      const on = settle({ 'sw.fuel_trans': 'on' }, 2 * MINUTE);
-      expect(q(on, 'fuel_qty_lh_gal')).toBeGreaterThan(q(off, 'fuel_qty_lh_gal'));
-      expect(q(on, 'fuel_qty_rh_gal')).toBeLessThan(q(off, 'fuel_qty_rh_gal'));
+    // FUEL TRANS moves 60 US gal/h (owner, D-04b): the rate is measured from the quantity change.
+    const TRANSFER_GPH = 60;
+    const capacity = (id: string): number => DA50RG_QUANTITIES.get(id)?.max ?? Number.NaN;
+
+    it('FUEL TRANS on moves 60 gal per hour from the right tank to the left one', () => {
+      const off = settle({ 'sw.engine_master': 'off' }, MINUTE);
+      const on = settle({ 'sw.engine_master': 'off', 'sw.fuel_trans': 'on' }, MINUTE);
+      const perHour = (a: number, b: number): number => (a - b) * 60;
+      expect(perHour(q(on, 'fuel_qty_lh_gal'), q(off, 'fuel_qty_lh_gal'))).toBeCloseTo(
+        TRANSFER_GPH,
+        2,
+      );
+      expect(perHour(q(off, 'fuel_qty_rh_gal'), q(on, 'fuel_qty_rh_gal'))).toBeCloseTo(
+        TRANSFER_GPH,
+        2,
+      );
     });
 
-    it('the transfer stops at the green top of the left tank and when the right tank is nearly empty', () => {
-      const top = bandTop('fuel_qty_lh_gal', 'green');
-      const full = settle({ 'sw.fuel_trans': 'on' }, 5 * MINUTE, {
+    it('the transfer stops when the left tank is full', () => {
+      const top = capacity('fuel_qty_lh_gal');
+      const full = settle({ 'sw.engine_master': 'off', 'sw.fuel_trans': 'on' }, 5 * MINUTE, {
         start: { fuel_qty_lh_gal: top - 0.5 },
       });
-      // The transfer checks the level at the start of a step, so it may pass the bound by one step.
-      expect(q(full, 'fuel_qty_lh_gal')).toBeLessThan(top + 0.01);
-      const floor = bandTop('fuel_qty_rh_gal', 'low_red');
-      const dry = settle({ 'sw.fuel_trans': 'on' }, 5 * MINUTE, {
-        start: { fuel_qty_rh_gal: floor },
+      // The transfer checks the level at the start of a step; the clamp absorbs the last step.
+      expect(q(full, 'fuel_qty_lh_gal')).toBeLessThanOrEqual(top);
+      expect(q(full, 'fuel_qty_lh_gal')).toBeGreaterThan(top - 0.01);
+      expect(q(full, 'fuel_qty_rh_gal')).toBeCloseTo(baseOf('fuel_qty_rh_gal') - 0.5, 2);
+    });
+
+    it('the transfer stops when the right tank is empty', () => {
+      const dry = settle({ 'sw.engine_master': 'off', 'sw.fuel_trans': 'on' }, 5 * MINUTE, {
+        start: { fuel_qty_rh_gal: 0.25 },
       });
-      expect(q(dry, 'fuel_qty_rh_gal')).toBe(floor);
+      expect(q(dry, 'fuel_qty_rh_gal')).toBe(0);
+      expect(q(dry, 'fuel_qty_lh_gal')).toBeCloseTo(baseOf('fuel_qty_lh_gal') + 0.25, 2);
+    });
+
+    it('fuel_trans_active is 1 exactly while the transfer rate is above 0', () => {
+      const flag = (controls: Record<string, string>, ms: number, start = {}): number =>
+        q(settle(controls, ms, { start }), 'fuel_trans_active');
+      expect(flag({}, 5 * STEP_MS)).toBe(0);
+      expect(flag({ 'sw.fuel_trans': 'on' }, 5 * STEP_MS)).toBe(1);
+      // Right tank empty: the pump has nothing to move.
+      expect(flag({ 'sw.fuel_trans': 'on' }, 5 * STEP_MS, { fuel_qty_rh_gal: 0 })).toBe(0);
+      // Left tank full.
+      const top = capacity('fuel_qty_lh_gal');
+      expect(flag({ 'sw.fuel_trans': 'on' }, 5 * STEP_MS, { fuel_qty_lh_gal: top })).toBe(0);
+    });
+
+    it('fuel_trans_active drops again once the left tank has been filled', () => {
+      const top = capacity('fuel_qty_lh_gal');
+      const end = settle({ 'sw.engine_master': 'off', 'sw.fuel_trans': 'on' }, 5 * MINUTE, {
+        start: { fuel_qty_lh_gal: top - 0.5 },
+      });
+      expect(q(end, 'fuel_trans_active')).toBe(0);
     });
   });
 

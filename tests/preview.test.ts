@@ -29,6 +29,11 @@ describe('?q=id:value,...', () => {
     expect(parse('?q=ground_speed_kt:-5')).toEqual({});
   });
 
+  it('takes the pump flag inside 0 to 1 and ignores 2 (T-06-01)', () => {
+    expect(parse('?q=fuel_trans_active:1')).toEqual({ fuel_trans_active: 1 });
+    expect(parse('?q=fuel_trans_active:2')).toEqual({});
+  });
+
   it('keeps the valid entries next to the bad ones', () => {
     expect(parse('?q=smoke_density:50,bogus:1,rpm:9999')).toEqual({ smoke_density: 50 });
   });

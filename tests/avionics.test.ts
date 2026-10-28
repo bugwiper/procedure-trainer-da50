@@ -32,6 +32,7 @@ import { AudioPanelFrame } from '../src/ui/panel/frames/AudioPanelFrame';
 import { AutopilotPanelFrame } from '../src/ui/panel/frames/AutopilotPanelFrame';
 import { BezelColumnFrame } from '../src/ui/panel/frames/BezelColumnFrame';
 import { formatReading } from '../src/ui/panel/frames/ArcGauge';
+import { CasChips, casChipSlots } from '../src/ui/panel/frames/CasChips';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
 import { SoftkeysFrame } from '../src/ui/panel/frames/SoftkeysFrame';
@@ -2077,5 +2078,37 @@ describe('the PFD airspeed readout and tape', () => {
         Array.from({ length: SPEED_TICK_COUNT }, (_, i) => SPEED_TICK_PX / 2 + i * SPEED_TICK_PX),
       );
     }
+  });
+});
+
+describe('CAS chips by level (Phase 6: the white advisory)', () => {
+  const messages = [
+    { id: 'w', text: 'W ONE', level: 'warning' },
+    { id: 'c', text: 'C ONE', level: 'caution' },
+    { id: 'a', text: 'FUEL TRANS', level: 'advisory' },
+  ] as const;
+  const chips = findElements(
+    expand(CasChips({ active: messages })),
+    (e) => e.props['data-testid'] === 'cas-chip',
+  );
+
+  it('draws one chip per message in the slot order of the existing chips', () => {
+    expect(chips.map((c) => c.props['data-cas-id'])).toEqual(['w', 'c', 'a']);
+    const slots = casChipSlots(messages.length);
+    chips.forEach((chip, i) => {
+      const rect = findElements(chip, (e) => e.tag === 'rect')[0];
+      expect([rect?.props['x'], rect?.props['y']]).toEqual([slots[i]?.x, slots[i]?.y]);
+    });
+  });
+
+  it('carries the level on the chip and the aria label', () => {
+    expect(chips.map((c) => c.props['data-level'])).toEqual(['warning', 'caution', 'advisory']);
+    expect(chips[2]?.props['aria-label']).toBe('Advisory: FUEL TRANS');
+  });
+
+  it('draws the advisory text white and the other levels in their own colours', () => {
+    const fills = chips.map((c) => findElements(c, (e) => e.tag === 'text')[0]?.props['fill']);
+    expect(fills[2]).toBe('#ffffff');
+    expect(new Set(fills).size).toBe(3);
   });
 });
