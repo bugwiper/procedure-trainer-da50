@@ -519,9 +519,9 @@ Plans:
 
 ### Phase 6: Fuel, tank and engine fidelity and the engine page
 
-**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. No free-panel simulation (owner decision 2026-10-27: too complex for too little gain); the simulation stays situation-based. Normal procedures as situations of their own, for example the alternator test of the normal checklist with ESS BUS on and off, wait for the owner's printed pages and are not part of this phase (D-02). The PFD becomes live inside situations: airspeed, altitude, vertical speed and attitude come from simulated quantities along a flight profile scripted per scenario (the airspeed on the takeoff roll is already driven in Phase 5.1; the static 140 knots stays on the free panel only; owner decision 2026-10-27; heading is not included). The folded todos are the de-ice fluid and ANNUN TEST, the pitot and stall heat messages; the emergency landing continuation moves to Phase 7. No new fuel scenarios (models and displays only). Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and 2026-10-22-free-panel-simulation.md; decisions in 06-CONTEXT.md.
+**Goal**: The fuel system and the engine page follow the real aircraft: two tanks and a combined gauge, fuel flow, fuel calculator, oil pressure behaviour, oxygen, de-ice quantity, rudder trim and the real engine page layout. No free-panel simulation (owner decision 2026-10-27: too complex for too little gain); the simulation stays situation-based. Normal procedures as situations of their own, for example the alternator test of the normal checklist with ESS BUS on and off, wait for the owner's printed pages and are not part of this phase (D-02). The PFD becomes live inside situations: airspeed, altitude, vertical speed and attitude come from simulated quantities along a flight profile scripted per scenario (the airspeed on the takeoff roll is already driven in Phase 5.1; the static 140 knots stays on the free panel only; owner decision 2026-10-27; heading is not included). The folded todos are the de-ice fluid (TKS figures of the owner) and ANNUN TEST, the pitot and stall heat messages; the oil pressure falls with hot oil and rises on a cold engine; the emergency landing continuation moves to Phase 7 (owner, 2026-10-28). No new fuel scenarios (models and displays only). Sources: .planning/todos/pending/2026-10-23-physics-fidelity-phase.md and 2026-10-22-free-panel-simulation.md; decisions in 06-CONTEXT.md.
 **Depends on**: Phase 4
-**Requirements**: SCN-14, PNL-21, PNL-22, SCN-15, PNL-23, PNL-24
+**Requirements**: SCN-14, PNL-21, PNL-22, SCN-15, PNL-23, PNL-24, SCN-16
 
 **Plans:** 0/4 plans complete (lean form, see WORKFLOW.md)
 
@@ -529,7 +529,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 06-01 — Fuel model: two tanks of 26 gal with the FUEL selector, supply, burn and return flow into the left tank, FUEL TRANS at 60 gal/h with the white FUEL TRANS advisory (new CAS level), fuel temperatures from the outside air temperature, fuel flow, gallons used and the calculator values
+- [ ] 06-01 — Fuel model: two tanks of 26 gal with the FUEL selector, supply, burn and return flow into the left tank, FUEL TRANS at 60 gal/h with the white FUEL TRANS advisory (new CAS level), fuel temperatures from the outside air temperature and a situation-dependent left-right difference (3 C by default) on a scale wider than the limits, fuel flow, gallons used and the calculator values
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -541,7 +541,7 @@ Plans:
 
 **Wave 4** _(blocked on Wave 3 completion)_
 
-- [ ] 06-04 — PITOT HEAT and STALL HEAT cautions with the ground cut-out (folded todo), the icing situation adapted by a heat-off variant, and the phase-end documentation
+- [ ] 06-04 — PITOT HEAT and STALL HEAT cautions with the ground cut-out (folded todo), oil pressure that follows oil temperature and POWER (two tables in the aircraft data), the icing situation adapted by a heat-off variant, and the phase-end documentation
 
 ### Phase 7: Training Mode, Further Actions and Repeat Loop
 
