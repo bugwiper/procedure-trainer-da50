@@ -20,6 +20,9 @@ The fuel system and the engine page follow the real aircraft: two tanks with one
 
 ### Fuel model
 - **D-04:** Per-tank consumption plus fuel flow: the tank chosen with the FUEL selector drains, flow derives from the simulated engine state, and the fuel calculator (gallons remain, gallons used, endurance, range) derives from both. Deterministic, `+ - * /` only (physics arithmetic rule).
+- **D-04a (owner 2026-10-28, tank topology):** The FUEL selector `sw.fuel_valve` picks the tank the engine draws from: NORMAL is the left (main) tank, EMERGENCY the right tank, OFF none. The common-rail return flow always goes back into the LEFT tank, whatever the selector says. So on EMERGENCY the right tank empties faster than the displayed fuel flow (it loses the full supply flow) and the left tank gains the difference (return flow = supply minus burn). With a leak the affected tank loses the leak rate on top.
+- **D-04b (owner, transfer):** `sw.fuel_trans` (FUEL TRANS knob, OFF/ON, `switch-bank.ts`) pumps from the right into the left tank at 60 US gal/h while ON (stops when the right tank is empty or the left is full). A white message FUEL TRANS appears on the PFD while the pump runs (advisory, white, not a caution; the owner said "in the PFD"; the planner places it in the existing annunciation/CAS area of the PFD unless the photo shows otherwise). Whether the message is rule-derived in `cas.ts` or a flag is the planner's call.
+- **D-04c (owner, fuel temperature):** Fuel temperature left and right: left = outside air temperature + 8 C, right = left - 2 C (first rule of thumb, tunable data). Reason: the hot common-rail return runs through closed lines inside the right tank and pre-warms it. Two quantities (`fuel_temp_l`, `fuel_temp_r`), derived without randomness.
 - **D-05:** No new fuel scenarios (imbalance, low fuel pressure, leak, empty tank) in Phase 6; they follow later on top of the model.
 
 ### Engine page
