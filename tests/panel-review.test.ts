@@ -521,14 +521,15 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
   };
   const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
 
-  it('has Phase 5.1: owner review as the last section after Phase 5, 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
+  it('has Phase 6: owner review as the last section after Phase 5.1, 5, 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Phase 5.1: owner review');
-    expect(headings[headings.length - 2]).toBe('## Phase 5: owner review');
-    expect(headings[headings.length - 3]).toBe('## Phase 4: owner review');
-    expect(headings[headings.length - 4]).toBe('## Phase 3.1: owner review');
-    expect(headings[headings.length - 5]).toBe('## Phase 3: owner review');
-    expect(headings[headings.length - 6]).toBe('## Phase 2: owner review');
+    expect(headings[headings.length - 1]).toBe('## Phase 6: owner review');
+    expect(headings[headings.length - 2]).toBe('## Phase 5.1: owner review');
+    expect(headings[headings.length - 3]).toBe('## Phase 5: owner review');
+    expect(headings[headings.length - 4]).toBe('## Phase 4: owner review');
+    expect(headings[headings.length - 5]).toBe('## Phase 3.1: owner review');
+    expect(headings[headings.length - 6]).toBe('## Phase 3: owner review');
+    expect(headings[headings.length - 7]).toBe('## Phase 2: owner review');
     expect(headings).toContain('## Round 5: morning review');
     expect(headings).toContain('## Round 4: morning review');
   });
