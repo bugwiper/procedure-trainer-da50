@@ -748,14 +748,15 @@ describe('the printed markers of ENG OIL TEMP', () => {
   });
 });
 
-// The AFM form (plan 05.1-02): letter marks, an italic sub-heading and a WARNING block, from the
-// shipped Engine Fire on Ground file and a take-off file with its printed WARNING.
-describe('the AFM form of a checklist', () => {
+// The booklet form (plan 05.1-04, after 05.1-02): number marks, plain comment rows and a boxed
+// reference, from the shipped Engine Fire on Ground file; the italic sub-heading and the WARNING
+// and CAUTION blocks stay in the renderer (a scenario may still use them) and are drawn from items.
+describe('the booklet form of a checklist', () => {
   const ground = load(readFileSync(join(root, 'scenarios/fire/eng-fire-ground.toon'), 'utf8'));
   const printed = PRINTED['eng-fire-ground'] as PrintedTable;
   const items = briefingOf(ground);
 
-  it('lists letter marks and the sub-heading as printed', () => {
+  it('lists the number marks and the comment rows as printed', () => {
     const shown = items.map((item) => {
       if (item.kind === 'comment') return { kind: 'comment', style: item.style, text: item.text };
       if (item.kind !== 'line' && item.kind !== 'step') throw new Error(`unexpected ${item.kind}`);
@@ -769,8 +770,25 @@ describe('the AFM form of a checklist', () => {
     expect(shown).toEqual(expected);
   });
 
-  it('draws the sub-heading as an italic full-width row without a number', () => {
+  it('draws a comment row full width without a number, and no italic sub-heading', () => {
     const tree = expand(ChecklistOutline({ items, form: 'table' }));
+    expect(findElements(tree, (el) => el.props['data-style'] === 'subheading')).toHaveLength(0);
+    const comments = findElements(tree, (el) => el.props['data-kind'] === 'comment');
+    expect(comments.map(textOf)).toEqual(
+      printed.rows.flatMap((row) => (row.kind === 'comment' ? [row.text] : [])),
+    );
+    for (const comment of comments) {
+      expect(findElements(comment, (el) => classesOf(el).includes('outline-number'))).toHaveLength(
+        0,
+      );
+    }
+  });
+
+  it('draws an italic sub-heading as a full-width row without a number', () => {
+    const block: OutlineItem[] = [
+      { kind: 'comment', style: 'subheading', text: 'After Standstill', muted: false },
+    ];
+    const tree = expand(ChecklistOutline({ items: block, form: 'table' }));
     const [sub] = findElements(tree, (el) => el.props['data-style'] === 'subheading');
     expect(sub).toBeDefined();
     if (sub === undefined) return;
@@ -779,12 +797,13 @@ describe('the AFM form of a checklist', () => {
     expect(findElements(sub, (el) => classesOf(el).includes('outline-number'))).toHaveLength(0);
   });
 
-  it('draws the letter marks in the number cell', () => {
+  it('draws the number marks in the number cell', () => {
     const tree = expand(ChecklistOutline({ items, form: 'table' }));
     const marks = findElements(tree, (el) => classesOf(el).includes('outline-number')).map(textOf);
     expect(marks).toEqual(
       printed.rows.flatMap((row) => (row.kind === 'row' ? [String(row.number)] : [])),
     );
+    expect(marks).toEqual(['1', '2', '3', '4']);
   });
 
   it('draws a WARNING or CAUTION block with its printed word above the text', () => {

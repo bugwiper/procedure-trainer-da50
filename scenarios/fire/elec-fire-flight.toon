@@ -1,12 +1,12 @@
-# ELECTRICAL FIRE WITH SMOKE in flight (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decisions 2026-10-23 and 2026-10-27): the heading, both WARNING blocks, every item, action and sub-heading as printed. The row marks are the letters A to H of the AFM page that was compared. ASSUMPTION for the owner: the booklet may print numbers 1 to 8 instead; the marks are plain data (the `number` fields), so swapping them is one edit per row plus the typed table in tests/checklist-reference.ts. The Emergency Windows row is an optional step on the window (printed "if required"); the Doors row is an optional step on the door release lever (the simulation has no landing, so the rows below the sub-heading may be done at any time and are credited whenever the door opens); the precautionary landing and the evacuation have no panel action and stay lines. All other text is own wording. The smoke source, the outcome threshold and hold time and the onset window are instructor-review values.
+# ELECTRIC FIRE WITH SMOKE IN FLIGHT (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist booklet, Edition 4.1 of 2022-10-05, page 18 (owner decisions 2026-10-23, 2026-10-27 and 2026-10-28: the booklet is binding): the heading, every item, action, comment line and the boxed reference as printed; the booklet has no WARNING blocks here. The row marks are the numbers 1 to 8 as the booklet counts them. Rows 1 and 2 (the two ** rows, only with an oxygen system and above 10,000 ft) have no panel control and stay display lines, never graded. ECS - circulating air FRESH AIR is the state fresh of the circulating air lever; ECS shut-off PULL the state pulled; the Emergency front windows row is an optional step on the window; the Doors row is an optional step on the door release lever (the simulation has no landing, so the row below the comment line may be done at any time and is credited whenever the door opens); the printed comment lines (Continue, Land immediately, the emergency landing with its reference, Evacuate) have no panel action. All other text is own wording. The smoke source, the outcome threshold and hold time and the onset window are instructor-review values.
 format: 1
 id: elec-fire-flight
 title: ELEC FIRE FLIGHT
 source:
   document: "DA50 C / RG Emergency Procedures checklist"
   issue: "Edition 4.1, 2022-10-05"
-  section: AFM 03-34 ELECTRICAL FIRE WITH SMOKE IN FLIGHT
-  verified: "2026-10-27"
+  section: "Page 18, ELECTRIC FIRE WITH SMOKE IN FLIGHT"
+  verified: "2026-10-28"
 disclaimer: training-aid
 scene: cruise
 briefing:
@@ -21,35 +21,41 @@ parameters:
 annunciations[0]:
 checklist:
   form: table
-  heading: Electrical Fire in Flight
-procedure[11]:
+  heading: ELECTRIC FIRE WITH SMOKE IN FLIGHT
+procedure[15]:
   - kind: comment
-    style: warning
-    text: "IN THE EVENT OF SMOKE OR FIRE, PREPARE TO LAND THE AIRPLANE WITHOUT DELAY WHILE COMPLETING FIRE SUPPRESSION AND/OR SMOKE EVACUATION PROCEDURES. IF IT CANNOT BE VISUALLY VERIFIED THAT THE FIRE HAS BEEN COMPLETELY EXTINGUISHED, WHETHER THE SMOKE HAS CLEARED OR NOT, LAND IMMEDIATELY."
+    text: "If Oxygen System is installed and flight performed above 10,000ft:"
+  - kind: line
+    number: 1
+    text: "** Oxygen System"
+    action: "OFF"
+  - kind: line
+    number: 2
+    text: "** Emergency Descent"
+    action: "INITIATE"
+  - kind: comment
+    text: "Continue:"
   - kind: group
     id: grp_av_master
     ordered: false
     steps[1]:
       - id: av_master_off
         severity: critical
-        number: A
-        text: AVIONIC MASTER
+        number: 3
+        text: Avionic master
         action: "OFF"
         done:
           check: state
           control: sw.av_master
           is: off
-  - kind: comment
-    style: warning
-    text: "SWITCHING OFF THE ELECT. MASTER WILL LEAD TO TOTAL FAILURE OF ALL ELECTRONIC AND ELECTRIC EQUIPMENT."
   - kind: group
     id: grp_elect_master
     ordered: false
     steps[1]:
       - id: elect_master_off
         severity: critical
-        number: B
-        text: ELECT. MASTER
+        number: 4
+        text: Electric master
         action: "OFF"
         done:
           check: state
@@ -61,8 +67,8 @@ procedure[11]:
     steps[1]:
       - id: circ_air_fresh
         severity: critical
-        number: C
-        text: CIRCULATING AIR
+        number: 5
+        text: ECS - circulating air
         action: FRESH AIR
         done:
           check: state
@@ -74,7 +80,7 @@ procedure[11]:
     steps[1]:
       - id: ecs_pulled
         severity: critical
-        number: D
+        number: 6
         text: ECS shut-off
         action: PULL
         done:
@@ -87,36 +93,38 @@ procedure[11]:
     steps[1]:
       - id: windows_open
         severity: optional
-        number: E
-        text: Emergency Windows
-        action: OPEN if required
+        number: 7
+        text: Emergency front windows
+        action: OPEN as necessary
         done:
           check: state
           control: sw.emerg_window
           is: open
-  - kind: line
-    number: F
-    text: Perform a precautionary landing on the nearest airfield.
   - kind: comment
-    style: subheading
-    text: When Airplane Has Stopped
+    text: "Land immediately"
+  - kind: comment
+    text: "Consider and be prepared for:"
+  - kind: comment
+    text: "EMERGENCY LANDING (ENGINE OFF)"
+    boxed: true
+    action: "(page 9)"
+  - kind: comment
+    text: "After standstill and when engine stopped:"
   - kind: group
     id: grp_doors
     ordered: false
     steps[1]:
       - id: doors_open
         severity: optional
-        number: G
+        number: 8
         text: Doors
-        action: open
+        action: OPEN
         done:
           check: state
           control: lv.door_release
           is: open
-  - kind: line
-    number: H
-    text: Airplane
-    action: evacuate immediately
+  - kind: comment
+    text: "Evacuate"
 # The outcome ends the run as a fail when the cabin stays full of smoke; the density and the hold time are instructor-review values.
 outcomes[1]:
   - id: cabin_smoke_full

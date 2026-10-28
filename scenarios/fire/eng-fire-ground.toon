@@ -1,12 +1,12 @@
-# ENGINE FIRE on the ground (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decisions 2026-10-23 and 2026-10-27): the heading, every item, action and sub-heading as printed. The row marks are the letters A to E of the AFM page that was compared. ASSUMPTION for the owner: the booklet may print numbers 1 to 5 instead; the marks are plain data (the `number` fields), so swapping them is one edit per row plus the typed table in tests/checklist-reference.ts. The Door row is graded on the door release lever (state open); the printed row "Airplane evacuate immediately" has no panel action and stays a line. All other text is own wording. The fire constants, the outcome threshold and hold time, the onset window and the forbidden items are copied from ENGINE FIRE in flight and are instructor-review values.
+# ENGINE FIRE ON GROUND (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist booklet, Edition 4.1 of 2022-10-05, page 16 (owner decisions 2026-10-23, 2026-10-27 and 2026-10-28: the booklet is binding): the heading, every item, action and comment line as printed. The row marks are the numbers 1 to 4 as the booklet counts them. The Doors row is graded on the door release lever (state open); the centred printed line Evacuate has no panel action and stays a comment line. All other text is own wording. The fire constants, the outcome threshold and hold time, the onset window and the forbidden items are copied from ENGINE FIRE in flight and are instructor-review values.
 format: 1
 id: eng-fire-ground
 title: ENGINE FIRE GROUND
 source:
   document: "DA50 C / RG Emergency Procedures checklist"
   issue: "Edition 4.1, 2022-10-05"
-  section: AFM 03-29 ENGINE FIRE ON GROUND
-  verified: "2026-10-27"
+  section: "Page 16, ENGINE FIRE ON GROUND"
+  verified: "2026-10-28"
 disclaimer: training-aid
 scene: parked
 briefing:
@@ -28,7 +28,7 @@ parameters:
 annunciations[0]:
 checklist:
   form: table
-  heading: Engine Fire on Ground
+  heading: ENGINE FIRE ON GROUND
 procedure[6]:
   - kind: group
     id: grp_eng_master
@@ -36,8 +36,8 @@ procedure[6]:
     steps[1]:
       - id: engine_master_off
         severity: critical
-        number: A
-        text: ENGINE MASTER
+        number: 1
+        text: Engine master
         action: "OFF"
         done:
           check: state
@@ -49,8 +49,8 @@ procedure[6]:
     steps[1]:
       - id: fuel_valve_off
         severity: critical
-        number: B
-        text: FUEL valve
+        number: 2
+        text: Fuel valve
         action: "OFF"
         done:
           check: state
@@ -62,33 +62,30 @@ procedure[6]:
     steps[1]:
       - id: elect_master_off
         severity: critical
-        number: C
-        text: ELECT. MASTER
+        number: 3
+        text: Electric master
         action: "OFF"
         done:
           check: state
           control: sw.elect_master
           is: off
   - kind: comment
-    style: subheading
-    text: After Standstill
+    text: "After standstill and when engine stopped:"
   - kind: group
     id: grp_door
     ordered: false
     steps[1]:
       - id: door_open
         severity: critical
-        number: D
-        text: Door
-        action: open
+        number: 4
+        text: Doors
+        action: OPEN
         done:
           check: state
           control: lv.door_release
           is: open
-  - kind: line
-    number: E
-    text: Airplane
-    action: evacuate immediately
+  - kind: comment
+    text: Evacuate
 # The emergency fuel pump would feed the fire and fails the run. It is an instructor-review item.
 forbidden[1]:
   - id: emerg_fuel_pump_on

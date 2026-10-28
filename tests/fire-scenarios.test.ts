@@ -9,7 +9,6 @@ import type { GradeResult, RecordedEvent } from '../src/engine/grading';
 import { cueVisible } from '../src/engine/cues';
 import { initialQuantities, realisticQuantities } from '../src/engine/predicates';
 import { simSetup, simulate } from '../src/engine/sim';
-import { resolveVariant } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
 import type { Scenario } from '../src/scenario/schema';
 
@@ -134,81 +133,80 @@ describe('Engine Fire on Ground', () => {
   });
 });
 
-describe('Electrical Fire with Smoke on Ground', () => {
+describe('Electric Fire / Smoke on Ground', () => {
   const scenario = load('scenarios/fire/elec-fire-ground.toon');
-  const SEED = 1;
-  const running = { id: 'engine_running', seed: SEED } as const;
-  const stopped = { id: 'engine_stopped', seed: SEED } as const;
-  const gradeAs = (
-    variant: { id: string; seed: number },
-    log: readonly RecordedEvent[],
-    completedAt = 60 * SECOND_MS,
-  ): GradeResult =>
-    grade(scenario, DA50RG_ENV, { scenarioId: scenario.id, completedAt, variant, events: log });
-
-  const goldenRunning = events(
+  // The booklet list: ONE checklist of five rows, the engine runs at the start.
+  const golden = events(
     ['sw.elect_master', 'off'],
     ['lv.power', 'p0'],
-    ['sw.engine_master', 'off'],
     ['sw.fuel_valve', 'off'],
+    ['sw.engine_master', 'off'],
     ['lv.door_release', 'open'],
   );
-  const goldenStopped = events(['sw.elect_master', 'off'], ['lv.door_release', 'open']);
 
-  it('draws the engine running in 70 percent of the weight and the stopped engine in 30', () => {
-    expect(scenario.variants.map((v) => [v.id, v.weight])).toEqual([
-      ['engine_running', 70],
-      ['engine_stopped', 30],
-    ]);
+  it('has one checklist and no variants: the engine runs at the start', () => {
+    expect(scenario.variants).toEqual([]);
+    expect(scenario.initial.controls['lv.power']).toBe('p25');
+    expect(scenario.initial.controls['sw.engine_master']).toBeUndefined();
   });
 
-  it('grades the five rows of the running engine, in any order', () => {
-    const result = gradeAs(running, goldenRunning);
+  it('grades the five rows of the booklet, in any order', () => {
+    const result = run(scenario, golden);
     expect(result.result).toBe('pass');
-    expect(result.steps.map((s) => s.id).sort()).toEqual(
-      ['door_open', 'elect_master_off', 'engine_master_off', 'fuel_valve_off', 'power_idle'].sort(),
-    );
+    expect(result.steps.map((s) => s.id)).toEqual([
+      'elect_master_off',
+      'power_idle',
+      'fuel_valve_off',
+      'engine_master_off',
+      'door_open',
+    ]);
+    expect(result.steps.every((s) => s.severity === 'critical')).toBe(true);
     expect(
-      gradeAs(
-        running,
-        [...goldenRunning].reverse().map((e, i) => ({ ...e, t: (i + 1) * SECOND_MS })),
+      run(
+        scenario,
+        [...golden].reverse().map((e, i) => ({ ...e, t: (i + 1) * SECOND_MS })),
       ).result,
     ).toBe('pass');
   });
 
-  it('grades only ELECT. MASTER and the door when the engine has stopped', () => {
-    const result = gradeAs(stopped, goldenStopped);
-    expect(result.result).toBe('pass');
-    expect(result.steps.map((s) => s.id).sort()).toEqual(['door_open', 'elect_master_off']);
-    // The engine rows are not asked for, and doing them is not harmful.
-    expect(gradeAs(stopped, [...goldenStopped, ...events(['sw.fuel_valve', 'off'])]).result).toBe(
-      'pass',
-    );
+  it('fails a run that stops after ELECT. MASTER and the door only', () => {
+    expect(
+      failed(run(scenario, events(['sw.elect_master', 'off'], ['lv.door_release', 'open']))),
+    ).toBe(true);
   });
 
-  it('fails a run of the running engine that stops after ELECT. MASTER and the door only', () => {
-    expect(failed(gradeAs(running, goldenStopped))).toBe(true);
+  it('fails a run that leaves out any one row', () => {
+    for (let skip = 0; skip < golden.length; skip++) {
+      expect(
+        failed(
+          run(
+            scenario,
+            golden.filter((_, i) => i !== skip),
+          ),
+        ),
+        golden[skip]?.id,
+      ).toBe(true);
+    }
   });
 
-  it('fails a do-nothing run in both variants', () => {
-    expect(failed(gradeAs(running, []))).toBe(true);
-    expect(failed(gradeAs(stopped, []))).toBe(true);
+  it('fails a do-nothing run', () => {
+    expect(failed(run(scenario, []))).toBe(true);
   });
 
   it('credits POWER only at Ground Idle, the lever position p0', () => {
-    const result = gradeAs(running, events(['lv.power', 'p5']));
+    const result = run(scenario, events(['lv.power', 'p5']));
     expect(credited(result, 'power_idle')).toBe(false);
-    expect(credited(gradeAs(running, events(['lv.power', 'p0'])), 'power_idle')).toBe(true);
+    expect(credited(run(scenario, events(['lv.power', 'p0'])), 'power_idle')).toBe(true);
   });
 
   it('ends a long do-nothing run in the outcome cabin_smoke_full', () => {
-    const result = gradeAs(running, [], 300 * SECOND_MS);
+    const result = run(scenario, [], 300 * SECOND_MS);
     expect(result.outcome?.id).toBe('cabin_smoke_full');
   });
 
   it('clears the smoke after ELECT. MASTER off and keeps it with the master on', () => {
     const quantities = (log: readonly RecordedEvent[]) =>
-      simulate(simSetup(DA50RG_ENV, resolveVariant(scenario, 'engine_running', false)), {
+      simulate(simSetup(DA50RG_ENV, scenario), {
         events: log,
         start: initialQuantities(scenario, DA50RG_ENV.quantities),
         untilMs: 40 * SECOND_MS,
@@ -223,33 +221,22 @@ describe('Electrical Fire with Smoke on Ground', () => {
     expect(quantities(events(['sw.emerg_window', 'open']))).toBeGreaterThan(80);
   });
 
-  it('shows the cabin smoke within the lint bound after a Realistic onset, in both variants', () => {
-    for (const id of ['engine_running', 'engine_stopped']) {
-      const resolved = resolveVariant(scenario, id, true);
-      const levels = realisticLevels(resolved, 4 * SECOND_MS, 12 * SECOND_MS);
-      expect(cueVisible(levels['cabin_smoke'] ?? 0), id).toBe(true);
-      expect(cueVisible(realisticLevels(resolved, 4 * SECOND_MS, 0)['cabin_smoke'] ?? 0), id).toBe(
-        false,
-      );
-    }
+  it('shows the cabin smoke within the lint bound after a Realistic onset', () => {
+    const levels = realisticLevels(scenario, 4 * SECOND_MS, 12 * SECOND_MS);
+    expect(cueVisible(levels['cabin_smoke'] ?? 0)).toBe(true);
+    expect(cueVisible(realisticLevels(scenario, 4 * SECOND_MS, 0)['cabin_smoke'] ?? 0)).toBe(false);
   });
 
   it('clears the cue in a golden Realistic replay', () => {
-    const resolved = resolveVariant(scenario, 'engine_running', true);
-    const log = events(
-      ['sw.elect_master', 'off'],
-      ['lv.power', 'p0'],
-      ['sw.engine_master', 'off'],
-      ['sw.fuel_valve', 'off'],
-      ['lv.door_release', 'open'],
-    ).map((e) => ({ ...e, t: e.t + 10 * SECOND_MS }));
-    const levels = realisticLevels(resolved, 4 * SECOND_MS, 60 * SECOND_MS, log);
+    const log = golden.map((e) => ({ ...e, t: e.t + 10 * SECOND_MS }));
+    const levels = realisticLevels(scenario, 4 * SECOND_MS, 60 * SECOND_MS, log);
     expect(cueVisible(levels['cabin_smoke'] ?? 1)).toBe(false);
   });
 });
 
-// Electrical Fire in Flight: the AFM page with its two WARNING blocks, graded on the two masters,
-// the circulating air and the ECS shut-off; the window and the door rows are optional (I-01).
+// Electric Fire with Smoke in Flight: the booklet page 18, graded on the two masters, the
+// circulating air and the ECS shut-off; the two ** oxygen rows are display rows, the window and
+// the door rows are optional (I-01).
 describe('Electrical Fire in Flight', () => {
   const scenario = load('scenarios/fire/elec-fire-flight.toon');
   const golden = events(
@@ -277,6 +264,14 @@ describe('Electrical Fire in Flight', () => {
       windows_open: 'optional',
       doors_open: 'optional',
     });
+  });
+
+  it('has no step for the two ** oxygen rows: they stay display lines', () => {
+    const lines = scenario.procedure.flatMap((node) => (node.kind === 'line' ? [node] : []));
+    expect(lines.map((l) => [l.number, l.text])).toEqual([
+      [1, '** Oxygen System'],
+      [2, '** Emergency Descent'],
+    ]);
   });
 
   it('passes with the optional window and door steps open or not, in any order', () => {
@@ -347,19 +342,19 @@ describe('Electrical Fire in Flight', () => {
   });
 });
 
-// Unintentional Flight Into Icing Conditions (pack icing): the printed page with its two CAUTION
-// blocks, graded by control state, the ice on the cloud scene, an end of the icing area and a
-// spray that keeps the pilot side clear (the exposure and the protection are tested on a fixture in
-// tests/windscreen-physics.test.ts).
-describe('Unintentional Flight Into Icing Conditions', () => {
+// Unintentional Flight Into Icing (pack icing): the booklet page 23, graded by control state, the
+// ice on the cloud scene, an end of the icing area and a spray that keeps the pilot side clear (the
+// exposure and the protection are tested on a fixture in tests/windscreen-physics.test.ts).
+describe('Unintentional Flight Into Icing', () => {
   const scenario = load('scenarios/icing/icing-unintentional.toon');
   const golden = events(
+    ['sw.deice_mode', 'high'],
+    ['sw.prop_deice', 'on'],
     ['sw.pitot_stall_heat', 'on'],
     ['lv.env_temp', 'warm'],
     ['lv.env_direction', 'defrost'],
     ['lv.power', 'p100'],
     ['lv.alt_air', 'open'],
-    ['lv.alt_static', 'open'],
   );
   const MINUTE_MS = 60_000;
   const iceAt = (log: readonly RecordedEvent[], atMs: number): Record<string, number> => {
@@ -382,28 +377,50 @@ describe('Unintentional Flight Into Icing Conditions', () => {
     expect(scenario.outcomes).toEqual([]);
   });
 
-  it('is graded on the five critical steps, the power increase and the optional window', () => {
+  it('is graded on the six critical rows, the power increase and the two optional rows', () => {
     const result = run(scenario, golden);
     expect(result.result).toBe('pass');
     expect(Object.fromEntries(result.steps.map((s) => [s.id, s.severity]))).toEqual({
+      deice_high: 'critical',
+      prop_deice_on: 'critical',
       pitot_heat_on: 'critical',
+      ice_light_on: 'optional',
       cabin_heat_on: 'critical',
       cabin_air_defrost: 'critical',
       power_increase: 'standard',
       alt_air_open: 'critical',
-      alt_static_open: 'critical',
       windows_open: 'optional',
     });
+  });
+
+  it('has no alternate static row and no step for the WIND SHIELD press (a momentary button)', () => {
+    const ids = scenario.procedure.flatMap((node) =>
+      node.kind === 'group' ? node.steps.map((step) => step.id) : [],
+    );
+    expect(ids).not.toContain('alt_static_open');
+    const rows = scenario.procedure.flatMap((node) => (node.kind === 'line' ? [node] : []));
+    expect(rows.find((row) => row.number === 9)?.text).toBe('* Windshield de-ice');
+  });
+
+  it('grades the ICE LIGHT row on the ice-light toggle position, optional', () => {
+    const result = run(scenario, [...golden, ...events(['sw.deice_ice_light', 'ice_light'])]);
+    expect(credited(result, 'ice_light_on')).toBe(true);
+    expect(credited(run(scenario, golden), 'ice_light_on')).toBe(false);
+    // The ANNUN TEST position is not ICE LIGHT.
+    expect(
+      credited(run(scenario, events(['sw.deice_ice_light', 'annun_test'])), 'ice_light_on'),
+    ).toBe(false);
   });
 
   it('fails a run that does nothing and a run that misses any one critical step', () => {
     expect(failed(run(scenario, []))).toBe(true);
     for (const skip of [
+      'sw.deice_mode',
+      'sw.prop_deice',
       'sw.pitot_stall_heat',
       'lv.env_temp',
       'lv.env_direction',
       'lv.alt_air',
-      'lv.alt_static',
     ]) {
       expect(
         failed(
@@ -428,7 +445,10 @@ describe('Unintentional Flight Into Icing Conditions', () => {
   it('passes without the window and with it, and without the power increase', () => {
     const withWindow = [
       ...golden,
-      ...events(['sw.emerg_window', 'open']).map((e) => ({ ...e, t: 20 * SECOND_MS })),
+      ...events(['sw.emerg_window', 'open'], ['sw.deice_ice_light', 'ice_light']).map((e) => ({
+        ...e,
+        t: 20 * SECOND_MS,
+      })),
     ];
     expect(run(scenario, withWindow).result).toBe('pass');
     expect(
@@ -479,15 +499,15 @@ describe('Unintentional Flight Into Icing Conditions', () => {
   });
 });
 
-// Smoke and Fire During Take-Off: two scenarios, the abort and the no abort (S-06).
-describe('Smoke and Fire During Take-Off, the abort', () => {
+// Fire / Smoke During Aborted and Continued TKOF: two scenarios (S-06).
+describe('Fire / Smoke During Aborted TKOF', () => {
   const scenario = load('scenarios/fire/takeoff-fire-abort.toon');
   const golden = events(
     ['lv.power', 'p0'],
     ['lv.ecs_shutoff', 'pulled'],
     ['lv.toe_brakes', 'applied'],
-    ['sw.engine_master', 'off'],
     ['sw.fuel_valve', 'off'],
+    ['sw.engine_master', 'off'],
     ['sw.elect_master', 'off'],
     ['lv.door_release', 'open'],
   );
@@ -511,7 +531,7 @@ describe('Smoke and Fire During Take-Off, the abort', () => {
     expect(scenario.initial.controls['lv.power']).toBe('p100');
   });
 
-  it('is graded on the six stopping rows and the door release lever', () => {
+  it('is graded on the six stopping rows (the fuel valve before the engine master) and the door release lever', () => {
     const result = run(scenario, golden);
     expect(result.result).toBe('pass');
     expect(result.steps.map((s) => s.id).sort()).toEqual(
@@ -561,7 +581,7 @@ describe('Smoke and Fire During Take-Off, the abort', () => {
   });
 });
 
-describe('Smoke and Fire During Take-Off, no abort', () => {
+describe('Fire / Smoke During Continued TKOF', () => {
   const scenario = load('scenarios/fire/takeoff-fire-no-abort.toon');
   const core = [
     ['lv.ecs_shutoff', 'pulled'],

@@ -1,16 +1,16 @@
-# ELECTRICAL FIRE WITH SMOKE on the ground (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decisions 2026-10-23 and 2026-10-27): the heading, every item, action and sub-heading as printed (the printed gap in "If  the Engine Is Running" is a single space here). The row marks are the letters A to F of the AFM page that was compared. ASSUMPTION for the owner: the booklet may print numbers 1 to 6 instead; the marks are plain data (the `number` fields), so swapping them is one edit per row plus the typed table in tests/checklist-reference.ts. POWER lever Ground Idle (GI) is the lever position p0; FUEL valve OFF (lift and turn) is the state off of the FUEL selector (the lift is not modelled); Door is graded on the door release lever (state open); the printed row "Airplane evacuate immediately" has no panel action and stays a line. All other text is own wording. The smoke source, the outcome threshold and hold time, the onset window and the two causes are instructor-review values.
+# ELECTRIC FIRE / SMOKE ON GROUND (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist booklet, Edition 4.1 of 2022-10-05, page 16 (owner decisions 2026-10-23, 2026-10-27 and 2026-10-28: the booklet is binding): the heading, every item, action and comment line as printed. The row marks are the numbers 1 to 5 as the booklet counts them. It is ONE list: the booklet has no branch for an engine that has stopped already, so the scenario has no variants and the engine runs at the start. Power lever Ground Idle (GI) is the lever position p0; Fuel valve OFF is the state off of the FUEL selector; the Doors row is graded on the door release lever (state open); the centred printed line Evacuate has no panel action and stays a comment line. All other text is own wording. The smoke source, the outcome threshold and hold time and the onset window are instructor-review values.
 format: 1
 id: elec-fire-ground
 title: ELEC FIRE GROUND
 source:
   document: "DA50 C / RG Emergency Procedures checklist"
   issue: "Edition 4.1, 2022-10-05"
-  section: AFM 03-30 ELECTRICAL FIRE WITH SMOKE ON GROUND
-  verified: "2026-10-27"
+  section: "Page 16, ELECTRIC FIRE / SMOKE ON GROUND"
+  verified: "2026-10-28"
 disclaimer: training-aid
 scene: parked
 briefing:
-  situation: "You are on the apron when you smell burning plastic and smoke fills the cabin. No message is shown on the primary flight display. The smoke is getting thicker and its source seems to be electrical."
+  situation: "You are on the apron with the engine running when you smell burning plastic and smoke fills the cabin. No message is shown on the primary flight display. The smoke is getting thicker and its source seems to be electrical."
 initial:
   controls:
     lv.power: p25
@@ -25,83 +25,77 @@ parameters:
 annunciations[0]:
 checklist:
   form: table
-  heading: Electrical Fire with Smoke on Ground
-procedure[8]:
+  heading: ELECTRIC FIRE / SMOKE ON GROUND
+procedure[7]:
   - kind: group
     id: grp_elect_master
     ordered: false
     steps[1]:
       - id: elect_master_off
         severity: critical
-        number: A
-        text: ELECT. MASTER
+        number: 1
+        text: Electric master
         action: "OFF"
         done:
           check: state
           control: sw.elect_master
           is: off
-  - kind: comment
-    style: subheading
-    text: If the Engine Is Running
   - kind: group
     id: grp_power
     ordered: false
     steps[1]:
       - id: power_idle
         severity: critical
-        number: B
-        text: POWER lever
-        action: Ground Idle (GI)
+        number: 2
+        text: Power lever
+        action: GROUND IDLE (GI)
         done:
           check: state
           control: lv.power
           is: p0
-  - kind: group
-    id: grp_eng_master
-    ordered: false
-    steps[1]:
-      - id: engine_master_off
-        severity: critical
-        number: C
-        text: ENGINE MASTER
-        action: "OFF"
-        done:
-          check: state
-          control: sw.engine_master
-          is: off
   - kind: group
     id: grp_fuel_valve
     ordered: false
     steps[1]:
       - id: fuel_valve_off
         severity: critical
-        number: D
-        text: FUEL valve
-        action: OFF (lift and turn)
+        number: 3
+        text: Fuel valve
+        action: "OFF"
         done:
           check: state
           control: sw.fuel_valve
           is: off
+  - kind: group
+    id: grp_eng_master
+    ordered: false
+    steps[1]:
+      - id: engine_master_off
+        severity: critical
+        number: 4
+        text: Engine master
+        action: "OFF"
+        done:
+          check: state
+          control: sw.engine_master
+          is: off
   - kind: comment
-    style: subheading
-    text: When the Engine Has Stopped
+    text: "After standstill and when engine stopped:"
   - kind: group
     id: grp_door
     ordered: false
     steps[1]:
       - id: door_open
         severity: critical
-        number: E
-        text: Door
-        action: open
+        number: 5
+        text: Doors
+        action: OPEN
         done:
           check: state
           control: lv.door_release
           is: open
-  - kind: line
-    number: F
-    text: Airplane
-    action: evacuate immediately
+  - kind: comment
+    text: Evacuate
 # The outcome ends the run as a fail when the cabin stays full of smoke; the density and the hold time are instructor-review values.
 outcomes[1]:
   - id: cabin_smoke_full
@@ -112,18 +106,6 @@ outcomes[1]:
       quantity: smoke_density
       op: gte
       value: 95
-# The two situations behind the one checklist: the engine is running, so the shutdown rows apply; or it has stopped already (ENGINE MASTER off from the start), so only the ELECT. MASTER and Door rows apply. The weights and the cause texts are instructor-review values.
-variants[2]:
-  - id: engine_running
-    weight: 70
-    applies[5]: elect_master_off,power_idle,engine_master_off,fuel_valve_off,door_open
-    debrief: The engine was running, so the shutdown rows applied after the electrical master.
-  - id: engine_stopped
-    weight: 30
-    controls:
-      sw.engine_master: "off"
-    applies[2]: elect_master_off,door_open
-    debrief: The engine had stopped already, so only the electrical master and the door applied.
 # The smoke of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
 # The smoke shows over the panel, since the scenario lists no message; the lint checks that it shows within seconds of the onset.
 onset:
