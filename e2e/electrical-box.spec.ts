@@ -30,9 +30,9 @@ const VOLTS_TOLERANCE = 0.2;
 const SETTLE_MS = 15_000;
 
 const control = (page: Page, id: string) => page.locator(`[data-control-id="${id}"]`);
-const box = (page: Page): Locator => page.locator('[data-region-id="mfd"] [data-electrical-box]');
+const box = (page: Page): Locator => page.locator('[data-region-id="mfd"] [data-box="electrical"]');
 const ampsReadout = (page: Page, which: '1' | '2'): Locator =>
-  box(page).locator(`[data-gauge="Amps"] [data-amps-readout="${which}"]`);
+  box(page).locator(`[data-gauge="Amps"] [data-dual-readout="${which}"]`);
 const voltsReadout = (page: Page): Locator =>
   box(page).locator('[data-gauge="Volts"] text.glass-digits');
 
@@ -107,7 +107,7 @@ test('ALTN 2 FAIL, alternator dead: pointer 1 carries the load, pointer 2 reads 
   expect(Math.abs((await volts(page)) - VOLTS_BASE)).toBeLessThanOrEqual(VOLTS_TOLERANCE);
 });
 
-test('the box lies inside the glass content area and the fuel bars lie below it without overlap', async ({
+test('the box lies inside the glass content area and the boxes below it keep clear of it', async ({
   page,
   hasTouch,
 }) => {
@@ -117,35 +117,27 @@ test('the box lies inside the glass content area and the fuel bars lie below it 
       const b = (el as SVGGraphicsElement).getBBox();
       return { left: b.x, top: b.y, right: b.x + b.width, bottom: b.y + b.height };
     };
-    const gauge = (label: string) => {
-      const el = region.querySelector(`[data-gauge="${label}"]`);
-      if (el === null) throw new Error(`no gauge ${label}`);
+    const find = (selector: string) => {
+      const el = region.querySelector(selector);
+      if (el === null) throw new Error(`no element ${selector}`);
       return rectOf(el);
     };
-    const boxEl = region.querySelector('[data-electrical-box]');
-    if (boxEl === null) throw new Error('no box');
-    const frame = region.querySelector('[data-glass-zone="screen"]');
-    if (frame === null) throw new Error('no screen');
     return {
-      box: rectOf(boxEl),
-      screen: rectOf(frame),
-      fuel: [gauge('Fuel qty LH'), gauge('Fuel qty RH')],
-      left: ['Oil temp', 'Coolant temp', 'Gearbox temp', 'Fuel temp', 'Fuel pres'].map(gauge),
-      arcs: ['RPM', 'Load', 'Oil pres'].map(gauge),
+      box: find('[data-box="electrical"]'),
+      screen: find('[data-glass-zone="screen"]'),
+      below: find('[data-box="oxygen"]'),
+      gauges: Array.from(region.querySelectorAll('[data-gauge]'))
+        .filter((el) => el.closest('[data-box="electrical"]') === null)
+        .map(rectOf),
     };
   });
-  const { box: b, screen, fuel, left, arcs } = geometry;
+  const { box: b, screen, below, gauges } = geometry;
   expect(b.top).toBeGreaterThanOrEqual(GLASS.content.y0);
   expect(b.bottom).toBeLessThanOrEqual(GLASS.content.y1);
   expect(b.left).toBeGreaterThanOrEqual(screen.left);
   expect(b.right).toBeLessThanOrEqual(screen.right);
-  let top = b.bottom;
-  for (const f of fuel) {
-    expect(f.top).toBeGreaterThanOrEqual(top);
-    expect(f.bottom).toBeLessThanOrEqual(GLASS.content.y1);
-    top = f.bottom;
-  }
-  for (const other of [...left, ...arcs]) {
+  expect(below.top).toBeGreaterThanOrEqual(b.bottom);
+  for (const other of gauges) {
     const apart =
       other.right <= b.left ||
       b.right <= other.left ||

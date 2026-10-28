@@ -48,7 +48,11 @@ export function BarGauge({
   const pointerX = x + frac(value) * w;
   const style = gaugeAlertStyle(tone);
   const labelText = label.toUpperCase();
-  const valueText = `${readoutText(value, decimals)} ${unit.toUpperCase()}`;
+  // An empty unit prints the number alone (the label already names the unit, as PSI and US GAL do).
+  const valueText =
+    unit === ''
+      ? readoutText(value, decimals)
+      : `${readoutText(value, decimals)} ${unit.toUpperCase()}`;
   const labelW = textBoxWidth(labelText, FONT);
   const valueW = textBoxWidth(valueText, FONT, true);
   // The side padding shrinks (to 2 on the 130 wide map strip, to 0 at most) when the pair would

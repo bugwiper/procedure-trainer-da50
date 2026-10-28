@@ -135,7 +135,7 @@ test('the oil temperature bar on the engine page is red, then yellow after the c
   await expectBoxesHoldTheirText(oilTemp);
 });
 
-test('with ENGINE MASTER off the oil pressure arc turns red while the RPM arc stays plain', async ({
+test('with ENGINE MASTER off the oil pressure bar turns red while the RPM arc stays plain', async ({
   page,
   hasTouch,
 }) => {
@@ -153,7 +153,7 @@ test('with ENGINE MASTER off the oil pressure arc turns red while the RPM arc st
   );
 
   await expect(oilPres).toHaveAttribute('data-alert', 'red', { timeout: 10_000 });
-  await expectAlert(oilPres, 'red', 'arc');
+  await expectAlert(oilPres, 'red');
   await expectBoxesHoldTheirText(oilPres);
   // The engine spins down towards 0 rpm, which lies in the green band of the RPM scale: the arc
   // keeps its plain look all the way.

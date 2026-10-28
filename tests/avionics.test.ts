@@ -467,7 +467,7 @@ describe('glass header, content and legend zones', () => {
     expect(textsIn(content)).toContain('1013 HPA');
   });
 
-  it('the MFD content follows Table D6 (strip pitch 38 height 36, engine page rows)', () => {
+  it('the MFD content follows Table D6 (strip pitch 38 height 36, the engine page rows of the reference)', () => {
     const strip = findElements(mfdMap, (e) => e.props['data-testid'] === 'mfd-engine-strip')[0];
     if (strip === undefined) throw new Error('no strip');
     const gauges = findElements(strip, (e) => e.props['data-gauge'] !== undefined);
@@ -479,10 +479,12 @@ describe('glass header, content and legend zones', () => {
     });
     const page = findElements(mfdEngine, (e) => e.props['data-testid'] === 'mfd-engine-page')[0];
     if (page === undefined) throw new Error('no engine page');
-    const title = findElements(page, (e) => e.tag === 'text' && textOf(e) === 'ENGINE')[0];
-    expect(title?.props['y']).toBe(46);
-    const arcs = findElements(page, (e) => e.props['data-gauge'] !== undefined);
-    expect(arcs).toHaveLength(12);
+    // The page has no heading of its own (the header already reads EIS - Engine).
+    expect(findElements(page, (e) => e.tag === 'text' && textOf(e) === 'ENGINE')).toEqual([]);
+    // One gauge per reference row (Table Q1); only Load and RPM are arcs (a hub circle each).
+    const gaugesOnPage = findElements(page, (e) => e.props['data-gauge'] !== undefined);
+    expect(gaugesOnPage).toHaveLength(GAUGE_REFERENCE.length);
+    expect(findElements(page, (e) => e.tag === 'circle')).toHaveLength(2);
   });
 });
 
@@ -502,13 +504,16 @@ const GAUGE_REFERENCE: readonly {
   { label: 'Oil temp', quantity: 'oil_temp_c', decimals: 0 },
   { label: 'Coolant temp', quantity: 'coolant_temp_c', decimals: 0 },
   { label: 'Gearbox temp', quantity: 'gearbox_temp_c', decimals: 0 },
-  { label: 'Fuel temp', quantity: 'fuel_temp_lh_c', decimals: 0 },
-  { label: 'Fuel pres', quantity: 'fuel_pressure_bar', decimals: 1 },
-  { label: 'Fuel qty LH', quantity: 'fuel_qty_lh_gal', decimals: 1 },
-  { label: 'Fuel qty RH', quantity: 'fuel_qty_rh_gal', decimals: 1 },
+  { label: 'Fuel qty', quantity: 'fuel_qty_lh_gal', decimals: 1, second: 'fuel_qty_rh_gal' },
   { label: 'Volts', quantity: 'bus_volts', decimals: 1 },
   { label: 'Amps', quantity: 'alt1_amps', decimals: 0, second: 'alt2_amps' },
 ];
+/** The map strip shows the left tank alone; its gauge is not on the engine page. */
+const STRIP_ONLY: readonly {
+  readonly label: string;
+  readonly quantity: string;
+  readonly decimals: number;
+}[] = [{ label: 'Fuel qty LH', quantity: 'fuel_qty_lh_gal', decimals: 1 }];
 const STRIP_LABELS = [
   'RPM',
   'Load',
@@ -540,7 +545,8 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
     return found;
   };
   const refOf = (label: string) => {
-    const found = GAUGE_REFERENCE.find((g) => g.label === label);
+    const refs: readonly (typeof GAUGE_REFERENCE)[number][] = [...GAUGE_REFERENCE, ...STRIP_ONLY];
+    const found = refs.find((g) => g.label === label);
     const def = found === undefined ? undefined : DA50RG_QUANTITIES.get(found.quantity);
     if (found === undefined || def === undefined) throw new Error(`no reference for ${label}`);
     return { ...found, def };
@@ -572,7 +578,7 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
         const { def } = refOf(label);
         const gauge = gaugeOf(tree, label);
         const bands = findElements(gauge, (e) =>
-          pageName === 'engine' && ['RPM', 'Load', 'Oil pres'].includes(label)
+          pageName === 'engine' && ['RPM', 'Load'].includes(label)
             ? e.tag === 'path'
             : e.tag === 'rect',
         );
@@ -605,7 +611,7 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
   const readoutsOf = (gauge: El): string[] =>
     findElements(gauge, (e) => e.props['class'] === 'glass-digits').map((e) => textOf(e));
   const isArc = (pageName: string, label: string): boolean =>
-    pageName === 'engine' && ['RPM', 'Load', 'Oil pres'].includes(label);
+    pageName === 'engine' && ['RPM', 'Load'].includes(label);
 
   it.each(['map', 'engine'] as const)(
     'on the %s page every gauge prints a stub value at its resolution',
@@ -663,11 +669,11 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
 
   it('the engine page holds the Electrical box with the Amps and Volts bars and no bar of them outside it', () => {
     const tree = render('engine', {});
-    const boxes = findElements(tree, (e) => e.props['data-electrical-box'] !== undefined);
+    const boxes = findElements(tree, (e) => e.props['data-box'] === 'electrical');
     expect(boxes).toHaveLength(1);
     const box = boxes[0];
     if (box === undefined) throw new Error('no box');
-    const title = findElements(box, (e) => e.props['data-electrical-title'] !== undefined)[0];
+    const title = findElements(box, (e) => e.props['data-box-title'] !== undefined)[0];
     expect(title === undefined ? '' : textOf(title)).toBe('ELECTRICAL');
     const inside = findElements(box, (e) => e.props['data-gauge'] !== undefined).map(
       (e) => e.props['data-gauge'],
@@ -681,7 +687,7 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
 
   it('the map strip keeps its Volts bar and has no Electrical box', () => {
     const tree = render('map', {});
-    expect(findElements(tree, (e) => e.props['data-electrical-box'] !== undefined)).toEqual([]);
+    expect(findElements(tree, (e) => e.props['data-box'] === 'electrical')).toEqual([]);
     expect(findElements(tree, (e) => e.props['data-gauge'] === 'Volts')).toHaveLength(1);
     expect(findElements(tree, (e) => e.props['data-gauge'] === 'Amps')).toEqual([]);
   });

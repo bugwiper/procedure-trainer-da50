@@ -6,6 +6,8 @@ import {
   legendTabCentreX,
 } from '../../../aircraft/da50rg/avionics';
 import type { DisplayId } from '../../../aircraft/da50rg/avionics';
+import { ENGINE_PAGE } from '../../../aircraft/da50rg/engine-page';
+import type { PageEntry } from '../../../aircraft/da50rg/engine-page';
 import { DA50RG_QUANTITIES } from '../../../aircraft/da50rg/quantities';
 import type { BandColour, QuantityId } from '../../../engine/quantities';
 import type { Region } from '../../../engine/registry';
@@ -13,9 +15,10 @@ import type { PanelBridge } from '../../bridge';
 import type { Session } from '../../session';
 import { ArcGauge } from './ArcGauge';
 import type { Band } from './ArcGauge';
-import { AMPS_GAUGE_H, AmpsGauge } from './AmpsGauge';
 import { BarGauge } from './BarGauge';
-import { GLASS_DARK, GREEN, RED, YELLOW, textBoxWidth, toneOf } from './gauge-alert';
+import { BoxFrame } from './BoxFrame';
+import { DualGauge } from './DualGauge';
+import { GLASS_DARK, GREEN, RED, YELLOW, toneOf } from './gauge-alert';
 
 export interface FrameProps {
   readonly region: Region;
@@ -218,20 +221,19 @@ const OIL_PRES: GaugeSpec = quantityGauge('Oil pres', 'oil_pressure_bar', 1);
 const OIL_TEMP: GaugeSpec = quantityGauge('Oil temp', 'oil_temp_c', 0);
 const COOLANT_TEMP: GaugeSpec = quantityGauge('Coolant temp', 'coolant_temp_c', 0);
 const GEARBOX_TEMP: GaugeSpec = quantityGauge('Gearbox temp', 'gearbox_temp_c', 0);
-const FUEL_TEMP: GaugeSpec = quantityGauge('Fuel temp', 'fuel_temp_lh_c', 0);
-const FUEL_PRES: GaugeSpec = quantityGauge('Fuel pres', 'fuel_pressure_bar', 1);
 const FUEL_QTY_LH: GaugeSpec = quantityGauge('Fuel qty LH', 'fuel_qty_lh_gal', 1);
-const FUEL_QTY_RH: GaugeSpec = quantityGauge('Fuel qty RH', 'fuel_qty_rh_gal', 1);
 const VOLTS: GaugeSpec = quantityGauge('Volts', 'bus_volts', 1);
-/** The Amps bar has one scale and one band table; alternator 2 reads the same bar (E-19). */
-const AMPS: GaugeSpec = quantityGauge('Amps', 'alt1_amps', 0);
-const AMPS_SECOND: QuantityId = 'alt2_amps';
 
 type Quantities = Readonly<Record<QuantityId, number>>;
 
 /** The reading of a gauge: its quantity when the bridge has a value, else the quantity's base. */
 function readingOf(g: GaugeSpec, quantities: Quantities): number {
   return quantities[g.quantity] ?? g.value;
+}
+
+/** The value of a quantity by id: the bridge's value, else the quantity's base (0 if unknown). */
+function valueOf(quantity: QuantityId, quantities: Quantities): number {
+  return quantities[quantity] ?? DA50RG_QUANTITIES.get(quantity)?.base ?? 0;
 }
 
 export const SCREEN_FILL = GLASS_DARK;
@@ -246,24 +248,6 @@ const STRIP_GAUGES: readonly GaugeSpec[] = [
   VOLTS,
   FUEL_QTY_LH,
 ];
-const ENGINE_BARS_LEFT: readonly GaugeSpec[] = [
-  OIL_TEMP,
-  COOLANT_TEMP,
-  GEARBOX_TEMP,
-  FUEL_TEMP,
-  FUEL_PRES,
-];
-/** The Volts and Amps bars live in the Electrical box (E-18); the fuel bars follow below it. */
-const ENGINE_BARS_RIGHT: readonly GaugeSpec[] = [FUEL_QTY_LH, FUEL_QTY_RH];
-const BOX_TITLE = 'ELECTRICAL';
-const BOX_TITLE_FONT = 8;
-const BOX_STROKE = '#3a424b';
-const BOX_TITLE_FILL = '#aab3bd';
-const BOX_TOP = 172;
-const BOX_PAD_X = 6;
-const VOLTS_H = 33;
-const BOX_BOTTOM_PAD = 4;
-
 /**
  * MFD frame (D-04a): the Map page with a small engine strip, or the full Engine page,
  * selected by the page softkey state. Every gauge reads a simulated quantity (D-12); no handlers
@@ -287,7 +271,7 @@ export function MfdFrame({ region, bridge }: FrameProps) {
       <GlassHeader title={page === 'engine' ? 'EIS - Engine' : 'Map - Navigation Map'} />
       <g data-glass-zone="content">
         {page === 'engine' ? (
-          <EnginePage w={w} quantities={quantities} />
+          <EnginePage quantities={quantities} />
         ) : (
           <MapPage w={w} quantities={quantities} />
         )}
@@ -350,138 +334,105 @@ function MapPage({ w, quantities }: { readonly w: number; readonly quantities: Q
   );
 }
 
-const ELECTRICAL_INNER_Y = BOX_TOP + 10;
-const ELECTRICAL_BOTTOM = ELECTRICAL_INNER_Y + AMPS_GAUGE_H + VOLTS_H + BOX_BOTTOM_PAD;
-
 /**
- * The Electrical box of the engine page (E-18): a framed box titled ELECTRICAL (cut into the top
- * edge) holding the two-pointer Amps bar and the Volts bar. Scales, bands and readings come from
- * the quantity data; the marks are static text (E-20).
+ * The engine page: every box of ENGINE_PAGE (src/aircraft/da50rg/engine-page.ts) at its rectangle,
+ * each gauge reading its simulated quantity. The frame holds no page coordinate.
  */
-function ElectricalBox({
-  x,
-  w,
-  quantities,
-}: {
-  readonly x: number;
-  readonly w: number;
-  readonly quantities: Quantities;
-}) {
-  const first = readingOf(AMPS, quantities);
-  const second = quantities[AMPS_SECOND] ?? DA50RG_QUANTITIES.get(AMPS_SECOND)?.base ?? 0;
-  const titleW = textBoxWidth(BOX_TITLE, BOX_TITLE_FONT) + 6;
+function EnginePage({ quantities }: { readonly quantities: Quantities }) {
   return (
-    <g data-electrical-box>
-      <rect
-        x={x}
-        y={BOX_TOP}
-        width={w}
-        height={ELECTRICAL_BOTTOM - BOX_TOP}
-        rx={3}
-        fill="none"
-        stroke={BOX_STROKE}
-        stroke-width={1}
-      />
-      <rect x={x + 8} y={BOX_TOP - 2} width={titleW} height={4} fill={SCREEN_FILL} />
-      <text
-        data-electrical-title
-        x={x + 11}
-        y={BOX_TOP + 2.5}
-        font-size={BOX_TITLE_FONT}
-        fill={BOX_TITLE_FILL}
-      >
-        {BOX_TITLE}
-      </text>
-      <AmpsGauge
-        label={AMPS.label}
-        min={AMPS.min}
-        max={AMPS.max}
-        bands={AMPS.bands}
-        decimals={AMPS.decimals}
-        first={{ value: first, tone: toneOf(DA50RG_QUANTITIES, AMPS.quantity, first) }}
-        second={{ value: second, tone: toneOf(DA50RG_QUANTITIES, AMPS_SECOND, second) }}
-        x={x + BOX_PAD_X}
-        y={ELECTRICAL_INNER_Y}
-        w={w - 2 * BOX_PAD_X}
-      />
-      <BarGauge
-        label={VOLTS.label}
-        unit={VOLTS.unit}
-        value={readingOf(VOLTS, quantities)}
-        min={VOLTS.min}
-        max={VOLTS.max}
-        bands={VOLTS.bands}
-        decimals={VOLTS.decimals}
-        tone={toneOf(DA50RG_QUANTITIES, VOLTS.quantity, readingOf(VOLTS, quantities))}
-        x={x + BOX_PAD_X}
-        y={ELECTRICAL_INNER_Y + AMPS_GAUGE_H}
-        w={w - 2 * BOX_PAD_X}
-        h={VOLTS_H}
-      />
+    <g data-testid="mfd-engine-page">
+      {ENGINE_PAGE.flatMap((column) => column.entries).map((entry) => (
+        <PageEntryView key={entry.id} entry={entry} quantities={quantities} />
+      ))}
     </g>
   );
 }
 
-function EnginePage({ w, quantities }: { readonly w: number; readonly quantities: Quantities }) {
-  const arcs: readonly GaugeSpec[] = [RPM, LOAD, OIL_PRES];
-  const colW = (w - 8) / 3;
-  const barW = (w - 8) / 2 - 24;
-  return (
-    <g data-testid="mfd-engine-page">
-      <text x={14} y={46} font-size={14} fill="#d8dde3">
-        ENGINE
-      </text>
-      {arcs.map((g, i) => (
+function PageEntryView({
+  entry,
+  quantities,
+}: {
+  readonly entry: PageEntry;
+  readonly quantities: Quantities;
+}) {
+  switch (entry.kind) {
+    case 'arc': {
+      const g = quantityGauge(entry.label, entry.quantity, entry.decimals);
+      const value = readingOf(g, quantities);
+      return (
         <ArcGauge
-          key={g.label}
           label={g.label}
           unit={g.unit}
-          value={readingOf(g, quantities)}
+          value={value}
           min={g.min}
           max={g.max}
           bands={g.bands}
           decimals={g.decimals}
-          tone={toneOf(DA50RG_QUANTITIES, g.quantity, readingOf(g, quantities))}
-          cx={4 + colW * (i + 0.5)}
-          cy={112}
-          r={52}
+          tone={toneOf(DA50RG_QUANTITIES, g.quantity, value)}
+          cx={entry.centre.x}
+          cy={entry.centre.y}
+          r={entry.radius}
         />
-      ))}
-      {ENGINE_BARS_LEFT.map((g, i) => (
+      );
+    }
+    case 'bar': {
+      const g = quantityGauge(entry.label, entry.quantity, entry.decimals);
+      const value = readingOf(g, quantities);
+      return (
         <BarGauge
-          key={g.label}
           label={g.label}
-          unit={g.unit}
-          value={readingOf(g, quantities)}
+          unit={entry.unit ? g.unit : ''}
+          value={value}
           min={g.min}
           max={g.max}
           bands={g.bands}
           decimals={g.decimals}
-          tone={toneOf(DA50RG_QUANTITIES, g.quantity, readingOf(g, quantities))}
-          x={16}
-          y={176 + i * 33}
-          w={barW}
-          h={33}
+          tone={toneOf(DA50RG_QUANTITIES, g.quantity, value)}
+          x={entry.rect.x}
+          y={entry.rect.y}
+          w={entry.rect.w}
+          h={entry.rect.h}
         />
-      ))}
-      <ElectricalBox x={w / 2 + 8 - BOX_PAD_X} w={barW + 2 * BOX_PAD_X} quantities={quantities} />
-      {ENGINE_BARS_RIGHT.map((g, i) => (
-        <BarGauge
-          key={g.label}
+      );
+    }
+    case 'dual': {
+      // The second quantity shares the range and the band table of the first (tested).
+      const g = quantityGauge(entry.label, entry.quantity, entry.decimals);
+      const first = readingOf(g, quantities);
+      const second = valueOf(entry.second, quantities);
+      return (
+        <DualGauge
           label={g.label}
-          unit={g.unit}
-          value={readingOf(g, quantities)}
           min={g.min}
           max={g.max}
           bands={g.bands}
           decimals={g.decimals}
-          tone={toneOf(DA50RG_QUANTITIES, g.quantity, readingOf(g, quantities))}
-          x={w / 2 + 8}
-          y={ELECTRICAL_BOTTOM + 4 + i * 33}
-          w={barW}
-          h={33}
+          marks={entry.marks}
+          scale={entry.scale}
+          first={{ value: first, tone: toneOf(DA50RG_QUANTITIES, g.quantity, first) }}
+          second={{ value: second, tone: toneOf(DA50RG_QUANTITIES, entry.second, second) }}
+          x={entry.rect.x}
+          y={entry.rect.y}
+          w={entry.rect.w}
         />
-      ))}
-    </g>
-  );
+      );
+    }
+    case 'frame':
+      return (
+        <BoxFrame
+          id={entry.id}
+          title={entry.title}
+          x={entry.rect.x}
+          y={entry.rect.y}
+          w={entry.rect.w}
+          h={entry.rect.h}
+        >
+          {entry.rows.map((row) => (
+            <PageEntryView key={row.id} entry={row} quantities={quantities} />
+          ))}
+        </BoxFrame>
+      );
+    default:
+      return null;
+  }
 }

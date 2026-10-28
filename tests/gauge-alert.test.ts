@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
-import { AmpsGauge } from '../src/ui/panel/frames/AmpsGauge';
-import type { AmpsGaugeProps } from '../src/ui/panel/frames/AmpsGauge';
 import { ArcGauge } from '../src/ui/panel/frames/ArcGauge';
 import type { ArcGaugeProps } from '../src/ui/panel/frames/ArcGauge';
 import { BarGauge } from '../src/ui/panel/frames/BarGauge';
 import type { BarGaugeProps } from '../src/ui/panel/frames/BarGauge';
+import { DualGauge } from '../src/ui/panel/frames/DualGauge';
+import type { DualGaugeProps } from '../src/ui/panel/frames/DualGauge';
 import {
   GLASS_DARK,
   GREEN,
@@ -310,7 +310,7 @@ describe('worseTone', () => {
   });
 });
 
-describe('AmpsGauge in every tone pair (E-19, E-20)', () => {
+describe('DualGauge (Amps bar) in every tone pair (E-19, E-20)', () => {
   const def = DA50RG_QUANTITIES.get('alt1_amps');
   if (def === undefined) throw new Error('no alt1_amps');
   // One value per colour, from the band data of the quantity, never typed.
@@ -328,7 +328,7 @@ describe('AmpsGauge in every tone pair (E-19, E-20)', () => {
     to: b.to,
     color: b.colour === 'green' ? GREEN : b.colour === 'yellow' ? YELLOW : RED,
   }));
-  const base: AmpsGaugeProps = {
+  const base: DualGaugeProps = {
     label: 'Amps',
     min: def.min,
     max: def.max,
@@ -340,9 +340,9 @@ describe('AmpsGauge in every tone pair (E-19, E-20)', () => {
     w: 203,
     decimals: 0,
   };
-  const draw = (a: GaugeTone, b: GaugeTone, patch: Partial<AmpsGaugeProps> = {}): El =>
+  const draw = (a: GaugeTone, b: GaugeTone, patch: Partial<DualGaugeProps> = {}): El =>
     expand(
-      AmpsGauge({
+      DualGauge({
         ...base,
         first: { value: sample[a as 'green'], tone: a },
         second: { value: sample[b as 'green'], tone: b },
@@ -354,7 +354,7 @@ describe('AmpsGauge in every tone pair (E-19, E-20)', () => {
   const boxOf = (tree: El, which: string): El | undefined =>
     boxes(tree).find((b) => b.props['data-alert-box'] === which);
   const pointer = (tree: El, which: string): El => {
-    const found = findElements(tree, (e) => e.props['data-amps-pointer'] === which)[0];
+    const found = findElements(tree, (e) => e.props['data-dual-pointer'] === which)[0];
     if (found === undefined) throw new Error('no pointer');
     return found;
   };
@@ -421,7 +421,7 @@ describe('AmpsGauge in every tone pair (E-19, E-20)', () => {
       new RegExp(` ${barBottom + 1} l -?\\d+ 6 `),
     );
     const mark = (which: string) =>
-      findElements(tree, (e) => e.props['data-amps-mark'] === which)[0];
+      findElements(tree, (e) => e.props['data-dual-mark'] === which)[0];
     expect(num(mark('1') ?? tree, 'y')).toBeLessThan(barTop);
     expect(num(mark('2') ?? tree, 'y')).toBeGreaterThan(barBottom);
   });
@@ -462,5 +462,84 @@ describe('AmpsGauge in every tone pair (E-19, E-20)', () => {
     expect(b.right).toBeLessThan(c.left);
     expect(a.left).toBeLessThanOrEqual(base.x);
     expect(c.right).toBeGreaterThanOrEqual(base.x + base.w);
+  });
+});
+
+describe('DualGauge with marks and a scale (E-03, fuel quantity bar)', () => {
+  const def = DA50RG_QUANTITIES.get('fuel_qty_lh_gal');
+  if (def === undefined) throw new Error('no fuel_qty_lh_gal');
+  const bands = def.bands.map((b, i) => ({
+    from: i === 0 ? def.min : (def.bands[i - 1]?.to ?? def.min),
+    to: b.to,
+    color: b.colour === 'green' ? GREEN : RED,
+  }));
+  const scale = [0, 5, 10, 15, 20, 25] as const;
+  const props: DualGaugeProps = {
+    label: 'Fuel qty',
+    min: def.min,
+    max: def.max,
+    bands,
+    first: { value: 20, tone: 'green' },
+    second: { value: 7, tone: 'green' },
+    marks: ['L', 'R'],
+    scale,
+    x: 176,
+    y: 134,
+    w: 142,
+    decimals: 1,
+  };
+  const tree = expand(DualGauge(props));
+  const plain = expand(DualGauge({ ...props, scale: undefined, marks: undefined }));
+
+  it('the marks replace the digits and the scale numerals are static text under the bar', () => {
+    const marks = findElements(tree, (e) => e.props['data-dual-mark'] !== undefined).map((m) =>
+      textOf(m),
+    );
+    expect(marks).toEqual(['L', 'R']);
+    const numerals = findElements(tree, (e) => e.props['data-dual-scale'] !== undefined).map((g) =>
+      textOf(g),
+    );
+    expect(numerals).toEqual(scale.map(String));
+  });
+
+  it('each numeral sits at its value on the one scale, below the bar and the lower pointer', () => {
+    const at = (v: number) => props.x + ((v - def.min) / (def.max - def.min)) * props.w;
+    const barTop = props.y + 26;
+    for (const v of scale) {
+      const g = findElements(tree, (e) => e.props['data-dual-scale'] === v)[0];
+      const text = g === undefined ? undefined : findElements(g, (e) => e.tag === 'text')[0];
+      expect(Number(text?.props['x']), `numeral ${String(v)}`).toBeCloseTo(at(v), 6);
+      expect(Number(text?.props['y']), `numeral ${String(v)}`).toBeGreaterThan(barTop + 7 + 7 + 6);
+    }
+  });
+
+  it('without a scale the gauge draws no numeral and no tick, and the default marks are 1 and 2', () => {
+    expect(findElements(plain, (e) => e.props['data-dual-scale'] !== undefined)).toEqual([]);
+    expect(
+      findElements(plain, (e) => e.props['data-dual-mark'] !== undefined).map((m) => textOf(m)),
+    ).toEqual(['1', '2']);
+  });
+
+  it('the cell height covers the drawn parts', async () => {
+    const { dualGaugeHeight } = await import('../src/ui/panel/frames/DualGauge');
+    const bottoms = (t: El): number =>
+      Math.max(
+        ...findElements(t, (e) => e.tag === 'text').map((e) => Number(e.props['y'])),
+        ...findElements(t, (e) => e.tag === 'line').map((e) => Number(e.props['y2'])),
+      );
+    expect(bottoms(tree)).toBeLessThanOrEqual(props.y + dualGaugeHeight(true));
+    expect(bottoms(plain)).toBeLessThanOrEqual(props.y + dualGaugeHeight(false));
+  });
+
+  it('the two tank quantities share one range and one band table', () => {
+    const rh = DA50RG_QUANTITIES.get('fuel_qty_rh_gal');
+    expect(rh?.min).toBe(def.min);
+    expect(rh?.max).toBe(def.max);
+    expect(rh?.bands).toEqual(def.bands);
+    const lt = DA50RG_QUANTITIES.get('fuel_temp_lh_c');
+    const rt = DA50RG_QUANTITIES.get('fuel_temp_rh_c');
+    expect(rt?.min).toBe(lt?.min);
+    expect(rt?.max).toBe(lt?.max);
+    expect(rt?.bands).toEqual(lt?.bands);
   });
 });
