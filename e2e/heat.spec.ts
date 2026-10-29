@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { DA50RG_CAS } from '../src/aircraft/da50rg/cas';
 import { DA50RG_QUANTITIES, STALL_HEAT_CUTOUT_S } from '../src/aircraft/da50rg/quantities';
+import { startScenario } from './support/session';
 import { activate } from './support/zoom';
 
 // PITOT HEAT and STALL HEAT on the built panel (Phase 6, plan 04; H-01, H-02): the PITOT/STALL HEAT
@@ -71,4 +72,28 @@ test('?q=stall_heat_timer_s at the cut-out time itself shows no chip', async ({ 
   await page.goto(`./?q=${TIMER}:${STALL_HEAT_CUTOUT_S}`);
   await expect(page.getByTestId('panel')).toBeVisible();
   await expect(chips(page)).toHaveCount(0);
+});
+
+// H-03 (owner, D-12): a ground situation starts with the heat on, so STALL HEAT comes back a few
+// seconds into the run; switching the heat off swaps it for the two off cautions. Real time.
+test('a ground situation shows STALL HEAT a few seconds into the run, off swaps it for the two cautions', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, 'fire.eng-fire-ground', 'easy');
+  await expect(page.locator(`[data-control-id="${HEAT}"]`)).toHaveAttribute('data-state', 'on');
+  await expect(chip(page, 'stall_heat_ground')).toHaveCount(1, {
+    timeout: (STALL_HEAT_CUTOUT_S + 10) * 1000,
+  });
+  await expect(chip(page, 'stall_heat_ground')).toHaveAttribute('data-level', 'caution');
+  await expect(chip(page, 'stall_heat_ground')).toHaveAttribute(
+    'aria-label',
+    `Caution: ${text('stall_heat_ground')}`,
+  );
+
+  await activate(page.locator(`[data-hit="${HEAT}"]`), hasTouch);
+  await expect(page.locator(`[data-control-id="${HEAT}"]`)).toHaveAttribute('data-state', 'off');
+  await expect(chip(page, 'stall_heat_ground')).toHaveCount(0);
+  await expect(chip(page, 'pitot_heat')).toHaveCount(1);
+  await expect(chip(page, 'stall_heat')).toHaveCount(1);
 });

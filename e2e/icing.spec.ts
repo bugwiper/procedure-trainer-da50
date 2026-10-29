@@ -13,6 +13,10 @@ const ICE_PILOT = '[data-cue="ice_pilot_side"]';
 const ICE_COPILOT = '[data-cue="ice_copilot_side"]';
 const CLOUD = '[data-layer="windscreen"] [data-scene="cloud"]';
 const control = (page: Page, id: string) => page.locator(`[data-control-id="${id}"]`);
+// The heat_off variant (Phase 6, plan 04): the rocker off shows the two yellow PFD cautions.
+const chips = (page: Page) => page.locator('[data-testid="cas-chip"]');
+const chip = (page: Page, id: string) =>
+  page.locator(`[data-testid="cas-chip"][data-cas-id="${id}"]`);
 
 /** The DE-ICE MODE toggle to HIGH: a tap in the top third of its hit area. */
 async function deiceModeHigh(page: Page, hasTouch: boolean): Promise<void> {
@@ -45,6 +49,10 @@ test('@hooks Unintentional Flight Into Icing: the cloud scene and the ice of bot
   await expect(page.locator(ICE_COPILOT)).toHaveCount(1);
   await expect(control(page, 'sw.pitot_stall_heat')).toHaveAttribute('data-state', 'off');
   await expect(control(page, 'sw.deice_mode')).toHaveAttribute('data-state', 'off');
+  // The heat is off: both cautions show from the start, in yellow.
+  await expect(chips(page)).toHaveCount(2);
+  await expect(chip(page, 'pitot_heat')).toHaveAttribute('data-level', 'caution');
+  await expect(chip(page, 'stall_heat')).toHaveAttribute('data-level', 'caution');
 
   // Rows 1 to 3: the ice protection on HIGH, the prop de-ice, the pitot and stall heat.
   await deiceModeHigh(page, hasTouch);
@@ -52,6 +60,8 @@ test('@hooks Unintentional Flight Into Icing: the cloud scene and the ice of bot
   await expect(control(page, 'sw.prop_deice')).toHaveAttribute('data-state', 'on');
   await activate(page.locator('[data-hit="sw.pitot_stall_heat"]'), hasTouch);
   await expect(control(page, 'sw.pitot_stall_heat')).toHaveAttribute('data-state', 'on');
+  // Switching the heat on clears both messages (in the air no ground cut-out follows).
+  await expect(chips(page)).toHaveCount(0);
   await activate(page.locator('[data-detent="lv.env_temp:warm"]'), hasTouch);
   await expect(control(page, 'lv.env_temp')).toHaveAttribute('data-state', 'warm');
   await activate(page.locator('[data-detent="lv.env_direction:defrost"]'), hasTouch);
@@ -111,6 +121,9 @@ test('@hooks Realistic: the ice shows within the bound, WIND SHIELD clears the p
   await expect(page.locator(CLOUD)).toHaveCount(1);
   await expect(page.locator(ICE_PILOT)).toHaveCount(1, { timeout: SHOWS_WITHIN_MS });
   await expect(page.locator(ICE_COPILOT)).toHaveCount(1, { timeout: SHOWS_WITHIN_MS });
+  // The simulation switched the heat off at the onset: the two cautions show next to the ice.
+  await expect(control(page, 'sw.pitot_stall_heat')).toHaveAttribute('data-state', 'off');
+  await expect(chips(page)).toHaveCount(2);
 
   await activate(page.locator('[data-hit="btn.deice_windshield"]'), hasTouch);
   // The spray clears the pilot glass within about a second; the other half keeps its ice.
