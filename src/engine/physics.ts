@@ -34,6 +34,12 @@ export interface ParameterDef {
   readonly min: number;
   readonly max: number;
   readonly normal: number;
+  /**
+   * True for a property of the flight situation that is in force from the first second (outside air
+   * temperature, flight speed, climb rate). Only such a parameter may stand in a scenario's
+   * `profile` (lint L25); a failure parameter (cooling, alternator, fire) is not one.
+   */
+  readonly profile?: boolean;
 }
 
 /**

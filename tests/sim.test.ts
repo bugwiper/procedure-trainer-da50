@@ -1091,3 +1091,30 @@ describe('a trip of the aircraft: a shorted alternator pops its breaker again (p
     expect(() => stepSim(bare, missing, [])).toThrow(/ghost/);
   });
 });
+
+// The flight profile of a scenario (Phase 6, plan 03, V-01): parameters in force from t 0.
+describe('simSetup with a scenario profile', () => {
+  it('a scenario with an empty profile gives exactly the aircraft normal set and the old faulted set', () => {
+    expect(scenario.profile).toEqual({});
+    const setup = simSetup(DA50RG_ENV, scenario);
+    expect(setup.normalParameters).toBe(DA50RG_PHYSICS.normalParameters());
+    expect(setup.faultedParameters).toEqual({
+      ...DA50RG_PHYSICS.normalParameters(),
+      ...scenario.parameters,
+    });
+  });
+
+  it('a profile lies over the normal values and under the scenario and onset parameters', () => {
+    const profiled = {
+      ...scenario,
+      profile: { flight_vs_fpm: 500, oat_c: -5 },
+      parameters: { ...scenario.parameters, oat_c: 20 },
+    };
+    const setup = simSetup(DA50RG_ENV, profiled, { onsetAt: 5000 });
+    expect(setup.normalParameters['flight_vs_fpm']).toBe(500);
+    expect(setup.normalParameters['oat_c']).toBe(-5);
+    expect(setup.faultedParameters['flight_vs_fpm']).toBe(500);
+    expect(setup.faultedParameters['oat_c']).toBe(20);
+    expect(setup.normalParameters['oil_cooling']).toBe(1);
+  });
+});

@@ -1,8 +1,13 @@
 import {
   PFD_AIRSPEED_QUANTITY,
+  PFD_ALTITUDE_QUANTITY,
   PFD_LEGENDS,
+  PFD_VERTICAL_SPEED_QUANTITY,
   airspeedReadout,
+  altitudeReadout,
+  altitudeTickOffsets,
   speedTickOffsets,
+  verticalSpeedText,
 } from '../../../aircraft/da50rg/avionics';
 import { CasChips } from './CasChips';
 import { GlassHeader, LegendRow, SCREEN_FILL, glassSecondRowLive } from './MfdFrame';
@@ -39,15 +44,18 @@ function polar(cx: number, cy: number, r: number, deg: number): string {
 
 /**
  * PFD frame (D-04, D-11): original vector artwork with static idle values, no handlers. The glass
- * has a header strip, a content band and a 12-slot legend row (Table D4); live attitude,
- * altitude and heading arrive with PNL-04 in Phase 3; the airspeed readout and tape follow the
- * quantity airspeed_kt (the ground speed on the take-off roll, a static 140 knots elsewhere). CAS chips follow the aircraft rules (PNL-03).
+ * has a header strip, a content band and a 12-slot legend row (Table D4); the airspeed, altitude
+ * and vertical speed readouts and the tapes follow simulated quantities (Phase 6, plan 03), and
+ * show the static base values on the free panel; heading stays static. CAS chips follow the
+ * aircraft rules (PNL-03).
  */
 export function PfdFrame({ region, bridge }: FrameProps) {
   const { w, h } = region.bounds;
   const cx = ATT_X + ATT_W / 2;
   const pitchMarks = [-10, -5, 5, 10];
   const airspeed = bridge.quantities.value[PFD_AIRSPEED_QUANTITY];
+  const altitude = bridge.quantities.value[PFD_ALTITUDE_QUANTITY];
+  const verticalSpeed = bridge.quantities.value[PFD_VERTICAL_SPEED_QUANTITY];
   return (
     <g data-pfd pointer-events="none">
       <rect
@@ -167,13 +175,14 @@ export function PfdFrame({ region, bridge }: FrameProps) {
 
         <g data-testid="pfd-altitude">
           <rect x={405} y={ATT_Y} width={80} height={ATT_H} fill="#12181e" stroke="#3a424b" />
-          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          {/* The ticks wrap inside the band; the tape moves with the altitude, 100 ft per 30 px. */}
+          {altitudeTickOffsets(altitude).map((offset, i) => (
             <line
               key={i}
               x1={405}
-              y1={ATT_Y + 24 + i * 30}
+              y1={ATT_Y + 9 + offset}
               x2={421}
-              y2={ATT_Y + 24 + i * 30}
+              y2={ATT_Y + 9 + offset}
               stroke={LABEL}
               stroke-width={1.5}
             />
@@ -181,13 +190,14 @@ export function PfdFrame({ region, bridge }: FrameProps) {
           <rect x={411} y={HORIZON_Y - 16} width={74} height={32} fill="#000000" stroke={WHITE} />
           <text
             class="glass-digits"
+            data-altitude-readout
             x={480}
             y={HORIZON_Y + 8}
             text-anchor="end"
             font-size={14}
             fill={WHITE}
           >
-            1400
+            {String(altitudeReadout(altitude))}
           </text>
           <text x={445} y={276} text-anchor="middle" font-size={8} fill={LABEL}>
             FT
@@ -241,6 +251,24 @@ export function PfdFrame({ region, bridge }: FrameProps) {
         <rect x={405} y={280} width={80} height={20} fill="#12181e" stroke="#3a424b" />
         <text x={445} y={293.5} text-anchor="middle" font-size={6} fill={WHITE}>
           1013 HPA
+        </text>
+
+        {/* Vertical speed box under the barometer box: the label VS is static, the number follows
+            the quantity (a text that changes by value, never by control state). */}
+        <rect x={405} y={304} width={80} height={20} fill="#12181e" stroke="#3a424b" />
+        <text x={411} y={317.5} font-size={6} fill={LABEL}>
+          VS
+        </text>
+        <text
+          class="glass-digits"
+          data-vs-readout
+          x={480}
+          y={318}
+          text-anchor="end"
+          font-size={10}
+          fill={WHITE}
+        >
+          {verticalSpeedText(verticalSpeed)}
         </text>
       </g>
 

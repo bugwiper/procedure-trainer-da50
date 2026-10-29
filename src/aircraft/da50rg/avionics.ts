@@ -4,6 +4,8 @@
 // frames and the tests read one source. Original layout facts only: the legends are functional
 // words, no maker or product names (owner rule U-33).
 
+import { DA50RG_QUANTITIES } from './quantities';
+
 /** The two glass displays of the panel. */
 export type DisplayId = 'pfd' | 'mfd';
 
@@ -463,6 +465,52 @@ export function speedTickOffsets(value: number | undefined): number[] {
     { length: SPEED_TICK_COUNT },
     (_, i) => (SPEED_TICK_PX / 2 + i * SPEED_TICK_PX + shift) % span,
   );
+}
+
+/**
+ * The PFD altitude and vertical speed (Phase 6, plan 03, V-06): the quantities the readouts and the
+ * altitude tape follow. In a situation they come from the flight models (physics.ts); on the free
+ * panel they hold their base values, the static art of old. A missing quantity reads its base.
+ */
+export const PFD_ALTITUDE_QUANTITY = 'altitude_ft';
+export const PFD_VERTICAL_SPEED_QUANTITY = 'vertical_speed_fpm';
+
+function readingOr(value: number | undefined, id: string): number {
+  if (value !== undefined && Number.isFinite(value)) return value;
+  return DA50RG_QUANTITIES.get(id)?.base ?? 0;
+}
+
+/** The altitude readout in feet, rounded to the nearest 10 ft; never below 0. */
+export function altitudeReadout(value: number | undefined): number {
+  const feet = readingOr(value, PFD_ALTITUDE_QUANTITY);
+  return feet > 0 ? Math.round(feet / 10) * 10 : 0;
+}
+
+/** The altitude tape: seven ticks, 100 ft between two, the pixels one tick step spans. */
+export const ALTITUDE_TICK_COUNT = 7;
+export const ALTITUDE_TICK_PX = 30;
+const ALTITUDE_TICK_FT = 100;
+
+/**
+ * The offsets in pixels of the altitude tape ticks from the top of the tape band, like
+ * speedTickOffsets: 7 ticks that wrap round, falling by one tick step per 100 ft, so the tape moves
+ * down as the aircraft climbs; a multiple of 100 ft puts the ticks at their rest places, 15 + 30 i.
+ */
+export function altitudeTickOffsets(value: number | undefined): number[] {
+  const feet = Math.max(0, readingOr(value, PFD_ALTITUDE_QUANTITY));
+  const span = ALTITUDE_TICK_COUNT * ALTITUDE_TICK_PX;
+  const shift = (feet % ALTITUDE_TICK_FT) * (ALTITUDE_TICK_PX / ALTITUDE_TICK_FT);
+  return Array.from(
+    { length: ALTITUDE_TICK_COUNT },
+    (_, i) => (ALTITUDE_TICK_PX / 2 + i * ALTITUDE_TICK_PX + shift) % span,
+  );
+}
+
+/** The vertical speed text: feet per minute to the nearest 10, a plus sign for a climb, 0 plain. */
+export function verticalSpeedText(value: number | undefined): string {
+  const fpm = Math.round(readingOr(value, PFD_VERTICAL_SPEED_QUANTITY) / 10) * 10;
+  if (fpm > 0) return `+${String(fpm)}`;
+  return fpm < 0 ? String(fpm) : '0';
 }
 
 /** Idle tape numerals (proposals, U-18): speed from 180 down to 100, altitude around 1400. */

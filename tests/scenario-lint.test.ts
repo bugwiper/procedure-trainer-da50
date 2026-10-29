@@ -406,6 +406,73 @@ describe('L12: physics parameters', () => {
   });
 });
 
+describe('L25: the flight profile (Phase 6, plan 03)', () => {
+  const withProfile = (lines: string): string =>
+    swap(
+      MINIMAL,
+      'annunciations[1]: eng_oil_temp',
+      `profile:\n${lines}\nannunciations[1]: eng_oil_temp`,
+    );
+
+  it('passes a valid profile, also the oat and the fuel temperature difference, on the bounds', () => {
+    for (const lines of [
+      '  flight_vs_fpm: 500',
+      '  flight_vs_fpm: -2000\n  terrain_ft: 0',
+      '  oat_c: -5\n  fuel_temp_delta_c: -4',
+      '  oat_c: 50\n  fuel_temp_delta_c: 10',
+    ]) {
+      expect(checkScenario(withProfile(lines), DA50RG_ENV).ok, lines).toBe(true);
+    }
+  });
+
+  it('rejects an unknown key at profile.ID', () => {
+    const text = withProfile('  flight_nope: 1');
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'profile.flight_nope',
+        message: 'unknown parameter "flight_nope"',
+        line: lineOf(text, 'flight_nope'),
+        col: colOf(text, 'flight_nope', 'flight_nope'),
+      },
+    ]);
+  });
+
+  it('rejects a failure parameter such as the oil cooling', () => {
+    const text = withProfile('  oil_cooling: 0.5');
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'profile.oil_cooling',
+        message: 'parameter "oil_cooling" is not a profile parameter; set it under parameters',
+        line: lineOf(text, 'oil_cooling'),
+        col: colOf(text, 'oil_cooling', 'oil_cooling'),
+      },
+    ]);
+  });
+
+  it('rejects a value outside the range of the parameter', () => {
+    const text = withProfile('  flight_vs_fpm: 2500');
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'profile.flight_vs_fpm',
+        message: '2500 is outside -2000..2000 of parameter "flight_vs_fpm"',
+        line: lineOf(text, 'flight_vs_fpm'),
+        col: colOf(text, 'flight_vs_fpm', 'flight_vs_fpm'),
+      },
+    ]);
+  });
+
+  it('does not resolve a prototype key', () => {
+    expect(issuesOf(withProfile('  constructor: 1'))[0]).toMatchObject({
+      path: 'profile.constructor',
+      message: 'unknown parameter "constructor"',
+    });
+  });
+
+  it('rejects a profile value that is not a number in the schema', () => {
+    expect(checkScenario(withProfile('  flight_vs_fpm: fast'), DA50RG_ENV).ok).toBe(false);
+  });
+});
+
 describe('L11: a run that does nothing must fail', () => {
   it('rejects a blueprint whose applying branch holds no step', () => {
     // 2.5 bar is in the low band: "If too low:" applies and has no nodes, the green branch does not.

@@ -435,4 +435,28 @@ export const DA50RG_QUANTITIES = defineQuantities([
     base: 140,
     bands: [{ id: 'unmarked', colour: 'none', to: 200 }],
   },
+  {
+    // Hidden: no gauge. The altitude the PFD tape and readout show (Phase 6, plan 03, V-02). The base
+    // is the static 1400 ft of the free panel; a scenario starts at its own altitude and the flight
+    // models move it by the vertical speed (physics.ts). The fine scale: a climb of 500 fpm gains
+    // 0.8333 ft per step, which the default scale of 0.01 would round to 0.83 and lose 2 ft a minute.
+    // One unmarked band.
+    id: 'altitude_ft',
+    unit: 'ft',
+    min: 0,
+    max: 20000,
+    base: 1400,
+    scale: SLOW_SCALE,
+    bands: [{ id: 'unmarked', colour: 'none', to: 20000 }],
+  },
+  {
+    // Hidden: no gauge. The vertical speed in feet per minute, the PFD VS readout (V-02). Base 0:
+    // level flight. One unmarked band.
+    id: 'vertical_speed_fpm',
+    unit: 'fpm',
+    min: -2000,
+    max: 2000,
+    base: 0,
+    bands: [{ id: 'unmarked', colour: 'none', to: 2000 }],
+  },
 ]);

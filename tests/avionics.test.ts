@@ -581,6 +581,11 @@ describe('glass header, content and legend zones', () => {
       '#0e1a14',
     ]);
     expect(textsIn(content)).toContain('1013 HPA');
+    // Plan 06-03: the altitude readout and the vertical speed box (static label VS, number by value).
+    expect(textsIn(content)).toContain('1400');
+    expect(text('VS')?.props['font-size']).toBe(6);
+    expect(findElements(content, (e) => 'data-altitude-readout' in e.props)).toHaveLength(1);
+    expect(findElements(content, (e) => 'data-vs-readout' in e.props)).toHaveLength(1);
   });
 
   it('the MFD content follows Table D6 (strip pitch 38 height 36, the engine page rows of the reference)', () => {

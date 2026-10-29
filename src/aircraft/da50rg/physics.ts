@@ -518,6 +518,36 @@ function airspeedTarget(inputs: PhysicsInputs): number {
   return moving ? speed : baseOf('airspeed_kt');
 }
 
+// Flight (Phase 6, plan 03; D-08, D-09, V-01 to V-04): the quantities of the PFD follow a scripted
+// flight state, not an aerodynamic model. The situation is data of the scenario (its profile, the
+// parameters flagged `profile` below); the models only move the readings toward it with the time
+// constants here. Compressed, instructor-review values, none is an AFM figure. The free panel is
+// static: at the normal parameters every flight quantity holds its base (C-09).
+/** The vertical speed follows its target with this time constant. */
+const VERTICAL_SPEED_TAU_MS = 3_000;
+
+/** True while the aircraft is at or below the terrain: it cannot sink further. */
+function atTerrain(inputs: PhysicsInputs): boolean {
+  return quantityOf(inputs, 'altitude_ft') <= parameterOf(inputs, 'terrain_ft');
+}
+
+/** The vertical speed the aircraft heads for in feet per minute; at the terrain it never sinks. */
+function verticalSpeedTarget(inputs: PhysicsInputs): number {
+  const target = parameterOf(inputs, 'flight_vs_fpm');
+  return atTerrain(inputs) && target < 0 ? 0 : target;
+}
+
+/**
+ * The altitude changes by the vertical speed, in feet per minute, but never below the terrain: a
+ * fall that would pass it is cut to the fall that ends exactly on it.
+ */
+function altitudePerMinute(inputs: PhysicsInputs): number {
+  const above = quantityOf(inputs, 'altitude_ft') - parameterOf(inputs, 'terrain_ft');
+  const reach = (-above * MS_PER_MINUTE) / STEP_MS;
+  const rate = quantityOf(inputs, 'vertical_speed_fpm');
+  return rate < reach ? reach : rate;
+}
+
 /** The de-ice MAX run lasts 120 s of run time (owner finding G-1). */
 export const DEICE_MAX_RUN_MS = 120_000;
 
@@ -598,10 +628,16 @@ export const DA50RG_PHYSICS = definePhysics(
       // 0 is an aircraft at rest or in flight (the speed holds); 1 is a ground roll (Phase 5.1).
       { id: 'ground_roll', min: 0, max: 1, normal: 0 },
       // The outside air temperature in degrees C (Phase 6, D-04c); 15 is the normal situation.
-      { id: 'oat_c', min: -40, max: 50, normal: 15 },
+      { id: 'oat_c', min: -40, max: 50, normal: 15, profile: true },
       // How much warmer the left fuel tank is than the right one, degrees C: 3 in the normal situation
       // (owner range 2 to 5); other situations may differ or reverse it (negative).
-      { id: 'fuel_temp_delta_c', min: -10, max: 10, normal: 3 },
+      { id: 'fuel_temp_delta_c', min: -10, max: 10, normal: 3, profile: true },
+      // The flight situation (Phase 6, plan 03): properties of the situation from the first second,
+      // so a scenario's profile may set them (lint L25). 0 is level flight; the vertical speed target
+      // in feet per minute, positive climbs.
+      { id: 'flight_vs_fpm', min: -2000, max: 2000, normal: 0, profile: true },
+      // The altitude never sinks below this terrain height in feet (the free panel's 1400 ft base).
+      { id: 'terrain_ft', min: 0, max: 10000, normal: 1400, profile: true },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),
@@ -660,6 +696,11 @@ export const DA50RG_PHYSICS = definePhysics(
       { quantity: 'deice_qty_gal', mode: 'rate', perMinute: deiceFluidPerMinute },
       // The reading follows the target within one step (like the control unit flags).
       lag('airspeed_kt', STEP_MS, airspeedTarget),
+      // The flight state of the PFD (Phase 6, plan 03): the vertical speed lags toward the scripted
+      // value and the altitude integrates it. Glide, speed, pitch and bank follow in task 2; the
+      // free panel is static (the base values are the equilibrium).
+      lag('vertical_speed_fpm', VERTICAL_SPEED_TAU_MS, verticalSpeedTarget),
+      { quantity: 'altitude_ft', mode: 'rate', perMinute: altitudePerMinute },
     ],
     trips: [
       {

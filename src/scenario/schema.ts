@@ -321,6 +321,13 @@ export const Scenario = z.strictObject({
   }),
   /** Physics parameters this scenario sets (D-01); absent means the aircraft's normal values. */
   parameters: z.record(nodeId, z.number()).default({}),
+  /**
+   * The flight situation (Phase 6, plan 03): physics parameters in force from the first second at
+   * every level, before and after the onset (a climb-out, a glide, a stopped aircraft, a reversed
+   * fuel temperature difference). Only the profile parameters of the aircraft qualify (lint L25);
+   * failure parameters belong in `parameters`. Absent means the aircraft's normal values.
+   */
+  profile: z.record(nodeId, z.number()).default({}),
   annunciations: z.array(z.string().min(1)),
   /** The printed form, heading and message tag of the checklist; absent means an unadorned outline. */
   checklist: Checklist.optional(),

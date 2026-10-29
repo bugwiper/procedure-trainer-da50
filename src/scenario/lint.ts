@@ -28,6 +28,8 @@
 // onset, in the Realistic form at both ends of the window. L21 keeps the variants apart: no step
 // that applies in one variant makes a forbidden item of another variant true at its start.
 // L22 (Phase 5) checks the optional `scene`: it must name a scene of the aircraft.
+// L25 (Phase 6) checks the optional flight `profile`: every key is a profile parameter of the
+// aircraft (a failure parameter is not) and its value lies inside the parameter's range.
 // L23 (Phase 5) checks the visual cues an onset declares (`onset.cues`): every id is a cue of the
 // aircraft, none is visible at the realistic start, and each is visible within the same bound as
 // an annunciation (onset.message_within_s, else REALISTIC_SHOW_WITHIN_MS) after the onset in a
@@ -170,6 +172,22 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
     const path = ['parameters', id];
     if (def === undefined) add(path, `unknown parameter "${id}"`);
     else if (value < def.min || value > def.max) {
+      add(
+        path,
+        `${String(value)} is outside ${String(def.min)}..${String(def.max)} of parameter "${id}"`,
+      );
+    }
+  }
+
+  // L25 (Phase 6, plan 03): every key of the flight profile names a profile parameter of the
+  // aircraft (a failure parameter such as the oil cooling is rejected) and lies inside its range.
+  for (const [id, value] of Object.entries(scenario.profile)) {
+    const def = env.physics.parameter(id);
+    const path = ['profile', id];
+    if (def === undefined) add(path, `unknown parameter "${id}"`);
+    else if (def.profile !== true) {
+      add(path, `parameter "${id}" is not a profile parameter; set it under parameters`);
+    } else if (value < def.min || value > def.max) {
       add(
         path,
         `${String(value)} is outside ${String(def.min)}..${String(def.max)} of parameter "${id}"`,

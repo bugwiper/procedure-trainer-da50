@@ -19,8 +19,9 @@
 // force for exactly its duration, counted from the step that applied the arming event.
 //
 // Realistic setup (C-58, C-59): the parameters in force from the onset are the aircraft's normal
-// values, then the scenario's parameters, then the parameters of its onset block; the last layer is
-// folded in only when an onset time is given, so a run without one (Easy, Medium) is unchanged.
+// values, then the scenario's profile (in force from t 0, so the normal set carries it too), then
+// the scenario's parameters, then the parameters of its onset block; the last layer is folded in
+// only when an onset time is given, so a run without one (Easy, Medium) is unchanged.
 //
 // Outcomes (D-06, C-25): after the physics of a step every outcome predicate is evaluated over the
 // controls, the scenario baseline and the quantities of the new state. Its held time grows by
@@ -143,7 +144,13 @@ export function onsetFromSeed(seed: number, window_s: readonly [number, number])
 }
 
 export function simSetup(env: AircraftEnv, scenario: Scenario, options: SimOptions = {}): SimSetup {
-  const normalParameters = env.physics.normalParameters();
+  // The scenario's profile (the flight situation) lies over the aircraft's normal values and is in
+  // force from t 0; a scenario without one gives exactly the aircraft's normal set.
+  const aircraftNormal = env.physics.normalParameters();
+  const normalParameters: Readonly<Record<string, number>> =
+    Object.keys(scenario.profile).length === 0
+      ? aircraftNormal
+      : Object.freeze({ ...aircraftNormal, ...scenario.profile });
   return Object.freeze({
     env,
     baseline: Object.freeze(baselineOf(scenario, env.registry)),

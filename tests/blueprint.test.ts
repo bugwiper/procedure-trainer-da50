@@ -69,6 +69,7 @@ const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {
   'parameter id': unique(
     scenarios.flatMap((s) => [
       ...Object.keys(s.parameters),
+      ...Object.keys(s.profile),
       ...Object.keys(s.onset?.parameters ?? {}),
     ]),
   ),
@@ -119,6 +120,12 @@ describe('the blueprint principle', () => {
     // empty then); a scenario that does must find its keys in the derived list.
     const onsetKeys = unique(scenarios.flatMap((s) => Object.keys(s.onset?.parameters ?? {})));
     for (const key of onsetKeys) expect(SCENARIO_LITERALS['parameter id']).toContain(key);
+  });
+
+  it('the parameter ids include the keys of every profile block of the shipped scenarios (plan 06-03)', () => {
+    const profileKeys = unique(scenarios.flatMap((s) => Object.keys(s.profile)));
+    expect(profileKeys.length).toBeGreaterThan(0);
+    for (const key of profileKeys) expect(SCENARIO_LITERALS['parameter id']).toContain(key);
   });
 
   it.each(Object.entries(SCENARIO_LITERALS))(

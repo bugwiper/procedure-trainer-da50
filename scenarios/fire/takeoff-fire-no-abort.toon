@@ -20,6 +20,10 @@ initial:
     fire_intensity: 40
     ground_speed_kt: 70
     airspeed_kt: 70
+    altitude_ft: 1450
+# The flight profile (in force from the first second at every level): a climb-out of 500 feet per minute from 1450 feet, 50 feet above the runway. An instructor-review value; the altitude start values stand here and in the onset block.
+profile:
+  flight_vs_fpm: 500
 parameters:
   engine_fire: 1
 annunciations[0]:
@@ -137,4 +141,5 @@ onset:
   quantities:
     ground_speed_kt: 70
     airspeed_kt: 70
+    altitude_ft: 1450
   cues[1]: flames

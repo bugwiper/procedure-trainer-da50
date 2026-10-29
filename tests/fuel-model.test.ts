@@ -248,6 +248,28 @@ describe('fuel temperatures (D-04c, D-04d)', () => {
     expect(q(reversed, TEMP_RIGHT) - q(reversed, TEMP_LEFT)).toBeCloseTo(4, 1);
   });
 
+  it('a scenario profile with a reversed delta is in force from the first second, also before a Realistic onset (plan 06-03)', () => {
+    const profiled = { ...scenario, profile: { fuel_temp_delta_c: -4 } };
+    const onset = { window_s: [2, 6], quantities: {}, parameters: {}, controls: {}, cues: [] };
+    const realistic = { ...profiled, onset } as unknown as typeof profiled;
+    for (const [given, onsetAt] of [
+      [profiled, undefined],
+      [realistic, 20 * MINUTE],
+    ] as const) {
+      const profileSetup = simSetup(DA50RG_ENV, given, onsetAt === undefined ? {} : { onsetAt });
+      const profileStart = initialQuantities(given, DA50RG_ENV.quantities);
+      const first = simulate(profileSetup, { events: [], start: profileStart, untilMs: STEP_MS });
+      // The right tank warms from its base toward the left tank plus 4 right away.
+      expect(q(first.state.quantities, TEMP_RIGHT)).toBeGreaterThan(def(TEMP_RIGHT).base);
+      const settled = simulate(profileSetup, {
+        events: [],
+        start: profileStart,
+        untilMs: TEN_TIME_CONSTANTS,
+      }).state.quantities;
+      expect(q(settled, TEMP_RIGHT) - q(settled, TEMP_LEFT)).toBeCloseTo(4, 1);
+    }
+  });
+
   it('the lower limit holds at the lowest OAT', () => {
     const cold = settle({}, TEN_TIME_CONSTANTS, { parameters: { oat_c: -40 } });
     expect(q(cold, TEMP_LEFT)).toBeCloseTo(MIN, 1);
