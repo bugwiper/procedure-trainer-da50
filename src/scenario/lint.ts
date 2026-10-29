@@ -29,7 +29,10 @@
 // that applies in one variant makes a forbidden item of another variant true at its start.
 // L22 (Phase 5) checks the optional `scene`: it must name a scene of the aircraft.
 // L25 (Phase 6) checks the optional flight `profile`: every key is a profile parameter of the
-// aircraft (a failure parameter is not) and its value lies inside the parameter's range.
+// aircraft (a failure parameter is not) and its value lies inside the parameter's range. A profile
+// parameter set under `parameters` is rejected (it belongs under `profile`), a key set in the
+// profile and again in parameters, onset.parameters or a variant is rejected (the later layer
+// silently wins), and so is a start value below a floor parameter (the terrain above the altitude).
 // L23 (Phase 5) checks the visual cues an onset declares (`onset.cues`): every id is a cue of the
 // aircraft, none is visible at the realistic start, and each is visible within the same bound as
 // an annunciation (onset.message_within_s, else REALISTIC_SHOW_WITHIN_MS) after the onset in a
@@ -192,6 +195,93 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
         path,
         `${String(value)} is outside ${String(def.min)}..${String(def.max)} of parameter "${id}"`,
       );
+    }
+  }
+
+  // L25, conflicts and floors (Phase 6 review, WR-03). A profile parameter is a property of the
+  // situation: (a) set under `parameters` it would only apply from the onset, so it belongs under
+  // `profile`; (b) a key in the profile and again in parameters, onset.parameters or a variant is
+  // overridden from the onset on, a step change nobody asked for, so it is set once; (c) a floor
+  // (the terrain under the altitude) above the start value of its quantity would lift the aircraft
+  // to it in the first step, at either start (Easy and Medium, Realistic).
+  for (const id of Object.keys(scenario.parameters)) {
+    if (Object.hasOwn(scenario.profile, id)) continue;
+    if (env.physics.parameter(id)?.profile === true) {
+      add(
+        ['parameters', id],
+        `parameter "${id}" is a profile parameter; set it under profile, where it holds from the first second`,
+      );
+    }
+  }
+  for (const id of Object.keys(scenario.profile)) {
+    const layers: { readonly where: string; readonly values: Readonly<Record<string, number>> }[] =
+      [
+        { where: 'parameters', values: scenario.parameters },
+        { where: 'onset.parameters', values: scenario.onset?.parameters ?? {} },
+        ...scenario.variants.map((variant) => ({
+          where: `the parameters of variant "${variant.id}"`,
+          values: variant.parameters,
+        })),
+      ];
+    for (const layer of layers) {
+      if (Object.hasOwn(layer.values, id)) {
+        add(
+          ['profile', id],
+          `"${id}" is set in the profile and again in ${layer.where}; the later layer silently wins from the onset on, so set it once`,
+        );
+      }
+    }
+  }
+  for (const floor of env.physics.parameters) {
+    if (floor.floorOf === undefined) continue;
+    const quantity = floor.floorOf;
+    const base = env.quantities.get(quantity)?.base;
+    if (base === undefined) continue;
+    const own = Object.hasOwn(scenario.profile, floor.id) ? scenario.profile[floor.id] : undefined;
+    const atOnset = Object.hasOwn(scenario.onset?.parameters ?? {}, floor.id)
+      ? scenario.onset?.parameters[floor.id]
+      : undefined;
+    const easyStart = Object.hasOwn(scenario.initial.quantities, quantity)
+      ? scenario.initial.quantities[quantity]
+      : base;
+    const realisticStart =
+      scenario.onset !== undefined && Object.hasOwn(scenario.onset.quantities, quantity)
+        ? scenario.onset.quantities[quantity]
+        : base;
+    const starts = [
+      {
+        level: 'Easy and Medium',
+        value: easyStart,
+        at: Object.hasOwn(scenario.initial.quantities, quantity)
+          ? ['initial', 'quantities', quantity]
+          : ['initial'],
+      },
+      ...(scenario.onset === undefined
+        ? []
+        : [
+            {
+              level: 'Realistic',
+              value: realisticStart,
+              at: Object.hasOwn(scenario.onset.quantities, quantity)
+                ? ['onset', 'quantities', quantity]
+                : ['onset'],
+            },
+          ]),
+    ];
+    const floors: { readonly value: number; readonly at: Segments }[] = [
+      { value: own ?? floor.normal, at: own === undefined ? [] : ['profile', floor.id] },
+      ...(atOnset === undefined
+        ? []
+        : [{ value: atOnset, at: ['onset', 'parameters', floor.id] as Segments }]),
+    ];
+    for (const level of starts) {
+      for (const bound of floors) {
+        if (level.value === undefined || level.value >= bound.value) continue;
+        add(
+          bound.at.length > 0 ? bound.at : level.at,
+          `${quantity} starts at ${String(level.value)} in the ${level.level} run, below ${floor.id} ${String(bound.value)}; the model would lift it to ${floor.id} in the first step, so start at or above it`,
+        );
+      }
     }
   }
 

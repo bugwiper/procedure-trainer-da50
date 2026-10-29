@@ -40,6 +40,12 @@ export interface ParameterDef {
    * `profile` (lint L25); a failure parameter (cooling, alternator, fire) is not one.
    */
   readonly profile?: boolean;
+  /**
+   * A profile parameter that is the lowest value of a quantity (the terrain under the altitude):
+   * the model lifts the quantity to it in one step, so lint L25 rejects a scenario whose start
+   * value of that quantity lies below it. Names a quantity of the aircraft.
+   */
+  readonly floorOf?: string;
 }
 
 /**
@@ -146,6 +152,11 @@ export function definePhysics(spec: PhysicsSpec, env: PredicateEnv): Physics {
     if (!(def.min <= def.normal && def.normal <= def.max)) {
       throw new PhysicsError(
         `parameter "${def.id}" has normal ${String(def.normal)} outside ${String(def.min)}..${String(def.max)}`,
+      );
+    }
+    if (def.floorOf !== undefined && env.quantities.get(def.floorOf) === undefined) {
+      throw new PhysicsError(
+        `parameter "${def.id}" is the floor of unknown quantity "${def.floorOf}"`,
       );
     }
   }

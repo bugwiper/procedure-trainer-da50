@@ -745,7 +745,7 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'glide_speed_kt', min: 0, max: 200, normal: 90, profile: true },
       { id: 'glide_vs_fpm', min: -2000, max: 2000, normal: -700, profile: true },
       // The altitude never sinks below this terrain height in feet (the free panel's 1400 ft base).
-      { id: 'terrain_ft', min: 0, max: 10000, normal: 1400, profile: true },
+      { id: 'terrain_ft', min: 0, max: 10000, normal: 1400, profile: true, floorOf: 'altitude_ft' },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),

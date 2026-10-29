@@ -473,6 +473,179 @@ describe('L25: the flight profile (Phase 6, plan 03)', () => {
   });
 });
 
+describe('L25: profile conflicts and floors (Phase 6 review, WR-03)', () => {
+  const withBlock = (block: string): string =>
+    swap(MINIMAL, 'annunciations[1]: eng_oil_temp', `${block}\nannunciations[1]: eng_oil_temp`);
+
+  it('rejects a profile parameter under parameters, at parameters.ID with line and column', () => {
+    const text = withBlock('parameters:\n  oat_c: 5');
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'parameters.oat_c',
+        message:
+          'parameter "oat_c" is a profile parameter; set it under profile, where it holds from the first second',
+        line: lineOf(text, 'oat_c'),
+        col: colOf(text, 'oat_c', 'oat_c'),
+      },
+    ]);
+  });
+
+  it('rejects the ground under parameters, the case of the shipped ground situations', () => {
+    const text = withBlock('parameters:\n  ground_roll: 1');
+    expect(issuesOf(text)).toMatchObject([{ path: 'parameters.ground_roll' }]);
+    expect(checkScenario(withBlock('profile:\n  ground_roll: 1'), DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('still takes a failure parameter under parameters', () => {
+    expect(checkScenario(withBlock('parameters:\n  oil_cooling: 0.5'), DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('rejects a key in the profile and again in parameters once, at the profile key', () => {
+    const text = withBlock('profile:\n  oat_c: 5\nparameters:\n  oat_c: 8');
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'profile.oat_c',
+        message:
+          '"oat_c" is set in the profile and again in parameters; the later layer silently wins from the onset on, so set it once',
+        line: lineOf(text, 'oat_c: 5'),
+        col: colOf(text, 'oat_c: 5', 'oat_c'),
+      },
+    ]);
+  });
+
+  it('rejects a key in the profile and again in onset.parameters', () => {
+    const text = swap(
+      swap(
+        BLUEPRINT,
+        'parameters:\n  oil_cooling: 0.55',
+        'profile:\n  oat_c: 5\nparameters:\n  oil_cooling: 0.55',
+      ),
+      'message_within_s: 22',
+      'parameters:\n    oat_c: 8\n  message_within_s: 22',
+    );
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'profile.oat_c',
+        message:
+          '"oat_c" is set in the profile and again in onset.parameters; the later layer silently wins from the onset on, so set it once',
+        line: lineOf(text, 'oat_c: 5'),
+        col: colOf(text, 'oat_c: 5', 'oat_c'),
+      },
+    ]);
+  });
+
+  it('allows a profile parameter in onset.parameters alone: a deliberate change at the onset', () => {
+    const text = swap(
+      BLUEPRINT,
+      'message_within_s: 22',
+      'parameters:\n    fuel_temp_delta_c: 4\n  message_within_s: 22',
+    );
+    const result = checkScenario(text, DA50RG_ENV);
+    expect(result.ok ? [] : result.issues).toEqual([]);
+  });
+
+  it('rejects a key in the profile and again in the parameters of a variant', () => {
+    const scenario = {
+      ...parsedOf(MINIMAL),
+      profile: { oat_c: 5 },
+      variants: [
+        {
+          id: 'warm',
+          weight: 1,
+          controls: {},
+          parameters: { oat_c: 20 },
+          applies: [],
+          debrief: 'A warm day.',
+        },
+      ],
+    };
+    expect(lintScenario(scenario, DA50RG_ENV)).toMatchObject([
+      {
+        path: 'profile.oat_c',
+        message: expect.stringContaining('again in the parameters of variant "warm"') as string,
+      },
+    ]);
+  });
+
+  it('rejects a terrain above the start altitude at profile.terrain_ft', () => {
+    // MINIMAL starts at the base altitude (1400 ft); a terrain of 2000 ft would lift the aircraft.
+    const text = withBlock('profile:\n  terrain_ft: 2000');
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'profile.terrain_ft',
+        message:
+          'altitude_ft starts at 1400 in the Easy and Medium run, below terrain_ft 2000; the model would lift it to terrain_ft in the first step, so start at or above it',
+        line: lineOf(text, 'terrain_ft'),
+        col: colOf(text, 'terrain_ft', 'terrain_ft'),
+      },
+    ]);
+  });
+
+  it('accepts a terrain at or below the start altitude', () => {
+    for (const lines of ['  terrain_ft: 1400', '  terrain_ft: 0', '  terrain_ft: 1399.5']) {
+      expect(checkScenario(withBlock(`profile:\n${lines}`), DA50RG_ENV).ok, lines).toBe(true);
+    }
+    const high = swap(
+      withBlock('profile:\n  terrain_ft: 2500'),
+      '    oil_temp_c: 128',
+      '    oil_temp_c: 128\n    altitude_ft: 3000',
+    );
+    expect(checkScenario(high, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('rejects a start altitude below the normal terrain, at initial.quantities.altitude_ft', () => {
+    const text = swap(MINIMAL, '    oil_temp_c: 128', '    oil_temp_c: 128\n    altitude_ft: 1000');
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'initial.quantities.altitude_ft',
+        message:
+          'altitude_ft starts at 1000 in the Easy and Medium run, below terrain_ft 1400; the model would lift it to terrain_ft in the first step, so start at or above it',
+        line: lineOf(text, 'altitude_ft'),
+        col: colOf(text, 'altitude_ft', 'altitude_ft'),
+      },
+    ]);
+  });
+
+  it('rejects a terrain above the Realistic start altitude, which differs from the Easy one', () => {
+    // The blueprint starts at 4500 ft on every level; the Realistic start is lowered to 3000 ft.
+    const text = swap(
+      swap(
+        BLUEPRINT,
+        'parameters:\n  oil_cooling: 0.55',
+        'profile:\n  terrain_ft: 4000\nparameters:\n  oil_cooling: 0.55',
+      ),
+      '    altitude_ft: 4500\n    oil_temp_c: 114',
+      '    altitude_ft: 3000\n    oil_temp_c: 114',
+    );
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'profile.terrain_ft',
+        message:
+          'altitude_ft starts at 3000 in the Realistic run, below terrain_ft 4000; the model would lift it to terrain_ft in the first step, so start at or above it',
+        line: lineOf(text, 'terrain_ft'),
+        col: colOf(text, 'terrain_ft', 'terrain_ft'),
+      },
+    ]);
+  });
+
+  it('rejects a terrain the onset raises above the start altitude, at onset.parameters.terrain_ft', () => {
+    const text = swap(
+      BLUEPRINT,
+      'message_within_s: 22',
+      'parameters:\n    terrain_ft: 6000\n  message_within_s: 22',
+    );
+    const issues = issuesOf(text);
+    expect(issues.length).toBeGreaterThan(0);
+    for (const issue of issues) {
+      expect(issue).toMatchObject({
+        path: 'onset.parameters.terrain_ft',
+        line: lineOf(text, 'terrain_ft'),
+        col: colOf(text, 'terrain_ft', 'terrain_ft'),
+      });
+    }
+  });
+});
+
 describe('L11: a run that does nothing must fail', () => {
   it('rejects a blueprint whose applying branch holds no step', () => {
     // 2.5 bar is in the low band: "If too low:" applies and has no nodes, the green branch does not.

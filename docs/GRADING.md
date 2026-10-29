@@ -358,6 +358,7 @@ profile:
 ```
 
 The check `npm run validate` adds one rule: L25, `profile.flight_nope` reads `unknown parameter "flight_nope"`, `profile.oil_cooling` reads `parameter "oil_cooling" is not a profile parameter; set it under parameters`, and a value outside the range reads like `2500 is outside -2000..2000 of parameter "flight_vs_fpm"`, each with file, line and column.
+L25 also closes three holes (Phase 6 review, WR-03), each with file, line and column: (1) a profile parameter set under `parameters` is reported at `parameters.<id>` (`parameter "oat_c" is a profile parameter; set it under profile, where it holds from the first second`); a failure parameter stays allowed there, and `onset.parameters` may still change a profile parameter at the onset; (2) a key set in the profile and again in `parameters`, `onset.parameters` or the parameters of a variant is reported once per layer at `profile.<id>` (`the later layer silently wins from the onset on, so set it once`); (3) a start value of a quantity below its floor parameter (the aircraft data marks `terrain_ft` as the floor of `altitude_ft`, `floorOf`) is reported, for Easy and Medium and for Realistic separately, at the profile key, at `onset.parameters.<id>`, or at the start quantity when the floor is the normal value (`altitude_ft starts at 1000 in the Easy and Medium run, below terrain_ft 1400; the model would lift it ...`). A floor at or below the start value passes.
 
 ## Instructor review (phase 6, PFD)
 

@@ -86,6 +86,15 @@ describe('definePhysics', () => {
     expect(() => definePhysics(spec({ models: [bad] }), env)).toThrow(/oil_nope/);
   });
 
+  it('accepts a floor parameter of a known quantity and throws for an unknown one (WR-03)', () => {
+    const floor = { id: 'ground', min: 0, max: 10, normal: 1, profile: true, floorOf: OIL_TEMP };
+    expect(definePhysics(spec({ parameters: [floor] }), env).parameter('ground')?.floorOf).toBe(
+      OIL_TEMP,
+    );
+    const bad = { ...floor, floorOf: 'oil_nope' };
+    expect(() => definePhysics(spec({ parameters: [bad] }), env)).toThrow(/floor.*oil_nope/);
+  });
+
   it('throws for two models of one quantity', () => {
     expect(() => definePhysics(spec({ models: [GOOD_MODEL, GOOD_MODEL] }), env)).toThrow(
       /more than one model/,
