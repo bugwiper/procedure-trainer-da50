@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: takeoff_roll
 briefing:
-  situation: "You are on the take-off roll at full power, about 40 knots, with flaps in take-off position. Smoke and flames come from the engine compartment. No message shows at first; yellow STALL HEAT appears after a few seconds, red ENG OIL TEMP later if the fire burns on. There is plenty of runway ahead to stop."
+  situation: "You are on the take-off roll at full power, about 40 knots, with flaps in take-off position. Smoke and flames come from the engine compartment. The yellow STALL HEAT message is already showing, and a red ENG OIL TEMP message follows if the fire burns on. There is plenty of runway ahead to stop."
 initial:
   controls:
     lv.power: p100
@@ -20,14 +20,16 @@ initial:
     fire_intensity: 40
     ground_speed_kt: 40
     airspeed_kt: 40
+    # The take-off checklist has set the stall heat ON, so on the ground its cut-out caution is already showing at the start: the timer starts past the cut band (owner, 2026-10-29).
+    stall_heat_timer_s: 60
 # The flight profile (in force from the first second at every level; instructor-review values): the aircraft is on the ground from the start, so the PFD airspeed is the ground speed and the roll at full power accelerates before the onset of the Realistic level as it does on Easy and Medium.
 profile:
   ground_roll: 1
 parameters:
   engine_fire: 1
-annunciations[0]:
+annunciations[1]: stall_heat_ground
 # Messages that are not active at the start but appear in a run that does nothing (lint L26); the briefing says so.
-late_annunciations[2]: stall_heat_ground,eng_oil_temp
+late_annunciations[1]: eng_oil_temp
 checklist:
   form: table
   heading: FIRE / SMOKE DURING ABORTED TKOF
@@ -147,10 +149,11 @@ outcomes[1]:
       op: gte
       value: 85
 # The fire of the level Realistic begins at a random second inside this short window; the aircraft rolls at 40 knots from the start (the PFD airspeed starts at the same speed). The window is an instructor-review value.
-# The fire shows by its flames and smoke over the cowl, since the scenario lists no message at the start; the lint checks that they show within seconds of the onset.
+# The fire shows by its flames and smoke over the cowl, since the scenario lists no failure message (only the ambient STALL HEAT of the ground); the lint checks that they show within seconds of the onset.
 onset:
   window_s[2]: 2,6
   quantities:
     ground_speed_kt: 40
     airspeed_kt: 40
+    stall_heat_timer_s: 60
   cues[1]: flames

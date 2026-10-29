@@ -28,6 +28,13 @@ export interface CasRuleSpec {
   readonly text: string;
   readonly level: CasLevel;
   readonly when: Predicate;
+  /**
+   * True for a message of the situation, not of a failure (the stall heat cut-out on the ground with
+   * the switch on): it may show before the onset of the level Realistic, so lint L14 does not count
+   * it as a failure cue at the Realistic start and L24 does not count it as something the onset
+   * reveals. A message that reveals a failure is never ambient.
+   */
+  readonly ambient?: boolean;
 }
 
 export type CasRule = Readonly<CasRuleSpec>;

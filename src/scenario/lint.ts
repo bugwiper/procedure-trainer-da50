@@ -961,7 +961,8 @@ function checkRealisticStart(
   if (onset === undefined) return new Set();
 
   // L24: the Realistic run has to show the pilot something at the onset.
-  if (scenario.annunciations.length === 0 && onset.cues.length === 0) {
+  const reveals = scenario.annunciations.filter((id) => env.cas.get(id)?.ambient !== true);
+  if (reveals.length === 0 && onset.cues.length === 0) {
     add(
       ['onset'],
       'the onset has no annunciation and no cue; list an annunciation or declare onset.cues, so the level Realistic shows the failure',
@@ -1013,7 +1014,10 @@ function checkRealisticStart(
   const state0 = initSim(firstSetup, start);
   const startPath: Segments =
     Object.keys(onset.quantities).length > 0 ? ['onset', 'quantities'] : ['initial', 'controls'];
+  // An ambient message (a message of the situation, such as the stall heat cut-out of a grounded
+  // start) is part of the pre-onset state; every other message would give the failure away.
   for (const message of env.cas.active(contextOf(firstSetup, state0), env)) {
+    if (env.cas.get(message.id)?.ambient === true) continue;
     add(
       startPath,
       `"${message.id}" is already active at the realistic start; the level Realistic must begin without a message`,

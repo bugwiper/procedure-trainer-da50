@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: parked
 briefing:
-  situation: "You are on the apron with the engine idling when you see smoke and flames coming from the engine compartment. No message shows at first; the yellow STALL HEAT message appears after a few seconds. The fire is growing and the engine temperatures are rising."
+  situation: "You are on the apron with the engine idling when you see smoke and flames coming from the engine compartment. Only the yellow STALL HEAT message is showing. The fire is growing and the engine temperatures are rising."
 initial:
   controls:
     lv.power: p0
@@ -21,14 +21,14 @@ initial:
     oil_temp_c: 103
     coolant_temp_c: 97
     gearbox_temp_c: 91
+    # The take-off checklist has set the stall heat ON, so on the ground its cut-out caution is already showing at the start: the timer starts past the cut band (owner, 2026-10-29).
+    stall_heat_timer_s: 60
 # The flight profile (in force from the first second at every level; instructor-review values): the aircraft is on the ground from the start and stands under the parking brake, so the PFD reads 0 knots before the onset of the Realistic level as well (the ground speed stays 0 under the brake).
 profile:
   ground_roll: 1
 parameters:
   engine_fire: 1
-annunciations[0]:
-# Messages that are not active at the start but appear in a run that does nothing (lint L26); the briefing says so.
-late_annunciations[1]: stall_heat_ground
+annunciations[1]: stall_heat_ground
 checklist:
   form: table
   heading: ENGINE FIRE ON GROUND
@@ -109,9 +109,10 @@ outcomes[1]:
       op: gte
       value: 85
 # The fire of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
-# The fire shows by its flames and smoke over the cowl, since the scenario lists no message at the start; the lint checks that they show within seconds of the onset.
+# The fire shows by its flames and smoke over the cowl, since the scenario lists no failure message (only the ambient STALL HEAT of the ground); the lint checks that they show within seconds of the onset.
 onset:
   window_s[2]: 2,6
   quantities:
     airspeed_kt: 0
+    stall_heat_timer_s: 60
   cues[1]: flames

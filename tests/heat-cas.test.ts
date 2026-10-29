@@ -178,10 +178,12 @@ describe('a live run equals its replay', () => {
   });
 });
 
-// H-03 (owner, 2026-10-28, D-12): the shipped ground situations start with the heat on, so the STALL
-// HEAT message comes back STALL_HEAT_CUTOUT_S after the start of the run, at every level: the ground
-// is a property of the situation (the profile parameter ground_roll, in force from the first second),
-// so the Realistic run counts from its start, not from the onset (Phase 6 review, WR-02).
+// H-03 (owner, 2026-10-28, D-12; changed 2026-10-29): a situation begins after the take-off
+// checklist, which has set the stall heat ON. A shipped ground situation therefore starts with the
+// heat on and the cut-out timer past the cut band: the STALL HEAT chip is part of the start state
+// at every level (Easy, Medium, Realistic), never popping up seconds in. The ground is a property of
+// the situation (the profile parameter ground_roll, in force from the first second). The chip is an
+// ambient message (CasRule.ambient): the Realistic start carries it, but no failure message.
 describe('the shipped ground situations (H-03)', () => {
   const SCENARIOS = join(root, 'scenarios');
   const groundFiles = readdirSync(SCENARIOS, { withFileTypes: true })
@@ -202,6 +204,8 @@ describe('the shipped ground situations (H-03)', () => {
     const loaded = checkScenario(readFileSync(join(root, file), 'utf8'), DA50RG_ENV);
     if (!loaded.ok) throw new Error(`${file} does not pass the scenario check`);
     const ground = loaded.scenario;
+    const easyStart = initialQuantities(ground, DA50RG_ENV.quantities);
+    const realisticStart = realisticQuantities(ground, DA50RG_ENV.quantities);
 
     /** The time in ms of the first step with the ground message, null when it never shows. */
     const firstGroundMessage = (
@@ -216,32 +220,114 @@ describe('the shipped ground situations (H-03)', () => {
       return null;
     };
 
-    it(`${file}: starts with the heat on and no message, the STALL HEAT chip comes ${String(STALL_HEAT_CUTOUT_S)} s after the start (Easy and Medium)`, () => {
+    it(`${file}: starts with the heat on and the STALL HEAT chip showing at t 0, on every level`, () => {
       expect(ground.initial.controls[HEAT]).not.toBe('off');
-      const setup = simSetup(DA50RG_ENV, ground);
-      const start = initialQuantities(ground, DA50RG_ENV.quantities);
-      expect(activeIds(setup, initSim(setup, start))).not.toContain('stall_heat_ground');
-      expect(firstGroundMessage(setup, start)).toBe(STALL_HEAT_CUTOUT_S * SECOND + STEP_MS);
+      expect(ground.variants).toEqual([]);
+      const easy = simSetup(DA50RG_ENV, ground);
+      expect(activeIds(easy, initSim(easy, easyStart))).toEqual(['stall_heat_ground']);
+      expect(firstGroundMessage(easy, easyStart)).toBe(0);
+      for (const onsetAt of [2 * SECOND, 6 * SECOND, 40 * SECOND]) {
+        const setup = simSetup(DA50RG_ENV, ground, { onsetAt });
+        expect(activeIds(setup, initSim(setup, realisticStart)), String(onsetAt)).toEqual([
+          'stall_heat_ground',
+        ]);
+      }
     });
 
-    it(`${file}: lists the ground message as a late annunciation and the briefing no longer says that no message is shown`, () => {
-      expect(ground.annunciations).toEqual([]);
-      expect(ground.late_annunciations).toContain('stall_heat_ground');
-      expect(ground.briefing.situation).not.toMatch(/no message is shown/i);
+    it(`${file}: lists the chip under annunciations (it is part of the start) and the briefing says it shows`, () => {
+      expect(ground.annunciations).toContain('stall_heat_ground');
+      expect(ground.late_annunciations).not.toContain('stall_heat_ground');
+      expect(ground.briefing.situation).not.toMatch(/no message is shown|appears after/i);
       expect(ground.briefing.situation).toContain('STALL HEAT');
     });
 
-    it(`${file}: Realistic starts clean and the chip comes ${String(STALL_HEAT_CUTOUT_S)} s after the start, not after the onset`, () => {
-      const start = realisticQuantities(ground, DA50RG_ENV.quantities);
-      for (const onsetAt of [2 * SECOND, 6 * SECOND, 40 * SECOND]) {
-        const setup = simSetup(DA50RG_ENV, ground, { onsetAt });
-        expect(activeIds(setup, initSim(setup, start))).toEqual([]);
-        expect(firstGroundMessage(setup, start), String(onsetAt)).toBe(
-          STALL_HEAT_CUTOUT_S * SECOND + STEP_MS,
-        );
+    it(`${file}: the chip stays for as long as the run lasts, on every level`, () => {
+      for (const [start, options] of [
+        [easyStart, {}],
+        [realisticStart, { onsetAt: 4 * SECOND }],
+      ] as const) {
+        const setup = simSetup(DA50RG_ENV, ground, options);
+        const state = simulate(setup, { events: [], start, untilMs: 60 * SECOND }).state;
+        expect(activeIds(setup, state)).toContain('stall_heat_ground');
+        expect(timerOf(state)).toBe(timerTop);
       }
     });
+
+    it(`${file}: switching the heat off clears the chip for the two off cautions; on again brings it back after ${String(STALL_HEAT_CUTOUT_S)} s`, () => {
+      const setup = simSetup(DA50RG_ENV, ground);
+      const off: SimEvent = { t: 10 * SECOND, id: HEAT, value: 'off' };
+      const on: SimEvent = { t: 12 * SECOND, id: HEAT, value: 'on' };
+      const at = (ms: number) => {
+        const state = simulate(setup, { events: [off, on], start: easyStart, untilMs: ms }).state;
+        return activeIds(setup, state);
+      };
+      expect(at(10 * SECOND - STEP_MS)).toEqual(['stall_heat_ground']);
+      expect(at(11 * SECOND)).toEqual(['pitot_heat', 'stall_heat']);
+      expect(at(12 * SECOND + STALL_HEAT_CUTOUT_S * SECOND)).toEqual([]);
+      expect(at(12 * SECOND + STALL_HEAT_CUTOUT_S * SECOND + STEP_MS)).toEqual([
+        'stall_heat_ground',
+      ]);
+    });
   }
+});
+
+// Owner, 2026-10-29: every shipped situation starts with the PITOT/STALL HEAT switch ON, except the
+// one that involves the switch (the icing situation, whose variant heat_off starts it off); and in
+// the air with the switch on there is no stall heat message at the start or later.
+describe('the heat switch in the shipped situations (owner, 2026-10-29)', () => {
+  const SCENARIOS = join(root, 'scenarios');
+  const files = readdirSync(SCENARIOS, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((dir) =>
+      readdirSync(join(SCENARIOS, dir.name))
+        .filter((file) => file.endsWith('.toon') && file !== 'pack.toon')
+        .map((file) => join('scenarios', dir.name, file)),
+    )
+    .sort();
+
+  it('are found', () => {
+    expect(files.length).toBeGreaterThan(0);
+  });
+
+  for (const file of files) {
+    const loaded = checkScenario(readFileSync(join(root, file), 'utf8'), DA50RG_ENV);
+    if (!loaded.ok) throw new Error(`${file} does not pass the scenario check`);
+    const scenario = loaded.scenario;
+    const involvesSwitch = scenario.variants.some((variant) => variant.controls[HEAT] === 'off');
+    const grounded = (scenario.profile['ground_roll'] ?? 0) > 0;
+
+    it(`${file}: the switch is on at the start${involvesSwitch ? ' except in the variant that involves it' : ''}`, () => {
+      expect(scenario.initial.controls[HEAT]).not.toBe('off');
+      expect(scenario.onset?.controls[HEAT]).not.toBe('off');
+      if (!involvesSwitch) {
+        for (const variant of scenario.variants) expect(variant.controls[HEAT]).not.toBe('off');
+      }
+    });
+
+    if (!involvesSwitch && !grounded) {
+      it(`${file}: in the air with the switch on no stall heat message shows, at any level`, () => {
+        for (const [start, options] of [
+          [initialQuantities(scenario, DA50RG_ENV.quantities), {}],
+          [realisticQuantities(scenario, DA50RG_ENV.quantities), { onsetAt: 4 * SECOND }],
+        ] as const) {
+          const setup = simSetup(DA50RG_ENV, scenario, options);
+          let state = initSim(setup, start);
+          for (let step = 0; step < 600 && state.outcome === null; step++) {
+            expect(activeIds(setup, state)).not.toContain('stall_heat_ground');
+            expect(activeIds(setup, state)).not.toContain('stall_heat');
+            state = stepSim(setup, state, []).state;
+          }
+        }
+      });
+    }
+  }
+
+  it('exactly the icing situation involves the switch', () => {
+    const involving = files.filter((file) =>
+      /^\s+sw\.pitot_stall_heat:\s*"off"/m.test(readFileSync(join(root, file), 'utf8')),
+    );
+    expect(involving).toEqual(['scenarios/icing/icing-unintentional.toon']);
+  });
 });
 
 // WR-01 (Phase 6 review): no shipped briefing may say that no message is shown while the scenario

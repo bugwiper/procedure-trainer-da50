@@ -759,6 +759,69 @@ describe('L26: the messages of a run that does nothing (Phase 6 review, WR-01)',
   });
 });
 
+describe('ambient messages: the stall heat of a grounded start (owner, 2026-10-29)', () => {
+  const GROUND_FILE = readFileSync(`${root}scenarios/fire/eng-fire-ground.toon`, 'utf8');
+
+  it('the shipped grounded start passes: the chip is listed at the start and the Realistic start carries it', () => {
+    expect(checkScenario(GROUND_FILE, DA50RG_ENV).ok).toBe(true);
+    expect(DA50RG_ENV.cas.get('stall_heat_ground')?.ambient).toBe(true);
+    expect(DA50RG_ENV.cas.get('stall_heat')?.ambient).not.toBe(true);
+    expect(DA50RG_ENV.cas.get('eng_oil_temp')?.ambient).not.toBe(true);
+  });
+
+  it('L10 still wants the chip listed when it shows at the start', () => {
+    const text = swap(GROUND_FILE, 'annunciations[1]: stall_heat_ground', 'annunciations[0]:');
+    const issues = issuesOf(text);
+    expect(issues.map((issue) => issue.message)).toEqual([
+      '"stall_heat_ground" is not listed; its rule fires in the initial state',
+    ]);
+  });
+
+  it('an Easy start without the timer past the cut band lists a chip that does not fire at the start (L10)', () => {
+    const lines = GROUND_FILE.split('\n');
+    const at = lines.findIndex((line) => line.includes('stall_heat_timer_s: 60'));
+    expect(lines[at - 1]).toContain('owner, 2026-10-29');
+    const text = [...lines.slice(0, at - 1), ...lines.slice(at + 1)].join('\n');
+    const messages = issuesOf(text).map((issue) => issue.message);
+    expect(messages).toContain(
+      '"stall_heat_ground" is listed but its rule does not fire in the initial state',
+    );
+  });
+
+  it('L14 still rejects a message that is not ambient at the Realistic start', () => {
+    // The oil temperature above the red line at the Realistic start would give the failure away.
+    const text = swap(
+      GROUND_FILE,
+      '    airspeed_kt: 0\n    stall_heat_timer_s: 60\n  cues',
+      '    airspeed_kt: 0\n    stall_heat_timer_s: 60\n    oil_temp_c: 130\n  cues',
+    );
+    const messages = issuesOf(text).map((issue) => issue.message);
+    expect(
+      messages.some((m) => m.includes('"eng_oil_temp" is already active at the realistic start')),
+    ).toBe(true);
+    expect(messages.some((m) => m.includes('stall_heat_ground" is already active'))).toBe(false);
+  });
+
+  it('L24: an ambient annunciation does not count as something the onset reveals', () => {
+    const text = swap(GROUND_FILE, '  cues[1]: flames', '');
+    const messages = issuesOf(text).map((issue) => issue.message);
+    expect(messages).toEqual([
+      'the onset has no annunciation and no cue; list an annunciation or declare onset.cues, so the level Realistic shows the failure',
+    ]);
+  });
+
+  it('L26 does not ask for the ambient chip under late_annunciations, and lists it as late only if it appears later', () => {
+    const late = swap(
+      GROUND_FILE,
+      'annunciations[1]: stall_heat_ground',
+      'annunciations[1]: stall_heat_ground\nlate_annunciations[1]: stall_heat_ground',
+    );
+    expect(issuesOf(late).map((issue) => issue.message)).toContain(
+      '"stall_heat_ground" is listed under annunciations as well; list it under one of them',
+    );
+  });
+});
+
 describe('L11: a run that does nothing must fail', () => {
   it('rejects a blueprint whose applying branch holds no step', () => {
     // 2.5 bar is in the low band: "If too low:" applies and has no nodes, the green branch does not.

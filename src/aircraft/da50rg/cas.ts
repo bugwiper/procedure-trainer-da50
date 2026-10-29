@@ -61,8 +61,12 @@ export const DA50RG_CAS = defineCasRules(
       text: 'STALL HEAT',
       // On the ground the stall heat cuts out a few seconds after it is on (physics.ts, H-02): the
       // same message returns with the switch on. Band check on the hidden timer, no number. It
-      // shares its text with stall_heat, so the two never show together (one chip, one tone).
+      // shares its text with stall_heat, so the two never show together (one chip, one tone). A
+      // situation that starts on the ground with the heat on starts with the timer past the cut
+      // band: the chip is part of the start state, a message of the situation and no failure cue
+      // (owner, 2026-10-29), hence ambient.
       level: 'caution',
+      ambient: true,
       when: { check: 'band', quantity: 'stall_heat_timer_s', in: ['cut'] },
     },
     {

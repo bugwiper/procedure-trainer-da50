@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: parked
 briefing:
-  situation: "You are on the apron with the engine running when you smell burning plastic and smoke fills the cabin. No message shows at first; the yellow STALL HEAT message appears after a few seconds. The smoke is getting thicker and its source seems to be electrical."
+  situation: "You are on the apron with the engine running when you smell burning plastic and smoke fills the cabin. Only the yellow STALL HEAT message is showing. The smoke is getting thicker and its source seems to be electrical."
 initial:
   controls:
     lv.power: p25
@@ -18,14 +18,14 @@ initial:
   quantities:
     airspeed_kt: 0
     smoke_density: 40
+    # The take-off checklist has set the stall heat ON, so on the ground its cut-out caution is already showing at the start: the timer starts past the cut band (owner, 2026-10-29).
+    stall_heat_timer_s: 60
 # The flight profile (in force from the first second at every level; instructor-review values): the aircraft is on the ground from the start and stands under the parking brake, so the PFD reads 0 knots before the onset of the Realistic level as well (the brake holds it although the engine runs).
 profile:
   ground_roll: 1
 parameters:
   smoke_source: 1
-annunciations[0]:
-# Messages that are not active at the start but appear in a run that does nothing (lint L26); the briefing says so.
-late_annunciations[1]: stall_heat_ground
+annunciations[1]: stall_heat_ground
 checklist:
   form: table
   heading: ELECTRIC FIRE / SMOKE ON GROUND
@@ -110,9 +110,10 @@ outcomes[1]:
       op: gte
       value: 95
 # The smoke of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
-# The smoke shows over the panel, since the scenario lists no message at the start; the lint checks that it shows within seconds of the onset.
+# The smoke shows over the panel, since the scenario lists no failure message (only the ambient STALL HEAT of the ground); the lint checks that it shows within seconds of the onset.
 onset:
   window_s[2]: 2,6
   quantities:
     airspeed_kt: 0
+    stall_heat_timer_s: 60
   cues[1]: cabin_smoke
