@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: parked
 briefing:
-  situation: "You are on the apron with the engine idling when you see smoke and flames coming from the engine compartment. No message is shown on the primary flight display. The fire is growing and the engine temperatures are rising."
+  situation: "You are on the apron with the engine idling when you see smoke and flames coming from the engine compartment. No message shows at first; the yellow STALL HEAT message appears after a few seconds. The fire is growing and the engine temperatures are rising."
 initial:
   controls:
     lv.power: p0
@@ -27,6 +27,8 @@ profile:
 parameters:
   engine_fire: 1
 annunciations[0]:
+# Messages that are not active at the start but appear in a run that does nothing (lint L26); the briefing says so.
+late_annunciations[1]: stall_heat_ground
 checklist:
   form: table
   heading: ENGINE FIRE ON GROUND
@@ -107,7 +109,7 @@ outcomes[1]:
       op: gte
       value: 85
 # The fire of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
-# The fire shows by its flames and smoke over the cowl, since the scenario lists no message; the lint checks that they show within seconds of the onset.
+# The fire shows by its flames and smoke over the cowl, since the scenario lists no message at the start; the lint checks that they show within seconds of the onset.
 onset:
   window_s[2]: 2,6
   quantities:

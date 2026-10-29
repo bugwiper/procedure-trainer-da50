@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: takeoff_roll
 briefing:
-  situation: "You are on the take-off roll at full power, about 40 knots, with flaps in take-off position. Smoke and flames come from the engine compartment. No message is shown on the primary flight display. There is plenty of runway ahead to stop."
+  situation: "You are on the take-off roll at full power, about 40 knots, with flaps in take-off position. Smoke and flames come from the engine compartment. No message shows at first; yellow STALL HEAT appears after a few seconds, red ENG OIL TEMP later if the fire burns on. There is plenty of runway ahead to stop."
 initial:
   controls:
     lv.power: p100
@@ -26,6 +26,8 @@ profile:
 parameters:
   engine_fire: 1
 annunciations[0]:
+# Messages that are not active at the start but appear in a run that does nothing (lint L26); the briefing says so.
+late_annunciations[2]: stall_heat_ground,eng_oil_temp
 checklist:
   form: table
   heading: FIRE / SMOKE DURING ABORTED TKOF
@@ -145,7 +147,7 @@ outcomes[1]:
       op: gte
       value: 85
 # The fire of the level Realistic begins at a random second inside this short window; the aircraft rolls at 40 knots from the start (the PFD airspeed starts at the same speed). The window is an instructor-review value.
-# The fire shows by its flames and smoke over the cowl, since the scenario lists no message; the lint checks that they show within seconds of the onset.
+# The fire shows by its flames and smoke over the cowl, since the scenario lists no message at the start; the lint checks that they show within seconds of the onset.
 onset:
   window_s[2]: 2,6
   quantities:

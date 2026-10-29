@@ -33,6 +33,9 @@
 // parameter set under `parameters` is rejected (it belongs under `profile`), a key set in the
 // profile and again in parameters, onset.parameters or a variant is rejected (the later layer
 // silently wins), and so is a start value below a floor parameter (the terrain above the altitude).
+// L26 (Phase 6 review) checks the messages of a run that does nothing (Easy, Medium and Realistic):
+// every message that becomes active after the start is listed under `annunciations` or the new
+// `late_annunciations`, and every late annunciation appears in at least one such run.
 // L23 (Phase 5) checks the visual cues an onset declares (`onset.cues`): every id is a cue of the
 // aircraft, none is visible at the realistic start, and each is visible within the same bound as
 // an annunciation (onset.message_within_s, else REALISTIC_SHOW_WITHIN_MS) after the onset in a
@@ -322,6 +325,19 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
   scenario.annunciations.forEach((id, i) => {
     if (env.cas.get(id) === undefined) add(['annunciations', i], `unknown CAS id "${id}"`);
   });
+  // L26 (reference part): every late annunciation names a rule, is listed once and is not at the
+  // start (an annunciation of the start is in `annunciations`).
+  scenario.late_annunciations.forEach((id, i) => {
+    if (env.cas.get(id) === undefined) add(['late_annunciations', i], `unknown CAS id "${id}"`);
+    else if (scenario.annunciations.includes(id)) {
+      add(
+        ['late_annunciations', i],
+        `"${id}" is listed under annunciations as well; list it under one of them`,
+      );
+    } else if (scenario.late_annunciations.indexOf(id) !== i) {
+      add(['late_annunciations', i], `"${id}" is listed twice`);
+    }
+  });
 
   checkNodes(['procedure'], scenario.procedure);
   scenario.forbidden.forEach((item, i) => {
@@ -399,16 +415,26 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
   // with variants has no single start; the start checks run per variant on the scenario it makes.
   if (issues.length === 0 && scenario.variants.length === 0) {
     checkInitialState(scenario, env, add);
-    checkRealisticStart(scenario, env, add);
+    const later = checkRealisticStart(scenario, env, add);
+    for (const id of checkLateMessages(scenario, env, add)) later.add(id);
+    checkLateList(scenario, later, add);
   }
-  if (issues.length === 0) {
+  if (issues.length === 0 && scenario.variants.length > 0) {
+    const later = new Set<string>();
     scenario.variants.forEach((variant, n) => {
       const here = (_segments: Segments, message: string): void => {
         add(['variants', n], `variant "${variant.id}": ${message}`);
       };
       checkInitialState(resolveVariant(scenario, variant.id, false), env, here);
-      checkRealisticStart(resolveVariant(scenario, variant.id, true), env, here);
+      for (const id of checkRealisticStart(resolveVariant(scenario, variant.id, true), env, here)) {
+        later.add(id);
+      }
+      for (const id of checkLateMessages(resolveVariant(scenario, variant.id, false), env, here)) {
+        later.add(id);
+      }
     });
+    // A late annunciation must show in some variant; the variants may differ in what they show.
+    checkLateList(scenario, later, add);
   }
   if (issues.length === 0 && scenario.variants.length > 0) checkVariantRuns(scenario, env, add);
   return issues;
@@ -930,9 +956,9 @@ function checkRealisticStart(
   scenario: Scenario,
   env: AircraftEnv,
   add: (segments: Segments, message: string) => void,
-): void {
+): Set<string> {
   const onset = scenario.onset;
-  if (onset === undefined) return;
+  if (onset === undefined) return new Set();
 
   // L24: the Realistic run has to show the pilot something at the onset.
   if (scenario.annunciations.length === 0 && onset.cues.length === 0) {
@@ -1078,6 +1104,90 @@ function checkRealisticStart(
       add(
         ['onset', 'cues', i],
         `the cue "${id}" shows ${(afterOnsetMs / 1000).toFixed(1)} s after the onset in a realistic run that does nothing; the level Realistic must show it within ${String(showWithinMs / 1000)} s`,
+      );
+    }
+  });
+
+  // L26 for the Realistic runs: every message that becomes active after the start (what shows at
+  // t 0 is L14's) is listed under annunciations or late_annunciations.
+  const expected = new Set([...scenario.annunciations, ...scenario.late_annunciations]);
+  const later = new Set<string>();
+  for (const [level, shown] of [
+    ['Realistic, onset at the lower end', lower],
+    ['Realistic, onset at the upper end', upper],
+  ] as const) {
+    for (const [key, at] of shown) {
+      if (key.startsWith(CUE_KEY) || at === 0 || later.has(key)) continue;
+      later.add(key);
+      if (!expected.has(key)) add(['annunciations'], unlisted(key, at, level));
+    }
+  }
+  return later;
+}
+
+/** The L26 message for a message that becomes active in a run that does nothing and is not listed. */
+function unlisted(id: string, atMs: number, level: string): string {
+  return `"${id}" becomes active ${(atMs / 1000).toFixed(1)} s into a run that does nothing (${level}) but is not listed; list it under late_annunciations`;
+}
+
+/**
+ * L26 (Phase 6 review, WR-01): the messages of a run that does nothing. The start is checked by L10
+ * and the Realistic start by L14; this rule closes the rest. A run that does nothing, started as
+ * Easy and Medium start (the scenario's own start quantities), goes on until an outcome ends it or
+ * the lookahead of L14 is over; the Realistic runs with the onset at both ends of the window are
+ * the ones L14 simulates (checkRealisticStart reports their messages). A message that becomes
+ * active after the start must be listed under `annunciations` (Realistic shows it within the bound
+ * of L15) or under `late_annunciations`, so a briefing that says "no message is shown" cannot
+ * hide a caution nobody declared (the ground cut-out of the stall heat). Returns the messages that
+ * became active after the start; checkLateList uses them to find a late annunciation that never
+ * appears.
+ */
+function checkLateMessages(
+  scenario: Scenario,
+  env: AircraftEnv,
+  add: (segments: Segments, message: string) => void,
+): Set<string> {
+  const expected = new Set([...scenario.annunciations, ...scenario.late_annunciations]);
+  const later = new Set<string>();
+  const setup = simSetup(env, scenario);
+  let state = initSim(setup, initialQuantities(scenario, env.quantities));
+  // What shows at t 0 is the business of L10.
+  const atStart = new Set(
+    env.cas
+      .active(
+        { controls: state.controls, baseline: setup.baseline, quantities: state.quantities },
+        env,
+      )
+      .map((message) => message.id),
+  );
+  while (state.t < REALISTIC_LOOKAHEAD_MS && state.outcome === null) {
+    state = stepSim(setup, state, []).state;
+    const context: PredicateContext = {
+      controls: state.controls,
+      baseline: setup.baseline,
+      quantities: state.quantities,
+    };
+    for (const message of env.cas.active(context, env)) {
+      if (atStart.has(message.id) || later.has(message.id)) continue;
+      later.add(message.id);
+      if (!expected.has(message.id))
+        add(['annunciations'], unlisted(message.id, state.t, 'Easy and Medium'));
+    }
+  }
+  return later;
+}
+
+/** L26: every late annunciation appears in some run that does nothing, so the list cannot go stale. */
+function checkLateList(
+  scenario: Scenario,
+  later: ReadonlySet<string>,
+  add: (segments: Segments, message: string) => void,
+): void {
+  scenario.late_annunciations.forEach((id, i) => {
+    if (!later.has(id)) {
+      add(
+        ['late_annunciations', i],
+        `"${id}" is listed but never becomes active in a run that does nothing; remove it`,
       );
     }
   });

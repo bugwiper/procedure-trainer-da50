@@ -329,6 +329,13 @@ export const Scenario = z.strictObject({
    */
   profile: z.record(nodeId, z.number()).default({}),
   annunciations: z.array(z.string().min(1)),
+  /**
+   * Messages that are not active at the start but become active in a run that does nothing (the
+   * ground cut-out of the stall heat, an escalation). Lint L26 requires every message a do-nothing
+   * run produces to be listed here or in `annunciations`, and every message listed here to
+   * appear. Absent means the run produces no message beyond those of the start.
+   */
+  late_annunciations: z.array(z.string().min(1)).default([]),
   /** The printed form, heading and message tag of the checklist; absent means an unadorned outline. */
   checklist: Checklist.optional(),
   procedure: z.array(ProcedureNode).min(1),

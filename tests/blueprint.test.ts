@@ -48,8 +48,8 @@ const strings = (values: readonly unknown[]): string[] =>
 
 const unique = <T>(values: readonly T[]): T[] => [...new Set(values)];
 
-/** The CAS ids every shipped scenario lists. */
-const CAS_IDS = unique(scenarios.flatMap((s) => s.annunciations));
+/** The CAS ids every shipped scenario lists, at the start and later. */
+const CAS_IDS = unique(scenarios.flatMap((s) => [...s.annunciations, ...s.late_annunciations]));
 
 /** Scenario, step, group, forbidden and outcome ids; the control and parameter ids; CAS ids and texts. */
 const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {

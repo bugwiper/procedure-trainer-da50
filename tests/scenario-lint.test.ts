@@ -493,7 +493,14 @@ describe('L25: profile conflicts and floors (Phase 6 review, WR-03)', () => {
   it('rejects the ground under parameters, the case of the shipped ground situations', () => {
     const text = withBlock('parameters:\n  ground_roll: 1');
     expect(issuesOf(text)).toMatchObject([{ path: 'parameters.ground_roll' }]);
-    expect(checkScenario(withBlock('profile:\n  ground_roll: 1'), DA50RG_ENV).ok).toBe(true);
+    // In the profile the same key raises no profile issue (the stall heat message of the ground is
+    // L26's business, tested below).
+    const inProfile = lintScenario(parsedOf(MINIMAL), DA50RG_ENV);
+    expect(inProfile).toEqual([]);
+    const moved = { ...parsedOf(MINIMAL), profile: { ground_roll: 1 } };
+    expect(lintScenario(moved, DA50RG_ENV).map((issue) => issue.path)).not.toContain(
+      'profile.ground_roll',
+    );
   });
 
   it('still takes a failure parameter under parameters', () => {
@@ -643,6 +650,112 @@ describe('L25: profile conflicts and floors (Phase 6 review, WR-03)', () => {
         col: colOf(text, 'terrain_ft', 'terrain_ft'),
       });
     }
+  });
+});
+
+describe('L26: the messages of a run that does nothing (Phase 6 review, WR-01)', () => {
+  const ground = (extra = ''): string =>
+    swap(
+      MINIMAL,
+      'annunciations[1]: eng_oil_temp',
+      `profile:\n  ground_roll: 1\nannunciations[1]: eng_oil_temp${extra}`,
+    );
+
+  it('rejects a message that appears later in a do-nothing run and is not listed', () => {
+    // On the ground with the heat on, the stall heat cuts out 5.1 s into the run.
+    const text = ground();
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'annunciations',
+        message:
+          '"stall_heat_ground" becomes active 5.1 s into a run that does nothing (Easy and Medium) but is not listed; list it under late_annunciations',
+        line: lineOf(text, 'annunciations[1]'),
+        col: 1,
+      },
+    ]);
+  });
+
+  it('passes when the message is listed under late_annunciations', () => {
+    expect(checkScenario(ground('\nlate_annunciations[1]: stall_heat_ground'), DA50RG_ENV).ok).toBe(
+      true,
+    );
+  });
+
+  it('rejects the late message of the Realistic run on its own, in the Realistic form', () => {
+    // The blueprint has an onset; the ground message shows in the Easy run and in both Realistic runs.
+    const text = swap(
+      BLUEPRINT,
+      'parameters:\n  oil_cooling: 0.55',
+      'profile:\n  ground_roll: 1\nparameters:\n  oil_cooling: 0.55',
+    );
+    const messages = issuesOf(text).map((issue) => issue.message);
+    expect(messages).toContain(
+      '"stall_heat_ground" becomes active 5.1 s into a run that does nothing (Easy and Medium) but is not listed; list it under late_annunciations',
+    );
+    expect(messages).toContain(
+      '"stall_heat_ground" becomes active 5.1 s into a run that does nothing (Realistic, onset at the lower end) but is not listed; list it under late_annunciations',
+    );
+    const listed = swap(
+      text,
+      'annunciations[1]: eng_oil_temp',
+      'annunciations[1]: eng_oil_temp\nlate_annunciations[1]: stall_heat_ground',
+    );
+    const result = checkScenario(listed, DA50RG_ENV);
+    expect(result.ok ? [] : result.issues).toEqual([]);
+  });
+
+  it('does not flag what shows at the start: that is L10', () => {
+    // The heat off at the start fires PITOT HEAT and STALL HEAT at t 0; L10 asks for them, L26 is silent.
+    const text = swap(
+      MINIMAL,
+      '    lv.cowl_flap: closed',
+      '    lv.cowl_flap: closed\n    sw.pitot_stall_heat: "off"',
+    );
+    const issues = issuesOf(text);
+    expect(issues.every((issue) => issue.message.includes('is not listed; its rule fires'))).toBe(
+      true,
+    );
+    expect(issues.some((issue) => issue.message.includes('late_annunciations'))).toBe(false);
+  });
+
+  it('rejects a late annunciation that never appears, at late_annunciations.N', () => {
+    const text = swap(
+      MINIMAL,
+      'annunciations[1]: eng_oil_temp',
+      'annunciations[1]: eng_oil_temp\nlate_annunciations[1]: fuel_trans',
+    );
+    expect(issuesOf(text)).toEqual([
+      {
+        path: 'late_annunciations.0',
+        message:
+          '"fuel_trans" is listed but never becomes active in a run that does nothing; remove it',
+        line: lineOf(text, 'late_annunciations'),
+        col: 1,
+      },
+    ]);
+  });
+
+  it('rejects an unknown id, a repeat and an id that is under annunciations as well', () => {
+    const base = 'annunciations[1]: eng_oil_temp';
+    const unknown = swap(MINIMAL, base, `${base}\nlate_annunciations[1]: no_such_message`);
+    expect(issuesOf(unknown)).toMatchObject([
+      { path: 'late_annunciations.0', message: 'unknown CAS id "no_such_message"' },
+    ]);
+    const both = swap(MINIMAL, base, `${base}\nlate_annunciations[1]: eng_oil_temp`);
+    expect(issuesOf(both)).toMatchObject([
+      {
+        path: 'late_annunciations.0',
+        message: '"eng_oil_temp" is listed under annunciations as well; list it under one of them',
+      },
+    ]);
+    const twice = swap(
+      ground(),
+      'annunciations[1]: eng_oil_temp',
+      'annunciations[1]: eng_oil_temp\nlate_annunciations[2]: stall_heat_ground,stall_heat_ground',
+    );
+    expect(issuesOf(twice)).toMatchObject([
+      { path: 'late_annunciations.1', message: '"stall_heat_ground" is listed twice' },
+    ]);
   });
 });
 

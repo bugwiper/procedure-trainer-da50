@@ -224,6 +224,13 @@ describe('the shipped ground situations (H-03)', () => {
       expect(firstGroundMessage(setup, start)).toBe(STALL_HEAT_CUTOUT_S * SECOND + STEP_MS);
     });
 
+    it(`${file}: lists the ground message as a late annunciation and the briefing no longer says that no message is shown`, () => {
+      expect(ground.annunciations).toEqual([]);
+      expect(ground.late_annunciations).toContain('stall_heat_ground');
+      expect(ground.briefing.situation).not.toMatch(/no message is shown/i);
+      expect(ground.briefing.situation).toContain('STALL HEAT');
+    });
+
     it(`${file}: Realistic starts clean and the chip comes ${String(STALL_HEAT_CUTOUT_S)} s after the start, not after the onset`, () => {
       const start = realisticQuantities(ground, DA50RG_ENV.quantities);
       for (const onsetAt of [2 * SECOND, 6 * SECOND, 40 * SECOND]) {
@@ -233,6 +240,33 @@ describe('the shipped ground situations (H-03)', () => {
           STALL_HEAT_CUTOUT_S * SECOND + STEP_MS,
         );
       }
+    });
+  }
+});
+
+// WR-01 (Phase 6 review): no shipped briefing may say that no message is shown while the scenario
+// declares messages that appear later (lint L26 makes the list complete, this keeps the text true).
+describe('the briefings of the shipped scenarios match their late messages (WR-01)', () => {
+  const SCENARIOS = join(root, 'scenarios');
+  const files = readdirSync(SCENARIOS, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((dir) =>
+      readdirSync(join(SCENARIOS, dir.name))
+        .filter((file) => file.endsWith('.toon') && file !== 'pack.toon')
+        .map((file) => join('scenarios', dir.name, file)),
+    )
+    .sort();
+
+  it('are found', () => {
+    expect(files.length).toBeGreaterThan(0);
+  });
+
+  for (const file of files) {
+    it(`${file}: late messages and "no message is shown" exclude each other`, () => {
+      const loaded = checkScenario(readFileSync(join(root, file), 'utf8'), DA50RG_ENV);
+      if (!loaded.ok) throw new Error(`${file} does not pass the scenario check`);
+      const { briefing, late_annunciations: late } = loaded.scenario;
+      if (late.length > 0) expect(briefing.situation).not.toMatch(/no message is shown/i);
     });
   }
 });
