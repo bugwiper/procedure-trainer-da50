@@ -604,7 +604,8 @@ describe('Fire / Smoke During Aborted TKOF', () => {
     const start = initialQuantities(scenario, DA50RG_ENV.quantities);
     expect(start['ground_speed_kt']).toBeGreaterThan(0);
     expect(scenario.scene).toBe('takeoff_roll');
-    expect(scenario.parameters['ground_roll']).toBe(1);
+    expect(scenario.profile['ground_roll']).toBe(1);
+    expect(scenario.parameters['ground_roll']).toBeUndefined();
     expect(scenario.initial.controls['lv.power']).toBe('p100');
   });
 

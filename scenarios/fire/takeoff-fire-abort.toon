@@ -20,14 +20,11 @@ initial:
     fire_intensity: 40
     ground_speed_kt: 40
     airspeed_kt: 40
-# The flight profile (in force from the first second at every level; instructor-review values): before the onset of the Realistic level the aircraft holds its start speed of 40 knots, the speed of the ground roll; the glide values are 0 because the aircraft is on the runway.
+# The flight profile (in force from the first second at every level; instructor-review values): the aircraft is on the ground from the start, so the PFD airspeed is the ground speed and the roll at full power accelerates before the onset of the Realistic level as it does on Easy and Medium.
 profile:
-  flight_speed_kt: 40
-  glide_speed_kt: 0
-  glide_vs_fpm: 0
+  ground_roll: 1
 parameters:
   engine_fire: 1
-  ground_roll: 1
 annunciations[0]:
 checklist:
   form: table

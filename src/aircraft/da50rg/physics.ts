@@ -173,7 +173,8 @@ const OIL_FILM_PER_MIN = 30;
 
 // Ground roll (Phase 5.1, P-03): the speed over the ground follows the POWER travel and the
 // brakes. All values are instructor-review values, none is an AFM figure. Only a scenario that
-// sets ground_roll gets the model; every other run holds the speed it starts with.
+// sets ground_roll in its profile gets the model, from the first second; every other run holds the
+// speed it starts with.
 /** Acceleration in knots per second per percent of POWER travel while the engine runs. */
 const GROUND_ACCEL_PER_PERCENT = 0.02;
 /** Rolling and air drag in knots per second, running and engine off. */
@@ -724,8 +725,10 @@ export const DA50RG_PHYSICS = definePhysics(
       { id: 'ice_accretion', min: 0, max: 1, normal: 0 },
       // 0 is no oil leak; 1 is a leak that smears the windscreen at OIL_FILM_PER_MIN while the engine runs.
       { id: 'oil_leak', min: 0, max: 1, normal: 0 },
-      // 0 is an aircraft at rest or in flight (the speed holds); 1 is a ground roll (Phase 5.1).
-      { id: 'ground_roll', min: 0, max: 1, normal: 0 },
+      // 0 is an aircraft in flight (the speed holds); 1 is an aircraft on the ground, rolling or
+      // parked (Phase 5.1). The ground is a property of the situation, not of the failure, so it is
+      // a profile parameter: in force from the first second at every level (Phase 6 review, WR-02).
+      { id: 'ground_roll', min: 0, max: 1, normal: 0, profile: true },
       // The outside air temperature in degrees C (Phase 6, D-04c); 15 is the normal situation.
       { id: 'oat_c', min: -40, max: 50, normal: 15, profile: true },
       // How much warmer the left fuel tank is than the right one, degrees C: 3 in the normal situation

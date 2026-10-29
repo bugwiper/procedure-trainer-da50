@@ -179,8 +179,9 @@ describe('a live run equals its replay', () => {
 });
 
 // H-03 (owner, 2026-10-28, D-12): the shipped ground situations start with the heat on, so the STALL
-// HEAT message comes back STALL_HEAT_CUTOUT_S after the start of the run (Easy, Medium) or after the
-// onset (Realistic: the scenario parameters, ground_roll among them, are set by the onset).
+// HEAT message comes back STALL_HEAT_CUTOUT_S after the start of the run, at every level: the ground
+// is a property of the situation (the profile parameter ground_roll, in force from the first second),
+// so the Realistic run counts from its start, not from the onset (Phase 6 review, WR-02).
 describe('the shipped ground situations (H-03)', () => {
   const SCENARIOS = join(root, 'scenarios');
   const groundFiles = readdirSync(SCENARIOS, { withFileTypes: true })
@@ -223,15 +224,15 @@ describe('the shipped ground situations (H-03)', () => {
       expect(firstGroundMessage(setup, start)).toBe(STALL_HEAT_CUTOUT_S * SECOND + STEP_MS);
     });
 
-    it(`${file}: Realistic starts clean and the chip comes ${String(STALL_HEAT_CUTOUT_S)} s after the onset`, () => {
-      const onsetAt = 6 * SECOND;
-      const setup = simSetup(DA50RG_ENV, ground, { onsetAt });
+    it(`${file}: Realistic starts clean and the chip comes ${String(STALL_HEAT_CUTOUT_S)} s after the start, not after the onset`, () => {
       const start = realisticQuantities(ground, DA50RG_ENV.quantities);
-      expect(activeIds(setup, initSim(setup, start))).toEqual([]);
-      // The scenario parameters (ground_roll) are the failure: on Realistic they take effect at the onset.
-      expect(firstGroundMessage(setup, start)).toBe(
-        onsetAt + STALL_HEAT_CUTOUT_S * SECOND + STEP_MS,
-      );
+      for (const onsetAt of [2 * SECOND, 6 * SECOND, 40 * SECOND]) {
+        const setup = simSetup(DA50RG_ENV, ground, { onsetAt });
+        expect(activeIds(setup, initSim(setup, start))).toEqual([]);
+        expect(firstGroundMessage(setup, start), String(onsetAt)).toBe(
+          STALL_HEAT_CUTOUT_S * SECOND + STEP_MS,
+        );
+      }
     });
   }
 });

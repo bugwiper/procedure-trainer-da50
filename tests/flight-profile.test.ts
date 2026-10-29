@@ -112,7 +112,6 @@ describe('the flight quantities and the profile parameters (V-02, V-03)', () => 
       'smoke_source',
       'ice_accretion',
       'oil_leak',
-      'ground_roll',
     ]) {
       expect(parameter(id).profile, id).not.toBe(true);
     }
@@ -472,9 +471,12 @@ describe('shipped scenarios script their flight', () => {
     },
   );
 
-  it('T/O FIRE ABORT: the Realistic start holds 40 kt before the onset, then the roll model', () => {
+  it('T/O FIRE ABORT: the Realistic start is on the roll model from the first second, as Easy is (WR-02)', () => {
     const scenario = load('fire/takeoff-fire-abort');
-    expect(speedAt(scenario, 30, at(60))).toBe(40);
+    // Full power gains speed from 40 kt before the onset; the speed does not wait for the failure.
+    expect(speedAt(scenario, 0, at(60))).toBe(40);
+    expect(speedAt(scenario, 30, at(60))).toBe(speedAt(scenario, 30));
+    expect(speedAt(scenario, 30, at(60))).toBeGreaterThan(40);
   });
 
   it('T/O FIRE NO ABORT: climbs out at 70 kt and 500 fpm from 1450 ft at every level, glides when the engine stops', () => {
@@ -569,5 +571,72 @@ describe('a live Run equals its replay with an engine stop', () => {
     expect(q(state, ALT)).toBe(1400);
     // The lag of the pitch stops within a thousandth of a degree of 0 (the scale of the quantity).
     expect(q(state, PITCH)).toBeCloseTo(0, 2);
+  });
+});
+
+// WR-02 (Phase 6 review): the ground is a property of the situation. ground_roll is a profile
+// parameter, so a ground situation is on the ground from the first second at the level Realistic,
+// before the onset, with no hand-carried speed script in its profile.
+describe('the ground situations are on the ground before the onset (WR-02)', () => {
+  const files = [
+    'scenarios/fire/eng-fire-ground.toon',
+    'scenarios/fire/elec-fire-ground.toon',
+    'scenarios/fire/takeoff-fire-abort.toon',
+  ];
+  const load = (file: string): Scenario => {
+    const result = checkScenario(readFileSync(`${root}${file}`, 'utf8'), DA50RG_ENV);
+    if (!result.ok) throw new Error(`${file} does not pass the scenario check`);
+    return result.scenario;
+  };
+
+  it('ground_roll is a profile parameter, not a failure parameter', () => {
+    expect(parameter('ground_roll').profile).toBe(true);
+  });
+
+  for (const file of files) {
+    const scenario = load(file);
+
+    it(`${file}: ground_roll sits in the profile, which holds nothing else but the ground`, () => {
+      expect(scenario.profile).toEqual({ ground_roll: 1 });
+      expect(scenario.parameters['ground_roll']).toBeUndefined();
+      expect(scenario.onset?.parameters['ground_roll']).toBeUndefined();
+    });
+
+    it(`${file}: before a late onset the Realistic run reads the ground speed, level, at the start altitude`, () => {
+      const onsetAt = 40 * SECOND_MS;
+      const setup = simSetup(DA50RG_ENV, scenario, { onsetAt });
+      const start = realisticQuantities(scenario, DA50RG_ENV.quantities);
+      for (let s = 1; s <= 30; s++) {
+        const state = simulate(setup, { events: [], start, untilMs: s * SECOND_MS }).state;
+        expect(
+          Math.abs(q(state, 'airspeed_kt') - q(state, 'ground_speed_kt')),
+          `${file} ${String(s)} s`,
+        ).toBeLessThan(0.5);
+        expect(q(state, ALT)).toBe(def(ALT).base);
+        expect(q(state, VS)).toBe(0);
+        expect(q(state, 'pitch_deg')).toBe(0);
+        // Never the cruise speed of the aircraft's normal profile, which would be 140 kt.
+        expect(q(state, 'airspeed_kt')).toBeLessThan(def('airspeed_kt').base);
+      }
+    });
+  }
+
+  it('T/O FIRE ABORT rolls on with full power before the onset', () => {
+    const scenario = load('scenarios/fire/takeoff-fire-abort.toon');
+    const setup = simSetup(DA50RG_ENV, scenario, { onsetAt: 40 * SECOND_MS });
+    const start = realisticQuantities(scenario, DA50RG_ENV.quantities);
+    const state = simulate(setup, { events: [], start, untilMs: 10 * SECOND_MS }).state;
+    expect(q(state, 'ground_speed_kt')).toBeGreaterThan(start['ground_speed_kt'] ?? Number.NaN);
+  });
+
+  it('the two parked situations stand still before the onset', () => {
+    for (const file of files.slice(0, 2)) {
+      const scenario = load(file);
+      const setup = simSetup(DA50RG_ENV, scenario, { onsetAt: 40 * SECOND_MS });
+      const start = realisticQuantities(scenario, DA50RG_ENV.quantities);
+      const state = simulate(setup, { events: [], start, untilMs: 20 * SECOND_MS }).state;
+      expect(q(state, 'ground_speed_kt'), file).toBe(0);
+      expect(q(state, 'airspeed_kt'), file).toBe(0);
+    }
   });
 });
