@@ -523,25 +523,25 @@ Plans:
 **Depends on**: Phase 4
 **Requirements**: SCN-14, PNL-21, PNL-22, SCN-15, PNL-23, PNL-24, SCN-16
 
-**Plans:** 0/4 plans complete (lean form, see WORKFLOW.md)
+**Plans:** 4/4 plans complete (lean form, see WORKFLOW.md); the phase awaits its UAT with the owner and the phase review
 
 Plans:
 
 **Wave 1**
 
-- [ ] 06-01 — Fuel model: two tanks of 26 gal with the FUEL selector, supply, burn and return flow into the left tank, FUEL TRANS at 60 gal/h with the white FUEL TRANS advisory (new CAS level), fuel temperatures from the outside air temperature and a situation-dependent left-right difference (3 C by default) on a scale wider than the limits, fuel flow, gallons used and the calculator values
+- [x] 06-01 — Fuel model: two tanks of 26 gal with the FUEL selector, supply, burn and return flow into the left tank, FUEL TRANS at 60 gal/h with the white FUEL TRANS advisory (new CAS level), fuel temperatures from the outside air temperature and a situation-dependent left-right difference (3 C by default) on a scale wider than the limits, fuel flow, gallons used and the calculator values
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 06-02 — Engine page in the three columns of the real page as layout data (combined fuel gauge, fuel box with calculator, rudder trim, oxygen, de-ice with endurance, total service), live fuel, oil, coolant and gearbox; the de-ice fluid model and ANNUN TEST (folded de-ice todo)
+- [x] 06-02 — Engine page in the three columns of the real page as layout data (combined fuel gauge, fuel box with calculator, rudder trim, oxygen, de-ice with endurance, total service), live fuel, oil, coolant and gearbox; the de-ice fluid model and ANNUN TEST (folded de-ice todo)
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 06-03 — Live PFD: the scenario profile section and lint L25, flight regimes (ground, powered, engine stopped), altitude, vertical speed, pitch and bank, rolling horizon and tapes, the profile of every shipped scenario
+- [x] 06-03 — Live PFD: the scenario profile section and lint L25, flight regimes (ground, powered, engine stopped), altitude, vertical speed, pitch and bank, rolling horizon and tapes, the profile of every shipped scenario
 
 **Wave 4** _(blocked on Wave 3 completion)_
 
-- [ ] 06-04 — PITOT HEAT and STALL HEAT cautions with the ground cut-out (folded todo), oil pressure that follows oil temperature and POWER (two tables in the aircraft data), the icing situation adapted by a heat-off variant, and the phase-end documentation
+- [x] 06-04 — PITOT HEAT and STALL HEAT cautions with the ground cut-out (folded todo), oil pressure that follows oil temperature and POWER (two tables in the aircraft data), the icing situation adapted by a heat-off variant, and the phase-end documentation
 
 ### Phase 7: Training Mode, Further Actions and Repeat Loop
 
@@ -588,6 +588,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 4. Electrical system fidelity                         | 3/3 | Complete    | 2026-10-27 |
 | 5. Windscreen and failure cues                        | 3/3 | Complete    | 2026-10-27 |
 | 5.1 Ground and takeoff emergencies                    | 4/3 | Complete    | 2026-10-28 |
-| 6. Fuel, tank and engine fidelity and the engine page | 0/TBD          | Not started | -          |
+| 6. Fuel, tank and engine fidelity and the engine page | 4/4            | Executed, awaiting UAT | 2026-10-29 |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |

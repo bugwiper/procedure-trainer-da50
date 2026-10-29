@@ -282,6 +282,15 @@ Layout assumptions, flagged for review (none is an AFM figure; the quantities ar
 | `service_hours` | base 249.5 h, no bands | owner confirms the figure |
 | `deice_qty_gal` | tank maximum 8.3 US gal (the owner figure), base 6.8, bands red to 1, green above | owner confirms the base and the red limit |
 
+## PFD messages (phase 6)
+
+The messages on the PFD are rule-derived chips (`src/aircraft/da50rg/cas.ts`); their text is part of the rule table, static, in capitals, and never changes with a control state (the chip appears or disappears, the word stays). The two texts below were added by plan 06-04; both are cautions (yellow). The earlier messages (ENG OIL TEMP, OIL PRES, ALTN 1 FAIL, ALTN 2 FAIL, FUEL TRANS) are listed in their sections of `docs/GRADING.md`.
+
+| Message | Level | Shows when | Basis | File to edit |
+|---------|-------|-----------|-------|--------------|
+| PITOT HEAT | caution | the PITOT/STALL HEAT rocker is off | owner description 2026-10-28, high confidence | `cas.ts` (`pitot_heat`) |
+| STALL HEAT | caution | the rocker is off (`stall_heat`), or on the ground a few seconds after it is on (`stall_heat_ground`, the same text, never both) | owner description 2026-10-28, high confidence | `cas.ts` (`stall_heat`, `stall_heat_ground`) |
+
 ## Superseded by the owner findings
 
 These ids existed in the first render and were removed by the plan named; the labels they carried (MODE, WIND SHIELD, PUMP 1, PUMP 2, ANNUN TEST) move to the placards of the new ids above.

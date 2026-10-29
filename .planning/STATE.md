@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 6 — Fuel, tank and engine fidelity and the engine page
-Current Plan: Not started
-Total Plans in Phase: 10
-Status: Ready to plan
+Current Plan: 06-04 complete (plans 06-01 to 06-04 executed)
+Total Plans in Phase: 4
+Status: Phase 6 executed, awaiting the owner UAT (docs/PANEL-REVIEW.md, section Phase 6) and the phase code review
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
-Last activity: 2026-10-28 — Phase 5.1 complete, transitioned to Phase 6
+Last activity: 2026-10-29 — Phase 6 plan 06-04 complete (pitot and stall heat cautions, oil pressure tables, icing heat_off variant, phase documents)
 
 Progress: [███████░░░] 70%
 
