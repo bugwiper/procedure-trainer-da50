@@ -261,7 +261,7 @@ The fuel system is a model in `src/aircraft/da50rg/physics.ts`, with the quantit
 - **Starvation.** An empty drawn tank (quantity 0) cuts the fuel like the selector OFF: the engine stops and every consumer follows (the fire feed, the pump pressure, the alternators). The engine comes back at once when fuel is available again; no relight procedure is modelled (the empty-tank situation of a later phase adds it).
 - **Transfer (owner).** FUEL TRANS pumps `FUEL_TRANSFER_PER_MIN` = 1 gal/min, which is the 60 US gal/h of the owner, from the right tank into the left one while the knob is on, the right tank is above 0 and the left tank is below 26. The pump does not read the electrical state (the pump bus and its breaker are not modelled; the breaker-effects todo keeps that item). The rates of the transfer and the EMERGENCY flow add; the clamp holds each tank inside 0 to 26.
 - **The white FUEL TRANS message (owner).** A new CAS level `advisory`: white, listed after the warnings and cautions, and it never sounds a tone. It is a band rule like the alternator faults: the predicate vocabulary has no AND, so physics sets the hidden quantity `fuel_trans_active` (0 or 1, one step behind the transfer rate) from the same condition as the transfer, and the rule `fuel_trans` reads its band `active`. The message and the pump cannot disagree, and no number enters the rule table.
-- **Fuel temperatures (owner).** Left = outside air temperature + `FUEL_TEMP_LH_OFFSET_C` (8), right = left - delta. The outside air temperature is the parameter `oat_c` (-40 to 50, normal 15) and the delta the parameter `fuel_temp_delta_c` (-10 to 10, normal 3; the owner range in the normal situation is 2 to 5): a situation sets both through `parameters`, and a negative delta reverses the tanks (the hot return runs through the right tank and pre-warms it). Both quantities follow their target with a 60 s lag; the oil, coolant and gearbox engine-off targets follow `oat_c` too and are unchanged at the normal value. The limits are -25 and +60 degrees C (owner): the red zones start there and the quantity range (-30 to 70) is drawn wider so the red ends show; the model holds each derived target to the limits (read from the band tops of the quantity data), so a derived reading never enters red by itself, while a start quantity of a situation can.
+- **Fuel temperatures (owner).** Left = outside air temperature + `FUEL_TEMP_LH_OFFSET_C` (8), right = left - delta. The outside air temperature is the parameter `oat_c` (-40 to 50, normal 15) and the delta the parameter `fuel_temp_delta_c` (-10 to 10, normal 3; the owner range in the normal situation is 2 to 5): a situation sets both through its `profile` block (plan 06-03: in force from the first second; `parameters` still works and starts at the onset), and a negative delta reverses the tanks (the hot return runs through the right tank and pre-warms it). Both quantities follow their target with a 60 s lag; the oil, coolant and gearbox engine-off targets follow `oat_c` too and are unchanged at the normal value. The limits are -25 and +60 degrees C (owner): the red zones start there and the quantity range (-30 to 70) is drawn wider so the red ends show; the model holds each derived target to the limits (read from the band tops of the quantity data), so a derived reading never enters red by itself, while a start quantity of a situation can.
 - **Fuel flow and gallons used.** `fuel_flow_gph` follows the burn within one step (base 11.23 gph, the cruise equilibrium of the line: 10.1 gph at lever 60 percent, 11.8 gph at 75 percent, 0 with the engine stopped); `fuel_used_gal` rises by the burn (base 12, the 52 gallon capacity less the 40 gallons of the two base tanks). Refuelling and the RST Fuel softkey are not modelled.
 - **The calculator** (`fuelCalculator`): remain = left + right tank; used = `fuel_used_gal`; endurance in whole minutes (truncated) = remain over the flow times 60, none while the flow is below `ENDURANCE_MIN_FLOW_GPH` (1) or the result would exceed `ENDURANCE_MAX_MIN` (99 h 59 min), printed H:MM or --:--; range in nautical miles = the exact endurance in hours times `airspeed_kt` (no wind, so 0 on the apron). It has no quantity of its own.
 - **Instructor-review constants.** Supply 30 gph (above the burn at full POWER, 14.6 gph, so the return is never negative); the left offset of 8 degrees; the default delta of 3 degrees (owner range 2 to 5); the 1 gph endurance floor; the 12 gallons of the base of the gallons used; the 60 s fuel temperature lag; the FUEL TRANS pump working without electrical power; the engine restarting at once when the empty tank is switched away.
@@ -277,3 +277,72 @@ The engine page of the MFD (plan 06-02) draws the quantities of the simulation; 
 - **The fluid model.** `deice_qty_gal` (tank maximum 8.3 US gal, the owner figure) falls by the flow of the de-ice mode while `sw.deice_mode` is NORM or HIGH (OFF uses nothing). One MAX activation (the 120 s run of the reaction `deice_max`, only on HIGH) takes `DEICE_MAX_ACTIVATION_GAL` = 0.4 gal in total, spread evenly over the run, in place of the HIGH flow during the run; the HIGH flow resumes after it. One WIND SHIELD press takes `DEICE_SPRAY_ML` = 40 ml (converted with `ML_PER_US_GAL` = 3785.41) spread over the 10 s of the spray, on top of the mode flow (a separate nozzle). The tank never leaves 0 to 8.3; the spray and the pilot-side protection do not depend on the fluid (an empty tank belongs with the later de-ice situations). The quantity has the fine scale of the fuel quantities, because a NORM step uses only 0.00008 gal. Open owner point: whether the 0.4 gal of a MAX activation come on top of the HIGH flow instead of replacing it (the figure in this build is the total of the 120 s run; a one-line data change).
 - **ANNUN TEST.** While `sw.deice_ice_light` stands at `annun_test` the three de-ice lamps light, whatever the mode. Which lamps the real test lights is not in any source of the project; the three lamps of the system are an assumption the owner confirms. It works on the free panel (the lamps derive from control state). Whether the position springs back stays question Q-02 of `docs/PANEL-LABELS.md`.
 - **Deferred, with reasons.** The ICE LIGHT effect only matters at night, and the dusk and night scenes are a deferred todo, so there is nothing to show yet. The ELT lamp in RESET and TEST: its behaviour is in no source of the project (missing information); `lt.elt` stays lit in ON only.
+
+## Flight profile for authors (phase 6)
+
+The PFD is live inside a situation: the horizon pitches and rolls, the speed and altitude tapes slide and the numbers change (heading stays static). It draws simulated quantities, and a scenario scripts them in data. No aerodynamic model is behind it (owner decisions D-08 and D-09): the situation is a script, deterministic and replayable, and it grades nothing (no predicate reads these quantities and `tests/fixtures/recordings.json` is unchanged). The free panel keeps its static readings (140 kt, 1400 ft, 0 fpm, level). The format stays 1; the section is optional and a file without it is unchanged. This section is written so the Phase 7 authoring guide can lift it.
+
+```
+initial:
+  quantities:
+    altitude_ft: 1450
+profile:
+  flight_speed_kt: 70
+  flight_vs_fpm: 500
+onset:
+  window_s[2]: 2,6
+  quantities:
+    altitude_ft: 1450
+```
+
+- **`profile` next to `parameters`.** `parameters` are in force from the onset (the failure). `profile` holds the parameters of the flight situation itself, in force from the first second at every level, before and after the onset, so a climbing take-off does not drift to cruise speed while the Realistic onset is still two to six seconds away. Order of layers: the aircraft's normal values, the profile, the scenario's `parameters`, the parameters of the onset block. A scenario without a profile gives exactly the old parameter sets.
+- **Which keys qualify.** Only parameters the aircraft data flags `profile: true`; lint rule L25 reports any other key at `profile.<id>` (a failure parameter such as `oil_cooling` belongs under `parameters`) and a value outside the range. The flagged parameters, taken from `src/aircraft/da50rg/physics.ts`: `flight_speed_kt` (0 to 200, normal 140), `flight_vs_fpm` (-2000 to 2000, normal 0), `flight_bank_deg` (-60 to 60, normal 0), `glide_speed_kt` (0 to 200, normal 90), `glide_vs_fpm` (-2000 to 2000, normal -700), `terrain_ft` (0 to 10000, normal 1400), and from the fuel model `oat_c` and `fuel_temp_delta_c` (a reversed fuel temperature difference is situation data, so it belongs here and is in force from the first second).
+- **Start values.** Altitude and speed start in `initial.quantities` (Easy and Medium) and, for the Realistic start, in `onset.quantities`: the Realistic start is the base values laid over by the onset quantities, never the initial ones, so a start altitude or speed written only in `initial` would be lost there. That is why `altitude_ft` and, where the aircraft already moves, `airspeed_kt` appear in both blocks.
+- **The three regimes.** (1) Ground: the parameter `ground_roll` is above 0 (set by the ground situations from their onset): the airspeed follows the ground speed within one step, as since phase 5.1, and the vertical speed, pitch and bank are 0 and the altitude holds. (2) Powered flight: the engine runs, and the targets are `flight_speed_kt`, `flight_vs_fpm` and `flight_bank_deg`. (3) Engine stopped (ENGINE MASTER off, the FUEL selector OFF or an empty drawn tank): the targets are `glide_speed_kt` and `glide_vs_fpm`; the bank stays. Nothing else moves them, in particular not the POWER lever.
+- **The glide defaults and how to override them.** An aircraft default applies to every scenario: 90 kt and -700 fpm. A scenario overrides them in its profile (`glide_speed_kt`, `glide_vs_fpm`); a situation that stands or rolls sets both to 0 so a stopped engine changes nothing.
+- **The ground.** The altitude never sinks below `terrain_ft` (normal 1400): a descent ends on it and its vertical speed is held at 0 there. The simulation has no landing model; a glide ends level at the terrain height with the speed it had (the emergency landing is Phase 7).
+
+Worked examples (every number is a value an author chooses and the owner reviews):
+
+```
+# A climb-out: 70 knots, 500 feet per minute, from 50 feet above the runway.
+initial:
+  quantities:
+    altitude_ft: 1450
+profile:
+  flight_speed_kt: 70
+  flight_vs_fpm: 500
+  glide_speed_kt: 70
+  glide_vs_fpm: -300
+```
+
+```
+# A descent at 110 knots and 800 feet per minute from 6000 feet, banked 10 degrees.
+initial:
+  quantities:
+    altitude_ft: 6000
+profile:
+  flight_speed_kt: 110
+  flight_vs_fpm: -800
+  flight_bank_deg: 10
+```
+
+```
+# A situation with a reversed fuel temperature difference: the right tank is 4 degrees warmer.
+profile:
+  oat_c: -5
+  fuel_temp_delta_c: -4
+```
+
+The check `npm run validate` adds one rule: L25, `profile.flight_nope` reads `unknown parameter "flight_nope"`, `profile.oil_cooling` reads `parameter "oil_cooling" is not a profile parameter; set it under parameters`, and a value outside the range reads like `2500 is outside -2000..2000 of parameter "flight_vs_fpm"`, each with file, line and column.
+
+## Instructor review (phase 6, PFD)
+
+Every number below is an instructor-review value, not an AFM figure; each is a data edit in `src/aircraft/da50rg/physics.ts` (constants and parameter normals), `quantities.ts` (ranges, bases and scales) or the scenario file named.
+
+- **Glide defaults.** 90 kt and -700 fpm (`glide_speed_kt`, `glide_vs_fpm`); not the AFM best-glide figure.
+- **Time constants.** Airspeed 5 s in flight (the ground regime follows within one step), vertical speed 3 s, pitch and bank 2 s (`AIRSPEED_TAU_MS`, `VERTICAL_SPEED_TAU_MS`, `ATTITUDE_TAU_MS`). The airspeed settles within 5 percent of its target after 15 s.
+- **Fine scales.** `airspeed_kt`, `pitch_deg`, `bank_deg` and `altitude_ft` carry the scale 1e-4: a lag step near its target is below 0.005, and a climb of 500 fpm gains 0.8333 ft per step, which the default scale of 0.01 would round to 0.83 (2 ft a minute lost).
+- **Pitch.** Target = flight-path angle (the scripted vertical speed divided by the airspeed floored at `PITCH_MIN_SPEED_KT` 40 times `PITCH_FPM_PER_KT_DEG` 1.7675) plus `PITCH_PER_KT` 0.06 degrees for every knot below the cruise speed 140. A level cruise reads 0, a 70 kt climb of 500 fpm about +8.2 degrees, a 90 kt glide of -700 fpm about -1.4 degrees. An aircraft that is not in the air (the ground regime, or at the terrain and not climbing) stands level at 0, so a parked aircraft does not read the nose-up angle of its speed before the onset.
+- **Per scenario (altitude, speed).** ENG OIL TEMP 4500 ft; ALTN 1 FAIL and ALTN 2 FAIL 3500 ft; ELEC FIRE FLIGHT 4500 ft; ICING 7500 ft; ENGINE FIRE in flight 5500 ft; all level at 140 kt, ENGINE FIRE gliding at the defaults once the pilot stops the engine. T/O FIRE NO ABORT 1450 ft, climb-out 70 kt and 500 fpm, glide 70 kt and -300 fpm (it reaches the runway height within seconds when stopped right after lift-off). The three ground situations stand or roll: ENGINE FIRE GROUND and ELEC FIRE GROUND flight and glide speed 0, glide rate 0 (the PFD reads 0 kt before the onset too); T/O FIRE ABORT holds its start speed 40 kt before the onset and then the ground roll model.
+- **Not built.** Heading, a flight director, a speed trend, altitude and speed bugs, and any aerodynamic effect of POWER on speed. Pitot and stall heat cautions are plan 06-04; the emergency landing continuation is Phase 7.
