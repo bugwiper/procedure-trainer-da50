@@ -52,7 +52,8 @@ describe('the blueprint scenario', () => {
     expect(scenario.initial.quantities).toEqual({
       altitude_ft: 4500,
       oil_temp_c: 128,
-      oil_pressure_bar: 5,
+      // The equilibrium of the oil pressure model at oil 128 degrees C and the lever at 75 percent.
+      oil_pressure_bar: 4.16,
     });
   });
 

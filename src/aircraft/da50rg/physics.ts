@@ -8,6 +8,7 @@ import { DEICE_HIGH_GPH, DEICE_NORM_GPH } from './deice-endurance';
 import { acuFault, electricalState } from './electrical';
 import { DEICE_MAX_ACTIVE, WINDSHIELD_PROTECT_ACTIVE, WINDSHIELD_SPRAY_ACTIVE } from './indicators';
 import { DA50RG } from './panel';
+import { OIL_PRESSURE_IDLE_CURVE, OIL_PRESSURE_SLOPE_CURVE } from './oil-pressure-curve';
 import { OIL_TEMP_RISE_RATE_CURVE } from './oil-temp-curve';
 import { PROP_SPEED_CURVE } from './prop-curve';
 import { DA50RG_QUANTITIES } from './quantities';
@@ -57,8 +58,8 @@ const AMPS_TAU_MS = 1_500;
 const VOLTS_TAU_MS = 1_000;
 
 // Effects of the POWER load, per percent of travel away from the cruise load. The engine speed
-// is not among them: it follows the propeller set curve (prop-curve.ts).
-const OIL_PRESSURE_PER_PERCENT = 0.01;
+// is not among them: it follows the propeller set curve (prop-curve.ts), and the oil pressure
+// follows the oil temperature and the lever through two tables (oil-pressure-curve.ts).
 const COOLANT_PER_PERCENT = 0.3;
 const GEARBOX_PER_PERCENT = 0.3;
 
@@ -373,10 +374,18 @@ function rpmTarget(inputs: PhysicsInputs): number {
   return interpolate(PROP_SPEED_CURVE, loadPercent(inputs));
 }
 
+/**
+ * Oil pressure (O-01, D-10): the table value at idle for the live oil temperature plus the table
+ * slope for that temperature times the lever travel in percent; 0 with the engine stopped. Hot oil
+ * lowers it, cold oil and POWER raise it. At the cruise anchor (oil 91 degrees C, lever 70 percent)
+ * the tables give the base value. No band number enters here; the bands are quantity data.
+ */
 function oilPressureTarget(inputs: PhysicsInputs): number {
   if (!running(inputs)) return 0;
+  const oil = quantityOf(inputs, 'oil_temp_c');
   return (
-    baseOf('oil_pressure_bar') + (loadPercent(inputs) - CRUISE_PERCENT) * OIL_PRESSURE_PER_PERCENT
+    interpolate(OIL_PRESSURE_IDLE_CURVE, oil) +
+    interpolate(OIL_PRESSURE_SLOPE_CURVE, oil) * loadPercent(inputs)
   );
 }
 

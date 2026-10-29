@@ -19,7 +19,8 @@ initial:
     # Start altitude of the situation, an instructor-review value; the aircraft flies level at the cruise speed (the normal flight profile).
     altitude_ft: 4500
     oil_temp_c: 128
-    oil_pressure_bar: 5
+    # The equilibrium of the oil pressure model at oil 128 degrees C and the lever at 75 percent (hot oil lowers the pressure from the cruise 5; still in the green band).
+    oil_pressure_bar: 4.16
 parameters:
   oil_cooling: 0.55
 annunciations[1]: eng_oil_temp

@@ -581,12 +581,20 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
       });
     });
 
-    it('load follows the POWER travel and oil pressure rises a little with the load', () => {
+    it('load follows the POWER travel; the oil pressure stays inside green at lever 50 and 100', () => {
       const half = settle({ 'lv.power': 'p50' }, MINUTE);
       const full = settle({ 'lv.power': 'p100' }, MINUTE);
       expect(q(half, 'load_pct')).toBeLessThan(q(full, 'load_pct'));
-      expect(q(half, 'oil_pressure_bar')).toBeLessThan(q(full, 'oil_pressure_bar'));
-      expect(q(full, 'oil_pressure_bar')).toBeLessThanOrEqual(bandTop('oil_pressure_bar', 'green'));
+      // The settled pressure also depends on the oil temperature the lever settles at (Phase 6, O-01;
+      // the pressure at a FIXED oil temperature is compared in tests/oil-pressure.test.ts).
+      for (const state of [half, full]) {
+        expect(q(state, 'oil_pressure_bar')).toBeGreaterThan(
+          bandTop('oil_pressure_bar', 'low_yellow'),
+        );
+        expect(q(state, 'oil_pressure_bar')).toBeLessThanOrEqual(
+          bandTop('oil_pressure_bar', 'green'),
+        );
+      }
     });
 
     it('ENGINE MASTER off drops rpm, load, oil pressure, fuel pressure and Amps', () => {

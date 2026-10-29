@@ -169,7 +169,7 @@ describe('newSituation', () => {
       ...DA50RG_QUANTITIES.baseValues(),
       altitude_ft: 4500,
       oil_temp_c: 128,
-      oil_pressure_bar: 5,
+      oil_pressure_bar: 4.16,
     });
     // The baseline is applied, never dispatched.
     expect(bridge.store.events()).toEqual([]);
@@ -1025,7 +1025,7 @@ describe('run (phase 03)', () => {
       ...DA50RG_QUANTITIES.baseValues(),
       altitude_ft: 4500,
       oil_temp_c: 128,
-      oil_pressure_bar: 5,
+      oil_pressure_bar: 4.16,
     };
     expect(run.state.t).toBe(0);
     expect(run.state.quantities).toEqual(expected);
@@ -1044,7 +1044,8 @@ describe('run (phase 03)', () => {
     expect(run.clock.now()).toBe(5000);
     expect(r.session.clock.value?.now()).toBe(5000);
     expect(run.state.quantities['oil_temp_c']).not.toBe(first);
-    expect(run.state.quantities['oil_pressure_bar']).toBe(5);
+    // The pressure follows the oil temperature, which moves a little in 5 s: it stays near the start value.
+    expect(run.state.quantities['oil_pressure_bar']).toBeCloseTo(4.16, 1);
   });
 
   it('an actuation at clock time T is in the run controls only after the next step', async () => {

@@ -476,7 +476,7 @@ describe('L25: the flight profile (Phase 6, plan 03)', () => {
 describe('L11: a run that does nothing must fail', () => {
   it('rejects a blueprint whose applying branch holds no step', () => {
     // 2.5 bar is in the low band: "If too low:" applies and has no nodes, the green branch does not.
-    const text = swap(BLUEPRINT, 'oil_pressure_bar: 5', 'oil_pressure_bar: 2.5');
+    const text = swap(BLUEPRINT, 'oil_pressure_bar: 4.16', 'oil_pressure_bar: 2.5');
     const issues = issuesOf(text);
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({

@@ -864,7 +864,7 @@ describe('fails_run and order_critical (D-11, D-12)', () => {
 describe('branch applicability (D-23, D-25)', () => {
   it('never grades a step inside a branch that does not apply', () => {
     // Low oil pressure: the "too low" branch applies, the green branch does not.
-    const lowPressure = load(swap(BLUEPRINT, 'oil_pressure_bar: 5', 'oil_pressure_bar: 1'));
+    const lowPressure = load(swap(BLUEPRINT, 'oil_pressure_bar: 4.16', 'oil_pressure_bar: 1'));
     expect(branchStatuses(lowPressure, DA50RG_ENV)).toEqual([
       { path: 'procedure.0.branches.0', status: 'applies' },
       { path: 'procedure.0.branches.1', status: 'not_applicable' },
