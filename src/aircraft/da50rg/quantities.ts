@@ -14,6 +14,8 @@ import { defineQuantities } from '../../engine/quantities';
 // set them, and their bases and bands are layout assumptions, not AFM figures. The fuel temperatures, the
 // two tank quantities (0 to the tank capacity, one band table) and the fuel flow are the Phase 6 fuel
 // model (physics.ts).
+// The low red ends of the oil, coolant and gearbox temperature bars (below 0 degrees C) are own
+// values from the owner's photo of the real display (Phase 6 walkthrough), not AFM figures.
 // Data only: facts and numbers, no AFM wording.
 
 /**
@@ -111,6 +113,7 @@ export const DA50RG_QUANTITIES = defineQuantities([
     base: 91,
     scale: OIL_TEMP_SCALE,
     bands: [
+      { id: 'low_red', colour: 'red', to: 0 },
       { id: 'low_yellow', colour: 'yellow', to: 50 },
       { id: 'green', colour: 'green', to: 115 },
       { id: 'high_yellow', colour: 'yellow', to: 125 },
@@ -124,6 +127,7 @@ export const DA50RG_QUANTITIES = defineQuantities([
     max: 125,
     base: 85,
     bands: [
+      { id: 'low_red', colour: 'red', to: 0 },
       { id: 'low_yellow', colour: 'yellow', to: 60 },
       { id: 'green', colour: 'green', to: 101 },
       { id: 'high_yellow', colour: 'yellow', to: 105 },
@@ -137,6 +141,7 @@ export const DA50RG_QUANTITIES = defineQuantities([
     max: 125,
     base: 75,
     bands: [
+      { id: 'low_red', colour: 'red', to: 0 },
       { id: 'low_yellow', colour: 'yellow', to: 50 },
       { id: 'green', colour: 'green', to: 105 },
       { id: 'high_yellow', colour: 'yellow', to: 110 },

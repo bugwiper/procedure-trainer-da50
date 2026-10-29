@@ -260,7 +260,7 @@ describe('quantities', () => {
   });
 
   it('clamps a value below min to the first band and above max to the last', () => {
-    expect(DA50RG_QUANTITIES.bandOf('oil_temp_c', -100)).toBe('low_yellow');
+    expect(DA50RG_QUANTITIES.bandOf('oil_temp_c', -100)).toBe('low_red');
     expect(DA50RG_QUANTITIES.bandOf('oil_temp_c', 500)).toBe('high_red');
   });
 
