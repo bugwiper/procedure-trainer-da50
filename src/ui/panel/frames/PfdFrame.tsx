@@ -1,11 +1,18 @@
 import {
   PFD_AIRSPEED_QUANTITY,
   PFD_ALTITUDE_QUANTITY,
+  PFD_BANK_QUANTITY,
   PFD_LEGENDS,
+  PFD_PITCH_QUANTITY,
   PFD_VERTICAL_SPEED_QUANTITY,
+  PITCH_LADDER_MAX_DEG,
+  PITCH_LADDER_STEP_DEG,
+  PITCH_LADDER_STEP_PX,
   airspeedReadout,
   altitudeReadout,
   altitudeTickOffsets,
+  horizonRotationDeg,
+  pitchShiftPx,
   speedTickOffsets,
   verticalSpeedText,
 } from '../../../aircraft/da50rg/avionics';
@@ -23,7 +30,14 @@ const ATT_Y = 34;
 const ATT_W = 295;
 const ATT_H = 232;
 const HORIZON_Y = ATT_Y + ATT_H / 2;
-const PITCH_PX_PER_5_DEG = 22;
+/** Half the width and height the sky and ground reach beyond the attitude centre; the clip cuts them. */
+const HORIZON_REACH = 400;
+/** The pitch ladder: a line every 5 degrees, a long one every 10, to 30 degrees each side. */
+const LADDER_DEGREES: readonly number[] = Array.from(
+  { length: (2 * PITCH_LADDER_MAX_DEG) / PITCH_LADDER_STEP_DEG + 1 },
+  (_, i) => -PITCH_LADDER_MAX_DEG + i * PITCH_LADDER_STEP_DEG,
+).filter((deg) => deg !== 0);
+const ATTITUDE_CLIP_ID = 'pfd-attitude-clip';
 
 // Bank scale (Table D5): radius 110 about the attitude centre, ticks at these angles each side.
 const BANK_R = 110;
@@ -35,6 +49,12 @@ const COMPASS_CX = 247.5;
 const COMPASS_CY = 338;
 const COMPASS_R = 66;
 const COMPASS_TICKS: readonly number[] = Array.from({ length: 12 }, (_, i) => -82.5 + 15 * i);
+
+/** A number for a transform: two decimals, never a negative zero (a level horizon is the identity). */
+function fixed(value: number): string {
+  const text = value.toFixed(2);
+  return text === '-0.00' ? '0.00' : text;
+}
 
 /** Point at `deg` from straight up (clockwise) on a circle, as a path coordinate pair. */
 function polar(cx: number, cy: number, r: number, deg: number): string {
@@ -52,10 +72,15 @@ function polar(cx: number, cy: number, r: number, deg: number): string {
 export function PfdFrame({ region, bridge }: FrameProps) {
   const { w, h } = region.bounds;
   const cx = ATT_X + ATT_W / 2;
-  const pitchMarks = [-10, -5, 5, 10];
   const airspeed = bridge.quantities.value[PFD_AIRSPEED_QUANTITY];
   const altitude = bridge.quantities.value[PFD_ALTITUDE_QUANTITY];
   const verticalSpeed = bridge.quantities.value[PFD_VERTICAL_SPEED_QUANTITY];
+  // The horizon group moves down by the pitch and turns by minus the bank about the attitude centre
+  // (the numbers pass through toFixed, never as raw strings). The roll pointer turns with it.
+  const shift = pitchShiftPx(bridge.quantities.value[PFD_PITCH_QUANTITY]);
+  const roll = horizonRotationDeg(bridge.quantities.value[PFD_BANK_QUANTITY]);
+  const rotation = `rotate(${fixed(roll)} ${fixed(cx)} ${fixed(HORIZON_Y)})`;
+  const horizonTransform = `${rotation} translate(0 ${fixed(shift)})`;
   return (
     <g data-pfd pointer-events="none">
       <rect
@@ -71,31 +96,52 @@ export function PfdFrame({ region, bridge }: FrameProps) {
 
       <g data-glass-zone="content">
         <g data-testid="pfd-attitude">
-          <rect x={ATT_X} y={ATT_Y} width={ATT_W} height={ATT_H / 2} fill={SKY} />
-          <rect x={ATT_X} y={HORIZON_Y} width={ATT_W} height={ATT_H / 2} fill={GROUND} />
-          <line
-            x1={ATT_X}
-            y1={HORIZON_Y}
-            x2={ATT_X + ATT_W}
-            y2={HORIZON_Y}
-            stroke={WHITE}
-            stroke-width={2}
-          />
-          {pitchMarks.map((deg) => {
-            const y = HORIZON_Y - (deg / 5) * PITCH_PX_PER_5_DEG;
-            const half = Math.abs(deg) === 10 ? 40 : 22;
-            return (
-              <line
-                key={deg}
-                x1={cx - half}
-                y1={y}
-                x2={cx + half}
-                y2={y}
-                stroke={WHITE}
-                stroke-width={1.5}
+          <clipPath id={ATTITUDE_CLIP_ID}>
+            <rect x={ATT_X} y={ATT_Y} width={ATT_W} height={ATT_H} />
+          </clipPath>
+          <g clip-path={`url(#${ATTITUDE_CLIP_ID})`}>
+            {/* One group: sky, ground, horizon line and pitch ladder move and turn together. */}
+            <g data-horizon transform={horizonTransform}>
+              <rect
+                x={cx - HORIZON_REACH}
+                y={HORIZON_Y - HORIZON_REACH}
+                width={2 * HORIZON_REACH}
+                height={HORIZON_REACH}
+                fill={SKY}
               />
-            );
-          })}
+              <rect
+                x={cx - HORIZON_REACH}
+                y={HORIZON_Y}
+                width={2 * HORIZON_REACH}
+                height={HORIZON_REACH}
+                fill={GROUND}
+              />
+              <line
+                x1={cx - HORIZON_REACH}
+                y1={HORIZON_Y}
+                x2={cx + HORIZON_REACH}
+                y2={HORIZON_Y}
+                stroke={WHITE}
+                stroke-width={2}
+              />
+              {LADDER_DEGREES.map((deg) => {
+                const y = HORIZON_Y - (deg / PITCH_LADDER_STEP_DEG) * PITCH_LADDER_STEP_PX;
+                const half = deg % 10 === 0 ? 40 : 22;
+                return (
+                  <line
+                    key={deg}
+                    data-pitch-mark={deg}
+                    x1={cx - half}
+                    y1={y}
+                    x2={cx + half}
+                    y2={y}
+                    stroke={WHITE}
+                    stroke-width={1.5}
+                  />
+                );
+              })}
+            </g>
+          </g>
           {/* Bank scale: an arc from -60 to +60 degrees, ticks outside it and a roll pointer. */}
           <path
             d={`M ${polar(cx, BANK_CY, BANK_R, -60)} A ${BANK_R} ${BANK_R} 0 0 1 ${polar(cx, BANK_CY, BANK_R, 60)}`}
@@ -115,11 +161,13 @@ export function PfdFrame({ region, bridge }: FrameProps) {
               />
             )),
           )}
-          <path
-            data-roll-pointer
-            d={`M ${cx} ${BANK_CY - BANK_R + 2} L ${cx - 5} ${BANK_CY - BANK_R + 10} L ${cx + 5} ${BANK_CY - BANK_R + 10} Z`}
-            fill="#f2c230"
-          />
+          <g transform={`rotate(${fixed(roll)} ${fixed(cx)} ${fixed(BANK_CY)})`}>
+            <path
+              data-roll-pointer
+              d={`M ${cx} ${BANK_CY - BANK_R + 2} L ${cx - 5} ${BANK_CY - BANK_R + 10} L ${cx + 5} ${BANK_CY - BANK_R + 10} Z`}
+              fill="#f2c230"
+            />
+          </g>
           {/* Fixed aircraft symbol. */}
           <path
             d={`M ${cx - 60} ${HORIZON_Y + 6} l 40 0 l 20 -12 l 20 12 l 40 0`}

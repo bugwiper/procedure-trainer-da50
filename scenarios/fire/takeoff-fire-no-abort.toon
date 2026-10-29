@@ -21,9 +21,12 @@ initial:
     ground_speed_kt: 70
     airspeed_kt: 70
     altitude_ft: 1450
-# The flight profile (in force from the first second at every level): a climb-out of 500 feet per minute from 1450 feet, 50 feet above the runway. An instructor-review value; the altitude start values stand here and in the onset block.
+# The flight profile (in force from the first second at every level; instructor-review values): a climb-out at 70 knots and 500 feet per minute from 1450 feet, 50 feet above the runway. With the engine stopped the aircraft glides at 70 knots and sinks 300 feet per minute. The altitude start values stand in the initial block and in the onset block.
 profile:
+  flight_speed_kt: 70
   flight_vs_fpm: 500
+  glide_speed_kt: 70
+  glide_vs_fpm: -300
 parameters:
   engine_fire: 1
 annunciations[0]:

@@ -3,10 +3,18 @@ import {
   ALTITUDE_TICK_COUNT,
   ALTITUDE_TICK_PX,
   AV_MASTER_CONTROL,
+  BANK_SCALE_MAX_DEG,
   PFD_ALTITUDE_QUANTITY,
+  PFD_BANK_QUANTITY,
+  PFD_PITCH_QUANTITY,
   PFD_VERTICAL_SPEED_QUANTITY,
+  PITCH_LADDER_MAX_DEG,
+  PITCH_LADDER_STEP_DEG,
+  PITCH_LADDER_STEP_PX,
   altitudeReadout,
   altitudeTickOffsets,
+  horizonRotationDeg,
+  pitchShiftPx,
   verticalSpeedText,
 } from '../src/aircraft/da50rg/avionics';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
@@ -143,5 +151,110 @@ describe('the PFD frame', () => {
     const label = findElements(tree, (e) => e.tag === 'text' && textOf(e) === 'VS')[0];
     expect(label).toBeDefined();
     expect([6, 8, 10, 14]).toContain(label?.props['font-size']);
+  });
+});
+
+describe('pitchShiftPx and horizonRotationDeg', () => {
+  it('a level horizon is the identity, also for a negative zero', () => {
+    expect(pitchShiftPx(0)).toBe(0);
+    expect(pitchShiftPx(-0)).toBe(0);
+    expect(Object.is(horizonRotationDeg(0), 0)).toBe(true);
+    expect(Object.is(horizonRotationDeg(-0), 0)).toBe(true);
+    expect(pitchShiftPx(undefined)).toBe(0);
+    expect(horizonRotationDeg(undefined)).toBe(0);
+  });
+
+  it('a nose-up pitch moves the horizon down by one ladder step per 5 degrees', () => {
+    expect(pitchShiftPx(5)).toBe(PITCH_LADDER_STEP_PX);
+    expect(pitchShiftPx(10)).toBe(2 * PITCH_LADDER_STEP_PX);
+    expect(pitchShiftPx(-5)).toBe(-PITCH_LADDER_STEP_PX);
+    expect(pitchShiftPx(8.2)).toBeCloseTo((8.2 / PITCH_LADDER_STEP_DEG) * PITCH_LADDER_STEP_PX, 9);
+  });
+
+  it('a right bank turns the horizon counter-clockwise: minus the bank', () => {
+    expect(horizonRotationDeg(20)).toBe(-20);
+    expect(horizonRotationDeg(-35)).toBe(35);
+  });
+
+  it('clamps to the ladder and to the bank scale, and ignores a broken reading', () => {
+    const top = (PITCH_LADDER_MAX_DEG / PITCH_LADDER_STEP_DEG) * PITCH_LADDER_STEP_PX;
+    expect(pitchShiftPx(90)).toBe(top);
+    expect(pitchShiftPx(-90)).toBe(-top);
+    expect(horizonRotationDeg(200)).toBe(-BANK_SCALE_MAX_DEG);
+    expect(horizonRotationDeg(-200)).toBe(BANK_SCALE_MAX_DEG);
+    expect(pitchShiftPx(Number.NaN)).toBe(0);
+    expect(horizonRotationDeg(Number.NaN)).toBe(0);
+  });
+});
+
+describe('the attitude art', () => {
+  const group = (tree: El): El => {
+    const found = findElements(tree, (e) => e.props['data-horizon'] !== undefined);
+    expect(found).toHaveLength(1);
+    return found[0] ?? tree;
+  };
+  const pointerHolder = (tree: El): El | undefined =>
+    findElements(tree, (e) => e.tag === 'g').find(
+      (g) =>
+        findElements(g, (e) => e.props['data-roll-pointer'] !== undefined).length === 1 &&
+        g.children.length === 1,
+    );
+
+  it('at pitch 0 and bank 0 the horizon group moves nothing: rotation 0 and shift 0', () => {
+    const transform = String(group(render(baseValues)).props['transform']);
+    expect(transform).toBe('rotate(0.00 247.50 150.00) translate(0 0.00)');
+  });
+
+  it('turns by minus the bank about the attitude centre and shifts by the pitch', () => {
+    const tree = render({ ...baseValues, [PFD_PITCH_QUANTITY]: 10, [PFD_BANK_QUANTITY]: 20 });
+    expect(group(tree).props['transform']).toBe('rotate(-20.00 247.50 150.00) translate(0 44.00)');
+  });
+
+  it('keeps the sky, the ground, the horizon line and the ladder inside the one group', () => {
+    const inside = group(render(baseValues));
+    expect(findElements(inside, (e) => e.tag === 'rect')).toHaveLength(2);
+    // The horizon line and one line per ladder step (every 5 degrees to 30, 0 excluded).
+    const lines = findElements(inside, (e) => e.tag === 'line');
+    expect(lines).toHaveLength(1 + (2 * PITCH_LADDER_MAX_DEG) / PITCH_LADDER_STEP_DEG);
+    expect(findElements(inside, (e) => e.props['data-pitch-mark'] !== undefined)).toHaveLength(
+      (2 * PITCH_LADDER_MAX_DEG) / PITCH_LADDER_STEP_DEG,
+    );
+  });
+
+  it('clips the group to the attitude rectangle', () => {
+    const tree = render(baseValues);
+    const holders = findElements(tree, (e) => e.props['clip-path'] !== undefined);
+    expect(holders).toHaveLength(1);
+    const id = /url\(#(.+)\)/.exec(String(holders[0]?.props['clip-path']))?.[1];
+    const clip = findElements(tree, (e) => e.tag === 'clipPath' && e.props['id'] === id);
+    expect(clip).toHaveLength(1);
+    const rect = findElements(clip[0] ?? tree, (e) => e.tag === 'rect')[0];
+    expect([
+      rect?.props['x'],
+      rect?.props['y'],
+      rect?.props['width'],
+      rect?.props['height'],
+    ]).toEqual([100, 34, 295, 232]);
+    expect(
+      findElements(holders[0] ?? tree, (e) => e.props['data-horizon'] !== undefined),
+    ).toHaveLength(1);
+  });
+
+  it('the roll pointer turns with the horizon, the bank scale and the aircraft symbol stay fixed', () => {
+    const rest = render(baseValues);
+    const banked = render({ ...baseValues, [PFD_BANK_QUANTITY]: 30 });
+    expect(pointerHolder(rest)?.props['transform']).toBe('rotate(0.00 247.50 150.00)');
+    expect(pointerHolder(banked)?.props['transform']).toBe('rotate(-30.00 247.50 150.00)');
+    const fixed = (tree: El): unknown =>
+      JSON.stringify(
+        findElements(tree, (e) => e.props['data-bank-tick'] !== undefined).map((e) => e.props),
+      );
+    expect(fixed(banked)).toBe(fixed(rest));
+  });
+
+  it('heading stays static: 360 whatever the attitude', () => {
+    const tree = render({ ...baseValues, [PFD_PITCH_QUANTITY]: 12, [PFD_BANK_QUANTITY]: -25 });
+    const head = findElements(tree, (e) => e.props['data-testid'] === 'pfd-heading')[0];
+    expect(findElements(head ?? tree, (e) => e.tag === 'text').map(textOf)).toEqual(['360', 'HDG']);
   });
 });

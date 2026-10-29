@@ -506,25 +506,71 @@ function groundSpeedPerMinute(inputs: PhysicsInputs): number {
   );
 }
 
+// Flight (Phase 6, plan 03; D-08, D-09, V-01 to V-04): the quantities of the PFD (airspeed, vertical
+// speed, altitude, pitch and bank) follow a scripted flight state, not an aerodynamic model. The
+// situation is data of the scenario (its profile: the parameters flagged `profile` below); the
+// models only move the readings toward it with the time constants here. Three regimes: on the
+// ground (the parameter ground_roll is above 0) the airspeed is the ground speed and the rest is
+// level; in flight with the engine running the targets are the flight_* parameters; with the engine
+// stopped (ENGINE MASTER off, the FUEL selector OFF or the drawn tank empty) they are the glide_*
+// ones. Nothing else moves them, in particular not the POWER lever. Compressed, instructor-review
+// values, none is an AFM figure. The free panel is static: at the normal parameters with the engine
+// running every flight quantity holds its base (C-09).
+/** The airspeed follows its target with this time constant in flight. */
+const AIRSPEED_TAU_MS = 5_000;
 /**
- * The airspeed the PFD shows (owner addition of 2026-10-27): the ground speed while the aircraft
- * moves on the ground (the scenario sets ground_roll, or it starts with a speed, as the airborne
- * take-off does), otherwise the static value of the free panel and of flight, the quantity's base.
- * A training approximation: no conversion to indicated airspeed.
+ * On the ground the airspeed follows the ground speed within one step: this rate times STEP_MS is
+ * the time constant, so the step fraction is exactly 1 (the behaviour since Phase 5.1).
  */
-function airspeedTarget(inputs: PhysicsInputs): number {
-  const speed = quantityOf(inputs, 'ground_speed_kt');
-  const moving = parameterOf(inputs, 'ground_roll') > 0 || speed > 0;
-  return moving ? speed : baseOf('airspeed_kt');
+const AIRSPEED_GROUND_RATE = AIRSPEED_TAU_MS / STEP_MS;
+const VERTICAL_SPEED_TAU_MS = 3_000;
+const ATTITUDE_TAU_MS = 2_000;
+
+/**
+ * Pitch target (V-04): the flight-path angle plus an angle of attack that grows as the speed falls
+ * below the cruise speed. Feet per minute per knot per degree of flight path: 6076.12 ft per nautical
+ * mile, divided by 60 minutes, times the sine of one degree (0.017452) = 1.7675.
+ */
+export const PITCH_FPM_PER_KT_DEG = 1.7675;
+/** The speed in the flight-path division never falls below this (knots), so the division is safe. */
+export const PITCH_MIN_SPEED_KT = 40;
+/** Degrees of nose-up pitch for every knot below the cruise speed (the airspeed base). */
+export const PITCH_PER_KT = 0.06;
+
+type FlightRegime = 'ground' | 'powered' | 'glide';
+
+function flightRegime(inputs: PhysicsInputs): FlightRegime {
+  if (parameterOf(inputs, 'ground_roll') > 0) return 'ground';
+  return running(inputs) ? 'powered' : 'glide';
 }
 
-// Flight (Phase 6, plan 03; D-08, D-09, V-01 to V-04): the quantities of the PFD follow a scripted
-// flight state, not an aerodynamic model. The situation is data of the scenario (its profile, the
-// parameters flagged `profile` below); the models only move the readings toward it with the time
-// constants here. Compressed, instructor-review values, none is an AFM figure. The free panel is
-// static: at the normal parameters every flight quantity holds its base (C-09).
-/** The vertical speed follows its target with this time constant. */
-const VERTICAL_SPEED_TAU_MS = 3_000;
+/** The vertical speed the situation scripts for the regime, feet per minute (0 on the ground). */
+function scriptedVerticalSpeed(inputs: PhysicsInputs): number {
+  switch (flightRegime(inputs)) {
+    case 'ground':
+      return 0;
+    case 'powered':
+      return parameterOf(inputs, 'flight_vs_fpm');
+    case 'glide':
+      return parameterOf(inputs, 'glide_vs_fpm');
+  }
+}
+
+/** The airspeed the situation scripts for the regime, knots (the ground speed on the ground). */
+function airspeedTarget(inputs: PhysicsInputs): number {
+  switch (flightRegime(inputs)) {
+    case 'ground':
+      return quantityOf(inputs, 'ground_speed_kt');
+    case 'powered':
+      return parameterOf(inputs, 'flight_speed_kt');
+    case 'glide':
+      return parameterOf(inputs, 'glide_speed_kt');
+  }
+}
+
+function airspeedRate(inputs: PhysicsInputs): number {
+  return flightRegime(inputs) === 'ground' ? AIRSPEED_GROUND_RATE : 1;
+}
 
 /** True while the aircraft is at or below the terrain: it cannot sink further. */
 function atTerrain(inputs: PhysicsInputs): boolean {
@@ -533,19 +579,48 @@ function atTerrain(inputs: PhysicsInputs): boolean {
 
 /** The vertical speed the aircraft heads for in feet per minute; at the terrain it never sinks. */
 function verticalSpeedTarget(inputs: PhysicsInputs): number {
-  const target = parameterOf(inputs, 'flight_vs_fpm');
+  const target = scriptedVerticalSpeed(inputs);
   return atTerrain(inputs) && target < 0 ? 0 : target;
 }
 
 /**
  * The altitude changes by the vertical speed, in feet per minute, but never below the terrain: a
- * fall that would pass it is cut to the fall that ends exactly on it.
+ * fall that would pass it is cut to the fall that ends exactly on it. On the ground it holds.
  */
 function altitudePerMinute(inputs: PhysicsInputs): number {
+  if (flightRegime(inputs) === 'ground') return 0;
   const above = quantityOf(inputs, 'altitude_ft') - parameterOf(inputs, 'terrain_ft');
   const reach = (-above * MS_PER_MINUTE) / STEP_MS;
   const rate = quantityOf(inputs, 'vertical_speed_fpm');
   return rate < reach ? reach : rate;
+}
+
+/**
+ * The aircraft is in the air: not on the ground regime, and either above the terrain or climbing.
+ * A parked or rolling aircraft, or one that has glided down to the terrain, stands level.
+ */
+function airborne(inputs: PhysicsInputs): boolean {
+  if (flightRegime(inputs) === 'ground') return false;
+  return !atTerrain(inputs) || scriptedVerticalSpeed(inputs) > 0;
+}
+
+/**
+ * The pitch the aircraft heads for in degrees (V-04): the flight-path angle of the scripted vertical
+ * speed at the airspeed (floored at PITCH_MIN_SPEED_KT) plus PITCH_PER_KT for every knot below the
+ * cruise speed. A level cruise reads 0, a 70 kt climb of 500 fpm about +8 degrees, a 90 kt glide of
+ * -700 fpm about -1.4 degrees. Not airborne: 0.
+ */
+function pitchTarget(inputs: PhysicsInputs): number {
+  if (!airborne(inputs)) return 0;
+  const speed = quantityOf(inputs, 'airspeed_kt');
+  const divisor = speed < PITCH_MIN_SPEED_KT ? PITCH_MIN_SPEED_KT : speed;
+  const flightPath = scriptedVerticalSpeed(inputs) / (divisor * PITCH_FPM_PER_KT_DEG);
+  return flightPath + PITCH_PER_KT * (baseOf('airspeed_kt') - speed);
+}
+
+/** The bank the situation scripts (degrees, positive to the right); 0 on the ground. */
+function bankTarget(inputs: PhysicsInputs): number {
+  return flightRegime(inputs) === 'ground' ? 0 : parameterOf(inputs, 'flight_bank_deg');
 }
 
 /** The de-ice MAX run lasts 120 s of run time (owner finding G-1). */
@@ -633,9 +708,15 @@ export const DA50RG_PHYSICS = definePhysics(
       // (owner range 2 to 5); other situations may differ or reverse it (negative).
       { id: 'fuel_temp_delta_c', min: -10, max: 10, normal: 3, profile: true },
       // The flight situation (Phase 6, plan 03): properties of the situation from the first second,
-      // so a scenario's profile may set them (lint L25). 0 is level flight; the vertical speed target
-      // in feet per minute, positive climbs.
+      // so a scenario's profile may set them (lint L25). The speed (knots), the vertical speed (feet
+      // per minute, positive climbs) and the bank (degrees, positive to the right) of powered flight.
+      { id: 'flight_speed_kt', min: 0, max: 200, normal: 140, profile: true },
       { id: 'flight_vs_fpm', min: -2000, max: 2000, normal: 0, profile: true },
+      { id: 'flight_bank_deg', min: -60, max: 60, normal: 0, profile: true },
+      // The same for the engine stopped; the defaults are instructor-review values, not the AFM
+      // best-glide figure, and a scenario may override them.
+      { id: 'glide_speed_kt', min: 0, max: 200, normal: 90, profile: true },
+      { id: 'glide_vs_fpm', min: -2000, max: 2000, normal: -700, profile: true },
       // The altitude never sinks below this terrain height in feet (the free panel's 1400 ft base).
       { id: 'terrain_ft', min: 0, max: 10000, normal: 1400, profile: true },
     ],
@@ -694,13 +775,16 @@ export const DA50RG_PHYSICS = definePhysics(
       { quantity: 'ground_speed_kt', mode: 'rate', perMinute: groundSpeedPerMinute },
       // The de-ice fluid of the engine page: the mode flow, the MAX run and the WIND SHIELD spray (E-08).
       { quantity: 'deice_qty_gal', mode: 'rate', perMinute: deiceFluidPerMinute },
-      // The reading follows the target within one step (like the control unit flags).
-      lag('airspeed_kt', STEP_MS, airspeedTarget),
-      // The flight state of the PFD (Phase 6, plan 03): the vertical speed lags toward the scripted
-      // value and the altitude integrates it. Glide, speed, pitch and bank follow in task 2; the
-      // free panel is static (the base values are the equilibrium).
+      // The flight state of the PFD (Phase 6, plan 03): the regimes above. On the ground the airspeed
+      // follows the ground speed within one step (rate AIRSPEED_GROUND_RATE), in flight it lags toward
+      // the scripted speed; the vertical speed, pitch and bank lag toward their scripted values and
+      // the altitude integrates the vertical speed. The free panel is static (the base values are
+      // the equilibrium).
+      lag('airspeed_kt', AIRSPEED_TAU_MS, airspeedTarget, airspeedRate),
       lag('vertical_speed_fpm', VERTICAL_SPEED_TAU_MS, verticalSpeedTarget),
       { quantity: 'altitude_ft', mode: 'rate', perMinute: altitudePerMinute },
+      lag('pitch_deg', ATTITUDE_TAU_MS, pitchTarget),
+      lag('bank_deg', ATTITUDE_TAU_MS, bankTarget),
     ],
     trips: [
       {

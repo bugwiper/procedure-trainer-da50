@@ -15,6 +15,8 @@ initial:
   controls:
     lv.env_circ: recirc
   quantities:
+    # Start altitude of the situation, an instructor-review value; the aircraft flies level at the cruise speed (the normal flight profile).
+    altitude_ft: 4500
     smoke_density: 40
 parameters:
   smoke_source: 1
@@ -139,4 +141,7 @@ outcomes[1]:
 # The smoke shows over the panel, since the scenario lists no message; the lint checks that it shows within seconds of the onset.
 onset:
   window_s[2]: 2,6
+  quantities:
+    # Start altitude of the Realistic run, the same value as in the initial block.
+    altitude_ft: 4500
   cues[1]: cabin_smoke

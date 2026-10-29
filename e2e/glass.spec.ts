@@ -223,8 +223,33 @@ async function readZones(page: Page, regionId: string): Promise<ZoneItem[]> {
       if (el.hasAttribute('data-region-frame') || el.hasAttribute('data-hit')) continue;
       const r = el.getBoundingClientRect();
       if (r.width <= 0 && r.height <= 0) continue;
-      const p1 = local(r.left, r.top);
-      const p2 = local(r.right, r.bottom);
+      // The bounding box ignores a clip path, but the painted extent is the part inside the clip
+      // (the PFD horizon is oversized and clipped to the attitude rectangle): cut the box to it.
+      let [left, top, right, bottom] = [r.left, r.top, r.right, r.bottom];
+      const holder = el.closest('[clip-path]');
+      const ref = /url\(#([^)]+)\)/.exec(holder?.getAttribute('clip-path') ?? '');
+      const clipRect =
+        ref?.[1] === undefined ? null : document.getElementById(ref[1])?.querySelector('rect');
+      const holderCtm = (holder as SVGGraphicsElement | null)?.getScreenCTM();
+      if (
+        clipRect !== null &&
+        clipRect !== undefined &&
+        holderCtm !== null &&
+        holderCtm !== undefined
+      ) {
+        const x = Number(clipRect.getAttribute('x'));
+        const y = Number(clipRect.getAttribute('y'));
+        const w = Number(clipRect.getAttribute('width'));
+        const h = Number(clipRect.getAttribute('height'));
+        const c1 = new DOMPoint(x, y).matrixTransform(holderCtm);
+        const c2 = new DOMPoint(x + w, y + h).matrixTransform(holderCtm);
+        left = Math.max(left, Math.min(c1.x, c2.x));
+        top = Math.max(top, Math.min(c1.y, c2.y));
+        right = Math.min(right, Math.max(c1.x, c2.x));
+        bottom = Math.min(bottom, Math.max(c1.y, c2.y));
+      }
+      const p1 = local(left, top);
+      const p2 = local(right, bottom);
       const zoneEl = el.closest('[data-glass-zone]');
       out.push({
         zone: zoneEl?.getAttribute('data-glass-zone') ?? 'untagged',

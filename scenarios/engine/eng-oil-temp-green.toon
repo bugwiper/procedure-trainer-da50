@@ -16,6 +16,8 @@ initial:
     lv.power: p75
     lv.cowl_flap: closed
   quantities:
+    # Start altitude of the situation, an instructor-review value; the aircraft flies level at the cruise speed (the normal flight profile).
+    altitude_ft: 4500
     oil_temp_c: 128
     oil_pressure_bar: 5
 parameters:
@@ -118,6 +120,8 @@ onset:
   window_s[2]: 2,6
   # Start reading of the Realistic run: at the top of the green range.
   quantities:
+    # Start altitude of the Realistic run, the same value as in the initial block.
+    altitude_ft: 4500
     oil_temp_c: 114
   # Latest second after the onset by which the message must show in a run that does nothing.
   message_within_s: 22

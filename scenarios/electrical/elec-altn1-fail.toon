@@ -13,6 +13,8 @@ briefing:
   situation: "You are in cruise flight when the yellow ALTN 1 FAIL message appears on the primary flight display. The alternator 1 Amps reading has dropped to zero. The engine runs normally and the main bus now draws on the battery."
 initial:
   quantities:
+    # Start altitude of the situation, an instructor-review value; the aircraft flies level at the cruise speed (the normal flight profile).
+    altitude_ft: 3500
     alt1_amps: 0
     alt1_fault: 1
     bus_volts: 25.9
@@ -125,3 +127,6 @@ variants[4]:
 # The failure of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
 onset:
   window_s[2]: 2,6
+  quantities:
+    # Start altitude of the Realistic run, the same value as in the initial block.
+    altitude_ft: 3500

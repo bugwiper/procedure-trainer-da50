@@ -18,6 +18,11 @@ initial:
   quantities:
     airspeed_kt: 0
     smoke_density: 40
+# The flight profile (in force from the first second at every level; instructor-review values): the aircraft stands, so the speed target of flight and of a glide is 0 and nothing climbs or sinks. Before the onset of the Realistic level the PFD therefore reads 0 knots, not the cruise speed.
+profile:
+  flight_speed_kt: 0
+  glide_speed_kt: 0
+  glide_vs_fpm: 0
 # ground_roll with the parking brake set: the aircraft stands, the PFD speed reads 0 knots (the brake holds it although the engine runs).
 parameters:
   smoke_source: 1

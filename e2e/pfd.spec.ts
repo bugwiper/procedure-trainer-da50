@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { startScenario } from './support/session';
+import { activate } from './support/zoom';
 
 // The live PFD (Phase 6, plan 03): the altitude and vertical speed readouts follow the simulated
 // quantities in a situation and keep the static base values on the free panel. Everything is read
@@ -44,4 +45,60 @@ test('T/O FIRE NO ABORT, Easy: the altitude rises and the vertical speed reads a
   expect(start).toBeGreaterThanOrEqual(1450);
   await expect.poll(() => numberOf(page, ALTITUDE), { timeout: 10_000 }).toBeGreaterThan(start);
   await expect(page.locator(VS)).toHaveText(/^\+\d+$/, { timeout: 10_000 });
+});
+
+// The horizon and the flight regimes of the profile (task 2).
+const HORIZON = '[data-testid="pfd-attitude"] [data-horizon]';
+const ENGINE_FIRE_ROW = 'engine.eng-fire-in-flight';
+
+/** The rotation in degrees and the shift in px of the horizon group, read from its transform. */
+async function horizonOf(page: Page): Promise<{ rotation: number; shift: number }> {
+  const transform = (await page.locator(HORIZON).getAttribute('transform')) ?? '';
+  const match = /^rotate\((-?[\d.]+) [\d.]+ [\d.]+\) translate\(0 (-?[\d.]+)\)$/.exec(transform);
+  if (match?.[1] === undefined || match[2] === undefined) {
+    throw new Error(`unexpected horizon transform "${transform}"`);
+  }
+  return { rotation: Number(match[1]), shift: Number(match[2]) };
+}
+
+test('the horizon group is the identity at the base values of the free panel', async ({ page }) => {
+  expect(await horizonOf(page)).toEqual({ rotation: 0, shift: 0 });
+});
+
+test('?q=bank_deg:20 turns the horizon by minus the bank, ?q=pitch_deg:10 shifts it down', async ({
+  page,
+}) => {
+  await page.goto('./?q=bank_deg:20');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  expect(await horizonOf(page)).toEqual({ rotation: -20, shift: 0 });
+  await page.goto('./?q=pitch_deg:10');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  const pitched = await horizonOf(page);
+  expect(pitched.rotation).toBe(0);
+  expect(pitched.shift).toBeGreaterThan(0);
+});
+
+test('a value outside the range of the flag leaves the horizon level', async ({ page }) => {
+  await page.goto('./?q=bank_deg:500,pitch_deg:nonsense');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  expect(await horizonOf(page)).toEqual({ rotation: 0, shift: 0 });
+});
+
+test('ENGINE FIRE in flight, Easy: level before the engine stop, then the glide shows on the PFD', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, ENGINE_FIRE_ROW, 'easy');
+  const level = await numberOf(page, ALTITUDE);
+  await page.waitForTimeout(1500);
+  expect(await numberOf(page, ALTITUDE)).toBe(level);
+  await expect(page.locator(VS)).toHaveText('0');
+  // ENGINE MASTER off: the aircraft glides, the vertical speed turns negative and the altitude falls.
+  await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
+  await expect(page.locator('[data-control-id="sw.engine_master"]')).toHaveAttribute(
+    'data-state',
+    'off',
+  );
+  await expect(page.locator(VS)).toHaveText(/^-\d+$/, { timeout: 20_000 });
+  await expect.poll(() => numberOf(page, ALTITUDE), { timeout: 20_000 }).toBeLessThan(level);
 });

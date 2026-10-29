@@ -20,6 +20,8 @@ initial:
     lv.env_direction: face
     lv.alt_air: closed
   quantities:
+    # Start altitude of the situation, an instructor-review value; the aircraft flies level at the cruise speed (the normal flight profile).
+    altitude_ft: 7500
     ice_pilot: 15
     ice_copilot: 15
 parameters:
@@ -194,5 +196,8 @@ procedure[24]:
 # The ice shows on both halves of the windscreen; the slow cue gets its own bound (lint L23), an instructor-review value. The icing area ends by itself (the icing exposure of the aircraft physics).
 onset:
   window_s[2]: 2,6
+  quantities:
+    # Start altitude of the Realistic run, the same value as in the initial block.
+    altitude_ft: 7500
   message_within_s: 24
   cues[2]: ice_pilot_side,ice_copilot_side

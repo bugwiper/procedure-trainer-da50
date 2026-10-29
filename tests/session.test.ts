@@ -167,6 +167,7 @@ describe('newSituation', () => {
     expect(bridge.stateOf('lv.cowl_flap').value).toBe('closed');
     expect(bridge.quantities.value).toEqual({
       ...DA50RG_QUANTITIES.baseValues(),
+      altitude_ft: 4500,
       oil_temp_c: 128,
       oil_pressure_bar: 5,
     });
@@ -1020,7 +1021,12 @@ describe('run (phase 03)', () => {
 
     const r = await started();
     const run = runOf(r);
-    const expected = { ...DA50RG_QUANTITIES.baseValues(), oil_temp_c: 128, oil_pressure_bar: 5 };
+    const expected = {
+      ...DA50RG_QUANTITIES.baseValues(),
+      altitude_ft: 4500,
+      oil_temp_c: 128,
+      oil_pressure_bar: 5,
+    };
     expect(run.state.t).toBe(0);
     expect(run.state.quantities).toEqual(expected);
     expect(r.bridge.quantities.value).toEqual(expected);

@@ -724,7 +724,7 @@ describe('L14: the realistic level starts clean and shows what the scenario list
   it('passes the blueprint: it starts clean and ENG OIL TEMP shows after the onset', () => {
     expect(parsedOf(BLUEPRINT).onset).toEqual({
       window_s: [2, 6],
-      quantities: { oil_temp_c: 114 },
+      quantities: { altitude_ft: 4500, oil_temp_c: 114 },
       parameters: {},
       controls: {},
       message_within_s: 22,

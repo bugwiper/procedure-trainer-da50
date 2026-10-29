@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
-import { DA50RG_PHYSICS } from '../src/aircraft/da50rg/physics';
+import {
+  DA50RG_PHYSICS,
+  PITCH_FPM_PER_KT_DEG,
+  PITCH_MIN_SPEED_KT,
+  PITCH_PER_KT,
+} from '../src/aircraft/da50rg/physics';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { initialQuantities, realisticQuantities } from '../src/engine/predicates';
@@ -252,5 +257,317 @@ describe('a live Run equals its replay', () => {
     expect(Number.isFinite(q(state, ALT))).toBe(true);
     expect(q(state, ALT)).toBeLessThanOrEqual(def(ALT).max);
     expect(q(state, ALT)).toBe(def(ALT).max);
+  });
+});
+
+// Task 2: the regimes, the airspeed, pitch and bank.
+const SPEED = 'airspeed_kt';
+const PITCH = 'pitch_deg';
+const BANK = 'bank_deg';
+const GROUND = 'ground_speed_kt';
+const CRUISE_KT = def(SPEED).base;
+
+/** The pitch of the formula of V-04 for a settled flight, computed from the exported constants. */
+const pitchOf = (speedKt: number, vsFpm: number): number =>
+  vsFpm / (Math.max(speedKt, PITCH_MIN_SPEED_KT) * PITCH_FPM_PER_KT_DEG) +
+  PITCH_PER_KT * (CRUISE_KT - speedKt);
+
+const at = (seconds: number): number => seconds * SECOND_MS;
+const ENGINE_OFF: SimEvent = { t: 0, id: 'sw.engine_master', value: 'off' };
+
+describe('anchored: every flight quantity holds its base with the engine running', () => {
+  it('600 steps change no flight quantity at the normal parameters', () => {
+    const state = run(flight({}), at(60));
+    for (const id of [SPEED, VS, ALT, PITCH, BANK]) expect(q(state, id), id).toBe(def(id).base);
+  });
+
+  it('the new quantities are hidden with the bases of the free panel', () => {
+    expect([def(PITCH).min, def(PITCH).max, def(PITCH).base]).toEqual([-30, 30, 0]);
+    expect([def(BANK).min, def(BANK).max, def(BANK).base]).toEqual([-60, 60, 0]);
+    expect(def(SPEED).scale).toBe(def(PITCH).scale);
+    expect(def(BANK).scale).toBe(def(PITCH).scale);
+  });
+
+  it('the flight parameters have the normal values of V-03', () => {
+    expect(parameter('flight_speed_kt').normal).toBe(140);
+    expect(parameter('flight_vs_fpm').normal).toBe(0);
+    expect(parameter('flight_bank_deg').normal).toBe(0);
+    expect(parameter('glide_speed_kt').normal).toBe(90);
+    expect(parameter('glide_vs_fpm').normal).toBe(-700);
+    expect(parameter('terrain_ft').normal).toBe(1400);
+    for (const id of ['flight_speed_kt', 'flight_bank_deg', 'glide_speed_kt', 'glide_vs_fpm']) {
+      expect(parameter(id).profile, id).toBe(true);
+    }
+  });
+});
+
+describe('the ground regime (ground_roll above 0)', () => {
+  const scenario = flight(
+    { flight_speed_kt: 120, flight_vs_fpm: 800, flight_bank_deg: 20 },
+    {
+      parameters: { ground_roll: 1 },
+      quantities: { [GROUND]: 40, [SPEED]: 40 },
+      controls: { 'lv.parking_brake': 'set' },
+    },
+  );
+
+  it('the airspeed follows the ground speed within 0.5 kt, the script of flight is ignored', () => {
+    const state = run(scenario, at(20));
+    expect(Math.abs(q(state, SPEED) - q(state, GROUND))).toBeLessThan(0.5);
+  });
+
+  it('vertical speed, pitch and bank are 0 and the altitude holds', () => {
+    const state = run(scenario, at(60));
+    expect(q(state, VS)).toBe(0);
+    expect(q(state, PITCH)).toBe(0);
+    expect(q(state, BANK)).toBe(0);
+    expect(q(state, ALT)).toBe(def(ALT).base);
+  });
+
+  it('reads 0 at a standstill, not the cruise speed', () => {
+    // POWER at idle and the brakes on: the ground speed stays 0 and the reading drops to it at once.
+    const stopped = run(
+      flight(
+        {},
+        {
+          parameters: { ground_roll: 1 },
+          controls: { 'lv.power': 'p0', 'lv.parking_brake': 'set' },
+        },
+      ),
+      at(30),
+    );
+    expect(q(stopped, SPEED)).toBe(0);
+  });
+});
+
+describe('the flight regime', () => {
+  const profile = {
+    flight_speed_kt: 70,
+    flight_vs_fpm: 500,
+    flight_bank_deg: 20,
+    glide_speed_kt: 100,
+    glide_vs_fpm: -400,
+  };
+  const climbing = flight(profile, { quantities: { [ALT]: 3000 } });
+
+  it('with the engine running the targets are the flight_* parameters', () => {
+    const state = run(climbing, at(60));
+    expect(q(state, SPEED)).toBeCloseTo(70, 1);
+    expect(q(state, VS)).toBeCloseTo(500, 0);
+    expect(q(state, BANK)).toBeCloseTo(20, 1);
+  });
+
+  it('the airspeed settles within 5 percent of the target after 15 s', () => {
+    const state = run(climbing, at(15));
+    expect(Math.abs(q(state, SPEED) - 70)).toBeLessThan(70 * 0.05);
+    const slower = flight({ flight_speed_kt: 100 }, { quantities: { [ALT]: 3000 } });
+    expect(Math.abs(q(run(slower, at(15)), SPEED) - 100)).toBeLessThan(100 * 0.05);
+  });
+
+  it('ENGINE MASTER off gives the glide_* values', () => {
+    const state = run(climbing, at(60), [ENGINE_OFF]);
+    expect(q(state, SPEED)).toBeCloseTo(100, 1);
+    expect(q(state, VS)).toBeCloseTo(-400, 0);
+    expect(q(state, BANK)).toBeCloseTo(20, 1);
+  });
+
+  it('the FUEL selector OFF gives the glide_* values', () => {
+    const state = run(climbing, at(60), [{ t: 0, id: 'sw.fuel_valve', value: 'off' }]);
+    expect(q(state, SPEED)).toBeCloseTo(100, 1);
+    expect(q(state, VS)).toBeCloseTo(-400, 0);
+  });
+
+  it('an empty drawn tank gives the glide_* values', () => {
+    const empty = flight(profile, { quantities: { [ALT]: 3000, fuel_qty_lh_gal: 0 } });
+    const state = run(empty, at(60));
+    expect(q(state, SPEED)).toBeCloseTo(100, 1);
+    expect(q(state, VS)).toBeCloseTo(-400, 0);
+  });
+
+  it('the glide defaults apply when the profile does not override them', () => {
+    const state = run(flight({}, { quantities: { [ALT]: 5500 } }), at(90), [ENGINE_OFF]);
+    expect(q(state, SPEED)).toBeCloseTo(parameter('glide_speed_kt').normal, 1);
+    expect(q(state, VS)).toBeCloseTo(parameter('glide_vs_fpm').normal, 0);
+    expect(q(state, ALT)).toBeLessThan(5500);
+  });
+
+  it('POWER changes nothing: no aerodynamic effect on speed, vertical speed or attitude', () => {
+    const base = run(climbing, at(60));
+    const throttled = run(climbing, at(60), [
+      { t: 0, id: 'lv.power', value: 'p100' },
+      { t: at(30), id: 'lv.power', value: 'p25' },
+    ]);
+    for (const id of [SPEED, VS, ALT, PITCH, BANK]) {
+      expect(q(throttled, id), id).toBe(q(base, id));
+    }
+  });
+});
+
+describe('pitch and bank', () => {
+  it('a level cruise reads 0', () => {
+    expect(q(run(flight({}, { quantities: { [ALT]: 4500 } }), at(60)), PITCH)).toBe(0);
+  });
+
+  it('a 70 kt climb of 500 fpm reads about +8 degrees', () => {
+    const state = run(
+      flight({ flight_speed_kt: 70, flight_vs_fpm: 500 }, { quantities: { [ALT]: 1450 } }),
+      at(60),
+    );
+    expect(q(state, PITCH)).toBeCloseTo(pitchOf(70, 500), 1);
+    expect(q(state, PITCH)).toBeGreaterThan(7.5);
+    expect(q(state, PITCH)).toBeLessThan(9);
+  });
+
+  it('a 90 kt glide of -700 fpm reads about -1.4 degrees', () => {
+    const state = run(flight({}, { quantities: { [ALT]: 5500 } }), at(90), [ENGINE_OFF]);
+    expect(q(state, PITCH)).toBeCloseTo(pitchOf(90, -700), 1);
+    expect(q(state, PITCH)).toBeGreaterThan(-1.6);
+    expect(q(state, PITCH)).toBeLessThan(-1.2);
+  });
+
+  it('the speed in the flight-path division is floored, so a stopped aircraft stays finite', () => {
+    const slow = flight(
+      { flight_speed_kt: 0, flight_vs_fpm: 500 },
+      { quantities: { [ALT]: 2000 } },
+    );
+    const state = run(slow, at(60));
+    expect(Number.isFinite(q(state, PITCH))).toBe(true);
+    expect(Math.abs(q(state, PITCH))).toBeLessThanOrEqual(def(PITCH).max);
+  });
+
+  it('a parked aircraft at the terrain stands level, also in the flight regime before an onset', () => {
+    const parked = flight({ flight_speed_kt: 0, glide_speed_kt: 0, glide_vs_fpm: 0 });
+    const state = run(parked, at(60));
+    expect(q(state, PITCH)).toBe(0);
+    // The reading comes down from the cruise speed and stops within a hundredth of a knot.
+    expect(q(state, SPEED)).toBeCloseTo(0, 2);
+  });
+
+  it('the bank settles at flight_bank_deg and the sign is kept', () => {
+    for (const bank of [20, -35]) {
+      const state = run(flight({ flight_bank_deg: bank }, { quantities: { [ALT]: 3000 } }), at(60));
+      expect(q(state, BANK)).toBeCloseTo(bank, 2);
+    }
+  });
+});
+
+describe('shipped scenarios script their flight', () => {
+  const load = (file: string): Scenario => {
+    const result = checkScenario(readFileSync(`${root}scenarios/${file}.toon`, 'utf8'), DA50RG_ENV);
+    if (!result.ok) throw new Error(`${file} does not pass the scenario check`);
+    return result.scenario;
+  };
+  const speedAt = (scenario: Scenario, seconds: number, onsetAt?: number): number =>
+    q(run(scenario, at(seconds), [], onsetAt), SPEED);
+
+  it.each(['fire/eng-fire-ground', 'fire/elec-fire-ground'])(
+    '%s: the parked Realistic start reads 0 kt before the onset',
+    (file) => {
+      const scenario = load(file);
+      const onsetAt = at(60);
+      for (const seconds of [0, 1, 5, 20, 59]) {
+        expect(speedAt(scenario, seconds, onsetAt), `${file} at ${seconds}`).toBe(0);
+      }
+      expect(q(run(scenario, at(59), [], onsetAt), PITCH)).toBe(0);
+    },
+  );
+
+  it('T/O FIRE ABORT: the Realistic start holds 40 kt before the onset, then the roll model', () => {
+    const scenario = load('fire/takeoff-fire-abort');
+    expect(speedAt(scenario, 30, at(60))).toBe(40);
+  });
+
+  it('T/O FIRE NO ABORT: climbs out at 70 kt and 500 fpm from 1450 ft at every level, glides when the engine stops', () => {
+    const scenario = load('fire/takeoff-fire-no-abort');
+    for (const onsetAt of [undefined, at(60)]) {
+      const state = run(scenario, at(30), [], onsetAt);
+      expect(q(state, SPEED)).toBe(70);
+      expect(q(state, VS)).toBeCloseTo(500, 0);
+      expect(q(state, ALT)).toBeGreaterThan(1450);
+    }
+    // The glide starts at once: 50 ft above the runway it ends on the terrain within seconds (the
+    // simulation has no landing model), where the vertical speed is held at 0.
+    const gliding = run(scenario, at(5), [ENGINE_OFF]);
+    expect(q(gliding, VS)).toBeLessThan(0);
+    expect(q(gliding, ALT)).toBeLessThan(1450);
+    const down = run(scenario, at(60), [ENGINE_OFF]);
+    expect(q(down, ALT)).toBe(1400);
+    expect(q(down, SPEED)).toBeCloseTo(70, 1);
+  });
+
+  it('T/O FIRE NO ABORT: from a higher altitude the engine stop glides at 300 fpm', () => {
+    const scenario = {
+      ...load('fire/takeoff-fire-no-abort'),
+      initial: { controls: {}, quantities: { [ALT]: 2400 } },
+    };
+    const stopped = run(scenario, at(60), [ENGINE_OFF]);
+    expect(q(stopped, VS)).toBeCloseTo(-300, 0);
+    expect(q(stopped, SPEED)).toBeCloseTo(70, 1);
+  });
+
+  it('ENGINE FIRE in flight: level at 5500 ft and 140 kt, glides after the engine is stopped', () => {
+    const scenario = load('engine/eng-fire-in-flight');
+    const level = run(scenario, at(30));
+    expect(q(level, ALT)).toBe(5500);
+    expect(q(level, SPEED)).toBe(CRUISE_KT);
+    const stopped = run(scenario, at(90), [ENGINE_OFF]);
+    expect(q(stopped, VS)).toBeCloseTo(-700, 0);
+    expect(q(stopped, ALT)).toBeLessThan(5500);
+  });
+
+  it.each([
+    ['engine/eng-oil-temp-green', 4500],
+    ['electrical/elec-altn1-fail', 3500],
+    ['electrical/elec-altn2-fail', 3500],
+    ['fire/elec-fire-flight', 4500],
+    ['icing/icing-unintentional', 7500],
+    ['engine/eng-fire-in-flight', 5500],
+  ])('%s starts at %d ft in both forms and flies level', (file, feet) => {
+    const scenario = load(file);
+    expect(scenario.initial.quantities[ALT]).toBe(feet);
+    expect(scenario.onset?.quantities[ALT]).toBe(feet);
+    expect(q(run(scenario, at(30)), ALT)).toBe(feet);
+    expect(q(run(scenario, at(30), [], at(60)), ALT)).toBe(feet);
+  });
+});
+
+describe('a live Run equals its replay with an engine stop', () => {
+  it('at every step over a climb, an engine stop and a bank', () => {
+    const scenario = flight(
+      { flight_speed_kt: 70, flight_vs_fpm: 500, flight_bank_deg: 15 },
+      { quantities: { [ALT]: 3000 } },
+    );
+    const setup = simSetup(DA50RG_ENV, scenario);
+    const start = initialQuantities(scenario, DA50RG_ENV.quantities);
+    const store = new PanelStore(DA50RG);
+    store.reset(scenario.initial.controls);
+    const live = new Run({ setup, store, start });
+    for (let n = 1; n <= 400; n += 1) {
+      if (n === 150) {
+        const result = store.dispatch('sw.engine_master', 'off', live.clock.now());
+        if (!result.ok) throw new Error(`engine master rejected: ${result.reason}`);
+      }
+      live.step();
+      const replay = simulate(setup, {
+        events: store.events(),
+        start,
+        untilMs: live.state.t,
+      }).state;
+      expect(live.state, `step ${n}`).toEqual(replay);
+    }
+    expect(q(live.state, VS)).toBeLessThan(0);
+    live.dispose();
+  });
+
+  it('a replay over 30 simulated minutes with an engine stop stays finite', () => {
+    const scenario = flight({}, { quantities: { [ALT]: 9000 } });
+    const state = run(scenario, 30 * MINUTE_MS, [ENGINE_OFF]);
+    for (const id of [SPEED, VS, ALT, PITCH, BANK]) {
+      expect(Number.isFinite(q(state, id)), id).toBe(true);
+    }
+    // 700 fpm from 9000 ft reaches the terrain in about 11 minutes and stays there.
+    expect(q(state, ALT)).toBe(1400);
+    // The lag of the pitch stops within a thousandth of a degree of 0 (the scale of the quantity).
+    expect(q(state, PITCH)).toBeCloseTo(0, 2);
   });
 });

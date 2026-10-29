@@ -49,7 +49,11 @@ describe('the blueprint scenario', () => {
 
   it('sets the initial controls and quantities', () => {
     expect(scenario.initial.controls).toEqual({ 'lv.power': 'p75', 'lv.cowl_flap': 'closed' });
-    expect(scenario.initial.quantities).toEqual({ oil_temp_c: 128, oil_pressure_bar: 5 });
+    expect(scenario.initial.quantities).toEqual({
+      altitude_ft: 4500,
+      oil_temp_c: 128,
+      oil_pressure_bar: 5,
+    });
   });
 
   it('holds the procedure tree of the checklist', () => {

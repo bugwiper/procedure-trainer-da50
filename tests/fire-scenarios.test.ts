@@ -641,9 +641,10 @@ describe('Fire / Smoke During Continued TKOF', () => {
   });
 });
 
-// The PFD airspeed quantity (owner addition of 2026-10-27): it follows the ground speed while the
-// aircraft moves on the ground, and holds the static 140 knots elsewhere. The readout and the tape
-// that draw it are tested in tests/avionics.test.ts.
+// The PFD airspeed quantity (owner addition of 2026-10-27): it follows the ground speed on the
+// ground roll and, since Phase 6 plan 03, the speed of the scenario's flight profile in flight (the
+// static 140 knots by default; the regimes are tested in tests/flight-profile.test.ts). The readout
+// and the tape that draw it are tested in tests/avionics.test.ts.
 describe('the PFD airspeed quantity', () => {
   const speeds = (
     scenario: Scenario,

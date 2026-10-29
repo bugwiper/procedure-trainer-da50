@@ -425,14 +425,16 @@ export const DA50RG_QUANTITIES = defineQuantities([
   },
   {
     // Hidden: no gauge. The airspeed the PFD tape shows (Phase 5.1, owner addition of 2026-10-27).
-    // The base is the static 140 knots of the free panel and of flight; while the aircraft moves on
-    // the ground (the parameter ground_roll, or a start speed) it follows ground_speed_kt, a
-    // training approximation (physics.ts). One unmarked band.
+    // The base is the static 140 knots of the free panel and of cruise; on the ground (the parameter
+    // ground_roll) it follows ground_speed_kt, in flight it lags toward the speed of the scenario's
+    // profile, a training approximation (physics.ts). The fine scale: a lag step near the target is
+    // below 0.005 and the default scale of 0.01 would stall the reading short of it. One unmarked band.
     id: 'airspeed_kt',
     unit: 'kt',
     min: 0,
     max: 200,
     base: 140,
+    scale: SLOW_SCALE,
     bands: [{ id: 'unmarked', colour: 'none', to: 200 }],
   },
   {
@@ -458,5 +460,27 @@ export const DA50RG_QUANTITIES = defineQuantities([
     max: 2000,
     base: 0,
     bands: [{ id: 'unmarked', colour: 'none', to: 2000 }],
+  },
+  {
+    // Hidden: no gauge. The pitch attitude in degrees, positive nose up; the PFD horizon draws it
+    // (Phase 6, plan 03, V-02). Base 0: level. The fine scale of the airspeed. One unmarked band.
+    id: 'pitch_deg',
+    unit: 'deg',
+    min: -30,
+    max: 30,
+    base: 0,
+    scale: SLOW_SCALE,
+    bands: [{ id: 'unmarked', colour: 'none', to: 30 }],
+  },
+  {
+    // Hidden: no gauge. The bank angle in degrees, positive to the right; the PFD horizon draws it.
+    // Base 0: wings level. One unmarked band.
+    id: 'bank_deg',
+    unit: 'deg',
+    min: -60,
+    max: 60,
+    base: 0,
+    scale: SLOW_SCALE,
+    bands: [{ id: 'unmarked', colour: 'none', to: 60 }],
   },
 ]);

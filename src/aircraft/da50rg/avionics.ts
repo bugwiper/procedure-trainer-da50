@@ -513,6 +513,40 @@ export function verticalSpeedText(value: number | undefined): string {
   return fpm < 0 ? String(fpm) : '0';
 }
 
+/**
+ * The PFD attitude (Phase 6, plan 03, V-06): the horizon group (sky, ground, horizon line and pitch
+ * ladder) is shifted by the pitch and rotated by minus the bank about the attitude centre; the bank
+ * scale and the aircraft symbol stay fixed, the roll pointer turns with the horizon. A missing
+ * quantity reads its base (level), the numbers are clamped to the ladder and to the bank scale.
+ */
+export const PFD_PITCH_QUANTITY = 'pitch_deg';
+export const PFD_BANK_QUANTITY = 'bank_deg';
+
+/** The pitch ladder: a line every 5 degrees up to 30, 22 px apart. */
+export const PITCH_LADDER_STEP_DEG = 5;
+export const PITCH_LADDER_MAX_DEG = 30;
+export const PITCH_LADDER_STEP_PX = 22;
+/** The bank scale reaches 60 degrees each side. */
+export const BANK_SCALE_MAX_DEG = 60;
+
+function clampedReading(value: number | undefined, id: string, limit: number): number {
+  const reading = readingOr(value, id);
+  if (reading > limit) return limit;
+  return reading < -limit ? -limit : reading;
+}
+
+/** How far the horizon group moves down, in px: a nose-up pitch moves the horizon down. */
+export function pitchShiftPx(pitch: number | undefined): number {
+  const degrees = clampedReading(pitch, PFD_PITCH_QUANTITY, PITCH_LADDER_MAX_DEG);
+  // + 0 turns a negative zero into 0, so a level horizon has the identity transform.
+  return (degrees / PITCH_LADDER_STEP_DEG) * PITCH_LADDER_STEP_PX + 0;
+}
+
+/** The rotation of the horizon group in degrees, clockwise positive: minus the bank. */
+export function horizonRotationDeg(bank: number | undefined): number {
+  return 0 - clampedReading(bank, PFD_BANK_QUANTITY, BANK_SCALE_MAX_DEG);
+}
+
 /** Idle tape numerals (proposals, U-18): speed from 180 down to 100, altitude around 1400. */
 export const EFIS_SPEED_TAPE: readonly number[] = [180, 160, 140, 120, 100];
 export const EFIS_ALTITUDE_TAPE: readonly number[] = [1600, 1500, 1400, 1300, 1200];
