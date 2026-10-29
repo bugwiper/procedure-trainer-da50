@@ -162,6 +162,15 @@ when: { check: 'all', of: [
 **Issue:** `.panel-svg [data-testid='mfd-engine-page'] text:not(.glass-digits)` uses a test id as a styling hook. It works today because the attribute is rendered in every build, but a later change that strips test ids from production (which is common) would silently turn the page back to the bold cut with no failing test (the unit tests do not read the CSS).
 **Fix:** Use a dedicated class or data attribute such as `data-glass-page="engine"` for styling and keep the test id for tests.
 
+## Fixes applied
+
+Warnings WR-01 to WR-04 fixed on 2026-10-29 (Info items IN-01 to IN-05 left open on purpose). One commit per finding, explicit paths, nothing pushed. `tests/fixtures/recordings.json` is unchanged.
+
+- **WR-04: fixed** in `6e85f36`. `RuleSet.active` shows a message text once (the first rule in display order stands for all) and the aural rules know a message by its text, so the instant after the rocker goes off, while the timer still sits in the cut band, shows one STALL HEAT chip and sounds the caution tone once.
+- **WR-02: fixed** in `aefb98a`. `ground_roll` is a profile parameter (`profile: true`); the three ground situations carry `ground_roll: 1` in their `profile` and the hand-carried speed script is gone. The Realistic run is on the ground from the first second (ground speed model, PFD speed, stall heat timer), starts clean, and T/O FIRE ABORT accelerates before the onset as Easy does.
+- **WR-03: fixed** in `2e39c63`. L25 now reports, with line and column, a profile parameter under `parameters`, a key in the profile and again in `parameters`, `onset.parameters` or a variant, and a start value below a floor parameter (new `ParameterDef.floorOf`, set on `terrain_ft` for `altitude_ft`), for Easy and Medium and for Realistic separately.
+- **WR-01: fixed** in `b307a81`. The content side as the owner decided (STALL HEAT on the ground stays): the briefings of `takeoff-fire-abort`, `eng-fire-ground` and `elec-fire-ground` no longer claim that no message is shown, and the messages are declared in the new optional `late_annunciations`. New lint rule L26 rejects a message that a do-nothing run (Easy, Medium, both Realistic ends) produces after the start and the file does not list, and a late annunciation that never appears. L26 found one more genuine case, ENG OIL TEMP about 72 s into a do-nothing run of the two take-off fire situations, declared in both files (`takeoff-fire-no-abort` got the same briefing change).
+
 ---
 
 _Reviewed: 2026-10-29_
