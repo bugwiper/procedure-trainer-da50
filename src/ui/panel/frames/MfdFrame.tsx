@@ -10,6 +10,7 @@ import {
 import type { DisplayId } from '../../../aircraft/da50rg/avionics';
 import { ENGINE_PAGE } from '../../../aircraft/da50rg/engine-page';
 import type { PageEntry } from '../../../aircraft/da50rg/engine-page';
+import { MAP_STRIP } from '../../../aircraft/da50rg/map-strip';
 import { deiceEndurance } from '../../../aircraft/da50rg/deice-endurance';
 import { formatEndurance, fuelCalculator } from '../../../aircraft/da50rg/fuel-calculator';
 import { DA50RG_QUANTITIES } from '../../../aircraft/da50rg/quantities';
@@ -358,15 +359,6 @@ function quantityGauge(label: string, quantity: QuantityId, decimals: number): G
   };
 }
 
-const RPM: GaugeSpec = quantityGauge('RPM', 'rpm', 0);
-const LOAD: GaugeSpec = quantityGauge('Load', 'load_pct', 0);
-const OIL_PRES: GaugeSpec = quantityGauge('Oil pres', 'oil_pressure_bar', 1);
-const OIL_TEMP: GaugeSpec = quantityGauge('Oil temp', 'oil_temp_c', 0);
-const COOLANT_TEMP: GaugeSpec = quantityGauge('Coolant temp', 'coolant_temp_c', 0);
-const GEARBOX_TEMP: GaugeSpec = quantityGauge('Gearbox temp', 'gearbox_temp_c', 0);
-const FUEL_QTY_LH: GaugeSpec = quantityGauge('Fuel qty LH', 'fuel_qty_lh_gal', 1);
-const VOLTS: GaugeSpec = quantityGauge('Volts', 'bus_volts', 1);
-
 type Quantities = Readonly<Record<QuantityId, number>>;
 
 /** A reading that is a finite number, else the fallback (a text node never prints NaN). */
@@ -408,6 +400,10 @@ const TRIM_LINE_DY = 14;
 const TRIM_MARK_DY = 32;
 const TRIM_TICK_H = 4;
 const TRIM_TICK_CENTRE_H = 7;
+/** The labelled form (map strip): caption baseline and scale line below the top, the end marks beside the line. */
+const TRIM_CAPTION_DY = 7;
+const TRIM_LABELLED_LINE_DY = 19;
+const TRIM_MARK_GAP = 3;
 /** Room for the unit text HRS at the end of the service row. */
 const SERVICE_UNIT_W = 28;
 /** The range where there is none (engine stopped). */
@@ -420,16 +416,6 @@ function valueOf(quantity: QuantityId, quantities: Quantities): number {
 
 export const SCREEN_FILL = GLASS_DARK;
 const STRIP_W = 150;
-const STRIP_GAUGES: readonly GaugeSpec[] = [
-  RPM,
-  LOAD,
-  OIL_PRES,
-  OIL_TEMP,
-  COOLANT_TEMP,
-  GEARBOX_TEMP,
-  VOLTS,
-  FUEL_QTY_LH,
-];
 /**
  * MFD frame (D-04a): the Map page with a small engine strip, or the full Engine page,
  * selected by the page softkey state. Every gauge reads a simulated quantity (D-12); no handlers
@@ -479,22 +465,8 @@ function MapPage({ w, quantities }: { readonly w: number; readonly quantities: Q
   return (
     <g data-testid="mfd-map-page">
       <g data-testid="mfd-engine-strip">
-        {STRIP_GAUGES.map((g, i) => (
-          <BarGauge
-            key={g.label}
-            label={g.label}
-            unit={g.unit}
-            value={readingOf(g, quantities)}
-            min={g.min}
-            max={g.max}
-            bands={g.bands}
-            decimals={g.decimals}
-            tone={toneOf(DA50RG_QUANTITIES, g.quantity, readingOf(g, quantities))}
-            x={12}
-            y={34 + i * 38}
-            w={STRIP_W - 20}
-            h={36}
-          />
+        {MAP_STRIP.map((entry) => (
+          <PageEntryView key={entry.id} entry={entry} quantities={quantities} />
         ))}
       </g>
       <g data-testid="mfd-map">
@@ -691,7 +663,9 @@ function PageEntryView({
       const value = Math.min(max, Math.max(min, valueOf(entry.quantity, quantities)));
       const scaleAt = (v: number): number =>
         entry.rect.x + TRIM_INSET + ((v - min) / (max - min)) * (entry.rect.w - 2 * TRIM_INSET);
-      const lineY = entry.rect.y + TRIM_LINE_DY;
+      const labelled = entry.label !== undefined;
+      const lineY = entry.rect.y + (labelled ? TRIM_LABELLED_LINE_DY : TRIM_LINE_DY);
+      const markY = labelled ? lineY + 3 : entry.rect.y + TRIM_MARK_DY;
       const ticks = [min, min + (max - min) / 4, min + (max - min) / 2, max - (max - min) / 4, max];
       const pointerX = scaleAt(value);
       return (
@@ -722,19 +696,31 @@ function PageEntryView({
             stroke={GLASS_DARK}
             stroke-width={POINTER_OUTLINE}
           />
+          {entry.label === undefined ? null : (
+            <text
+              data-trim-caption
+              x={entry.rect.x + entry.rect.w / 2}
+              y={entry.rect.y + TRIM_CAPTION_DY}
+              text-anchor="middle"
+              font-size={8}
+              fill={ROW_LABEL}
+            >
+              {entry.label.toUpperCase()}
+            </text>
+          )}
           <text
-            x={scaleAt(min)}
-            y={entry.rect.y + TRIM_MARK_DY}
-            text-anchor="middle"
+            x={labelled ? scaleAt(min) - TRIM_MARK_GAP : scaleAt(min)}
+            y={markY}
+            text-anchor={labelled ? 'end' : 'middle'}
             font-size={8}
             fill={ROW_LABEL}
           >
             {entry.marks[0]}
           </text>
           <text
-            x={scaleAt(max)}
-            y={entry.rect.y + TRIM_MARK_DY}
-            text-anchor="middle"
+            x={labelled ? scaleAt(max) + TRIM_MARK_GAP : scaleAt(max)}
+            y={markY}
+            text-anchor={labelled ? 'start' : 'middle'}
             font-size={8}
             fill={ROW_LABEL}
           >

@@ -76,6 +76,8 @@ export interface CalculatorEntry extends Base {
 /** The rudder trim scale: ticks, a pointer from the quantity and the end marks. */
 export interface TrimEntry extends Base {
   readonly kind: 'trim';
+  /** A caption above the scale and the end marks beside its ends (the map strip); absent keeps the framed form. */
+  readonly label?: string;
   readonly quantity: string;
   readonly marks: readonly [string, string];
 }

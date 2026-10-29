@@ -609,9 +609,9 @@ test('@hooks the MFD oil gauges read the base values in the free panel and the l
   // read with a tolerance right after Start run; the pressure sits at its base, which is 5.
   expect(Math.abs((await quantityOf(page, 'oil_temp_c')) - 128)).toBeLessThanOrEqual(3);
   expect(Math.abs((await quantityOf(page, 'oil_pressure_bar')) - 5)).toBeLessThanOrEqual(3);
-  // Map page: the engine strip shows a number with its unit for each.
-  await expect(mfdGauge(page, 'Oil temp')).toContainText(/\d+ °C/);
-  await expect(mfdGauge(page, 'Oil pres')).toContainText(/\d+ BAR/);
+  // Map page: the engine strip shows the bare number, as the engine page does.
+  await expect(mfdGauge(page, 'Oil temp')).toContainText(/\d+/);
+  await expect(mfdGauge(page, 'Oil pres')).toContainText(/\d/);
   // Engine page: the same values on the arc and the bar.
   await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
   await expect(page.getByTestId('mfd-engine-page')).toBeVisible();
