@@ -119,6 +119,19 @@ export const MFD_ENGINE_LEGENDS: readonly string[] = [
 /** Index of the legend tab marked as selected on the MFD engine page (D-04). */
 export const MFD_ENGINE_SELECTED_SLOT = 0;
 
+/** The control the second radio row of the glass header follows. */
+export const AV_MASTER_CONTROL = 'sw.av_master';
+
+/**
+ * Whether the second radio row (NAV 2 and COM 2) of the glass header is reachable: AV MASTER on.
+ * Owner decision (PANEL-REVIEW.md item 15): this row alone follows the switch, as a derived flag of
+ * the one control (the same switch `electricalState().avionics` reads); the rest of the glass stays
+ * lit. A dead bus behind a switched-on master does not change the row.
+ */
+export function secondRadioRowLive(avMaster: string): boolean {
+  return avMaster === 'on';
+}
+
 /**
  * Glass zones in the local space of a screen region (495 x 367, inner glass x 4..491, y 4..363;
  * Table D4). Header and legend are fixed bands; the content lies between them.

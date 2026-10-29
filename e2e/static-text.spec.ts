@@ -20,6 +20,10 @@ async function activate(target: Locator, hasTouch: boolean): Promise<void> {
  * caption or scale text and must stay put. The one exception inside a control is the readout of the
  * simplified transponder (data-glass="readout"): it shows the entered code, the recorded exception
  * to G-0.1 (D-11, C-17); the name and the key legends of the transponder stay in the gate.
+ * A second recorded exception is the second radio row of the glass header (NAV 2 and COM 2): it
+ * shows frequencies or a crossed box with AV MASTER (owner decision, PANEL-REVIEW.md item 15). It
+ * lies inside the pfd and mfd regions, which this gate already leaves out as instrument data, so the
+ * exemption stays that row only: `e2e/glass-header.spec.ts` pins exactly what changes there.
  */
 async function panelText(page: Page): Promise<string[]> {
   return page.locator('[data-testid="panel"]').evaluate((svg) =>

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   AUDIO_PANEL,
+  AV_MASTER_CONTROL,
   AUTOPILOT_PANEL,
   BEZEL_COLUMNS,
   GLASS,
@@ -20,6 +21,7 @@ import {
   STANDBY_EFIS,
   airspeedReadout,
   legendTabCentreX,
+  secondRadioRowLive,
   speedTickOffsets,
   softkeyCentre,
 } from '../src/aircraft/da50rg/avionics';
@@ -62,10 +64,10 @@ function region(id: string) {
 }
 
 /** A bridge with only what the frames read: registry, MFD page signal, base quantities, no CAS. */
-function fakeBridge(page: 'map' | 'engine'): PanelBridge {
+function fakeBridge(page: 'map' | 'engine', avMaster: 'on' | 'off' = 'on'): PanelBridge {
   return {
     registry: DA50RG,
-    stateOf: () => ({ value: page }),
+    stateOf: (id: string) => ({ value: id === AV_MASTER_CONTROL ? avMaster : page }),
     quantities: { value: DA50RG_QUANTITIES.baseValues() },
     cas: { value: [] },
   } as unknown as PanelBridge;
@@ -428,6 +430,105 @@ describe('glass header, content and legend zones', () => {
       }
     },
   );
+
+  // Second radio row follows AV MASTER (owner decision, PANEL-REVIEW.md item 15). The same header
+  // is drawn on the PFD and on both MFD pages, so every case runs for all three.
+  const pfdOff = expand(PfdFrame({ region: region('pfd'), bridge: fakeBridge('map', 'off') }));
+  const mfdMapOff = expand(MfdFrame({ region: region('mfd'), bridge: fakeBridge('map', 'off') }));
+  const mfdEngineOff = expand(
+    MfdFrame({ region: region('mfd'), bridge: fakeBridge('engine', 'off') }),
+  );
+  /** The header with the page title taken out (the only part that may differ between displays). */
+  const headerSignature = (tree: El): unknown => {
+    const header = zoneOf(tree, 'header')[0];
+    if (header === undefined) throw new Error('no header');
+    return JSON.stringify(
+      findElements(header, (e) => e.props['data-glass-title'] === undefined && e.tag !== 'g').map(
+        (e) => [e.tag, e.props],
+      ),
+    );
+  };
+  const SECOND_ROW_TEXTS = ['114.80', '121.500', '133.330'] as const;
+
+  it('the pure flag follows the switch state alone', () => {
+    expect(secondRadioRowLive('on')).toBe(true);
+    expect(secondRadioRowLive('off')).toBe(false);
+    expect(AV_MASTER_CONTROL).toBe('sw.av_master');
+    expect(DA50RG.controls.find((c) => c.id === AV_MASTER_CONTROL)?.default).toBe('on');
+  });
+
+  it.each([
+    ['pfd', pfd],
+    ['mfd map page', mfdMap],
+    ['mfd engine page', mfdEngine],
+  ] as const)(
+    '%s with AV MASTER on: both second rows show frequencies, no box, no cross',
+    (_n, tree) => {
+      const header = zoneOf(tree, 'header')[0];
+      if (header === undefined) throw new Error('no header');
+      const texts = textsIn(header);
+      for (const t of SECOND_ROW_TEXTS) expect(texts, t).toContain(t);
+      expect(texts.filter((t) => t === '111.50')).toHaveLength(2);
+      expect(findElements(header, (e) => e.props['data-radio-row-off'] !== undefined)).toHaveLength(
+        0,
+      );
+    },
+  );
+
+  it.each([
+    ['pfd', pfdOff],
+    ['mfd map page', mfdMapOff],
+    ['mfd engine page', mfdEngineOff],
+  ] as const)(
+    '%s with AV MASTER off: each second row is a yellow-grey box with two crossing lines, the first row, arrows, frames and the small 2 stay',
+    (_n, tree) => {
+      const header = zoneOf(tree, 'header')[0];
+      if (header === undefined) throw new Error('no header');
+      const texts = textsIn(header);
+      for (const t of SECOND_ROW_TEXTS) expect(texts, t).not.toContain(t);
+      // The first row of each side stays: 109.90, 111.50 (once), 118.100, 123.725.
+      for (const t of ['109.90', '118.100', '123.725']) expect(texts, t).toContain(t);
+      expect(texts.filter((t) => t === '111.50')).toHaveLength(1);
+      // The letters and both small numbers stay.
+      for (const t of [...'NAV', ...'COM', '1', '2']) expect(texts, t).toContain(t);
+      expect(texts.filter((t) => t === '2')).toHaveLength(2);
+      const boxes = findElements(header, (e) => e.props['data-radio-row-off'] !== undefined);
+      expect(boxes.map((b) => b.props['data-radio-row-off']).sort()).toEqual(['com2', 'nav2']);
+      for (const box of boxes) {
+        const rect = findElements(box, (e) => e.tag === 'rect');
+        expect(rect).toHaveLength(1);
+        expect(rect[0]?.props['fill']).toBe('#5f5d2b');
+        // Two crossing lines in yellow: one path with two diagonals from corner to corner.
+        const cross = findElements(box, (e) => e.props['data-radio-row-cross'] !== undefined);
+        expect(cross).toHaveLength(1);
+        expect(cross[0]?.props['stroke']).toBe('#e3d12b');
+        expect(String(cross[0]?.props['d']).match(/M /g)).toHaveLength(2);
+        expect(String(cross[0]?.props['d']).match(/L /g)).toHaveLength(2);
+        // The box stays inside the glass header band and below the first-row frames.
+        const y = Number(rect[0]?.props['y']);
+        const h = Number(rect[0]?.props['height']);
+        expect(y).toBeGreaterThanOrEqual(18);
+        expect(y + h).toBeLessThanOrEqual(GLASS.header.y1);
+      }
+      // The arrows and the two first-row frames stay.
+      expect(findElements(header, (e) => e.props['data-swap-arrow'] !== undefined)).toHaveLength(2);
+      expect(findElements(header, (e) => e.props['data-standby-frame'] !== undefined)).toHaveLength(
+        2,
+      );
+      // Sizes on the glass are 6, 8, 10 or 14 only.
+      for (const el of findElements(header, (e) => e.tag === 'text')) {
+        expect([6, 8, 10, 14]).toContain(el.props['font-size']);
+      }
+    },
+  );
+
+  it('PFD and MFD draw the identical header in both states (the title aside)', () => {
+    expect(headerSignature(pfd)).toBe(headerSignature(mfdMap));
+    expect(headerSignature(pfd)).toBe(headerSignature(mfdEngine));
+    expect(headerSignature(pfdOff)).toBe(headerSignature(mfdMapOff));
+    expect(headerSignature(pfdOff)).toBe(headerSignature(mfdEngineOff));
+    expect(headerSignature(pfd)).not.toBe(headerSignature(pfdOff));
+  });
 
   it('the MFD header centre shows the page title; the PFD header centre is empty', () => {
     const title = (tree: El): string[] =>

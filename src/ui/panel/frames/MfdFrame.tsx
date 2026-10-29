@@ -1,9 +1,11 @@
 import {
+  AV_MASTER_CONTROL,
   GLASS,
   MFD_ENGINE_LEGENDS,
   MFD_ENGINE_SELECTED_SLOT,
   MFD_MAP_LEGENDS,
   legendTabCentreX,
+  secondRadioRowLive,
 } from '../../../aircraft/da50rg/avionics';
 import type { DisplayId } from '../../../aircraft/da50rg/avionics';
 import { ENGINE_PAGE } from '../../../aircraft/da50rg/engine-page';
@@ -116,6 +118,53 @@ const COM_LETTERS: readonly (readonly [string, number])[] = [
   ['M', LINE_2],
 ];
 
+/** The extent of each second row: from the first digit to the end of the last one, with the frame padding. */
+const NAV_ROW_2_X0 = 24 - FRAME_PAD_X;
+const NAV_ROW_2_X1 = 84 + textBoxWidth('111.50', FREQ_FONT, true) + FRAME_PAD_X;
+const COM_ROW_2_X0 = 362 - FRAME_PAD_X;
+const COM_ROW_2_X1 = 428 + textBoxWidth('133.330', FREQ_FONT, true) + FRAME_PAD_X;
+/** The unreachable look of a second row (the real display with the avionics off): box and crosses. */
+const OFF_FILL = '#5f5d2b';
+const OFF_CROSS = '#e3d12b';
+/** The box lies under the first-row frames (which end at y 18) and above the header rule (y 28). */
+const OFF_Y0 = LINE_2 - FRAME_ABOVE + 0.7;
+const OFF_Y1 = LINE_2 + 2.5;
+
+/**
+ * A second radio row with the avionics off: a yellow-grey box and two crossing yellow lines over it
+ * (owner decision, PANEL-REVIEW.md item 15). Drawn instead of the two frequencies, never in addition.
+ */
+function UnreachableRow({
+  row,
+  x0,
+  x1,
+}: {
+  readonly row: 'nav2' | 'com2';
+  readonly x0: number;
+  readonly x1: number;
+}) {
+  return (
+    <g data-radio-row-off={row}>
+      <rect x={x0} y={OFF_Y0} width={x1 - x0} height={OFF_Y1 - OFF_Y0} fill={OFF_FILL} />
+      <path
+        data-radio-row-cross
+        d={`M ${x0} ${OFF_Y0} L ${x1} ${OFF_Y1} M ${x0} ${OFF_Y1} L ${x1} ${OFF_Y0}`}
+        fill="none"
+        stroke={OFF_CROSS}
+        stroke-width={0.9}
+      />
+    </g>
+  );
+}
+
+/**
+ * Whether the second radio row of both glass displays shows its frequencies: it follows the AV
+ * MASTER switch alone (owner decision). The PFD and the MFD both ask here.
+ */
+export function glassSecondRowLive(bridge: PanelBridge): boolean {
+  return secondRadioRowLive(bridge.stateOf(AV_MASTER_CONTROL).value);
+}
+
 /** A frequency in the glass digits; `frame` draws the thin turquoise frame of a standby frequency. */
 function Frequency({
   x,
@@ -172,11 +221,19 @@ function SwapArrow({ x }: { readonly x: number }) {
  * the page title in the centre. The radio name stands as stacked letters (NAV at the left, COM at
  * the right) with a small 1 beside the first and a small 2 beside the second row. In each first row
  * the outer frequency is the standby one (a thin turquoise frame) and the inner one the active one,
- * with a turquoise swap arrow between them. Static idle values (U-15), original layout; both rows
- * stay static (the avionics are not operable, PANEL-REVIEW.md Phase 6). Digits use the glass font;
- * sizes are 6 and 8.
+ * with a turquoise swap arrow between them. Static idle values (U-15), original layout. The second
+ * row (NAV 2 and COM 2) follows AV MASTER (owner decision, PANEL-REVIEW.md item 15): with the
+ * switch off each second row is a yellow-grey box with two crossing yellow lines (unreachable, as on
+ * the real display) and the two frequencies are not drawn; the first row, the frames and the arrows
+ * stay. The PFD and the MFD draw this one header. Digits use the glass font; sizes are 6 and 8.
  */
-export function GlassHeader({ title }: { readonly title?: string }) {
+export function GlassHeader({
+  title,
+  secondRowLive,
+}: {
+  readonly title?: string;
+  readonly secondRowLive: boolean;
+}) {
   const { y0, y1 } = GLASS.header;
   return (
     <g data-glass-zone="header">
@@ -197,8 +254,14 @@ export function GlassHeader({ title }: { readonly title?: string }) {
       <Frequency x={24} y={LINE_1} text="109.90" fill={HEADER_ACTIVE} frame />
       <SwapArrow x={64} />
       <Frequency x={84} y={LINE_1} text="111.50" fill={HEADER_ACTIVE} />
-      <Frequency x={24} y={LINE_2} text="114.80" fill={HEADER_STANDBY} />
-      <Frequency x={84} y={LINE_2} text="111.50" fill={HEADER_ACTIVE} />
+      {secondRowLive ? (
+        <>
+          <Frequency x={24} y={LINE_2} text="114.80" fill={HEADER_STANDBY} />
+          <Frequency x={84} y={LINE_2} text="111.50" fill={HEADER_ACTIVE} />
+        </>
+      ) : (
+        <UnreachableRow row="nav2" x0={NAV_ROW_2_X0} x1={NAV_ROW_2_X1} />
+      )}
       {/* Right block: COM, active (inner) and standby (outer, framed), the digits left of the letters. */}
       {COM_LETTERS.map(([letter, y]) => (
         <text
@@ -221,8 +284,14 @@ export function GlassHeader({ title }: { readonly title?: string }) {
       <Frequency x={362} y={LINE_1} text="118.100" fill={HEADER_ACTIVE} />
       <SwapArrow x={406} />
       <Frequency x={428} y={LINE_1} text="123.725" fill={HEADER_ACTIVE} frame />
-      <Frequency x={362} y={LINE_2} text="121.500" fill={HEADER_ACTIVE} />
-      <Frequency x={428} y={LINE_2} text="133.330" fill={HEADER_STANDBY} />
+      {secondRowLive ? (
+        <>
+          <Frequency x={362} y={LINE_2} text="121.500" fill={HEADER_ACTIVE} />
+          <Frequency x={428} y={LINE_2} text="133.330" fill={HEADER_STANDBY} />
+        </>
+      ) : (
+        <UnreachableRow row="com2" x0={COM_ROW_2_X0} x1={COM_ROW_2_X1} />
+      )}
       {title === undefined ? null : (
         <text
           data-glass-title
@@ -381,7 +450,10 @@ export function MfdFrame({ region, bridge }: FrameProps) {
         rx={4}
         fill={SCREEN_FILL}
       />
-      <GlassHeader title={page === 'engine' ? 'EIS - Engine' : 'Map - Navigation Map'} />
+      <GlassHeader
+        title={page === 'engine' ? 'EIS - Engine' : 'Map - Navigation Map'}
+        secondRowLive={glassSecondRowLive(bridge)}
+      />
       <g data-glass-zone="content">
         {page === 'engine' ? (
           <EnginePage quantities={quantities} />

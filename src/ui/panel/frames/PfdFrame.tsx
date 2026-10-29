@@ -5,7 +5,7 @@ import {
   speedTickOffsets,
 } from '../../../aircraft/da50rg/avionics';
 import { CasChips } from './CasChips';
-import { GlassHeader, LegendRow, SCREEN_FILL } from './MfdFrame';
+import { GlassHeader, LegendRow, SCREEN_FILL, glassSecondRowLive } from './MfdFrame';
 import type { FrameProps } from './MfdFrame';
 
 const SKY = '#1f6fc4';
@@ -59,7 +59,7 @@ export function PfdFrame({ region, bridge }: FrameProps) {
         rx={4}
         fill={SCREEN_FILL}
       />
-      <GlassHeader />
+      <GlassHeader secondRowLive={glassSecondRowLive(bridge)} />
 
       <g data-glass-zone="content">
         <g data-testid="pfd-attitude">
