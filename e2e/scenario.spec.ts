@@ -597,12 +597,9 @@ test('@hooks the MFD oil gauges read the base values in the free panel and the l
   const oilTemp = DA50RG_QUANTITIES.get('oil_temp_c');
   const oilPres = DA50RG_QUANTITIES.get('oil_pressure_bar');
   if (oilTemp === undefined || oilPres === undefined) throw new Error('missing quantity data');
-  await expect(mfdGauge(page, 'Oil temp')).toContainText(
-    `${oilTemp.base.toFixed(0)} ${oilTemp.unit.toUpperCase()}`,
-  );
-  await expect(mfdGauge(page, 'Oil pres')).toContainText(
-    `${oilPres.base.toFixed(1)} ${oilPres.unit.toUpperCase()}`,
-  );
+  // The strip prints the bare number (no unit), as the engine page does.
+  await expect(mfdGauge(page, 'Oil temp')).toContainText(oilTemp.base.toFixed(0));
+  await expect(mfdGauge(page, 'Oil pres')).toContainText(oilPres.base.toFixed(1));
 
   await startRun(page, hasTouch);
   // The oil temperature moves during a run (D-01), so the start values 128 degrees C and 5 bar are
