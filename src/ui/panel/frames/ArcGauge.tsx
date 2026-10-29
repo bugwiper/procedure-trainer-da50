@@ -28,7 +28,14 @@ export interface ArcGaugeProps {
 const SWEEP_DEG = 240;
 const TICK_COUNT = 4;
 const LABEL_FONT = 10;
-const READOUT_FONT = 14;
+const READOUT_FONT = 10;
+/**
+ * The caption and the number stand below the arc. The two ends of the 240 degree sweep lie r / 2
+ * below the centre; the caption baseline is CAPTION_BELOW_ENDS below them, the number baseline
+ * READOUT_BELOW_CAPTION below the caption.
+ */
+const CAPTION_BELOW_ENDS = 11;
+const READOUT_BELOW_CAPTION = 15;
 /** Cap line of the text above its baseline, in em, and the gap a box leaves above it. */
 const CAP_EM = 0.7;
 const BOX_ABOVE_CAP = 1;
@@ -80,10 +87,15 @@ export function ArcGauge({
 }: ArcGaugeProps) {
   const style = gaugeAlertStyle(tone);
   const labelText = label.toUpperCase();
+  const unitText = unit.toUpperCase();
+  // The caption under the arc names the quantity and, when the unit is another word, the unit
+  // (LOAD %, RPM); the number under it is the bare value.
+  const caption =
+    unitText === '' || unitText === labelText ? labelText : `${labelText} ${unitText}`;
   const readout = readoutText(value, decimals);
-  const labelBaseline = cy - r - 9;
-  const readoutBaseline = cy + 22;
-  const labelW = textBoxWidth(labelText, LABEL_FONT) + 2 * BOX_PAD;
+  const labelBaseline = cy + r / 2 + CAPTION_BELOW_ENDS;
+  const readoutBaseline = labelBaseline + READOUT_BELOW_CAPTION;
+  const labelW = textBoxWidth(caption, LABEL_FONT) + 2 * BOX_PAD;
   const readoutW = textBoxWidth(readout, READOUT_FONT, true) + 2 * BOX_PAD;
   const needleAngle = angleOf(value, min, max);
   const ticks = Array.from({ length: TICK_COUNT + 1 }, (_, i) =>
@@ -161,7 +173,7 @@ export function ArcGauge({
         fill={style.labelFill}
         pointer-events="none"
       >
-        {labelText}
+        {caption}
       </text>
       <text
         class="glass-digits"
@@ -173,16 +185,6 @@ export function ArcGauge({
         pointer-events="none"
       >
         {readout}
-      </text>
-      <text
-        x={cx}
-        y={cy + 38}
-        text-anchor="middle"
-        font-size={10}
-        fill="#8d97a2"
-        pointer-events="none"
-      >
-        {unit.toUpperCase()}
       </text>
     </g>
   );

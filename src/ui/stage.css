@@ -61,6 +61,13 @@ body,
   font-weight: 400;
 }
 
+/* The MFD engine page is set in the regular cut, not the bold placard cut: a finer type keeps the
+   crowded page readable (owner review of the real page). Only the engine page content; the
+   placards and the glass legends keep the bold face. */
+.panel-svg [data-testid='mfd-engine-page'] text:not(.glass-digits) {
+  font-weight: 400;
+}
+
 .footer {
   font-family: var(--font-placard);
   font-weight: 400;

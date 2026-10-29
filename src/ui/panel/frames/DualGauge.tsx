@@ -4,11 +4,13 @@ import {
   BOX_EXTRA_H,
   BOX_PAD,
   BOX_RADIUS,
+  GLASS_DARK,
   gaugeAlertStyle,
   textBoxWidth,
   worseTone,
 } from './gauge-alert';
 import type { GaugeTone } from './gauge-alert';
+import { POINTER_OUTLINE, POINTER_SINK, pointerPath, pointerRectCentreY } from './pointer';
 
 /** One pointer's reading: the number and the tone of the band it is in. */
 export interface DualReading {
@@ -25,7 +27,7 @@ export interface DualGaugeProps {
   readonly first: DualReading;
   /** Pointer 2 below the bar, readout at the right end of the title row. */
   readonly second: DualReading;
-  /** The marks beside the two pointers: 1 and 2 for the Amps bar, L and R for the tanks. */
+  /** The marks inside the two pointers: 1 and 2 for the Amps bar, L and R for the tanks. */
   readonly marks?: readonly [string, string];
   /** Numerals under the bar with a tick each (Fuel Qty); absent draws none and the cell is shorter. */
   readonly scale?: readonly number[];
@@ -49,19 +51,17 @@ const FONT = 10;
 const BASELINE = 11;
 const CAP_EM = 0.7;
 const BOX_ABOVE_CAP = 1;
-/** Top of the bar below the top of the cell; the pointers are 6 tall on either side. */
+/** Top of the bar below the top of the cell; the pointers stand above and below it. */
 const BAR_TOP = 26;
-const POINTER_H = 6;
-const POINTER_HALF_W = 4;
 const DIGIT_COLOUR = '#aab3bd';
-const MARK_FONT = 8;
+/** The mark inside a pointer: fine black type, its cap height in em, for the vertical centring. */
+const MARK_FONT = 6;
+const MARK_CAP_EM = 0.7;
 const SCALE_FONT = 6;
 const SCALE_TICK_H = 2;
 /** Where the ticks of the scale start below the top of the cell, and the numeral baseline. */
 const SCALE_TICK_TOP = 42;
 const SCALE_BASELINE = 51;
-/** Width of the pointer digit at the mark font size, with a little slack. */
-const MARK_W = 6;
 
 /**
  * The two-pointer bar (the Amps bar of the Electrical box, Fuel Qty and Fuel Temp of the Fuel
@@ -103,13 +103,11 @@ export function DualGauge({
   const labelX = x + w / 2 - labelW / 2;
   const firstX = x + frac(first.value) * w;
   const secondX = x + frac(second.value) * w;
-  // The digit beside a pointer goes to its right, or to its left when that would leave the bar.
-  const markSide = (px: number): { readonly x: number; readonly anchor: 'start' | 'end' } =>
-    px + POINTER_HALF_W + 2 + MARK_W > x + w
-      ? { x: px - POINTER_HALF_W - 2, anchor: 'end' }
-      : { x: px + POINTER_HALF_W + 2, anchor: 'start' };
-  const firstMark = markSide(firstX);
-  const secondMark = markSide(secondX);
+  // Pointer 1 stands above the bar, pointer 2 below it; each tip reaches POINTER_SINK into the bar.
+  const firstTipY = barY + POINTER_SINK;
+  const secondTipY = barY + BAR_H - POINTER_SINK;
+  const markY = (tipY: number, from: 'above' | 'below'): number =>
+    pointerRectCentreY(tipY, from) + (MARK_CAP_EM * MARK_FONT) / 2;
   return (
     <g data-gauge={label} data-alert={labelStyle.boxes ? worst : undefined} pointer-events="none">
       {labelStyle.boxes ? (
@@ -160,8 +158,9 @@ export function DualGauge({
         {firstText}
       </text>
       <text
-        x={labelX}
+        x={x + w / 2}
         y={y + BASELINE}
+        text-anchor="middle"
         font-size={FONT}
         fill={labelStyle.labelFill}
         pointer-events="none"
@@ -193,34 +192,38 @@ export function DualGauge({
       ))}
       <path
         data-dual-pointer="1"
-        d={`M ${firstX} ${barY - 1} l ${-POINTER_HALF_W} ${-POINTER_H} l ${2 * POINTER_HALF_W} 0 z`}
+        d={pointerPath(firstX, firstTipY, 'above')}
         fill={firstStyle.pointerFill}
+        stroke={GLASS_DARK}
+        stroke-width={POINTER_OUTLINE}
         pointer-events="none"
       />
       <path
         data-dual-pointer="2"
-        d={`M ${secondX} ${barY + BAR_H + 1} l ${-POINTER_HALF_W} ${POINTER_H} l ${2 * POINTER_HALF_W} 0 z`}
+        d={pointerPath(secondX, secondTipY, 'below')}
         fill={secondStyle.pointerFill}
+        stroke={GLASS_DARK}
+        stroke-width={POINTER_OUTLINE}
         pointer-events="none"
       />
       <text
         data-dual-mark="1"
-        x={firstMark.x}
-        y={barY - 1}
-        text-anchor={firstMark.anchor}
+        x={firstX}
+        y={markY(firstTipY, 'above')}
+        text-anchor="middle"
         font-size={MARK_FONT}
-        fill={DIGIT_COLOUR}
+        fill={GLASS_DARK}
         pointer-events="none"
       >
         {marks[0]}
       </text>
       <text
         data-dual-mark="2"
-        x={secondMark.x}
-        y={barY + BAR_H + 1 + POINTER_H}
-        text-anchor={secondMark.anchor}
+        x={secondX}
+        y={markY(secondTipY, 'below')}
+        text-anchor="middle"
         font-size={MARK_FONT}
-        fill={DIGIT_COLOUR}
+        fill={GLASS_DARK}
         pointer-events="none"
       >
         {marks[1]}

@@ -29,7 +29,7 @@ export interface ArcEntry extends Base {
   readonly radius: number;
 }
 
-/** A one-pointer bar; `unit: false` prints the number alone (the label already names the unit). */
+/** A one-pointer bar; `unit: false` prints the number alone, as every bar of the real page does. */
 export interface BarEntry extends Base {
   readonly kind: 'bar';
   readonly label: string;
@@ -45,7 +45,7 @@ export interface DualEntry extends Base {
   readonly quantity: string;
   readonly second: string;
   readonly decimals: number;
-  /** The marks beside the two pointers. */
+  /** The marks inside the two pointers. */
   readonly marks: readonly [string, string];
   /** Numerals (with a tick each) under the bar; absent for none. */
   readonly scale?: readonly number[];
@@ -113,8 +113,8 @@ export interface PageColumn {
 }
 
 const ARC_CELL_H = 92;
-/** The arc centre lies this far below the top of its cell (the label sits above the arc). */
-const ARC_CENTRE_DY = 51;
+/** The arc centre lies this far below the top of its cell (caption and number sit below the arc). */
+const ARC_CENTRE_DY = 40;
 const ARC_RADIUS = 34;
 const BAR_H = 33;
 
@@ -142,7 +142,7 @@ const bar = (
   quantity: string,
   decimals: number,
   rect: PageRect,
-  unit = true,
+  unit = false,
 ): BarEntry => ({ id, kind: 'bar', label, quantity, decimals, unit, rect });
 
 export const ENGINE_PAGE: readonly PageColumn[] = [
@@ -197,7 +197,7 @@ export const ENGINE_PAGE: readonly PageColumn[] = [
             label: 'Fuel qty',
             quantity: 'fuel_qty_lh_gal',
             second: 'fuel_qty_rh_gal',
-            decimals: 1,
+            decimals: 0,
             marks: ['L', 'R'],
             scale: [0, 5, 10, 15, 20, 25],
             rect: { x: 176, y: 134, w: 142, h: 52 },
@@ -264,9 +264,7 @@ export const ENGINE_PAGE: readonly PageColumn[] = [
         kind: 'frame',
         title: 'OXYGEN',
         rect: { x: 332, y: 131, w: 154, h: 50 },
-        rows: [
-          bar('oxygen_psi', 'Psi', 'oxygen_psi', 0, { x: 338, y: 137, w: 142, h: BAR_H }, false),
-        ],
+        rows: [bar('oxygen_psi', 'Psi', 'oxygen_psi', 0, { x: 338, y: 137, w: 142, h: BAR_H })],
       },
       {
         id: 'deice',
@@ -274,14 +272,7 @@ export const ENGINE_PAGE: readonly PageColumn[] = [
         title: 'DE-ICE',
         rect: { x: 332, y: 187, w: 154, h: 96 },
         rows: [
-          bar(
-            'deice_qty',
-            'Us gal',
-            'deice_qty_gal',
-            1,
-            { x: 338, y: 193, w: 142, h: BAR_H },
-            false,
-          ),
+          bar('deice_qty', 'Us gal', 'deice_qty_gal', 1, { x: 338, y: 193, w: 142, h: BAR_H }),
           {
             id: 'deice_endurance',
             kind: 'endurance',

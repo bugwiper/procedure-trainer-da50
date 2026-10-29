@@ -188,6 +188,42 @@ describe('BarGauge in every tone (C-68, T-03-31)', () => {
     );
   });
 
+  it('a centred label stands over the middle of the bar with its box, the value stays at the right', () => {
+    const tree = expand(BarGauge({ ...props, tone: 'red', labelAlign: 'centre' }));
+    const [labelText, valueText] = texts(tree);
+    const [labelBox, valueBox] = boxes(tree);
+    if (!labelText || !valueText || !labelBox || !valueBox) throw new Error('missing parts');
+    const middle = props.x + props.w / 2;
+    expect(Number(labelText.props['x'])).toBe(middle);
+    expect(labelText.props['text-anchor']).toBe('middle');
+    expect(Number(labelBox.props['x']) + Number(labelBox.props['width']) / 2).toBeCloseTo(
+      middle,
+      6,
+    );
+    expect(valueText.props['text-anchor']).toBe('end');
+    expect(Number(valueText.props['x'])).toBe(props.x + props.w);
+    // The default keeps the label at the left end (the Map strip).
+    expect(Number(texts(draw())[0]?.props['x'])).toBe(props.x);
+  });
+
+  it('the pointer is a rectangle with a point that reaches into the bar, 10 or more wide', () => {
+    const d = String(pointer(draw()).props['d']);
+    const points = [...d.matchAll(/[ML] (-?[\d.]+) (-?[\d.]+)/g)].map((m) => [
+      Number(m[1]),
+      Number(m[2]),
+    ]);
+    expect(points).toHaveLength(5);
+    const barTop = Math.min(
+      ...findElements(draw(), (e) => e.tag === 'rect').map((r) => Number(r.props['y'])),
+    );
+    const tipY = points[0]?.[1] ?? Number.NaN;
+    expect(tipY).toBeGreaterThan(barTop);
+    expect(tipY).toBeLessThan(barTop + 7);
+    expect(Math.max(...points.map((p) => p[1] ?? 0))).toBe(tipY);
+    const xs = points.map((p) => p[0] ?? 0);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThanOrEqual(10);
+  });
+
   it('the label and the digits are the same strings in every tone (G-0)', () => {
     const strings = (tone?: GaugeTone) => texts(draw(tone)).map((t) => textOf(t));
     const plain = strings();
@@ -237,11 +273,7 @@ describe('ArcGauge in every tone (C-68, C-70, T-03-31)', () => {
       const tree = draw(tone);
       expect(boxes(tree)).toEqual([]);
       expect(tree.props['data-alert']).toBeUndefined();
-      expect(texts(tree).map((t) => t.props['fill'])).toEqual([
-        PLAIN_LABEL,
-        PLAIN_VALUE,
-        '#8d97a2',
-      ]);
+      expect(texts(tree).map((t) => t.props['fill'])).toEqual([PLAIN_LABEL, PLAIN_VALUE]);
       expect(needle(tree).props['stroke']).toBe(PLAIN_VALUE);
     },
   );
@@ -259,12 +291,7 @@ describe('ArcGauge in every tone (C-68, C-70, T-03-31)', () => {
         expect(box.props['fill']).toBe(style.boxFill);
         expect(box.props['rx']).toBe(2);
       }
-      // The unit line below the readout stays plain.
-      expect(texts(tree).map((t) => t.props['fill'])).toEqual([
-        style.labelFill,
-        style.valueFill,
-        '#8d97a2',
-      ]);
+      expect(texts(tree).map((t) => t.props['fill'])).toEqual([style.labelFill, style.valueFill]);
       expect(needle(tree).props['stroke']).toBe(style.pointerFill);
     },
   );
@@ -276,7 +303,7 @@ describe('ArcGauge in every tone (C-68, C-70, T-03-31)', () => {
     if (!labelBox || !valueBox || !label || !readout) throw new Error('missing parts');
     const pairs: [El, El, number, boolean][] = [
       [labelBox, label, 10, false],
-      [valueBox, readout, 14, true],
+      [valueBox, readout, 10, true],
     ];
     for (const [box, text, size, mono] of pairs) {
       const need = textBoxWidth(textOf(text), size, mono);
@@ -290,13 +317,39 @@ describe('ArcGauge in every tone (C-68, C-70, T-03-31)', () => {
     expect(num(labelBox, 'y') + num(labelBox, 'height')).toBeLessThan(num(valueBox, 'y'));
   });
 
-  it('the label, the readout and the unit are the same strings in every tone (G-0)', () => {
+  it('the caption and the readout are the same strings in every tone (G-0)', () => {
     const strings = (tone?: GaugeTone) => texts(draw(tone)).map((t) => textOf(t));
     const plain = strings();
-    expect(plain).toEqual(['OIL PRES', '1.2', 'BAR']);
+    // The caption names the quantity and the unit; the number under it is bare.
+    expect(plain).toEqual(['OIL PRES BAR', '1.2']);
     for (const tone of ['green', 'yellow', 'red', 'none'] as const) {
       expect(strings(tone), tone).toEqual(plain);
     }
+  });
+
+  it('the caption and then the number stand below the arc, centred on it', () => {
+    const tree = draw();
+    const [caption, readout] = texts(tree);
+    if (!caption || !readout) throw new Error('missing texts');
+    // The arc ends sit r / 2 below the centre (a 240 degree sweep): the texts clear them.
+    const arcEnds = props.cy + props.r / 2;
+    expect(num(caption, 'y') - 0.7 * 10).toBeGreaterThan(arcEnds);
+    expect(num(readout, 'y') - 0.7 * 10).toBeGreaterThan(num(caption, 'y'));
+    for (const t of [caption, readout]) {
+      expect(num(t, 'x')).toBe(props.cx);
+      expect(t.props['text-anchor']).toBe('middle');
+    }
+  });
+
+  it('the caption repeats no word: a unit equal to the label is left out, another unit follows it', () => {
+    const caption = (label: string, unit: string): string => {
+      const first = texts(expand(ArcGauge({ ...props, label, unit })))[0];
+      if (first === undefined) throw new Error('no caption');
+      return textOf(first);
+    };
+    expect(caption('RPM', 'rpm')).toBe('RPM');
+    expect(caption('Load', '%')).toBe('LOAD %');
+    expect(caption('Load', '')).toBe('LOAD');
   });
 });
 
@@ -408,20 +461,51 @@ describe('DualGauge (Amps bar) in every tone pair (E-19, E-20)', () => {
     ]);
   });
 
-  it('pointer 1 lies above the bar and pointer 2 below it, each with its digit beside it', () => {
+  /** The y coordinates of a pointer path. */
+  const ys = (el: El): number[] =>
+    [...String(el.props['d']).matchAll(/[ML] (-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[2]));
+  const xs = (el: El): number[] =>
+    [...String(el.props['d']).matchAll(/[ML] (-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[1]));
+
+  it('pointer 1 stands above the bar and pointer 2 below it, a rectangle with a point that reaches into the bar, the mark inside', () => {
     const tree = draw('green', 'green');
     const barBands = findElements(tree, (e) => e.tag === 'rect' && e.props['height'] === 7);
     const barTop = Math.min(...barBands.map((r) => num(r, 'y')));
     const barBottom = barTop + 7;
-    // Both pointers are triangles starting on the bar edge: 1 goes up from it, 2 goes down.
-    expect(String(pointer(tree, '1').props['d'])).toMatch(
-      new RegExp(` ${barTop - 1} l -?\\d+ -6 `),
-    );
-    expect(String(pointer(tree, '2').props['d'])).toMatch(
-      new RegExp(` ${barBottom + 1} l -?\\d+ 6 `),
-    );
+    const one = pointer(tree, '1');
+    const two = pointer(tree, '2');
+    // Pointer 1: the tip (the first point, the largest y) is inside the bar, the rest above its top.
+    expect(ys(one)[0]).toBeGreaterThan(barTop);
+    expect(ys(one)[0]).toBeLessThan(barBottom);
+    expect(Math.max(...ys(one))).toBe(ys(one)[0]);
+    expect(Math.min(...ys(one))).toBeLessThan(barTop);
+    // Pointer 2: the mirror image from below.
+    expect(ys(two)[0]).toBeGreaterThan(barTop);
+    expect(ys(two)[0]).toBeLessThan(barBottom);
+    expect(Math.min(...ys(two))).toBe(ys(two)[0]);
+    expect(Math.max(...ys(two))).toBeGreaterThan(barBottom);
+    // Thicker than the old 8 wide triangle, and a flat end: a rectangle part, not a pure triangle.
+    for (const p of [one, two]) {
+      expect(Math.max(...xs(p)) - Math.min(...xs(p))).toBeGreaterThanOrEqual(10);
+      expect(String(p.props['d'])).toMatch(/^M [\d.-]+ [\d.-]+( L [\d.-]+ [\d.-]+){4} Z$/);
+    }
+    // The marks stand inside the rectangle part of their pointer, in fine black type.
     const mark = (which: string) =>
       findElements(tree, (e) => e.props['data-dual-mark'] === which)[0];
+    for (const [which, p] of [
+      ['1', one],
+      ['2', two],
+    ] as const) {
+      const m = mark(which);
+      if (m === undefined) throw new Error(`no mark ${which}`);
+      expect(num(m, 'x')).toBeCloseTo(xs(p)[0] ?? Number.NaN, 6);
+      expect(m.props['fill']).toBe(GLASS_DARK);
+      expect(m.props['text-anchor']).toBe('middle');
+      const top = Math.min(...ys(p));
+      const bottom = Math.max(...ys(p));
+      expect(num(m, 'y') - 0.7 * num(m, 'font-size')).toBeGreaterThan(top);
+      expect(num(m, 'y')).toBeLessThan(bottom);
+    }
     expect(num(mark('1') ?? tree, 'y')).toBeLessThan(barTop);
     expect(num(mark('2') ?? tree, 'y')).toBeGreaterThan(barBottom);
   });

@@ -383,7 +383,7 @@ describe('glass header, content and legend zones', () => {
     ['mfd map page', mfdMap],
     ['mfd engine page', mfdEngine],
   ] as const)(
-    '%s header carries the frequency boxes, labels and one swap arrow path',
+    '%s header carries the frequencies, the stacked radio names, two swap arrows and two standby frames',
     (_n, tree) => {
       const header = zoneOf(tree, 'header')[0];
       if (header === undefined) throw new Error('no header');
@@ -393,20 +393,35 @@ describe('glass header, content and legend zones', () => {
         '111.50',
         '114.80',
         '118.100',
-        'RX',
         '123.725',
         '121.500',
         '133.330',
-        'N1',
-        'N2',
-        '1C',
-        '2M',
+        // NAV and COM stand as single letters, a small 1 and a small 2 beside the two rows
+        ...'NAV',
+        ...'COM',
+        '1',
+        '2',
       ]) {
         expect(texts, t).toContain(t);
       }
-      expect(
-        findElements(header, (e) => e.tag === 'path' && e.props['data-swap-arrow'] !== undefined),
-      ).toHaveLength(1);
+      // The old names and the RX info are gone.
+      for (const gone of ['N1', 'N2', '1C', '2M', 'RX']) expect(texts, gone).not.toContain(gone);
+      expect(texts.filter((t) => t === '1')).toHaveLength(2);
+      expect(texts.filter((t) => t === '2')).toHaveLength(2);
+      // One turquoise swap arrow per side, and a thin turquoise frame round each first-row standby.
+      const arrows = findElements(
+        header,
+        (e) => e.tag === 'path' && e.props['data-swap-arrow'] !== undefined,
+      );
+      expect(arrows).toHaveLength(2);
+      for (const arrow of arrows) expect(arrow.props['stroke']).toBe('#3fd1e0');
+      const frames = findElements(header, (e) => e.props['data-standby-frame'] !== undefined);
+      expect(frames).toHaveLength(2);
+      for (const frame of frames) {
+        expect(frame.props['stroke']).toBe('#3fd1e0');
+        expect(frame.props['fill']).toBe('none');
+        expect(Number(frame.props['stroke-width'])).toBeLessThanOrEqual(1);
+      }
       // Sizes on the glass are 6, 8, 10 or 14 only.
       for (const el of findElements(header, (e) => e.tag === 'text')) {
         expect([6, 8, 10, 14]).toContain(el.props['font-size']);
@@ -497,22 +512,34 @@ const GAUGE_REFERENCE: readonly {
   readonly decimals: number;
   /** A second pointer reading another quantity (the Amps bar); the readouts print without unit. */
   readonly second?: string;
-  /** False: the bar prints the number alone (the label already names the unit). */
+  /** False: the engine page prints the number alone (the map strip keeps the unit). */
   readonly unit?: boolean;
 }[] = [
-  { label: 'RPM', quantity: 'rpm', decimals: 0 },
-  { label: 'Load', quantity: 'load_pct', decimals: 0 },
-  { label: 'Oil pres', quantity: 'oil_pressure_bar', decimals: 1 },
-  { label: 'Oil temp', quantity: 'oil_temp_c', decimals: 0 },
-  { label: 'Coolant temp', quantity: 'coolant_temp_c', decimals: 0 },
-  { label: 'Gearbox temp', quantity: 'gearbox_temp_c', decimals: 0 },
-  { label: 'Fuel qty', quantity: 'fuel_qty_lh_gal', decimals: 1, second: 'fuel_qty_rh_gal' },
-  { label: 'Fuel temp', quantity: 'fuel_temp_lh_c', decimals: 0, second: 'fuel_temp_rh_c' },
-  { label: 'Fuel press', quantity: 'fuel_pressure_bar', decimals: 1 },
+  { label: 'RPM', quantity: 'rpm', decimals: 0, unit: false },
+  { label: 'Load', quantity: 'load_pct', decimals: 0, unit: false },
+  { label: 'Oil pres', quantity: 'oil_pressure_bar', decimals: 1, unit: false },
+  { label: 'Oil temp', quantity: 'oil_temp_c', decimals: 0, unit: false },
+  { label: 'Coolant temp', quantity: 'coolant_temp_c', decimals: 0, unit: false },
+  { label: 'Gearbox temp', quantity: 'gearbox_temp_c', decimals: 0, unit: false },
+  {
+    label: 'Fuel qty',
+    quantity: 'fuel_qty_lh_gal',
+    decimals: 0,
+    second: 'fuel_qty_rh_gal',
+    unit: false,
+  },
+  {
+    label: 'Fuel temp',
+    quantity: 'fuel_temp_lh_c',
+    decimals: 0,
+    second: 'fuel_temp_rh_c',
+    unit: false,
+  },
+  { label: 'Fuel press', quantity: 'fuel_pressure_bar', decimals: 1, unit: false },
   { label: 'Psi', quantity: 'oxygen_psi', decimals: 0, unit: false },
   { label: 'Us gal', quantity: 'deice_qty_gal', decimals: 1, unit: false },
-  { label: 'Volts', quantity: 'bus_volts', decimals: 1 },
-  { label: 'Amps', quantity: 'alt1_amps', decimals: 0, second: 'alt2_amps' },
+  { label: 'Volts', quantity: 'bus_volts', decimals: 1, unit: false },
+  { label: 'Amps', quantity: 'alt1_amps', decimals: 0, second: 'alt2_amps', unit: false },
 ];
 /** The map strip shows the left tank alone; its gauge is not on the engine page. */
 const STRIP_ONLY: readonly {
@@ -633,7 +660,8 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
           expect(readoutsOf(gaugeOf(tree, label)), label).toEqual([shown, shown2]);
           continue;
         }
-        const bare = isArc(pageName, label) || refOf(label).unit === false;
+        const bare =
+          isArc(pageName, label) || (pageName === 'engine' && refOf(label).unit === false);
         const expected = bare ? shown : `${shown} ${def.unit.toUpperCase()}`;
         expect(readoutOf(gaugeOf(tree, label)), label).toBe(expected);
       }

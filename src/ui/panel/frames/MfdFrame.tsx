@@ -20,7 +20,8 @@ import type { Band } from './ArcGauge';
 import { BarGauge } from './BarGauge';
 import { BoxFrame } from './BoxFrame';
 import { DualGauge } from './DualGauge';
-import { GLASS_DARK, GREEN, RED, YELLOW, toneOf } from './gauge-alert';
+import { GLASS_DARK, GREEN, RED, YELLOW, textBoxWidth, toneOf } from './gauge-alert';
+import { POINTER_OUTLINE, pointerPath } from './pointer';
 
 export interface FrameProps {
   readonly region: Region;
@@ -89,68 +90,139 @@ const HEADER_LABEL = '#8d97a2';
 const HEADER_ACTIVE = '#ffffff';
 const HEADER_STANDBY = '#c9d0d8';
 const HEADER_TITLE = '#d8dde3';
+/** The swap arrows and the frames of the two standby frequencies (static, never a control). */
+const HEADER_SWAP = TAB_SELECTED_BORDER;
+
+const FREQ_FONT = 8;
+const LABEL_FONT = 6;
+/** Baselines of the two frequency rows, and of the middle letter of the stacked radio name. */
+const LINE_1 = 15;
+const LINE_2 = 25;
+const LINE_MID = 20;
+/** The turquoise frame of a standby frequency: padding around the digits and the corner radius. */
+const FRAME_PAD_X = 1.5;
+const FRAME_ABOVE = 7.5;
+const FRAME_H = 10.5;
+const SWAP_ARROW_W = 14;
+/** The radio names as stacked letters, one per line of the header (two rows and the gap between). */
+const NAV_LETTERS: readonly (readonly [string, number])[] = [
+  ['N', LINE_1],
+  ['A', LINE_MID],
+  ['V', LINE_2],
+];
+const COM_LETTERS: readonly (readonly [string, number])[] = [
+  ['C', LINE_1],
+  ['O', LINE_MID],
+  ['M', LINE_2],
+];
+
+/** A frequency in the glass digits; `frame` draws the thin turquoise frame of a standby frequency. */
+function Frequency({
+  x,
+  y,
+  text,
+  fill,
+  frame = false,
+}: {
+  readonly x: number;
+  readonly y: number;
+  readonly text: string;
+  readonly fill: string;
+  readonly frame?: boolean;
+}) {
+  return (
+    <>
+      {frame ? (
+        <rect
+          data-standby-frame
+          x={x - FRAME_PAD_X}
+          y={y - FRAME_ABOVE}
+          width={textBoxWidth(text, FREQ_FONT, true) + 2 * FRAME_PAD_X}
+          height={FRAME_H}
+          rx={1}
+          fill="none"
+          stroke={HEADER_SWAP}
+          stroke-width={0.8}
+        />
+      ) : null}
+      <text class="glass-digits" x={x} y={y} font-size={FREQ_FONT} fill={fill}>
+        {text}
+      </text>
+    </>
+  );
+}
+
+/** The swap arrow between the standby and the active frequency of the first row of a radio. */
+function SwapArrow({ x }: { readonly x: number }) {
+  const mid = LINE_1 - 3.5;
+  const x1 = x + SWAP_ARROW_W;
+  return (
+    <path
+      data-swap-arrow
+      d={`M ${x} ${mid} H ${x1} M ${x + 3} ${mid - 2.5} L ${x} ${mid} L ${x + 3} ${mid + 2.5} M ${x1 - 3} ${mid - 2.5} L ${x1} ${mid} L ${x1 - 3} ${mid + 2.5}`}
+      fill="none"
+      stroke={HEADER_SWAP}
+      stroke-width={1}
+    />
+  );
+}
 
 /**
- * The header strip of a glass screen (Table D4): two frequency lines on each side and, on the
- * MFD, the page title in the centre. Static idle values (U-15), original layout; the swap arrow
- * is a path. Digits use the glass font; sizes are 6 and 8.
+ * The header strip of a glass screen (Table D4): two frequency rows on each side and, on the MFD,
+ * the page title in the centre. The radio name stands as stacked letters (NAV at the left, COM at
+ * the right) with a small 1 beside the first and a small 2 beside the second row. In each first row
+ * the outer frequency is the standby one (a thin turquoise frame) and the inner one the active one,
+ * with a turquoise swap arrow between them. Static idle values (U-15), original layout; both rows
+ * stay static (the avionics are not operable, PANEL-REVIEW.md Phase 6). Digits use the glass font;
+ * sizes are 6 and 8.
  */
 export function GlassHeader({ title }: { readonly title?: string }) {
   const { y0, y1 } = GLASS.header;
-  const line1 = 15;
-  const line2 = 25;
   return (
     <g data-glass-zone="header">
       <rect x={4} y={y0} width={487} height={y1 - y0} fill={HEADER_FILL} />
       <line x1={4} y1={y1} x2={491} y2={y1} stroke={HEADER_RULE} stroke-width={1} />
-      {/* Left block: two lines, label at x 8, active and standby values. */}
-      <text x={8} y={line1} font-size={6} fill={HEADER_LABEL}>
-        N1
+      {/* Left block: NAV, standby (outer, framed) and active (inner) with the swap arrow. */}
+      {NAV_LETTERS.map(([letter, y]) => (
+        <text key={letter} x={8} y={y} font-size={LABEL_FONT} fill={HEADER_LABEL}>
+          {letter}
+        </text>
+      ))}
+      <text x={15} y={LINE_1} font-size={LABEL_FONT} fill={HEADER_LABEL}>
+        1
       </text>
-      <text class="glass-digits" x={22} y={line1} font-size={8} fill={HEADER_ACTIVE}>
-        109.90
+      <text x={15} y={LINE_2} font-size={LABEL_FONT} fill={HEADER_LABEL}>
+        2
       </text>
-      <path
-        data-swap-arrow
-        d="M 61 11.5 H 73 M 64 9 L 61 11.5 L 64 14 M 70 9 L 73 11.5 L 70 14"
-        fill="none"
-        stroke={HEADER_STANDBY}
-        stroke-width={1}
-      />
-      <text class="glass-digits" x={80} y={line1} font-size={8} fill={HEADER_STANDBY}>
-        111.50
+      <Frequency x={24} y={LINE_1} text="109.90" fill={HEADER_ACTIVE} frame />
+      <SwapArrow x={64} />
+      <Frequency x={84} y={LINE_1} text="111.50" fill={HEADER_ACTIVE} />
+      <Frequency x={24} y={LINE_2} text="114.80" fill={HEADER_STANDBY} />
+      <Frequency x={84} y={LINE_2} text="111.50" fill={HEADER_ACTIVE} />
+      {/* Right block: COM, active (inner) and standby (outer, framed), the digits left of the letters. */}
+      {COM_LETTERS.map(([letter, y]) => (
+        <text
+          key={letter}
+          x={487}
+          y={y}
+          text-anchor="end"
+          font-size={LABEL_FONT}
+          fill={HEADER_LABEL}
+        >
+          {letter}
+        </text>
+      ))}
+      <text x={479} y={LINE_1} text-anchor="end" font-size={LABEL_FONT} fill={HEADER_LABEL}>
+        1
       </text>
-      <text x={8} y={line2} font-size={6} fill={HEADER_LABEL}>
-        N2
+      <text x={479} y={LINE_2} text-anchor="end" font-size={LABEL_FONT} fill={HEADER_LABEL}>
+        2
       </text>
-      <text class="glass-digits" x={22} y={line2} font-size={8} fill={HEADER_ACTIVE}>
-        114.80
-      </text>
-      <text class="glass-digits" x={80} y={line2} font-size={8} fill={HEADER_STANDBY}>
-        111.50
-      </text>
-      {/* Right block: communication frequencies, labels at the right end. */}
-      <text class="glass-digits" x={335} y={line1} font-size={8} fill={HEADER_ACTIVE}>
-        118.100
-      </text>
-      <text x={378} y={line1} font-size={6} fill={HEADER_LABEL}>
-        RX
-      </text>
-      <text class="glass-digits" x={396} y={line1} font-size={8} fill={HEADER_STANDBY}>
-        123.725
-      </text>
-      <text x={487} y={line1} text-anchor="end" font-size={6} fill={HEADER_LABEL}>
-        1C
-      </text>
-      <text class="glass-digits" x={335} y={line2} font-size={8} fill={HEADER_ACTIVE}>
-        121.500
-      </text>
-      <text class="glass-digits" x={396} y={line2} font-size={8} fill={HEADER_STANDBY}>
-        133.330
-      </text>
-      <text x={487} y={line2} text-anchor="end" font-size={6} fill={HEADER_LABEL}>
-        2M
-      </text>
+      <Frequency x={362} y={LINE_1} text="118.100" fill={HEADER_ACTIVE} />
+      <SwapArrow x={406} />
+      <Frequency x={428} y={LINE_1} text="123.725" fill={HEADER_ACTIVE} frame />
+      <Frequency x={362} y={LINE_2} text="121.500" fill={HEADER_ACTIVE} />
+      <Frequency x={428} y={LINE_2} text="133.330" fill={HEADER_STANDBY} />
       {title === undefined ? null : (
         <text
           data-glass-title
@@ -250,6 +322,17 @@ const ROW_BASELINE = 11;
 const SUB_ROW_TOP = 16;
 const SUB_ROW_PITCH = 10;
 const SUB_ROW_PAD = 5;
+/** The even rows of the endurance box: room the cut-in title takes, the bottom padding, text size. */
+const EVEN_TOP = 6;
+const EVEN_BOTTOM = 2;
+const SUB_FONT = 8;
+const SUB_CAP_EM = 0.7;
+/** The baseline of row i of count rows spread evenly over the height of a box below its title. */
+const evenBaseline = (rect: { readonly y: number; readonly h: number }, count: number, i: number) =>
+  rect.y +
+  EVEN_TOP +
+  ((i + 0.5) * (rect.h - EVEN_TOP - EVEN_BOTTOM)) / count +
+  (SUB_CAP_EM * SUB_FONT) / 2;
 /** The rudder trim scale: inset from the row ends, line and mark offsets, tick heights. */
 const TRIM_INSET = 12;
 const TRIM_LINE_DY = 14;
@@ -418,6 +501,7 @@ function PageEntryView({
           bands={g.bands}
           decimals={g.decimals}
           tone={toneOf(DA50RG_QUANTITIES, g.quantity, value)}
+          labelAlign="centre"
           x={entry.rect.x}
           y={entry.rect.y}
           w={entry.rect.w}
@@ -522,7 +606,7 @@ function PageEntryView({
               value={values[i] ?? ''}
               x={entry.rect.x}
               w={entry.rect.w}
-              y={entry.rect.y + SUB_ROW_TOP + i * SUB_ROW_PITCH}
+              y={evenBaseline(entry.rect, entry.labels.length, i)}
             />
           ))}
         </BoxFrame>
@@ -561,8 +645,10 @@ function PageEntryView({
           ))}
           <path
             data-trim-pointer
-            d={`M ${pointerX} ${lineY - 1} l -4 -6 l 8 0 z`}
+            d={pointerPath(pointerX, lineY + 1, 'above')}
             fill={ROW_VALUE}
+            stroke={GLASS_DARK}
+            stroke-width={POINTER_OUTLINE}
           />
           <text
             x={scaleAt(min)}
@@ -640,7 +726,7 @@ function SubRow({
 }) {
   return (
     <g data-row={id} pointer-events="none">
-      <text x={x + SUB_ROW_PAD} y={y} font-size={8} fill={ROW_LABEL}>
+      <text x={x + SUB_ROW_PAD} y={y} font-size={SUB_FONT} fill={ROW_LABEL}>
         {label}
       </text>
       <text
@@ -649,7 +735,7 @@ function SubRow({
         x={x + w - SUB_ROW_PAD}
         y={y}
         text-anchor="end"
-        font-size={8}
+        font-size={SUB_FONT}
         fill={ROW_VALUE}
       >
         {value}

@@ -1,7 +1,15 @@
 import { readoutText } from './ArcGauge';
 import type { Band } from './ArcGauge';
-import { BOX_EXTRA_H, BOX_PAD, BOX_RADIUS, gaugeAlertStyle, textBoxWidth } from './gauge-alert';
+import {
+  BOX_EXTRA_H,
+  BOX_PAD,
+  BOX_RADIUS,
+  GLASS_DARK,
+  gaugeAlertStyle,
+  textBoxWidth,
+} from './gauge-alert';
 import type { GaugeTone } from './gauge-alert';
+import { POINTER_OUTLINE, POINTER_SINK, pointerPath } from './pointer';
 
 export interface BarGaugeProps {
   readonly label: string;
@@ -18,6 +26,8 @@ export interface BarGaugeProps {
   readonly decimals?: number;
   /** The band colour of the live value; yellow and red box the texts. Absent is green (C-68). */
   readonly tone?: GaugeTone;
+  /** Where the label stands: at the left end (the Map strip) or centred over the bar (engine page). */
+  readonly labelAlign?: 'start' | 'centre';
 }
 
 const BAR_H = 7;
@@ -42,6 +52,7 @@ export function BarGauge({
   h,
   decimals,
   tone = 'green',
+  labelAlign = 'start',
 }: BarGaugeProps) {
   const frac = (v: number) => (Math.min(max, Math.max(min, v)) - min) / (max - min);
   const barY = y + h - BAR_H - 3;
@@ -58,6 +69,7 @@ export function BarGauge({
   // The side padding shrinks (to 2 on the 130 wide map strip, to 0 at most) when the pair would
   // not fit the gauge width with the full one, so the two boxes never touch while the texts fit.
   const pad = Math.max(0, Math.min(BOX_PAD, (w - labelW - valueW - 1) / 2));
+  const labelX = labelAlign === 'centre' ? x + w / 2 - labelW / 2 : x;
   const boxY = y + BASELINE - CAP_EM * FONT - BOX_ABOVE_CAP;
   const boxH = FONT + BOX_EXTRA_H;
   return (
@@ -65,7 +77,7 @@ export function BarGauge({
       {style.boxes ? (
         <rect
           data-alert-box="label"
-          x={x - pad}
+          x={labelX - pad}
           y={boxY}
           width={labelW + 2 * pad}
           height={boxH}
@@ -86,7 +98,14 @@ export function BarGauge({
           pointer-events="none"
         />
       ) : null}
-      <text x={x} y={y + BASELINE} font-size={FONT} fill={style.labelFill} pointer-events="none">
+      <text
+        x={labelAlign === 'centre' ? x + w / 2 : x}
+        y={y + BASELINE}
+        text-anchor={labelAlign === 'centre' ? 'middle' : 'start'}
+        font-size={FONT}
+        fill={style.labelFill}
+        pointer-events="none"
+      >
         {labelText}
       </text>
       <text
@@ -112,8 +131,11 @@ export function BarGauge({
         />
       ))}
       <path
-        d={`M ${pointerX} ${barY - 1} l -4 -6 l 8 0 z`}
+        data-bar-pointer
+        d={pointerPath(pointerX, barY + POINTER_SINK, 'above')}
         fill={style.pointerFill}
+        stroke={GLASS_DARK}
+        stroke-width={POINTER_OUTLINE}
         pointer-events="none"
       />
     </g>

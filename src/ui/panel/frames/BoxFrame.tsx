@@ -5,11 +5,9 @@ import { GLASS_DARK, textBoxWidth } from './gauge-alert';
 export const BOX_TITLE_FONT = 8;
 const BOX_STROKE = '#3a424b';
 const BOX_TITLE_FILL = '#aab3bd';
-/** The title is cut into the top edge: a patch of glass colour covers the line behind the text. */
-const TITLE_INDENT = 8;
+/** The title is cut into the top edge, centred: a patch of glass colour covers the line behind it. */
 const TITLE_PATCH_H = 4;
 const TITLE_PATCH_SLACK = 6;
-const TITLE_TEXT_DX = 11;
 const TITLE_BASELINE_DY = 2.5;
 
 export interface BoxFrameProps {
@@ -23,7 +21,7 @@ export interface BoxFrameProps {
 }
 
 /**
- * A framed box of the engine page with its title cut into the top edge (taken from the Electrical
+ * A framed box of the engine page with its title cut into the top edge and centred on it (taken from the Electrical
  * box of phase 4, now used by every box). The title is static text; the children are the gauges and
  * rows of the box, placed by the caller in page space.
  */
@@ -43,7 +41,7 @@ export function BoxFrame({ id, title, x, y, w, h, children }: BoxFrameProps) {
         stroke-width={1}
       />
       <rect
-        x={x + TITLE_INDENT}
+        x={x + w / 2 - titleW / 2}
         y={y - TITLE_PATCH_H / 2}
         width={titleW}
         height={TITLE_PATCH_H}
@@ -51,8 +49,9 @@ export function BoxFrame({ id, title, x, y, w, h, children }: BoxFrameProps) {
       />
       <text
         data-box-title
-        x={x + TITLE_TEXT_DX}
+        x={x + w / 2}
         y={y + TITLE_BASELINE_DY}
+        text-anchor="middle"
         font-size={BOX_TITLE_FONT}
         fill={BOX_TITLE_FILL}
       >

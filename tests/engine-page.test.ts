@@ -278,7 +278,8 @@ describe('the drawn engine page against the reference', () => {
     const readouts = findElements(gauge, (e) => e.props['data-dual-readout'] !== undefined).map(
       (e) => textOf(e),
     );
-    expect(readouts).toEqual(['17.3', '4.2']);
+    // Whole numbers: the quantities hold fractions, the number does not.
+    expect(readouts).toEqual(['17', '4']);
     const numerals = findElements(gauge, (e) => e.props['data-dual-scale'] !== undefined).map((e) =>
       textOf(e),
     );
@@ -403,5 +404,75 @@ describe('the text rows, the sub-boxes and the rudder trim', () => {
     }
     const attrs = findElements(tree, () => true).flatMap((e) => Object.values(e.props));
     for (const value of attrs) expect(String(value)).not.toMatch(/NaN/);
+  });
+});
+
+describe('the look of the page after the review of the real display', () => {
+  const tree = expand(MfdFrame({ region: mfd, bridge: bridge() }));
+  const num = (el: { props: Record<string, unknown> }, key: string): number =>
+    Number(el.props[key]);
+
+  it('prints no unit after the number of any bar', () => {
+    for (const row of GAUGE_ROWS) {
+      const gauge = findElements(tree, (e) => e.props['data-gauge'] === row.label)[0];
+      if (gauge === undefined) throw new Error(`no gauge ${row.label}`);
+      const digits = findElements(gauge, (e) => e.props['class'] === 'glass-digits').map((e) =>
+        textOf(e),
+      );
+      expect(digits.length, row.label).toBeGreaterThan(0);
+      for (const text of digits) expect(text, row.label).toMatch(/^-?\d+(\.\d+)?$/);
+    }
+  });
+
+  it('centres every bar label over its bar and keeps the number at the right end', () => {
+    for (const entry of all) {
+      if (entry.kind !== 'bar') continue;
+      const gauge = findElements(tree, (e) => e.props['data-gauge'] === entry.label)[0];
+      if (gauge === undefined) throw new Error(`no gauge ${entry.label}`);
+      const [label, value] = findElements(gauge, (e) => e.tag === 'text');
+      if (label === undefined || value === undefined) throw new Error(`no texts ${entry.id}`);
+      expect(num(label, 'x'), entry.id).toBeCloseTo(entry.rect.x + entry.rect.w / 2, 6);
+      expect(label.props['text-anchor'], entry.id).toBe('middle');
+      expect(num(value, 'x'), entry.id).toBeCloseTo(entry.rect.x + entry.rect.w, 6);
+      expect(value.props['text-anchor'], entry.id).toBe('end');
+    }
+  });
+
+  it('centres every box title in the frame line of its box, the sub-boxes included', () => {
+    const boxes = findElements(tree, (e) => e.props['data-box'] !== undefined);
+    expect(boxes.length).toBeGreaterThan(0);
+    for (const box of boxes) {
+      const frame = findElements(box, (e) => e.props['data-box-frame'] !== undefined)[0];
+      const title = findElements(box, (e) => e.props['data-box-title'] !== undefined)[0];
+      if (frame === undefined || title === undefined) throw new Error('box without frame or title');
+      expect(num(title, 'x'), String(box.props['data-box'])).toBeCloseTo(
+        num(frame, 'x') + num(frame, 'width') / 2,
+        6,
+      );
+      expect(title.props['text-anchor']).toBe('middle');
+    }
+  });
+
+  it('spreads the two De-Ice endurance rows over the height of their box, not crowded to the top', () => {
+    const box = findElements(tree, (e) => e.props['data-box'] === 'deice_endurance')[0];
+    if (box === undefined) throw new Error('no endurance box');
+    const frame = findElements(box, (e) => e.props['data-box-frame'] !== undefined)[0];
+    if (frame === undefined) throw new Error('no frame');
+    const top = num(frame, 'y');
+    const height = num(frame, 'height');
+    const baselines = ENDURANCE_READOUTS.map((id) => {
+      const text = findElements(box, (e) => e.props['data-readout'] === id)[0];
+      if (text === undefined) throw new Error(`no row ${id}`);
+      return num(text, 'y') - top;
+    });
+    const [first, last] = baselines;
+    // The last row stands in the lower part of the box, the first in the upper part, and the gap
+    // between them is a good part of the height.
+    expect(last ?? 0).toBeGreaterThan(0.7 * height);
+    expect(first ?? Number.NaN).toBeLessThan(0.5 * height);
+    expect((last ?? 0) - (first ?? 0)).toBeGreaterThan(0.35 * height);
+    // The rows sit centred on their halves: the space under the last row matches the space between
+    // the title line and the first one within a few units.
+    expect(Math.abs(height - (last ?? 0) - ((first ?? 0) - 6))).toBeLessThan(6);
   });
 });

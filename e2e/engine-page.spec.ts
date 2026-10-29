@@ -40,8 +40,16 @@ async function openEnginePage(page: Page, hasTouch: boolean): Promise<void> {
 
 const numberOf = async (readout: Locator): Promise<number> =>
   Number.parseFloat((await readout.textContent()) ?? 'NaN');
-const fuelQty = (page: Page, which: '1' | '2'): Promise<number> =>
-  numberOf(mfd(page).locator(`[data-gauge="Fuel qty"] [data-dual-readout="${which}"]`));
+/**
+ * The position of a Fuel Qty pointer on the bar (the first coordinate of its path, the tip): the
+ * number is a whole number now, the pointer still moves with every fraction of a gallon.
+ */
+const fuelQty = async (page: Page, which: '1' | '2'): Promise<number> => {
+  const d = await mfd(page)
+    .locator(`[data-gauge="Fuel qty"] [data-dual-pointer="${which}"]`)
+    .getAttribute('d');
+  return Number(/^M ([\d.-]+) /.exec(d ?? '')?.[1]);
+};
 
 const readout = (page: Page, id: string): Locator => mfd(page).locator(`[data-readout="${id}"]`);
 
