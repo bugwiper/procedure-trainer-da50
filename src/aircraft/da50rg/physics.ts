@@ -149,6 +149,14 @@ const SMOKE_CLEAR_WINDOW = 1;
 const ICE_ACCRETE_PER_MIN = 40;
 const ICE_WARM_CLEAR_PER_MIN = 6;
 const ICE_SPRAY_CLEAR_PER_MIN = 6_000;
+/**
+ * The stall heat timer counts one second per second while the PITOT/STALL HEAT switch is on and the
+ * aircraft is on the ground (H-02), and falls back to 0 within one step otherwise: in the air, or with
+ * the switch off, the ground cut-out message goes at once. The reset rate is the whole range (60 s)
+ * per step (STEP_MS), the clamp holds the reading at 0.
+ */
+const STALL_HEAT_COUNT_PER_MIN = 60;
+const STALL_HEAT_RESET_PER_MIN = (60 * 60_000) / STEP_MS;
 export const WINDSHIELD_SPRAY_MS = 10_000;
 const WINDSHIELD_PROTECT_MS = 600_000;
 const MS_PER_MINUTE = 60_000;
@@ -494,6 +502,13 @@ function fuelRightPerMinute(inputs: PhysicsInputs): number {
   return -fuelDrawnLossPerMinute(inputs, RIGHT_TANK) - fuelTransferPerMinute(inputs);
 }
 
+/** Change of the stall heat timer in seconds per minute: 60 on the ground with the heat on, else a reset. */
+function stallHeatTimerPerMinute(inputs: PhysicsInputs): number {
+  const heatOn = stateOf(inputs, 'sw.pitot_stall_heat') === 'on';
+  const onGround = parameterOf(inputs, 'ground_roll') > 0;
+  return heatOn && onGround ? STALL_HEAT_COUNT_PER_MIN : -STALL_HEAT_RESET_PER_MIN;
+}
+
 /** Change of the ground speed in knots per minute: zero unless the scenario sets ground_roll. */
 function groundSpeedPerMinute(inputs: PhysicsInputs): number {
   const roll = parameterOf(inputs, 'ground_roll');
@@ -773,6 +788,9 @@ export const DA50RG_PHYSICS = definePhysics(
           running(inputs) ? OIL_FILM_PER_MIN * parameterOf(inputs, 'oil_leak') : 0,
       },
       { quantity: 'ground_speed_kt', mode: 'rate', perMinute: groundSpeedPerMinute },
+      // The ground cut-out of the stall heat (H-02): counts while the heat is on and the aircraft rolls
+      // or stands on the ground; the message STALL HEAT reads its `cut` band (cas.ts).
+      { quantity: 'stall_heat_timer_s', mode: 'rate', perMinute: stallHeatTimerPerMinute },
       // The de-ice fluid of the engine page: the mode flow, the MAX run and the WIND SHIELD spray (E-08).
       { quantity: 'deice_qty_gal', mode: 'rate', perMinute: deiceFluidPerMinute },
       // The flight state of the PFD (Phase 6, plan 03): the regimes above. On the ground the airspeed

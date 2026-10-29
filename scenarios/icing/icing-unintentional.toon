@@ -10,12 +10,11 @@ source:
 disclaimer: training-aid
 scene: cloud
 briefing:
-  situation: "You are flying in cloud when ice begins to form on the windscreen. No message is shown on the primary flight display. The ice builds up on both halves of the windscreen, and the ice protection, the pitot heating, the cabin heat and the alternate air source are not in use."
+  situation: "You are flying in cloud when ice begins to form on the windscreen. The primary flight display shows the two yellow messages PITOT HEAT and STALL HEAT. The ice builds up on both halves of the windscreen, and the ice protection, the pitot heating, the cabin heat and the alternate air source are not in use."
 initial:
   controls:
     sw.deice_mode: "off"
     sw.prop_deice: "off"
-    sw.pitot_stall_heat: "off"
     lv.env_temp: cold
     lv.env_direction: face
     lv.alt_air: closed
@@ -26,7 +25,7 @@ initial:
     ice_copilot: 15
 parameters:
   ice_accretion: 0.5
-annunciations[0]:
+annunciations[2]: pitot_heat,stall_heat
 checklist:
   form: table
   heading: UNINTENTIONAL FLIGHT INTO ICING
@@ -193,6 +192,13 @@ procedure[24]:
     number: 6
     text: "Landing distance"
     action: "according AFM abnormal flaps"
+# The pitot and stall heating starts off as the one variant heat_off: the level Realistic must begin without a message (lint L14), so there the simulation switches the heating off at the onset and the two cautions appear next to the ice cues; Easy and Medium start with it off. The cause line is the debrief text.
+variants[1]:
+  - id: heat_off
+    weight: 1
+    controls:
+      sw.pitot_stall_heat: "off"
+    debrief: The pitot and stall heating was switched off, which is why the two yellow heating messages showed. Switching it on cleared them.
 # The ice shows on both halves of the windscreen; the slow cue gets its own bound (lint L23), an instructor-review value. The icing area ends by itself (the icing exposure of the aircraft physics).
 onset:
   window_s[2]: 2,6

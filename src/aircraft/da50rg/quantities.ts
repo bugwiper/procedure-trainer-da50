@@ -6,8 +6,8 @@ import { defineQuantities } from '../../engine/quantities';
 // colour 'none' marks an unmarked scale range. Every quantity has a base value: its reading at the
 // registry defaults (in-flight cruise), which is also the equilibrium of its model, so the free
 // panel shows cruise and no annunciation fires there. alt2_amps, battery_pct, fire_intensity, the
-// windscreen quantities (smoke_density, ice_pilot, ice_copilot, oil_film), ground_speed_kt and the
-// fuel quantities of Phase 6 (fuel_trans_active, fuel_flow_gph, fuel_used_gal) have no gauge of their
+// windscreen quantities (smoke_density, ice_pilot, ice_copilot, oil_film), ground_speed_kt, the stall
+// heat timer and the fuel quantities of Phase 6 (fuel_trans_active, fuel_flow_gph, fuel_used_gal) have no gauge of their
 // own (hidden quantities); the Amps gauge shows alternator 1 (C-10). rudder_trim_pct, oxygen_psi,
 // deice_qty_gal and service_hours are static display values of the engine page (Phase 6, plan 02,
 // E-05): no model moves them (the de-ice quantity has a rate model in physics.ts), a scenario may
@@ -25,6 +25,12 @@ const FUEL_SCALE = 10_000_000;
 
 /** Each fuel tank holds this many US gallons (owner, 2026-10-28); both tanks share one band table. */
 export const TANK_CAPACITY_GAL = 26;
+/**
+ * On the ground the stall heat cuts out this many seconds after it is on (owner, 2026-10-28, D-12;
+ * the figure is an instructor-review value, "a few seconds"). The hidden timer `stall_heat_timer_s`
+ * counts the seconds, and its band `cut` starts above this value.
+ */
+export const STALL_HEAT_CUTOUT_S = 5;
 /**
  * The fuel temperatures follow their target with a 60 s lag (physics.ts): a step of a degree-sized
  * gap is 1 / 600 of it, which the default scale of 0.01 would round away and stall a few degrees
@@ -320,6 +326,20 @@ export const DA50RG_QUANTITIES = defineQuantities([
     bands: [
       { id: 'low_red', colour: 'red', to: 20 },
       { id: 'green', colour: 'green', to: 100 },
+    ],
+  },
+  {
+    // Hidden: no gauge. The seconds the stall heat has run on the ground with the PITOT/STALL HEAT
+    // switch on (Phase 6, plan 04, H-02); held at 0 in the air and with the switch off. The STALL HEAT
+    // message of the ground cut-out reads the `cut` band, so no number enters the CAS table.
+    id: 'stall_heat_timer_s',
+    unit: 's',
+    min: 0,
+    max: 60,
+    base: 0,
+    bands: [
+      { id: 'warm', colour: 'none', to: STALL_HEAT_CUTOUT_S },
+      { id: 'cut', colour: 'none', to: 60 },
     ],
   },
   {

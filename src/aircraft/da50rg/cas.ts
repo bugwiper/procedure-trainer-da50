@@ -40,6 +40,31 @@ export const DA50RG_CAS = defineCasRules(
       when: { check: 'band', quantity: 'alt2_fault', in: ['fault'] },
     },
     {
+      id: 'pitot_heat',
+      text: 'PITOT HEAT',
+      // Whenever the PITOT/STALL HEAT switch is off (Phase 6, plan 04, H-01; owner 2026-10-28): a
+      // yellow caution, independent of the STALL HEAT one. A state check, no number.
+      level: 'caution',
+      when: { check: 'state', control: 'sw.pitot_stall_heat', is: 'off' },
+    },
+    {
+      id: 'stall_heat',
+      text: 'STALL HEAT',
+      // The second message of the switch off. Never together with stall_heat_ground: switching the
+      // heat off resets the ground timer, so at most one STALL HEAT chip shows.
+      level: 'caution',
+      when: { check: 'state', control: 'sw.pitot_stall_heat', is: 'off' },
+    },
+    {
+      id: 'stall_heat_ground',
+      text: 'STALL HEAT',
+      // On the ground the stall heat cuts out a few seconds after it is on (physics.ts, H-02): the
+      // same message returns with the switch on. Band check on the hidden timer, no number. Exclusive
+      // with stall_heat (the switch off holds the timer at 0).
+      level: 'caution',
+      when: { check: 'band', quantity: 'stall_heat_timer_s', in: ['cut'] },
+    },
+    {
       id: 'fuel_trans',
       text: 'FUEL TRANS',
       // The white message while the FUEL TRANS pump runs (Phase 6, D-04b): an advisory, no tone. It

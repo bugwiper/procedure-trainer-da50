@@ -8,7 +8,9 @@ import { grade } from '../src/engine/grading';
 import type { GradeResult, RecordedEvent } from '../src/engine/grading';
 import { cueVisible } from '../src/engine/cues';
 import { initialQuantities, realisticQuantities } from '../src/engine/predicates';
-import { simSetup, simulate } from '../src/engine/sim';
+import { STEP_MS, initSim, simSetup, simulate } from '../src/engine/sim';
+import type { SimState } from '../src/engine/sim';
+import { resolveVariant } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
 import type { Scenario } from '../src/scenario/schema';
 
@@ -370,11 +372,86 @@ describe('Unintentional Flight Into Icing', () => {
     { t: t + 500, id: 'btn.deice_windshield', value: 'released' },
   ];
 
-  it('is on the cloud scene with both ice cues and no message', () => {
+  it('is on the cloud scene with both ice cues and the two heat messages', () => {
     expect(scenario.scene).toBe('cloud');
     expect(scenario.onset?.cues).toEqual(['ice_pilot_side', 'ice_copilot_side']);
-    expect(scenario.annunciations).toEqual([]);
+    expect(scenario.annunciations).toEqual(['pitot_heat', 'stall_heat']);
     expect(scenario.outcomes).toEqual([]);
+  });
+
+  // Phase 6, plan 04 (H-04): the heat-off start is the single variant heat_off. Easy and Medium start
+  // with the rocker off and both cautions; Realistic starts clean and the simulation switches the
+  // rocker off at the onset.
+  describe('the heat_off variant', () => {
+    const HEAT = 'sw.pitot_stall_heat';
+    const BOTH = ['pitot_heat', 'stall_heat'];
+    const idsOf = (setup: ReturnType<typeof simSetup>, state: SimState): string[] =>
+      DA50RG_ENV.cas
+        .active(
+          { controls: state.controls, baseline: setup.baseline, quantities: state.quantities },
+          DA50RG_ENV,
+        )
+        .map((m) => m.id);
+
+    it('is the only variant, sets the rocker off and applies nothing', () => {
+      expect(scenario.variants).toHaveLength(1);
+      expect(scenario.variants[0]).toMatchObject({ id: 'heat_off', controls: { [HEAT]: 'off' } });
+      expect(scenario.variants[0]?.applies).toEqual([]);
+      expect(scenario.initial.controls).not.toHaveProperty(HEAT);
+    });
+
+    it('Easy and Medium: both messages from the start, gone once the heat is switched on', () => {
+      const easy = resolveVariant(scenario, 'heat_off', false);
+      const setup = simSetup(DA50RG_ENV, easy);
+      const start = initialQuantities(easy, DA50RG_ENV.quantities);
+      expect(idsOf(setup, initSim(setup, start))).toEqual(BOTH);
+      const before = simulate(setup, { events: [], start, untilMs: 30 * SECOND_MS }).state;
+      expect(idsOf(setup, before)).toEqual(BOTH);
+      const switched = simulate(setup, {
+        events: [{ t: 5 * SECOND_MS, id: HEAT, value: 'on' }],
+        start,
+        untilMs: 6 * SECOND_MS,
+      }).state;
+      expect(idsOf(setup, switched)).toEqual([]);
+    });
+
+    it('Realistic: no message at the start, both after the onset, gone once the heat is on', () => {
+      const real = resolveVariant(scenario, 'heat_off', true);
+      for (const onsetAt of [2 * SECOND_MS, 6 * SECOND_MS]) {
+        const setup = simSetup(DA50RG_ENV, real, { onsetAt });
+        const start = realisticQuantities(real, DA50RG_ENV.quantities);
+        expect(idsOf(setup, initSim(setup, start)), 'start').toEqual([]);
+        const before = simulate(setup, { events: [], start, untilMs: onsetAt }).state;
+        expect(idsOf(setup, before), 'before the onset').toEqual([]);
+        const after = simulate(setup, { events: [], start, untilMs: onsetAt + 2 * STEP_MS }).state;
+        expect(idsOf(setup, after), 'after the onset').toEqual(BOTH);
+        const switched = simulate(setup, {
+          events: [{ t: onsetAt + 3 * SECOND_MS, id: HEAT, value: 'on' }],
+          start,
+          untilMs: onsetAt + 4 * SECOND_MS,
+        }).state;
+        expect(idsOf(setup, switched), 'heat on').toEqual([]);
+      }
+    });
+
+    it('the golden run passes on every form of the variant', () => {
+      const named = { variant: { id: 'heat_off', seed: 0 } };
+      const result = grade(scenario, DA50RG_ENV, {
+        scenarioId: scenario.id,
+        completedAt: 60 * SECOND_MS,
+        events: golden,
+        ...named,
+      });
+      expect(result.result).toBe('pass');
+      const realistic = grade(scenario, DA50RG_ENV, {
+        scenarioId: scenario.id,
+        completedAt: 60 * SECOND_MS,
+        events: golden.map((e) => ({ ...e, t: e.t + 6 * SECOND_MS })),
+        onset: { at: 6 * SECOND_MS, seed: 0 },
+        ...named,
+      });
+      expect(realistic.result).toBe('pass');
+    });
   });
 
   it('is graded on the six critical rows, the power increase and the two optional rows', () => {

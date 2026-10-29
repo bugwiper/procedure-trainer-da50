@@ -15,6 +15,10 @@ const env = { registry: DA50RG_ENV.registry, quantities: DA50RG_ENV.quantities }
 const NO_FAULT = DA50RG_ENV.quantities.get('alt1_fault')?.base ?? Number.NaN;
 /** The pump flag of FUEL TRANS, 0 (idle) at the cruise base state. */
 const NO_PUMP = DA50RG_ENV.quantities.get('fuel_trans_active')?.base ?? Number.NaN;
+/** The ground cut-out timer of the stall heat, 0 at the cruise base state. */
+const NO_TIMER = DA50RG_ENV.quantities.get('stall_heat_timer_s')?.base ?? Number.NaN;
+/** The legal states of the PITOT/STALL HEAT rocker, read from the registry. */
+const HEAT_DEF = DA50RG_ENV.registry.get('sw.pitot_stall_heat');
 /** A flag value inside the fault band of both quantities. */
 const FAULT = DA50RG_ENV.quantities.get('alt1_fault')?.max ?? Number.NaN;
 
@@ -25,9 +29,11 @@ function at(
   fault2 = NO_FAULT,
 ): PredicateContext {
   return {
-    controls: {},
+    // The two heat rules read the rocker, which the context must carry (at its default: on).
+    controls: { 'sw.pitot_stall_heat': HEAT_DEF?.default ?? '' },
     baseline: {},
     quantities: {
+      stall_heat_timer_s: NO_TIMER,
       oil_temp_c: oilTemp,
       oil_pressure_bar: oilPressure,
       alt1_fault: fault1,
@@ -189,7 +195,7 @@ describe('DA50 RG table: ALTN 1 FAIL and ALTN 2 FAIL (phase 4, E-07)', () => {
   it('stay on after ALTERNATOR 1 is switched OFF while the flag is set', () => {
     const switchedOff: PredicateContext = {
       ...at(91, 5, FAULT),
-      controls: { 'sw.alternator_1': 'off' },
+      controls: { ...at(91).controls, 'sw.alternator_1': 'off' },
     };
     expect(DA50RG_CAS.active(switchedOff, DA50RG_ENV)).toEqual([message]);
   });
@@ -264,7 +270,7 @@ describe('FUEL TRANS advisory (Phase 6, D-04b)', () => {
   /** Quantities from the data: the pump flag idle and active. */
   const FLAG = DA50RG_ENV.quantities.get('fuel_trans_active');
   const withFlag = (value: number): PredicateContext => ({
-    controls: {},
+    controls: at(90).controls,
     baseline: {},
     quantities: { ...at(90).quantities, fuel_trans_active: value },
   });
@@ -285,6 +291,71 @@ describe('FUEL TRANS advisory (Phase 6, D-04b)', () => {
       'altn_1_fail',
       'fuel_trans',
     ]);
+  });
+});
+
+describe('PITOT HEAT and STALL HEAT cautions (Phase 6, plan 04, H-01)', () => {
+  const OFF = 'off';
+  /** The timer values inside the warm and cut bands, from the quantity data. */
+  const timer = DA50RG_ENV.quantities.get('stall_heat_timer_s');
+  const warmTop = timer?.bands.find((b) => b.id === 'warm')?.to ?? Number.NaN;
+  const cutTop = timer?.bands.find((b) => b.id === 'cut')?.to ?? Number.NaN;
+  const withHeat = (state: string, seconds = NO_TIMER): PredicateContext => ({
+    controls: { 'sw.pitot_stall_heat': state },
+    baseline: {},
+    quantities: { ...at(90).quantities, stall_heat_timer_s: seconds },
+  });
+  const ids = (ctx: PredicateContext) => DA50RG_CAS.active(ctx, DA50RG_ENV).map((m) => m.id);
+
+  it('the three rules are cautions in the order pitot_heat, stall_heat, stall_heat_ground', () => {
+    const rules = DA50RG_CAS.rules.map((r) => r.id);
+    const first = rules.indexOf('pitot_heat');
+    expect(rules.slice(first, first + 3)).toEqual([
+      'pitot_heat',
+      'stall_heat',
+      'stall_heat_ground',
+    ]);
+    expect(DA50RG_CAS.get('pitot_heat')).toMatchObject({ text: 'PITOT HEAT', level: 'caution' });
+    expect(DA50RG_CAS.get('stall_heat')).toMatchObject({ text: 'STALL HEAT', level: 'caution' });
+    expect(DA50RG_CAS.get('stall_heat_ground')).toMatchObject({
+      text: 'STALL HEAT',
+      level: 'caution',
+    });
+  });
+
+  it('the first two are state checks on the rocker, the third a band check without a number', () => {
+    expect(DA50RG_CAS.get('pitot_heat')?.when).toEqual({
+      check: 'state',
+      control: 'sw.pitot_stall_heat',
+      is: OFF,
+    });
+    expect(DA50RG_CAS.get('stall_heat')?.when).toEqual(DA50RG_CAS.get('pitot_heat')?.when);
+    expect(DA50RG_CAS.get('stall_heat_ground')?.when).toEqual({
+      check: 'band',
+      quantity: 'stall_heat_timer_s',
+      in: ['cut'],
+    });
+  });
+
+  it('the rocker off gives the two chips, the rocker on none', () => {
+    expect(ids(withHeat(OFF))).toEqual(['pitot_heat', 'stall_heat']);
+    expect(ids(withHeat(HEAT_DEF?.default ?? ''))).toEqual([]);
+  });
+
+  it('the ground rule shows on the cut band alone, off at its lower bound', () => {
+    const on = HEAT_DEF?.default ?? '';
+    expect(ids(withHeat(on, warmTop))).toEqual([]);
+    expect(ids(withHeat(on, warmTop + 0.1))).toEqual(['stall_heat_ground']);
+    expect(ids(withHeat(on, cutTop))).toEqual(['stall_heat_ground']);
+  });
+
+  it('they come after warnings and before advisories', () => {
+    const ctx = withHeat(OFF);
+    const loaded: PredicateContext = {
+      ...ctx,
+      quantities: { ...ctx.quantities, oil_temp_c: 126, fuel_trans_active: 1 },
+    };
+    expect(ids(loaded)).toEqual(['eng_oil_temp', 'pitot_heat', 'stall_heat', 'fuel_trans']);
   });
 });
 
