@@ -529,6 +529,8 @@ function PageEntryView({
           cx={entry.centre.x}
           cy={entry.centre.y}
           r={entry.radius}
+          fine={entry.fine}
+          scaleLabels={entry.scaleLabels}
         />
       );
     }

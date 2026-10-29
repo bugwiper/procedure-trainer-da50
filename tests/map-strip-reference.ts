@@ -54,6 +54,9 @@ export const STRIP_FUEL_SCALE = [0, 5, 10, 15, 20, 25] as const;
 export const STRIP_MIN_H = { arc: 60, bar: 26, flow: 12, dual: 52, trim: 28 } as const;
 
 /** Every static text the strip may draw (glass-digits numbers excluded). */
+/** Small numerals inside the Load ring (the photo shows 25, 50 and 75). */
+export const STRIP_LOAD_SCALE: readonly number[] = [25, 50, 75];
+
 export const STRIP_LABELS: readonly string[] = [
   'LOAD %',
   'RPM',
@@ -68,4 +71,5 @@ export const STRIP_LABELS: readonly string[] = [
   'L',
   'R',
   ...STRIP_FUEL_SCALE.map(String),
+  ...STRIP_LOAD_SCALE.map(String),
 ];

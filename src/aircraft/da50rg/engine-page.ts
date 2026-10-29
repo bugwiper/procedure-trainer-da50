@@ -27,6 +27,10 @@ export interface ArcEntry extends Base {
   readonly decimals: number;
   readonly centre: { readonly x: number; readonly y: number };
   readonly radius: number;
+  /** Narrow ring and thin needle (the map strip). */
+  readonly fine?: boolean;
+  /** Small numerals at the inner ticks (Load); needs `fine`. */
+  readonly scaleLabels?: boolean;
 }
 
 /** A one-pointer bar; `unit: false` prints the number alone, as every bar of the real page does. */

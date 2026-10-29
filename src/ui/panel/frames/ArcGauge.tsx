@@ -22,12 +22,19 @@ export interface ArcGaugeProps {
   readonly decimals?: number;
   /** The band colour of the live value; yellow and red box the texts. Absent is green (C-68). */
   readonly tone?: GaugeTone;
+  /** A narrow ring, short ticks and a thin needle (the map strip); absent is the engine page look. */
+  readonly fine?: boolean;
+  /** Small numerals at the inner ticks, inside the ring (Load: 25, 50, 75); needs `fine`. */
+  readonly scaleLabels?: boolean;
 }
 
 /** Sweep of the scale, centred on straight up. */
 const SWEEP_DEG = 240;
 const TICK_COUNT = 4;
 const LABEL_FONT = 10;
+const FINE_BAND_W = 3.5;
+const FINE_NUMERAL_IN = 6;
+const FINE_NUMERAL_FONT = 5;
 const READOUT_FONT = 10;
 /**
  * The caption and the number stand below the arc. The two ends of the 240 degree sweep lie r / 2
@@ -84,6 +91,8 @@ export function ArcGauge({
   r,
   decimals,
   tone = 'green',
+  fine = false,
+  scaleLabels = false,
 }: ArcGaugeProps) {
   const style = gaugeAlertStyle(tone);
   const labelText = label.toUpperCase();
@@ -101,6 +110,16 @@ export function ArcGauge({
   const ticks = Array.from({ length: TICK_COUNT + 1 }, (_, i) =>
     angleOf(min + ((max - min) * i) / TICK_COUNT, min, max),
   );
+  const bandW = fine ? FINE_BAND_W : 7;
+  const innerTick = fine ? bandW / 2 : 7;
+  const outerTick = fine ? bandW / 2 + 2 : 5;
+  const numerals = scaleLabels
+    ? Array.from({ length: TICK_COUNT - 1 }, (_, i) => {
+        const v = min + ((max - min) * (i + 1)) / TICK_COUNT;
+        const at = point(cx, cy, r - FINE_NUMERAL_IN, angleOf(v, min, max));
+        return { v, x: at.x, y: at.y };
+      })
+    : [];
   return (
     <g data-gauge={label} data-alert={style.boxes ? tone : undefined} pointer-events="none">
       {style.boxes ? (
@@ -133,13 +152,13 @@ export function ArcGauge({
           d={arcPath(cx, cy, r, angleOf(b.from, min, max), angleOf(b.to, min, max))}
           fill="none"
           stroke={b.color}
-          stroke-width={7}
+          stroke-width={bandW}
           pointer-events="none"
         />
       ))}
       {ticks.map((a) => {
-        const inner = point(cx, cy, r - 7, a);
-        const outer = point(cx, cy, r + 5, a);
+        const inner = point(cx, cy, r - innerTick, a);
+        const outer = point(cx, cy, r + outerTick, a);
         return (
           <line
             key={a}
@@ -148,23 +167,43 @@ export function ArcGauge({
             x2={outer.x}
             y2={outer.y}
             stroke="#aab3bd"
-            stroke-width={1.5}
+            stroke-width={fine ? 0.8 : 1.5}
             pointer-events="none"
           />
         );
       })}
+      {numerals.map((n) => (
+        <text
+          key={n.v}
+          x={n.x}
+          y={n.y + FINE_NUMERAL_FONT / 2}
+          text-anchor="middle"
+          font-size={FINE_NUMERAL_FONT}
+          fill="#aab3bd"
+          pointer-events="none"
+        >
+          {formatReading(n.v)}
+        </text>
+      ))}
       <line
         x1={cx}
         y1={cy}
         x2={cx}
         y2={cy - r + 4}
         stroke={style.pointerFill}
-        stroke-width={2.5}
+        stroke-width={fine ? 1.5 : 2.5}
         stroke-linecap="round"
         transform={`rotate(${needleAngle.toFixed(2)} ${cx} ${cy})`}
         pointer-events="none"
       />
-      <circle cx={cx} cy={cy} r={4} fill="#3a424b" stroke="#aab3bd" pointer-events="none" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={fine ? 2.5 : 4}
+        fill="#3a424b"
+        stroke="#aab3bd"
+        pointer-events="none"
+      />
       <text
         x={cx}
         y={labelBaseline}

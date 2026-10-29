@@ -19,7 +19,13 @@ const ARC_CELL_H = 64;
 /** The arc centre lies this far below the top of its cell. */
 const ARC_CENTRE_DY = 26;
 
-const arc = (id: string, label: string, quantity: string, x: number): PageEntry => ({
+const arc = (
+  id: string,
+  label: string,
+  quantity: string,
+  x: number,
+  scaleLabels = false,
+): PageEntry => ({
   id,
   kind: 'arc',
   label,
@@ -28,6 +34,8 @@ const arc = (id: string, label: string, quantity: string, x: number): PageEntry 
   rect: { x, y: ARC_Y, w: STRIP_W / 2, h: ARC_CELL_H },
   centre: { x: x + STRIP_W / 4, y: ARC_Y + ARC_CENTRE_DY },
   radius: ARC_RADIUS,
+  fine: true,
+  scaleLabels,
 });
 
 const bar = (
@@ -50,7 +58,7 @@ const FLOW_Y = ARC_Y + ARC_CELL_H + 1;
 const BARS_Y = FLOW_Y + 13;
 
 export const MAP_STRIP: readonly PageEntry[] = [
-  arc('load', 'Load', 'load_pct', STRIP_X),
+  arc('load', 'Load', 'load_pct', STRIP_X, true),
   arc('rpm', 'RPM', 'rpm', STRIP_X + STRIP_W / 2),
   {
     id: 'fuel_flow',
