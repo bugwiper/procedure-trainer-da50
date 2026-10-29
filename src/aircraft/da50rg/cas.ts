@@ -50,8 +50,9 @@ export const DA50RG_CAS = defineCasRules(
     {
       id: 'stall_heat',
       text: 'STALL HEAT',
-      // The second message of the switch off. Never together with stall_heat_ground: switching the
-      // heat off resets the ground timer, so at most one STALL HEAT chip shows.
+      // The second message of the switch off. Never a second chip next to stall_heat_ground: a text
+      // shows once (RuleSet.active takes the first rule in table order), so the instant after the
+      // switch goes off, while the timer still sits in the cut band, still shows one STALL HEAT.
       level: 'caution',
       when: { check: 'state', control: 'sw.pitot_stall_heat', is: 'off' },
     },
@@ -59,8 +60,8 @@ export const DA50RG_CAS = defineCasRules(
       id: 'stall_heat_ground',
       text: 'STALL HEAT',
       // On the ground the stall heat cuts out a few seconds after it is on (physics.ts, H-02): the
-      // same message returns with the switch on. Band check on the hidden timer, no number. Exclusive
-      // with stall_heat (the switch off holds the timer at 0).
+      // same message returns with the switch on. Band check on the hidden timer, no number. It
+      // shares its text with stall_heat, so the two never show together (one chip, one tone).
       level: 'caution',
       when: { check: 'band', quantity: 'stall_heat_timer_s', in: ['cut'] },
     },

@@ -118,6 +118,23 @@ describe('active', () => {
     expect(withAdvisories.active(at(120), env).map((m) => m.id)).toEqual(['w1', 'c1', 'a1', 'a2']);
   });
 
+  it('shows a text once: of several rules with one text that hold, the first in display order stands (WR-04)', () => {
+    const shared = defineCasRules(
+      [
+        rule('c_first', { level: 'caution', text: 'SAME' }),
+        rule('c_second', { level: 'caution', text: 'SAME' }),
+        rule('w_late', { text: 'SAME' }),
+        rule('c_other', { level: 'caution', text: 'OTHER' }),
+      ],
+      env,
+    );
+    // The warning comes first in display order, so the warning rule stands for the text.
+    expect(shared.active(at(120), env)).toEqual([
+      { id: 'w_late', text: 'SAME', level: 'warning' },
+      { id: 'c_other', text: 'OTHER', level: 'caution' },
+    ]);
+  });
+
   it('returns id, text and level only', () => {
     expect(table.active(at(120), env)[0]).toEqual({ id: 'w1', text: 'W ONE', level: 'warning' });
   });
@@ -356,6 +373,24 @@ describe('PITOT HEAT and STALL HEAT cautions (Phase 6, plan 04, H-01)', () => {
       quantities: { ...ctx.quantities, oil_temp_c: 126, fuel_trans_active: 1 },
     };
     expect(ids(loaded)).toEqual(['eng_oil_temp', 'pitot_heat', 'stall_heat', 'fuel_trans']);
+  });
+
+  it('the rocker off while the timer still sits in the cut band shows one STALL HEAT (WR-04)', () => {
+    // The bridge mixes the live rocker with the quantities of the last step: for one step the rocker
+    // reads off and the timer is still cut. Both STALL HEAT rules hold, one chip shows.
+    const stale = withHeat(OFF, cutTop);
+    const messages = DA50RG_CAS.active(stale, DA50RG_ENV);
+    expect(messages.filter((m) => m.text === 'STALL HEAT')).toHaveLength(1);
+    expect(messages.map((m) => m.id)).toEqual(['pitot_heat', 'stall_heat']);
+  });
+
+  it('no two messages of the whole table ever share a text (any rocker state, any timer)', () => {
+    for (const state of [OFF, HEAT_DEF?.default ?? '']) {
+      for (const seconds of [NO_TIMER, warmTop, cutTop]) {
+        const texts = DA50RG_CAS.active(withHeat(state, seconds), DA50RG_ENV).map((m) => m.text);
+        expect(new Set(texts).size, `${state} ${String(seconds)}`).toBe(texts.length);
+      }
+    }
   });
 });
 

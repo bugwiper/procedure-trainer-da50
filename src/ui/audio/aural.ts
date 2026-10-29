@@ -17,7 +17,10 @@ export const WARNING_REPEAT_MAX = 5;
 
 /** What the rules remember between two looks at the run. */
 export interface AuralState {
-  /** Ids of the messages that were active at the last look. */
+  /**
+   * Texts of the messages that were active at the last look. The text is what the pilot reads: a
+   * message that passes from one rule to another with the same text is not new.
+   */
   readonly known: readonly string[];
   /** Run time in ms of the last warning tone; null while no warning is active. */
   readonly lastWarningAt: number | null;
@@ -34,13 +37,13 @@ export interface AuralStep {
 }
 
 /**
- * One look at the run: the active messages and the run time in ms. A message that was not active at
+ * One look at the run: the active messages and the run time in ms. A message text that was not active at
  * the last look is new. A new warning sounds the warning tone (and starts its repeat count), a new
  * caution the caution tone; a warning that stays active repeats every WARNING_REPEAT_MS, at most
  * WARNING_REPEAT_MAX times.
  */
 export function auralStep(state: AuralState, cas: readonly ActiveCas[], runMs: number): AuralStep {
-  const fresh = cas.filter((message) => !state.known.includes(message.id));
+  const fresh = cas.filter((message) => !state.known.includes(message.text));
   const warnings = cas.filter((message) => message.level === 'warning');
   const tones: ToneName[] = [];
   let lastWarningAt = state.lastWarningAt;
@@ -63,7 +66,7 @@ export function auralStep(state: AuralState, cas: readonly ActiveCas[], runMs: n
   }
   if (fresh.some((message) => message.level === 'caution')) tones.push('caution');
   return {
-    state: { known: cas.map((message) => message.id), lastWarningAt, repeats },
+    state: { known: cas.map((message) => message.text), lastWarningAt, repeats },
     tones,
   };
 }

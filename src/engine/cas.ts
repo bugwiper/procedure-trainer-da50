@@ -2,7 +2,8 @@
 // is data: an id, the message text, a level and a predicate of the scenario vocabulary over the
 // control states and the named quantities. `active` evaluates the rules for a context and returns
 // the messages in display order (warnings first, then cautions, then advisories, each in table
-// order). The aircraft
+// order), at most one per message text: two rules with the same text never show two chips, whatever
+// instant of the inputs they read. The aircraft
 // owns the table (src/aircraft/da50rg/cas.ts); nothing here knows a message or a threshold.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
@@ -43,7 +44,11 @@ export interface CasRuleSet {
   get(id: string): CasRule | undefined;
   /** Ids of the controls the rules read, so a caller can supply exactly those states. */
   readonly controlsRead: readonly string[];
-  /** The messages whose rule holds, warnings first, then cautions, then advisories, each in table order. */
+  /**
+   * The messages whose rule holds, warnings first, then cautions, then advisories, each in table
+   * order. A text shows once: when several rules with the same text hold, the first in display
+   * order stands for all of them.
+   */
   active(ctx: PredicateContext, env: CasEnv): ActiveCas[];
 }
 
@@ -86,8 +91,14 @@ export function defineCasRules(specs: readonly CasRuleSpec[], env: CasEnv): CasR
     controlsRead: Object.freeze([...reads]),
     active(ctx: PredicateContext, activeEnv: CasEnv): ActiveCas[] {
       const holds = (rule: CasRule): boolean => evaluatePredicate(rule.when, ctx, activeEnv);
+      const shown = new Set<string>();
       return CAS_LEVELS.flatMap(ordered)
         .filter(holds)
+        .filter(({ text }) => {
+          if (shown.has(text)) return false;
+          shown.add(text);
+          return true;
+        })
         .map(({ id, text, level }) => ({ id, text, level }));
     },
   });
