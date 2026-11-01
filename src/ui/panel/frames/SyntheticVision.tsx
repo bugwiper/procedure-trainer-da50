@@ -1,7 +1,7 @@
 import type { JSX } from 'preact';
 import { DEFAULT_SCENE } from '../../../aircraft/da50rg/scenes';
 import type { SceneId } from '../../../aircraft/da50rg/scenes';
-import { SCENE_GRADIENTS, isSceneId } from '../windscreen/scenes';
+import { FIELD_COLOURS, SCENE_GRADIENTS, isSceneId } from '../windscreen/scenes';
 import type { GradientColours, SceneGradientId } from '../windscreen/scenes';
 
 // Synthetic vision (Phase 6.1, PNL-26, D-07, D-08): the simplified outside view of the situation's
@@ -15,8 +15,8 @@ import type { GradientColours, SceneGradientId } from '../windscreen/scenes';
 export interface SvtStyle {
   readonly sky: SceneGradientId;
   readonly ground: SceneGradientId;
-  /** The art on the ground: the take-off runway, or nothing yet. */
-  readonly art: 'none' | 'runway';
+  /** The art on the ground: perspective field patches, the apron with its taxi line, or the runway. */
+  readonly art: 'fields' | 'apron' | 'runway';
 }
 
 /**
@@ -25,26 +25,46 @@ export interface SvtStyle {
  * terrain as cruise.
  */
 export const SVT_STYLES: Readonly<Record<SceneId, SvtStyle>> = {
-  parked: { sky: 'w-sky-parked', ground: 'w-apron', art: 'none' },
+  parked: { sky: 'w-sky-parked', ground: 'w-apron', art: 'apron' },
   takeoff_roll: { sky: 'w-sky-roll', ground: 'w-grass', art: 'runway' },
-  cruise: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'none' },
-  cloud: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'none' },
+  cruise: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'fields' },
+  cloud: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'fields' },
 };
 
 /** Height over which the sky colours run from the top colour to the horizon colour. */
 const SKY_SPAN = 200;
 /** Depth below the horizon over which the ground colours run. */
 const GROUND_SPAN = 260;
-/** The haze on the horizon: a thin light band that softens the line. */
-const HAZE = { above: 5, height: 26, colour: '#dcebf6', opacity: 0.35 } as const;
+/**
+ * The haze on the horizon: a thin light band that softens the line. A vertical gradient of one
+ * colour that is clear at both edges and strongest just under the horizon, so no edge shows.
+ */
+const HAZE = { above: 8, height: 40, colour: '#dcebf6', opacity: 0.5, peak: 0.2 } as const;
 
 const WHITE_PAINT = '#f1f1ea';
+const TAXI_YELLOW = '#e6c229';
 
 /** Half width of the runway at the bottom of the view (`reach` below the horizon). */
 const RUNWAY_HALF = 420;
 /** Half width of the white edge lines' outer and inner edge at the bottom of the view. */
 const EDGE_OUTER = 414;
 const EDGE_INNER = 396;
+/** Half width of a centre dash at the bottom of the view. */
+const DASH_HALF = 12;
+/** Depths of the dash row boundaries (1 at the bottom of the view, growing towards the horizon); a dash lies between boundary 2k and 2k + 1. */
+const DASH_DEPTHS = [1, 1.25, 1.6, 2, 2.5, 3.2, 4, 5, 6.5, 8.5, 11] as const;
+
+/** Bottom-of-view offsets from the vanishing point of the field lines, left to right. */
+const FIELD_LINES = [-3000, -1500, -950, -560, -260, 0, 260, 560, 950, 1500, 3000] as const;
+/** Depths of the field rows (1 at the bottom of the view). */
+const FIELD_ROWS = [1, 1.5, 2.2, 3.4, 5.5, 10, 22] as const;
+/** Opacity of the nearest field row (the windscreen value) and its loss per row towards the horizon. */
+const FIELD_OPACITY = 0.9;
+const FIELD_OPACITY_STEP = 0.08;
+/** Depths of the seams across the apron, and their half thickness in units. */
+const APRON_SEAMS = [1.7, 3.2] as const;
+/** Bottom-of-view offsets of the yellow taxi line (a wedge to the vanishing point). */
+const TAXI_LINE = { from: -130, to: -80 } as const;
 
 const pt = (x: number, y: number): string => `${x.toFixed(2)},${y.toFixed(2)}`;
 
@@ -93,6 +113,20 @@ function strip(
 
 function Runway({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
   const bottom = cy + reach;
+  // The static dashed centre line: dashes are trapezoids that shrink with the depth.
+  const dashes: JSX.Element[] = [];
+  for (let k = 0; k + 1 < DASH_DEPTHS.length; k += 2) {
+    const near = rowOffset(reach, DASH_DEPTHS[k] ?? 1);
+    const far = rowOffset(reach, DASH_DEPTHS[k + 1] ?? 1);
+    dashes.push(
+      <polygon
+        key={k}
+        data-svt-dash
+        points={strip(cx, cy, reach, -DASH_HALF, DASH_HALF, near, far)}
+        fill={WHITE_PAINT}
+      />,
+    );
+  }
   const edge = (side: -1 | 1): JSX.Element => (
     <polygon
       key={side}
@@ -109,6 +143,60 @@ function Runway({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
       />
       {edge(-1)}
       {edge(1)}
+      {dashes}
+    </g>
+  );
+}
+
+/** Row offset below the horizon of depth `d` (1 at the bottom of the view). */
+const rowOffset = (reach: number, d: number): number => reach / d;
+
+/**
+ * The fields of the cruise view: patches between rows and lines that converge on the vanishing
+ * point, in the field colours of the windscreen. A diagonal third of the patches stays the ground.
+ */
+function Fields({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
+  const out: JSX.Element[] = [];
+  for (let r = 0; r + 1 < FIELD_ROWS.length; r += 1) {
+    const near = rowOffset(reach, FIELD_ROWS[r] ?? 1);
+    const far = rowOffset(reach, FIELD_ROWS[r + 1] ?? 1);
+    for (let j = 0; j + 1 < FIELD_LINES.length; j += 1) {
+      if ((r * 2 + j) % 3 === 0) continue;
+      out.push(
+        <polygon
+          key={`${String(r)}-${String(j)}`}
+          points={strip(cx, cy, reach, FIELD_LINES[j] ?? 0, FIELD_LINES[j + 1] ?? 0, near, far)}
+          fill={FIELD_COLOURS[(r * 7 + j * 3) % FIELD_COLOURS.length]}
+          fill-opacity={FIELD_OPACITY - r * FIELD_OPACITY_STEP}
+        />,
+      );
+    }
+  }
+  return <g data-svt-art="fields">{out}</g>;
+}
+
+/** The apron: two seams across it and the yellow taxi line as a wedge to the vanishing point. */
+function Apron({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
+  const edge = FIELD_LINES[0] ?? 0;
+  const far = FIELD_LINES[FIELD_LINES.length - 1] ?? 0;
+  return (
+    <g data-svt-art="apron">
+      {APRON_SEAMS.map((d) => {
+        const y = rowOffset(reach, d);
+        return (
+          <polygon
+            key={d}
+            points={strip(cx, cy, reach, edge, far, y + 2, y)}
+            fill="#6d7276"
+            fill-opacity={0.5}
+          />
+        );
+      })}
+      <polygon
+        data-svt-taxi
+        points={strip(cx, cy, reach, TAXI_LINE.from, TAXI_LINE.to, reach, 4)}
+        fill={TAXI_YELLOW}
+      />
     </g>
   );
 }
@@ -142,6 +230,18 @@ export function SyntheticVision({
           y2={cy + GROUND_SPAN}
           colours={SCENE_GRADIENTS[style.ground]}
         />
+        <linearGradient
+          id="pfd-svt-haze"
+          gradientUnits="userSpaceOnUse"
+          x1="0"
+          y1={cy - HAZE.above}
+          x2="0"
+          y2={cy - HAZE.above + HAZE.height}
+        >
+          <stop offset="0" stop-color={HAZE.colour} stop-opacity={0} />
+          <stop offset={HAZE.peak} stop-color={HAZE.colour} stop-opacity={HAZE.opacity} />
+          <stop offset="1" stop-color={HAZE.colour} stop-opacity={0} />
+        </linearGradient>
         {style.art === 'runway' ? (
           <Gradient
             id="pfd-svt-runway"
@@ -160,14 +260,15 @@ export function SyntheticVision({
       />
       <rect x={cx - reach} y={cy} width={2 * reach} height={reach} fill="url(#pfd-svt-ground)" />
       {style.art === 'runway' ? <Runway cx={cx} cy={cy} reach={reach} /> : null}
+      {style.art === 'fields' ? <Fields cx={cx} cy={cy} reach={reach} /> : null}
+      {style.art === 'apron' ? <Apron cx={cx} cy={cy} reach={reach} /> : null}
       <rect
         data-svt-haze
         x={cx - reach}
         y={cy - HAZE.above}
         width={2 * reach}
         height={HAZE.height}
-        fill={HAZE.colour}
-        fill-opacity={HAZE.opacity}
+        fill="url(#pfd-svt-haze)"
       />
     </g>
   );

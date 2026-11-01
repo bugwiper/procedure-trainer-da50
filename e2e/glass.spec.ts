@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { MFD_ENGINE_LEGENDS, MFD_MAP_LEGENDS, PFD_LEGENDS } from '../src/aircraft/da50rg/avionics';
+import {
+  BANK_SCALE_MAX_DEG,
+  MFD_ENGINE_LEGENDS,
+  MFD_MAP_LEGENDS,
+  PFD_LEGENDS,
+  PITCH_LADDER_MAX_DEG,
+} from '../src/aircraft/da50rg/avionics';
+import { SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { messagesQuery } from './support/cas-messages';
 
 // Mirror of the read-only window hook of the e2e build (src/ui/bridge.ts). Declared here because
@@ -331,6 +338,31 @@ test.describe('glass zones', () => {
     await expect(chips).toHaveCount(6);
     await expect(page.locator('[data-region-id="pfd"] [data-cas-id]')).toHaveCount(6);
     expect(zoneFailures(await readZones(page, 'pfd'))).toEqual([]);
+  });
+
+  test('the synthetic vision of every scene stays in the content zone at the limits of pitch and bank (Phase 6.1)', async ({
+    page,
+  }) => {
+    // The view is drawn far larger than the zone and clipped; at the largest pitch and bank no
+    // painted element may leave the zone (the clip is the nearest clipped ancestor of the view).
+    for (const scene of SCENE_IDS) {
+      await page.goto(
+        `./?scene=${scene}&q=pitch_deg:${String(PITCH_LADDER_MAX_DEG)},bank_deg:${String(BANK_SCALE_MAX_DEG)}`,
+      );
+      await expect(page.getByTestId('panel')).toBeVisible();
+      await expect(page.locator('[data-region-id="pfd"] [data-svt]')).toHaveAttribute(
+        'data-svt-scene',
+        scene,
+      );
+      const items = await readZones(page, 'pfd');
+      expect(items.filter((i) => i.zone === 'content').length, scene).toBeGreaterThan(20);
+      expect(zoneFailures(items), scene).toEqual([]);
+      await page.goto(
+        `./?scene=${scene}&q=pitch_deg:${String(-PITCH_LADDER_MAX_DEG)},bank_deg:${String(-BANK_SCALE_MAX_DEG)}`,
+      );
+      await expect(page.getByTestId('panel')).toBeVisible();
+      expect(zoneFailures(await readZones(page, 'pfd')), `${scene} negative`).toEqual([]);
+    }
   });
 
   test('every painted element of the MFD lies in its zone on both pages', async ({ page }) => {

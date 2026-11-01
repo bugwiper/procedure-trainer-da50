@@ -180,3 +180,82 @@ describe('the PFD stays free of a deviation bar and of a map (D-02)', () => {
     expect(frames[0]?.children).toEqual([]);
   });
 });
+
+// The art of the scenes (plan 02, task 3).
+
+/**
+ * The most shapes one scene may draw: the phones redraw the PFD on every 100 ms simulation step
+ * (T-06.1-04), so the view stays flat paint with a small element count.
+ */
+const MAX_SHAPES_PER_SCENE = 60;
+const SHAPE_TAGS = ['rect', 'polygon', 'path', 'line', 'ellipse', 'circle', 'polyline'];
+
+describe('the art of the four scenes', () => {
+  const shapes = (scene: string): El[] =>
+    findElements(draw(scene), (e) => SHAPE_TAGS.includes(e.tag));
+
+  it.each(SCENE_IDS)('%s: stays under the element cap', (scene) => {
+    expect(shapes(scene).length).toBeGreaterThan(3);
+    expect(shapes(scene).length).toBeLessThanOrEqual(MAX_SHAPES_PER_SCENE);
+  });
+
+  it.each(SCENE_IDS)('%s: draws no filter, mask, clip, image or animation', (scene) => {
+    const banned = ['filter', 'mask', 'clipPath', 'image', 'animate', 'animateTransform', 'use'];
+    expect(findElements(draw(scene), (e) => banned.includes(e.tag))).toEqual([]);
+  });
+
+  it('cruise and cloud draw field patches with a third of the patches left out', () => {
+    for (const scene of ['cruise', 'cloud'] as const) {
+      const fields = findElements(draw(scene), (e) => e.props['data-svt-art'] === 'fields')[0];
+      const patches = findElements(fields as El, (e) => e.tag === 'polygon').length;
+      expect(patches, scene).toBeGreaterThan(15);
+      // The record has 6 row bands of 10 line bands: 60 cells, a diagonal third left out.
+      expect(patches, scene).toBeLessThan(60);
+      expect(patches, scene).toBeGreaterThan(60 / 2);
+    }
+  });
+
+  it('parked draws the apron seams and one yellow taxi wedge', () => {
+    const tree = draw('parked');
+    expect(findElements(tree, (e) => e.props['data-svt-art'] === 'apron')).toHaveLength(1);
+    const taxi = findElements(tree, (e) => 'data-svt-taxi' in e.props);
+    expect(taxi).toHaveLength(1);
+    expect(String(taxi[0]?.props['fill']).toLowerCase()).toMatch(/^#e/);
+  });
+
+  it('the take-off roll draws the runway, two white edge lines and a dashed centre line', () => {
+    const tree = draw('takeoff_roll');
+    expect(findElements(tree, (e) => 'data-svt-edge' in e.props)).toHaveLength(2);
+    const dashes = findElements(tree, (e) => 'data-svt-dash' in e.props);
+    expect(dashes.length).toBeGreaterThanOrEqual(3);
+    // Every dash is a trapezoid of four points and the dashes shrink with the depth (higher up).
+    const widthOf = (el: El): number => {
+      const xs = String(el.props['points'])
+        .split(' ')
+        .map((p) => Number(p.split(',')[0]));
+      return Math.max(...xs) - Math.min(...xs);
+    };
+    for (const dash of dashes) expect(String(dash.props['points']).split(' ')).toHaveLength(4);
+    for (let i = 1; i < dashes.length; i += 1) {
+      expect(widthOf(dashes[i] as El)).toBeLessThan(widthOf(dashes[i - 1] as El));
+    }
+  });
+
+  it('every scene keeps the haze band at the horizon', () => {
+    for (const scene of SCENE_IDS) {
+      expect(
+        findElements(draw(scene), (e) => 'data-svt-haze' in e.props),
+        scene,
+      ).toHaveLength(1);
+    }
+  });
+
+  it('reaches past the zone: the sky and ground rectangles span 2 x reach about the centre', () => {
+    const tree = draw('cruise');
+    const rects = findElements(tree, (e) => e.tag === 'rect');
+    for (const rect of rects) {
+      expect(Number(rect.props['x'])).toBe(ATTITUDE.cx - ATTITUDE.reach);
+      expect(Number(rect.props['width'])).toBe(2 * ATTITUDE.reach);
+    }
+  });
+});

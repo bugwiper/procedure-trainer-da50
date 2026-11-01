@@ -228,7 +228,16 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
           >
             {String(airspeedReadout(airspeed))}
           </text>
-          <text x={KT_LABEL.x} y={KT_LABEL.y} text-anchor="middle" font-size={8} fill={LABEL}>
+          <text
+            x={KT_LABEL.x}
+            y={KT_LABEL.y}
+            text-anchor="middle"
+            font-size={8}
+            fill={LABEL}
+            stroke={TAPE_FILL}
+            stroke-width={2}
+            paint-order="stroke"
+          >
             KT
           </text>
         </g>
@@ -274,7 +283,16 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
           >
             {String(altitudeReadout(altitude))}
           </text>
-          <text x={FT_LABEL.x} y={FT_LABEL.y} text-anchor="middle" font-size={8} fill={LABEL}>
+          <text
+            x={FT_LABEL.x}
+            y={FT_LABEL.y}
+            text-anchor="middle"
+            font-size={8}
+            fill={LABEL}
+            stroke={TAPE_FILL}
+            stroke-width={2}
+            paint-order="stroke"
+          >
             FT
           </text>
         </g>
