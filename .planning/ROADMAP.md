@@ -549,10 +549,21 @@ Plans:
 **Goal:** The PFD looks and reads like the real one (owner finding 2026-11-01): the simplified outside view of the windscreen is the synthetic vision under the whole PFD and follows pitch and bank; the speed and altitude tapes lie translucent over it; a narrow vertical speed scale with a black pointer stands right of the altitude tape (replacing the VS box); the barometer setting under the altitude tape reads in hPa; the CAS messages stack vertically in one column, about half as wide and much finer, joined without gaps and growing upward with each further message (most severe on top); the compass stays a simple rose, without map and without lateral deviation bar. Message texts stay unchanged.
 **Requirements**: TBD
 **Depends on:** Phase 6
-**Plans:** 0 plans
+**Plans:** 3 plans (lean form, see WORKFLOW.md); decisions in 06.1-CONTEXT.md
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 06.1 to break down)
+
+**Wave 1**
+
+- [ ] 06.1-01 — Tracer: the CAS messages as one stacked column at the lower right (rows joined without a gap, about half as wide and much finer, bottom edge fixed, growing upward, warning on top then caution then advisory, texts unchanged); the PFD layout as data with an independent reference table; the altitude block moves left to make room
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 06.1-02 — Tracer: synthetic vision under the whole PFD from the situation's windscreen scene (sky, terrain, apron, runway) that follows pitch and bank; translucent speed and altitude tapes; the compass with a translucent backing, no map and no deviation bar
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 06.1-03 — Tracer: the narrow vertical speed scale with a black pointer in place of the VS box; QNH in hPa in turquoise under the altitude tape (static display quantity); the phase-end documents, requirements PNL-25 to PNL-27 and the final gates
 
 ### Phase 7: Training Mode, Further Actions and Repeat Loop
 
