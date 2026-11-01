@@ -1,10 +1,10 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 6.1
-current_phase_name: PFD fidelity
+current_phase: 7
+current_phase_name: Training Mode, Further Actions and Repeat Loop
 current_plan: Not started
 status: planning
-stopped_at: Phase 6 complete, ready to plan Phase 6.1
+stopped_at: Phase 6.1 complete, ready to plan Phase 7
 last_updated: "2026-10-28T09:53:58.841Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 5.1 complete, transitioned to Phase 6
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 Phase: 6 — Fuel, tank and engine fidelity and the engine page
 Current Plan: 06-04 complete (plans 06-01 to 06-04 executed)
 Total Plans in Phase: 4
-Status: Phase 6 complete (owner walk-through passed 2026-10-31, code review warnings fixed, map strip reworked to the real display), ready to plan Phase 6.1
+Status: Phase 6.1 complete (owner review 2026-11-01, PFD narrowed and symmetric, code review warning fixed, deployed), ready to plan Phase 7
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
 Last activity: 2026-11-01 — Phase 6 complete (walk-through passed; MFD map strip follows the real display; low red bands on the temperature bars)
 

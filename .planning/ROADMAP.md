@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Windscreen and failure cues** - A windscreen area above the panel with scenes (parked, takeoff roll, cruise) and cues driven by the simulation: engine fire flames and smoke, cabin smoke, windscreen ice with warm air and TKS spray; the onset cue declared in scenario data and checked by lint (completed 2026-10-27)
 - [x] **Phase 5.1: Ground and takeoff emergencies** (INSERTED) - Rudder pedals with service brakes, ground speed on the takeoff roll, the transponder in the co-pilot footwell, the oval emergency window, and the scenarios engine fire on ground, on takeoff (abort and no abort), electrical fire on ground and in flight, unintentional flight into icing (completed 2026-10-28)
 - [x] **Phase 6: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim, the real engine page layout and a live PFD (completed 2026-11-01)
-- [ ] **Phase 6.1: PFD fidelity** (INSERTED) - Synthetic vision under the whole PFD, translucent tapes, vertical speed scale, QNH in hPa, vertically stacked fine CAS messages, simple compass rose
+- [x] **Phase 6.1: PFD fidelity** (INSERTED) - Synthetic vision under the whole PFD, translucent tapes, vertical speed scale, QNH in hPa, vertically stacked fine CAS messages, simple compass rose (completed 2026-11-01)
 - [ ] **Phase 7: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
 - [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop
 
@@ -611,6 +611,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 5. Windscreen and failure cues                        | 3/3 | Complete    | 2026-10-27 |
 | 5.1 Ground and takeoff emergencies                    | 4/3 | Complete    | 2026-10-28 |
 | 6. Fuel, tank and engine fidelity and the engine page | 4/4            | Executed, awaiting UAT | 2026-10-29 |
-| 6.1. PFD fidelity                                     | 3/3            | Executed, awaiting UAT | 2026-11-01 |
+| 6.1. PFD fidelity                                     | 3/3            | Complete    | 2026-11-01 |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |
