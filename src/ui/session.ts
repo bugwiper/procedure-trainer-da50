@@ -421,6 +421,7 @@ export function createSession(deps: SessionDeps): Session {
   let lastRequest:
     | { readonly kind: 'random' }
     | { readonly kind: 'list' }
+    | { readonly kind: 'next' }
     | { readonly kind: 'chosen'; readonly ref: ScenarioRef; readonly key: string }
     | null = null;
   const clock = signal<VirtualClock | null>(null);
@@ -493,6 +494,34 @@ export function createSession(deps: SessionDeps): Session {
       ...(variant.peek() === null ? {} : { variant: variant.peek() }),
       ...(decisions.peek().length === 0 ? {} : { decisions: decisions.peek() }),
     };
+  };
+
+  /** Debrief only, not busy: the next scenario of the list opens its briefing (D-14). */
+  const runNext = async (): Promise<void> => {
+    if (screen.peek() !== 'debrief' || busy.peek()) return;
+    const here = openedRef;
+    await loading('session.next', async () => {
+      const listed = await listChoices();
+      if (!listed.ok) {
+        loadFailure.value = listed;
+        // The error card's retry repeats this entry (IN-04).
+        lastRequest = { kind: 'next' };
+        return;
+      }
+      const entries = listed.choices;
+      const at = entries.findIndex(
+        (entry) => here !== null && entry.pack === here.pack && entry.scenario === here.scenario,
+      );
+      const target = entries[(at + 1) % entries.length];
+      if (target === undefined) {
+        empty.value = true;
+        return;
+      }
+      const ref = { pack: target.pack, scenario: target.scenario };
+      await openBriefing(ref, true);
+      // A failure to load leaves the free panel with the message; Retry repeats this entry.
+      if (loadFailure.peek() !== null) lastRequest = { kind: 'chosen', ref, key: 'session.next' };
+    });
   };
 
   /** True before the failure of a Realistic run has begun: nothing may be decided about it yet. */
@@ -849,6 +878,7 @@ export function createSession(deps: SessionDeps): Session {
       }
       if (request.kind === 'random') await runRandom();
       else if (request.kind === 'list') await runList();
+      else if (request.kind === 'next') await runNext();
       else await runChosen(request.ref, request.key);
     },
     dismissFailure,
@@ -923,7 +953,8 @@ export function createSession(deps: SessionDeps): Session {
     },
     complete: completeRun,
     closeDebrief() {
-      if (screen.peek() !== 'debrief') return;
+      // A next-situation load in flight would open a briefing the pilot had left (IN-04).
+      if (screen.peek() !== 'debrief' || busy.peek()) return;
       endRun();
       hint.value = null;
       checklistShown.value = false;
@@ -964,29 +995,6 @@ export function createSession(deps: SessionDeps): Session {
         );
       }
     },
-    async nextSituation() {
-      if (screen.peek() !== 'debrief' || busy.peek()) return;
-      const here = openedRef;
-      await loading('session.next', async () => {
-        const listed = await listChoices();
-        if (!listed.ok) {
-          loadFailure.value = listed;
-          return;
-        }
-        const entries = listed.choices;
-        const at = entries.findIndex(
-          (entry) => here !== null && entry.pack === here.pack && entry.scenario === here.scenario,
-        );
-        const target = entries[(at + 1) % entries.length];
-        if (target === undefined) {
-          empty.value = true;
-          return;
-        }
-        const ref = { pack: target.pack, scenario: target.scenario };
-        await openBriefing(ref, true);
-        // A failure to load leaves the free panel with the message; Retry repeats this entry.
-        if (loadFailure.peek() !== null) lastRequest = { kind: 'chosen', ref, key: 'session.next' };
-      });
-    },
+    nextSituation: runNext,
   };
 }

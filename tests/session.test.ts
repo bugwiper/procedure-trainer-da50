@@ -70,6 +70,8 @@ interface Rig {
   readonly onRunStart: ReturnType<typeof vi.fn>;
   /** Names of the scenario files the provider loaded, in call order. */
   readonly loads: string[];
+  /** Breaks (true) or repairs (false) the pack manifest, so the next list load fails or works. */
+  setListBroken(broken: boolean): void;
 }
 
 function rig(
@@ -95,10 +97,13 @@ function rig(
         : Promise.resolve(text);
     };
   }
+  let listBroken = options.listFails === true;
   const provider = createPackProvider({
     manifests: {
-      '/scenarios/engine/pack.toon':
-        options.listFails === true ? 'format: 1\nbogus: 1' : (options.manifest ?? MANIFEST_ONE),
+      // Read at call time, so a test can break the list after the first load.
+      get '/scenarios/engine/pack.toon'(): string {
+        return listBroken ? 'format: 1\nbogus: 1' : (options.manifest ?? MANIFEST_ONE);
+      },
     },
     loaders,
   });
@@ -112,7 +117,15 @@ function rig(
     onRunStart,
     ...(options.freeScene === undefined ? {} : { freeScene: options.freeScene }),
   });
-  return { session, bridge, onRunStart, loads };
+  return {
+    session,
+    bridge,
+    onRunStart,
+    loads,
+    setListBroken: (broken: boolean) => {
+      listBroken = broken;
+    },
+  };
 }
 
 /** A started run on the blueprint: NEW SITUATION, then Start run. */
@@ -2530,6 +2543,33 @@ scenarios[1]:
       d.session.retry();
       expect(d.onRunStart.mock.calls.length).toBe(starts);
       await pending;
+    });
+
+    it('Back to panel is ignored while the next situation loads (IN-04)', async () => {
+      const r = rig({ files: THREE, manifest: MANIFEST_THREE });
+      await debriefOf(r, 'exam', 'easy');
+      const pending = r.session.nextSituation();
+      expect(r.session.busy.value).toBe(true);
+      r.session.closeDebrief();
+      expect(r.session.screen.value).toBe('debrief');
+      await pending;
+      expect(r.session.screen.value).toBe('briefing');
+      expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-copy');
+    });
+
+    it('a failed list load of Next situation keeps a request, so retry repeats it (IN-04)', async () => {
+      const r = rig({ files: THREE, manifest: MANIFEST_THREE });
+      await debriefOf(r, 'exam', 'easy');
+      r.setListBroken(true);
+      await r.session.nextSituation();
+      expect(r.session.loadFailure.value).not.toBeNull();
+      expect(r.session.screen.value).toBe('debrief');
+      // The retry of the card runs the list again instead of only dismissing the card.
+      r.setListBroken(false);
+      await r.session.retryLoad();
+      expect(r.session.loadFailure.value).toBeNull();
+      expect(r.session.screen.value).toBe('briefing');
+      expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-copy');
     });
 
     it('keeps an illegal baseline as a load failure, like a normal start', async () => {
