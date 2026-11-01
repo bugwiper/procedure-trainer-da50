@@ -332,3 +332,15 @@ describe('the attitude art', () => {
     expect(findElements(head ?? tree, (e) => e.tag === 'text').map(textOf)).toEqual(['360', 'HDG']);
   });
 });
+
+describe('vertical speed numerals stay inside the strip (review WR-01)', () => {
+  it('every numeral glyph box lies within the strip', async () => {
+    const { VS_NUMERAL_FPM, VS_STRIP, vsNumeralBaseline } =
+      await import('../src/aircraft/da50rg/pfd-layout');
+    for (const fpm of [...VS_NUMERAL_FPM, ...VS_NUMERAL_FPM.map((v) => 0 - v)]) {
+      const base = vsNumeralBaseline(fpm);
+      expect(base).toBeLessThanOrEqual(VS_STRIP.y + VS_STRIP.height);
+      expect(base - VS_STRIP.numeralSize * 0.72).toBeGreaterThanOrEqual(VS_STRIP.y);
+    }
+  });
+});

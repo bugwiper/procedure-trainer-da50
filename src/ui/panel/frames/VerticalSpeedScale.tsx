@@ -8,6 +8,7 @@ import {
   VS_STRIP,
   VS_TICK_STEP_FPM,
   verticalSpeedPointerPx,
+  vsNumeralBaseline,
   verticalSpeedReadout,
 } from '../../../aircraft/da50rg/pfd-layout';
 
@@ -84,7 +85,7 @@ export function VerticalSpeedScale({ verticalSpeed }: { verticalSpeed: number | 
           key={numeral.fpm}
           data-vs-numeral
           x={VS_STRIP.numeralX}
-          y={yOf(numeral.fpm) + VS_STRIP.numeralSize / 3}
+          y={vsNumeralBaseline(numeral.fpm)}
           font-size={VS_STRIP.numeralSize}
           fill={LABEL}
         >

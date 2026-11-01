@@ -217,6 +217,20 @@ export const VS_BOX = {
   textBaseline: 2.5,
 } as const;
 
+/**
+ * The baseline of the numeral at a value: centred on its tick, but pulled inside the strip so the
+ * end numerals (plus and minus 3000) do not stand half outside it. A glyph is about 0.72 of its
+ * size high and sits above the baseline.
+ */
+export function vsNumeralBaseline(fpm: number): number {
+  const centred =
+    ATTITUDE.cy - (fpm / VS_SCALE_MAX_FPM) * VS_HALF_HEIGHT + VS_STRIP.numeralSize / 3;
+  const lowest = VS_STRIP.y + VS_STRIP.height - 1;
+  const highest = VS_STRIP.y + VS_STRIP.numeralSize * 0.72 + 1;
+  if (centred > lowest) return lowest;
+  return centred < highest ? highest : centred;
+}
+
 /** The reading in fpm clamped to the scale; a missing or non-finite reading is the quantity base. */
 function clampedFpm(value: number | undefined): number {
   const reading = readingOr(value, PFD_VERTICAL_SPEED_QUANTITY);
