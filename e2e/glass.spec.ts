@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { MFD_ENGINE_LEGENDS, MFD_MAP_LEGENDS, PFD_LEGENDS } from '../src/aircraft/da50rg/avionics';
+import { messagesQuery } from './support/cas-messages';
 
 // Mirror of the read-only window hook of the e2e build (src/ui/bridge.ts). Declared here because
 // the e2e project has no DOM lib.
@@ -313,6 +314,23 @@ test.describe('glass zones', () => {
     expect(items.filter((i) => i.zone === 'legend').length).toBeGreaterThan(20);
     expect(items.filter((i) => i.zone === 'screen')).toHaveLength(1);
     expect(zoneFailures(items)).toEqual([]);
+  });
+
+  test('every painted element of the PFD lies in its zone with six CAS messages (Phase 6.1)', async ({
+    page,
+  }) => {
+    // Six messages, the most the column draws: no ALTN 2 FAIL, a seventh would not be drawn.
+    await page.goto(`./?q=${messagesQuery()}`);
+    await expect(page.getByTestId('panel')).toBeVisible();
+    await page.locator('[data-hit="sw.pitot_stall_heat"]').click();
+    await expect(page.locator('[data-control-id="sw.pitot_stall_heat"]')).toHaveAttribute(
+      'data-state',
+      'off',
+    );
+    const chips = page.locator('[data-region-id="pfd"] [data-glass-zone="content"] [data-cas-id]');
+    await expect(chips).toHaveCount(6);
+    await expect(page.locator('[data-region-id="pfd"] [data-cas-id]')).toHaveCount(6);
+    expect(zoneFailures(await readZones(page, 'pfd'))).toEqual([]);
   });
 
   test('every painted element of the MFD lies in its zone on both pages', async ({ page }) => {

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { DA50RG_CAS } from '../src/aircraft/da50rg/cas';
+import { advisoryQuery, messagesQuery, warningQuery } from './support/cas-messages';
 import { activate } from './support/zoom';
 
 // The CAS column on the PFD (Phase 6.1, plan 01; PNL-25): the messages stand as black rows joined
@@ -56,4 +57,95 @@ test('two cautions stack as thin touching rows, PITOT HEAT above STALL HEAT', as
   await expect(chips(page).nth(1)).toHaveAttribute('data-cas-id', 'stall_heat');
   await expect(chips(page).nth(0)).toContainText(text('pitot_heat'));
   await expect(chips(page).nth(1)).toContainText(text('stall_heat'));
+});
+
+/** Open the free panel with a preview query and, when asked, turn the PITOT/STALL HEAT rocker off. */
+async function open(page: Page, query: string, heatOff: boolean, hasTouch: boolean): Promise<void> {
+  await page.goto(query === '' ? './' : `./?q=${query}`);
+  await expect(page.getByTestId('panel')).toBeVisible();
+  const dismiss = page.getByTestId('rotate-hint-dismiss');
+  if (await dismiss.isVisible()) await dismiss.click();
+  await expect(page.getByTestId('rotate-hint')).toBeHidden();
+  if (heatOff) {
+    await activate(page.locator(`[data-hit="${HEAT}"]`), hasTouch);
+    await expect(page.locator(`[data-control-id="${HEAT}"]`)).toHaveAttribute('data-state', 'off');
+  }
+}
+
+/** Top y, bottom y and row count of the drawn column. */
+async function extent(page: Page): Promise<{ top: number; bottom: number; count: number }> {
+  const count = await chips(page).count();
+  const first = await rowOf(chips(page).nth(0));
+  const last = await rowOf(chips(page).nth(count - 1));
+  return { top: first.y, bottom: last.y + last.h, count };
+}
+
+test('a warning, two cautions and an advisory show in that order from the top', async ({
+  page,
+  hasTouch,
+}) => {
+  await open(page, `${warningQuery()},${advisoryQuery()}`, true, hasTouch);
+  await expect(chips(page)).toHaveCount(4);
+  const levels = await chips(page).evaluateAll((nodes) =>
+    nodes.map((n) => n.getAttribute('data-level')),
+  );
+  expect(levels).toEqual(['warning', 'caution', 'caution', 'advisory']);
+  const ids = await chips(page).evaluateAll((nodes) =>
+    nodes.map((n) => n.getAttribute('data-cas-id')),
+  );
+  expect(ids).toEqual(['eng_oil_temp', 'pitot_heat', 'stall_heat', 'fuel_trans']);
+  // The drawn order is the vertical order: each row lies below the one before it.
+  const ys: number[] = [];
+  for (let i = 0; i < 4; i += 1) ys.push((await rowOf(chips(page).nth(i))).y);
+  expect([...ys].sort((a, b) => a - b)).toEqual(ys);
+});
+
+test('the bottom edge stays put while the top edge rises by one row per message', async ({
+  page,
+  hasTouch,
+}) => {
+  const small = await (async () => {
+    await open(page, warningQuery(), false, hasTouch);
+    await expect(chips(page)).toHaveCount(1);
+    return extent(page);
+  })();
+  await open(page, advisoryQuery(), true, hasTouch);
+  await expect(chips(page)).toHaveCount(3);
+  const three = await extent(page);
+  await open(page, `${warningQuery()},${advisoryQuery()}`, true, hasTouch);
+  await expect(chips(page)).toHaveCount(4);
+  const four = await extent(page);
+  expect(three.bottom).toBe(small.bottom);
+  expect(four.bottom).toBe(small.bottom);
+  const row = (await rowOf(chips(page).nth(0))).h;
+  expect(small.top - three.top).toBe(2 * row);
+  expect(three.top - four.top).toBe(row);
+});
+
+test('six messages: every text fits its row with room to spare and the column stays in the glass', async ({
+  page,
+  hasTouch,
+}, testInfo) => {
+  // The fonts of macOS and Linux differ by under a unit; the 2 unit room on each side covers it.
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'text fit runs on desktop-chromium');
+  await open(page, messagesQuery(), true, hasTouch);
+  await expect(chips(page)).toHaveCount(6);
+  const fits = await chips(page).evaluateAll((nodes) =>
+    nodes.map((n) => {
+      const text = n.querySelector('text') as unknown as SVGTextElement;
+      const rect = n.querySelector('rect');
+      return {
+        text: (text.textContent ?? '').trim(),
+        textWidth: text.getBBox().width,
+        rowWidth: Number(rect?.getAttribute('width')),
+      };
+    }),
+  );
+  for (const fit of fits) {
+    expect(fit.textWidth, fit.text).toBeLessThanOrEqual(fit.rowWidth - 2);
+  }
+  const full = await extent(page);
+  expect(full.count).toBe(6);
+  expect(full.top).toBeGreaterThanOrEqual(30 + 2);
+  expect(full.bottom).toBeLessThanOrEqual(343 - 2);
 });

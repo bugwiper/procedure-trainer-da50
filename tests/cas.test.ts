@@ -436,7 +436,24 @@ describe('casColumnRows (Phase 6.1: the stacked CAS column)', () => {
     expect(casColumnRows(-1)).toEqual([]);
   });
 
-  it('shows the real rule table in warning, caution, advisory order and the chips draw it as given, unsorted', () => {
+  it('the real DA50 RG table lists warning, caution, advisory and CasChips draws that list as given', () => {
+    const base = at(90);
+    const ctx: PredicateContext = {
+      ...base,
+      controls: { 'sw.pitot_stall_heat': 'off' },
+      quantities: { ...base.quantities, oil_temp_c: 126, fuel_trans_active: 1 },
+    };
+    const list = DA50RG_CAS.active(ctx, DA50RG_ENV);
+    expect(list.map((m) => m.level)).toEqual(['warning', 'caution', 'caution', 'advisory']);
+    const chips = findElements(
+      expand(CasChips({ active: list })),
+      (e) => e.props['data-testid'] === 'cas-chip',
+    );
+    expect(chips.map((c) => c.props['data-cas-id'])).toEqual(list.map((m) => m.id));
+    expect(chips.map((c) => c.props['data-level'])).toEqual(list.map((m) => m.level));
+  });
+
+  it('draws a synthetic list in the order given, without sorting it', () => {
     // The table lists the levels in display order on its own, so the column needs no sorting.
     const mixed = defineCasRules(
       [
