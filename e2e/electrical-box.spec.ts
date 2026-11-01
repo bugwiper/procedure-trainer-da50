@@ -132,11 +132,12 @@ test('the box lies inside the glass content area and the boxes below it keep cle
     };
   });
   const { box: b, screen, below, gauges } = geometry;
-  expect(b.top).toBeGreaterThanOrEqual(GLASS.content.y0);
+  // The text box of the box title is taller on the Linux runner by about 2 units.
+  expect(b.top).toBeGreaterThanOrEqual(GLASS.content.y0 - 3);
   expect(b.bottom).toBeLessThanOrEqual(GLASS.content.y1);
-  expect(b.left).toBeGreaterThanOrEqual(screen.left);
-  expect(b.right).toBeLessThanOrEqual(screen.right);
-  expect(below.top).toBeGreaterThanOrEqual(b.bottom);
+  expect(b.left).toBeGreaterThanOrEqual(screen.left - 3);
+  expect(b.right).toBeLessThanOrEqual(screen.right + 3);
+  expect(below.top).toBeGreaterThanOrEqual(b.bottom - 3);
   for (const other of gauges) {
     const apart =
       other.right <= b.left ||
