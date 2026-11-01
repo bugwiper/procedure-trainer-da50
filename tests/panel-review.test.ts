@@ -805,7 +805,7 @@ describe('phase 6.1 owner review (plan 06.1-03)', () => {
     expect(section).toContain('PANEL-LABELS.md');
   });
 
-  it('numbers its items 1 to 9 without a gap, has no unfilled item and quotes no private material', () => {
+  it('numbers its items 1 to 10 without a gap, has no unfilled item and quotes no private material', () => {
     expect(section).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b|@@/i);
     expect(section).not.toMatch(/\bRESULTS\b/);
     expect(section).not.toMatch(/\.input\//);
@@ -815,7 +815,7 @@ describe('phase 6.1 owner review (plan 06.1-03)', () => {
       .filter((n): n is string => n !== undefined)
       .map(Number);
     expect(numbers).toEqual(numbers.map((_, i) => i + 1));
-    expect(numbers).toHaveLength(9);
+    expect(numbers).toHaveLength(10);
   });
 
   it('names severity, hPa, the pointer box and the exclusions of the owner', () => {
