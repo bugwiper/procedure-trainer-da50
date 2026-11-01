@@ -42,6 +42,11 @@
 // do-nothing run, at both ends of the window. L24: an onset needs at least one annunciation or one
 // cue, so a Realistic run always shows the pilot something. Both run inside the realistic start
 // check, so the per-variant check L19 inherits them.
+// L27 and L28 (Phase 7) check the optional `further` section: L27 the actions (every id is an action
+// option of the aircraft, listed once, `fails_run` only on the role harmful), L28 the flight conduct
+// (`none` exactly when the profile puts the aircraft on the ground, every accepted id is a conduct
+// option of the aircraft, listed once, and not all of them). L20 also makes the required decisions
+// and the first accepted conduct in the solution it builds.
 // checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
 // the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
@@ -149,6 +154,9 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
       add(['onset', 'cues', i], `the cue "${id}" is listed twice`);
     }
   });
+
+  // L27 and L28 (Phase 7): the further actions of the scenario against the list of the aircraft.
+  if (scenario.further !== undefined) checkFurther(scenario, env, add);
 
   for (const [id, state] of Object.entries(scenario.initial.controls)) {
     const def = env.registry.get(id);
@@ -600,13 +608,24 @@ function checkVariantRuns(
       onsetAt: number | null,
       events: Recording['events'],
       completedAt: number,
+      decisions: NonNullable<Recording['decisions']> = [],
     ): Recording => ({
       scenarioId: scenario.id,
       completedAt,
       variant: { id: variant.id, seed: 0 },
       ...(onsetAt === null ? {} : { onset: { at: onsetAt, seed: 0 } }),
       events,
+      ...(decisions.length === 0 ? {} : { decisions }),
     });
+    // The decisions of the solution: the required actions, then the first accepted conduct.
+    const solutionDecisions = [
+      ...(scenario.further?.actions ?? [])
+        .filter((entry) => entry.role === 'required')
+        .map((entry) => entry.id),
+      ...(scenario.further === undefined || scenario.further.conduct === 'none'
+        ? []
+        : scenario.further.conduct.accept.slice(0, 1)),
+    ];
 
     // The solution: the critical and standard steps that are graded at the start of this variant.
     const nothing = grade(scenario, env, recordingOf(null, [], SOLUTION_TAIL_MS));
@@ -648,13 +667,18 @@ function checkVariantRuns(
         id: action.control,
         value: action.state,
       }));
+      const decisions = solutionDecisions.map((id, k) => ({
+        t: first + SOLUTION_GAP_MS * (events.length + k + 1),
+        id,
+      }));
       const done = grade(
         scenario,
         env,
         recordingOf(
           form.onsetAt,
           events,
-          first + SOLUTION_GAP_MS * (events.length + 1) + SOLUTION_TAIL_MS,
+          first + SOLUTION_GAP_MS * (events.length + decisions.length + 1) + SOLUTION_TAIL_MS,
+          decisions,
         ),
       );
       if (done.result !== 'pass') {
@@ -700,6 +724,81 @@ function checkVariantRuns(
       }
     });
   });
+}
+
+/**
+ * L27 and L28: the `further` section. L27: every action id is an action option of the aircraft and
+ * listed once, and `fails_run` belongs to the role harmful only. L28: the conduct is `none` exactly
+ * when the flight profile puts the aircraft on the ground (the ground parameter above 0); otherwise
+ * `accept` lists conduct options of the aircraft, each once, and not every option (a list of all of
+ * them would grade nothing).
+ */
+function checkFurther(
+  scenario: Scenario,
+  env: AircraftEnv,
+  add: (segments: Segments, message: string) => void,
+): void {
+  const section = scenario.further;
+  if (section === undefined) return;
+  const set = env.further;
+  const actionIds = set.ids('action');
+  const conductIds = set.ids('conduct');
+
+  const seen = new Set<string>();
+  section.actions.forEach((entry, i) => {
+    const at: Segments = ['further', 'actions', i];
+    const kind = set.option(entry.id)?.kind;
+    if (kind === undefined) {
+      add(
+        [...at, 'id'],
+        `unknown further action "${entry.id}"; known actions: ${actionIds.join(', ')}`,
+      );
+    } else if (kind === 'conduct') {
+      add(
+        [...at, 'id'],
+        `"${entry.id}" is a flight conduct, not an action; list it under conduct: accept`,
+      );
+    } else if (seen.has(entry.id)) {
+      add([...at, 'id'], `the further action "${entry.id}" is listed twice`);
+    }
+    seen.add(entry.id);
+    if (entry.fails_run && entry.role !== 'harmful') {
+      add([...at, 'fails_run'], 'fails_run is only for the role harmful');
+    }
+  });
+
+  const onGround = (scenario.profile[set.groundParameter] ?? 0) > 0;
+  if (section.conduct === 'none') {
+    if (!onGround) {
+      add(
+        ['further', 'conduct'],
+        'a scenario in flight must declare conduct: accept, the flight conduct is part of the decision',
+      );
+    }
+    return;
+  }
+  if (onGround) {
+    add(
+      ['further', 'conduct'],
+      'ground scenario: declare conduct: none, no flight conduct decision is offered on the ground',
+    );
+  }
+  const accepted = new Set<string>();
+  section.conduct.accept.forEach((id, i) => {
+    const at: Segments = ['further', 'conduct', 'accept', i];
+    const kind = set.option(id)?.kind;
+    if (kind === undefined) {
+      add(at, `unknown flight conduct "${id}"; known options: ${conductIds.join(', ')}`);
+    } else if (kind === 'action') {
+      add(at, `"${id}" is an action, not a flight conduct; list it under actions`);
+    } else if (accepted.has(id)) {
+      add(at, `the flight conduct "${id}" is listed twice`);
+    }
+    accepted.add(id);
+  });
+  if (conductIds.every((id) => accepted.has(id))) {
+    add(['further', 'conduct', 'accept'], 'accept must not list every flight conduct option');
+  }
 }
 
 /** Every step of a scenario's groups in document order, including those under branches. */

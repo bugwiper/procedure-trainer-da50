@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { defineCasRules } from '../src/engine/cas';
+import { grade } from '../src/engine/grading';
 import {
   checkScenario,
   lintScenario,
@@ -1761,5 +1762,171 @@ describe('variants: L12, L18 to L21', () => {
     );
     expect(text).not.toBe(ALTN);
     found(text, 'has no panel action');
+  });
+});
+
+describe('L27 and L28: the further actions (Phase 7, plan 07-02)', () => {
+  const FIRE = readFileSync(`${root}scenarios/engine/eng-fire-in-flight.toon`, 'utf8');
+  const GROUND = readFileSync(`${root}scenarios/fire/eng-fire-ground.toon`, 'utf8');
+  const ALTN = readFileSync(`${root}scenarios/electrical/elec-altn1-fail.toon`, 'utf8');
+
+  /** The shipped text without its own further section (the section is its last block), plus a block. */
+  const stripFurther = (text: string): string => text.split(/^(?:# [^\n]*\n)?further:/m)[0] ?? text;
+  const withFurther = (text: string, block: string): string => `${stripFurther(text)}${block}`;
+  const section = (actions: string, conduct: string): string => {
+    const count = actions.split('\n').filter((line) => line.startsWith('    - id:')).length;
+    const tail = conduct === 'none' ? '  conduct: none' : `  conduct:\n${conduct}`;
+    return `further:\n  actions[${String(count)}]:\n${actions}\n${tail}\n`;
+  };
+  /** 1-based line of the last line that contains the text (the section is the last block). */
+  const lastLineOf = (text: string, needle: string): number =>
+    text.split('\n').findLastIndex((line) => line.includes(needle)) + 1;
+  const CALL = '    - id: atc_mayday\n      role: required';
+  const ACCEPT = '    accept[1]: conduct_emergency';
+
+  /** The issues of an edited file that contain the text, each located at a line and a column. */
+  function found(text: string, part: string) {
+    const hits = issuesOf(text).filter((issue) => issue.message.includes(part));
+    expect(
+      hits.map((h) => h.message),
+      `an issue containing "${part}"`,
+    ).not.toEqual([]);
+    for (const hit of hits) {
+      expect(hit.line).toBeGreaterThan(0);
+      expect(hit.col).toBeGreaterThan(0);
+    }
+    return hits;
+  }
+
+  it('passes the in-flight file with a section and a file without one', () => {
+    expect(checkScenario(withFurther(FIRE, section(CALL, ACCEPT)), DA50RG_ENV).ok).toBe(true);
+    expect(checkScenario(stripFurther(FIRE), DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('passes a ground file that declares conduct none', () => {
+    expect(checkScenario(withFurther(GROUND, section(CALL, 'none')), DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('the schema needs the conduct inside the section', () => {
+    const text = `${stripFurther(FIRE)}further:\n  actions[1]:\n${CALL}\n`;
+    expect(checkScenario(text, DA50RG_ENV).ok).toBe(false);
+  });
+
+  it('L27: rejects an unknown action id at its key, naming the known actions', () => {
+    const text = withFurther(FIRE, section('    - id: atc_flare\n      role: required', ACCEPT));
+    const [hit] = found(text, 'unknown further action "atc_flare"');
+    expect(hit?.path).toBe('further.actions.0.id');
+    expect(hit?.message).toContain(DA50RG_ENV.further.ids('action').join(', '));
+    expect(hit?.line).toBe(lastLineOf(text, 'id: atc_flare'));
+  });
+
+  it('L27: rejects a repeated action id at the second entry', () => {
+    const text = withFurther(
+      FIRE,
+      section(`${CALL}\n    - id: atc_mayday\n      role: optional`, ACCEPT),
+    );
+    const [hit] = found(text, 'the further action "atc_mayday" is listed twice');
+    expect(hit?.path).toBe('further.actions.1.id');
+  });
+
+  it('L27: rejects a conduct id used as an action', () => {
+    const text = withFurther(
+      FIRE,
+      section('    - id: conduct_continue\n      role: optional', ACCEPT),
+    );
+    const [hit] = found(text, 'is a flight conduct, not an action');
+    expect(hit?.path).toBe('further.actions.0.id');
+  });
+
+  it('L27: rejects fails_run on a role other than harmful, and takes it on harmful', () => {
+    const bad = withFurther(
+      FIRE,
+      section('    - id: atc_mayday\n      role: required\n      fails_run: true', ACCEPT),
+    );
+    const [hit] = found(bad, 'fails_run is only for the role harmful');
+    expect(hit?.path).toBe('further.actions.0.fails_run');
+    expect(hit?.line).toBe(lastLineOf(bad, 'fails_run: true'));
+    const good = withFurther(
+      FIRE,
+      section('    - id: atc_pan_pan\n      role: harmful\n      fails_run: true', ACCEPT),
+    );
+    expect(checkScenario(good, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('L28: a scenario in flight must not declare none', () => {
+    const text = withFurther(FIRE, section(CALL, 'none'));
+    const [hit] = found(text, 'a scenario in flight must declare conduct: accept');
+    expect(hit?.path).toBe('further.conduct');
+    expect(hit?.line).toBe(lastLineOf(text, 'conduct: none'));
+  });
+
+  it('L28: a ground scenario must not declare accept', () => {
+    const text = withFurther(GROUND, section(CALL, ACCEPT));
+    const [hit] = found(
+      text,
+      'ground scenario: declare conduct: none, no flight conduct decision is offered on the ground',
+    );
+    expect(hit?.path).toBe('further.conduct');
+  });
+
+  it('L28: the ground test reads the profile value above 0 of the aircraft ground parameter', () => {
+    const parameter = DA50RG_ENV.further.groundParameter;
+    expect(GROUND).toContain(`  ${parameter}: 1`);
+    // The same ground file with the roll at 0 is a scenario in flight: none is wrong there.
+    const flying = swap(GROUND, `  ${parameter}: 1`, `  ${parameter}: 0`);
+    const text = withFurther(flying, section(CALL, 'none'));
+    const hits = issuesOf(text).filter((issue) => issue.path === 'further.conduct');
+    expect(hits.map((h) => h.message)).toEqual([
+      'a scenario in flight must declare conduct: accept, the flight conduct is part of the decision',
+    ]);
+  });
+
+  it('L28: rejects an unknown, an action and a repeated accept id, each at its place', () => {
+    const unknown = withFurther(FIRE, section(CALL, '    accept[1]: conduct_hover'));
+    expect(found(unknown, 'unknown flight conduct "conduct_hover"')[0]?.path).toBe(
+      'further.conduct.accept.0',
+    );
+    const action = withFurther(FIRE, section(CALL, '    accept[1]: atc_mayday'));
+    expect(found(action, 'is an action, not a flight conduct')[0]?.path).toBe(
+      'further.conduct.accept.0',
+    );
+    const repeated = withFurther(
+      FIRE,
+      section(CALL, '    accept[2]: conduct_emergency,conduct_emergency'),
+    );
+    expect(found(repeated, 'the flight conduct "conduct_emergency" is listed twice')[0]?.path).toBe(
+      'further.conduct.accept.1',
+    );
+  });
+
+  it('L28: rejects an accept that lists every conduct option', () => {
+    const all = DA50RG_ENV.further.ids('conduct');
+    const text = withFurther(
+      FIRE,
+      section(CALL, `    accept[${String(all.length)}]: ${all.join(',')}`),
+    );
+    const [hit] = found(text, 'accept must not list every flight conduct option');
+    expect(hit?.path).toBe('further.conduct.accept');
+  });
+
+  it('L20: the solution of a variant file carries the required decisions and the first accept', () => {
+    const block = section(
+      `${CALL}\n    - id: brief_passengers\n      role: recommended`,
+      '    accept[2]: conduct_precautionary,conduct_continue',
+    );
+    const text = withFurther(ALTN, block);
+    // Without the decisions in the built solution this would read "the solution does not pass".
+    expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
+    const scenario = parsedOf(text);
+    const nothing = grade(scenario, DA50RG_ENV, {
+      scenarioId: scenario.id,
+      completedAt: 20000,
+      events: [],
+    });
+    expect(nothing.reasons.map((r) => r.kind)).toEqual([
+      'critical_missed',
+      'further_missed',
+      'conduct',
+    ]);
   });
 });
