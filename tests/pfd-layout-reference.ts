@@ -17,6 +17,9 @@ export const ZONE_REF = { x0: 4, x1: 491, y0: 30, y1: 343 } as const;
 /** Clear space every part keeps to the edge of the zone. */
 export const ZONE_MARGIN = 2;
 
+/** The attitude centre the horizon group turns about, and the reach of the synthetic vision. */
+export const ATTITUDE_REF = { cx: 247.5, cy: 150, reach: 480 } as const;
+
 /** The speed tape (unchanged position). */
 export const SPEED_TAPE_REF: RectRef = { x: 10, y: 34, w: 80, h: 232 };
 

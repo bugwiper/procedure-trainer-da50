@@ -21,6 +21,7 @@ import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import type { PanelBridge } from '../src/ui/bridge';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
+import { ZONE_REF } from './pfd-layout-reference';
 import { expand, findElements, textOf } from './vnode-walk';
 import type { El } from './vnode-walk';
 
@@ -210,9 +211,11 @@ describe('the attitude art', () => {
     expect(group(tree).props['transform']).toBe('rotate(-20.00 247.50 150.00) translate(0 44.00)');
   });
 
-  it('keeps the sky, the ground, the horizon line and the ladder inside the one group', () => {
+  it('keeps the synthetic vision, the horizon line and the ladder inside the one group', () => {
     const inside = group(render(baseValues));
-    expect(findElements(inside, (e) => e.tag === 'rect')).toHaveLength(2);
+    // Plan 06.1-02: sky and ground are one synthetic vision group (sky, ground, haze rectangles).
+    expect(findElements(inside, (e) => e.props['data-svt'] !== undefined)).toHaveLength(1);
+    expect(findElements(inside, (e) => e.tag === 'rect')).toHaveLength(3);
     // The horizon line and one line per ladder step (every 5 degrees to 30, 0 excluded).
     const lines = findElements(inside, (e) => e.tag === 'line');
     expect(lines).toHaveLength(1 + (2 * PITCH_LADDER_MAX_DEG) / PITCH_LADDER_STEP_DEG);
@@ -221,7 +224,7 @@ describe('the attitude art', () => {
     );
   });
 
-  it('clips the group to the attitude rectangle', () => {
+  it('clips the group to the whole content zone', () => {
     const tree = render(baseValues);
     const holders = findElements(tree, (e) => e.props['clip-path'] !== undefined);
     expect(holders).toHaveLength(1);
@@ -234,7 +237,7 @@ describe('the attitude art', () => {
       rect?.props['y'],
       rect?.props['width'],
       rect?.props['height'],
-    ]).toEqual([100, 34, 295, 232]);
+    ]).toEqual([ZONE_REF.x0, ZONE_REF.y0, ZONE_REF.x1 - ZONE_REF.x0, ZONE_REF.y1 - ZONE_REF.y0]);
     expect(
       findElements(holders[0] ?? tree, (e) => e.props['data-horizon'] !== undefined),
     ).toHaveLength(1);

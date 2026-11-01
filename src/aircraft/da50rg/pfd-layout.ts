@@ -18,6 +18,18 @@ export const PFD_ZONE = {
 } as const;
 
 /**
+ * The attitude centre and the reach of the synthetic vision (PNL-26): the horizon group turns about
+ * (cx, cy); the view is drawn `reach` units to every side of it. The half diagonal of the content
+ * zone about the centre (about 310) plus the largest pitch shift (30 degrees, 132 units) stays
+ * under 440, so a reach of 480 leaves no bare edge at any attitude of the scale.
+ */
+export const ATTITUDE = {
+  cx: 247.5,
+  cy: 150,
+  reach: 480,
+} as const;
+
+/**
  * The altitude block: the tape and everything that hangs on it (readout box, FT label, baro box,
  * VS box) share one left edge. It moved 50 units left of its old place (x 405) to make room for the
  * CAS column in the lower right corner.

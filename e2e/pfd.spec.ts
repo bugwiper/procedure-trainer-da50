@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { startScenario } from './support/session';
 import { activate } from './support/zoom';
 
@@ -101,4 +102,45 @@ test('ENGINE FIRE in flight, Easy: level before the engine stop, then the glide 
   );
   await expect(page.locator(VS)).toHaveText(/^-\d+$/, { timeout: 20_000 });
   await expect.poll(() => numberOf(page, ALTITUDE), { timeout: 20_000 }).toBeLessThan(level);
+});
+
+// The synthetic vision under the whole glass (Phase 6.1, plan 02): the scene of the session is drawn
+// inside the horizon group, so it turns and shifts with the attitude. Scene ids come from the
+// aircraft data, never from literals.
+const SVT = `${HORIZON} [data-svt]`;
+
+test('the free panel draws one synthetic vision group in the horizon group, the default scene', async ({
+  page,
+}) => {
+  await expect(page.locator(SVT)).toHaveCount(1);
+  await expect(page.locator(SVT)).toHaveAttribute('data-svt-scene', DEFAULT_SCENE);
+});
+
+for (const id of SCENE_IDS) {
+  test(`?scene=${id} draws that scene under the PFD`, async ({ page }) => {
+    await page.goto(`./?scene=${id}`);
+    await expect(page.getByTestId('panel')).toBeVisible();
+    await expect(page.locator(SVT)).toHaveAttribute('data-svt-scene', id);
+    await expect(page.locator(SVT)).toHaveCount(1);
+  });
+}
+
+test('with pitch and bank set the synthetic vision sits inside the transformed horizon group', async ({
+  page,
+}) => {
+  await page.goto('./?q=pitch_deg:10,bank_deg:20');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  expect(await horizonOf(page)).toEqual({ rotation: -20, shift: 44 });
+  await expect(page.locator(SVT)).toHaveCount(1);
+  await expect(page.locator(SVT)).toHaveAttribute('data-svt-scene', DEFAULT_SCENE);
+});
+
+test('inside a situation the PFD draws the scene id of the windscreen layer', async ({
+  page,
+  hasTouch,
+}) => {
+  await startScenario(page, hasTouch, NO_ABORT_ROW, 'easy');
+  const windscreen = await page.locator('[data-layer="windscreen"]').getAttribute('data-scene-id');
+  expect(windscreen).not.toBeNull();
+  await expect(page.locator(SVT)).toHaveAttribute('data-svt-scene', windscreen ?? '');
 });

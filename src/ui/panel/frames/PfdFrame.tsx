@@ -16,23 +16,20 @@ import {
   speedTickOffsets,
   verticalSpeedText,
 } from '../../../aircraft/da50rg/avionics';
-import { ALTITUDE_BLOCK } from '../../../aircraft/da50rg/pfd-layout';
+import { DEFAULT_SCENE } from '../../../aircraft/da50rg/scenes';
+import { ALTITUDE_BLOCK, ATTITUDE, PFD_ZONE } from '../../../aircraft/da50rg/pfd-layout';
 import { CasChips } from './CasChips';
 import { GlassHeader, LegendRow, SCREEN_FILL, glassSecondRowLive } from './MfdFrame';
 import type { FrameProps } from './MfdFrame';
+import { SyntheticVision } from './SyntheticVision';
 
-const SKY = '#1f6fc4';
-const GROUND = '#7a5230';
 const WHITE = '#ffffff';
 const LABEL = '#aab3bd';
 
-const ATT_X = 100;
 const ATT_Y = 34;
-const ATT_W = 295;
 const ATT_H = 232;
-const HORIZON_Y = ATT_Y + ATT_H / 2;
-/** Half the width and height the sky and ground reach beyond the attitude centre; the clip cuts them. */
-const HORIZON_REACH = 400;
+const HORIZON_Y = ATTITUDE.cy;
+const HORIZON_REACH = ATTITUDE.reach;
 /** The pitch ladder: a line every 5 degrees, a long one every 10, to 30 degrees each side. */
 const LADDER_DEGREES: readonly number[] = Array.from(
   { length: (2 * PITCH_LADDER_MAX_DEG) / PITCH_LADDER_STEP_DEG + 1 },
@@ -70,9 +67,12 @@ function polar(cx: number, cy: number, r: number, deg: number): string {
  * show the static base values on the free panel; heading stays static. CAS chips follow the
  * aircraft rules (PNL-03).
  */
-export function PfdFrame({ region, bridge }: FrameProps) {
+export function PfdFrame({ region, bridge, session }: FrameProps) {
   const { w, h } = region.bounds;
-  const cx = ATT_X + ATT_W / 2;
+  const cx = ATTITUDE.cx;
+  // The scene of the situation (the ?scene= flag on the free panel); SyntheticVision falls back to
+  // the default scene for an id the art does not know. Reading the signal subscribes this frame.
+  const scene = session?.scene.value ?? DEFAULT_SCENE;
   const airspeed = bridge.quantities.value[PFD_AIRSPEED_QUANTITY];
   const altitude = bridge.quantities.value[PFD_ALTITUDE_QUANTITY];
   const verticalSpeed = bridge.quantities.value[PFD_VERTICAL_SPEED_QUANTITY];
@@ -98,25 +98,17 @@ export function PfdFrame({ region, bridge }: FrameProps) {
       <g data-glass-zone="content">
         <g data-testid="pfd-attitude">
           <clipPath id={ATTITUDE_CLIP_ID}>
-            <rect x={ATT_X} y={ATT_Y} width={ATT_W} height={ATT_H} />
+            <rect
+              x={PFD_ZONE.x0}
+              y={PFD_ZONE.y0}
+              width={PFD_ZONE.x1 - PFD_ZONE.x0}
+              height={PFD_ZONE.y1 - PFD_ZONE.y0}
+            />
           </clipPath>
           <g clip-path={`url(#${ATTITUDE_CLIP_ID})`}>
-            {/* One group: sky, ground, horizon line and pitch ladder move and turn together. */}
+            {/* One group: the synthetic vision, horizon line and pitch ladder move and turn together. */}
             <g data-horizon transform={horizonTransform}>
-              <rect
-                x={cx - HORIZON_REACH}
-                y={HORIZON_Y - HORIZON_REACH}
-                width={2 * HORIZON_REACH}
-                height={HORIZON_REACH}
-                fill={SKY}
-              />
-              <rect
-                x={cx - HORIZON_REACH}
-                y={HORIZON_Y}
-                width={2 * HORIZON_REACH}
-                height={HORIZON_REACH}
-                fill={GROUND}
-              />
+              <SyntheticVision scene={scene} cx={cx} cy={HORIZON_Y} reach={HORIZON_REACH} />
               <line
                 x1={cx - HORIZON_REACH}
                 y1={HORIZON_Y}
@@ -176,15 +168,6 @@ export function PfdFrame({ region, bridge }: FrameProps) {
             stroke="#f2c230"
             stroke-width={4}
             stroke-linejoin="round"
-          />
-          <rect
-            x={ATT_X}
-            y={ATT_Y}
-            width={ATT_W}
-            height={ATT_H}
-            fill="none"
-            stroke="#3a424b"
-            stroke-width={1.5}
           />
         </g>
 

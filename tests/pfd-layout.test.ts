@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ATTITUDE,
   CAS_COLUMN,
   PFD_ZONE,
   ALTITUDE_BLOCK,
@@ -12,6 +13,7 @@ import type { PanelBridge } from '../src/ui/bridge';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
 import {
   ALTITUDE_READOUT_REF,
+  ATTITUDE_REF,
   ALTITUDE_TAPE_REF,
   BARO_BOX_REF,
   CAS_REF,
@@ -71,6 +73,19 @@ describe('the zone data', () => {
       ZONE_REF.y0,
       ZONE_REF.y1,
     ]);
+  });
+});
+
+describe('the attitude centre data', () => {
+  it('equals the reference centre and reach', () => {
+    expect(ATTITUDE).toEqual(ATTITUDE_REF);
+  });
+
+  it('reaches past the zone at the largest pitch shift and a bank turn', () => {
+    // Half diagonal of the zone about the centre, plus the pitch shift of 30 degrees (132 units).
+    const dx = Math.max(ATTITUDE_REF.cx - ZONE_REF.x0, ZONE_REF.x1 - ATTITUDE_REF.cx);
+    const dy = Math.max(ATTITUDE_REF.cy - ZONE_REF.y0, ZONE_REF.y1 - ATTITUDE_REF.cy);
+    expect(Math.hypot(dx, dy) + 132).toBeLessThan(ATTITUDE_REF.reach);
   });
 });
 

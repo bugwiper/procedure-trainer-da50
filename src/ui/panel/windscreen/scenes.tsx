@@ -29,25 +29,44 @@ const LEFT = OPENING.x;
 const RIGHT = OPENING.x + OPENING.w;
 const TOP = OPENING.y;
 
+/** Colours of one vertical gradient: top, an optional stop at 0.6, bottom. */
+export interface GradientColours {
+  readonly top: string;
+  readonly mid: string | null;
+  readonly bottom: string;
+}
+
+/**
+ * The palette of the scenes (Phase 6.1, D-08): gradient id to its colours. The windscreen
+ * (SceneDefs) and the synthetic vision of the PFD (frames/SyntheticVision.tsx) both read this one
+ * table, so a change of the palette changes both. The order is the order of the defs.
+ */
+export const SCENE_GRADIENTS = {
+  'w-sky-cruise': { top: '#2c68ad', mid: '#6aa2d4', bottom: '#c4def0' },
+  'w-ground-cruise': { top: '#9bb08e', mid: null, bottom: '#5a7843' },
+  'w-sky-parked': { top: '#4a86c4', mid: '#8fbbe0', bottom: '#d4e6f3' },
+  'w-apron': { top: '#a7abae', mid: null, bottom: '#6d7276' },
+  'w-sky-roll': { top: '#3a76b8', mid: '#7eb0dc', bottom: '#cfe3f2' },
+  'w-grass': { top: '#86a56a', mid: null, bottom: '#4f7a3a' },
+  'w-runway': { top: '#6c7075', mid: null, bottom: '#3f4347' },
+  'w-cloud': { top: '#b4bbc2', mid: '#d3d8dc', bottom: '#e3e6e8' },
+} as const satisfies Record<string, GradientColours>;
+
+/** A gradient id of the palette table. */
+export type SceneGradientId = keyof typeof SCENE_GRADIENTS;
+
 /** Gradients of the scenes, part of the layer's own defs. */
 export function SceneDefs() {
-  const vertical = (id: string, top: string, mid: string | null, bottom: string) => (
-    <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color={top} />
-      {mid === null ? null : <stop offset="0.6" stop-color={mid} />}
-      <stop offset="1" stop-color={bottom} />
-    </linearGradient>
-  );
+  const gradients = Object.entries(SCENE_GRADIENTS) as [SceneGradientId, GradientColours][];
   return (
     <>
-      {vertical('w-sky-cruise', '#2c68ad', '#6aa2d4', '#c4def0')}
-      {vertical('w-ground-cruise', '#9bb08e', null, '#5a7843')}
-      {vertical('w-sky-parked', '#4a86c4', '#8fbbe0', '#d4e6f3')}
-      {vertical('w-apron', '#a7abae', null, '#6d7276')}
-      {vertical('w-sky-roll', '#3a76b8', '#7eb0dc', '#cfe3f2')}
-      {vertical('w-grass', '#86a56a', null, '#4f7a3a')}
-      {vertical('w-runway', '#6c7075', null, '#3f4347')}
-      {vertical('w-cloud', '#b4bbc2', '#d3d8dc', '#e3e6e8')}
+      {gradients.map(([id, { top, mid, bottom }]) => (
+        <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color={top} />
+          {mid === null ? null : <stop offset="0.6" stop-color={mid} />}
+          <stop offset="1" stop-color={bottom} />
+        </linearGradient>
+      ))}
       <RollFade />
     </>
   );
@@ -113,7 +132,15 @@ function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
   );
 }
 
-const FIELD_COLOURS = ['#6f8f4a', '#8aa65a', '#a89b5a', '#7a9a58', '#5f7f3f', '#b0a463'] as const;
+/** The field patch colours of the cruise view (the synthetic vision reads them too). */
+export const FIELD_COLOURS = [
+  '#6f8f4a',
+  '#8aa65a',
+  '#a89b5a',
+  '#7a9a58',
+  '#5f7f3f',
+  '#b0a463',
+] as const;
 /** Bottom-edge offsets from the vanishing point of the field lines, left to right. */
 const FIELD_LINES = [-1700, -1180, -760, -430, -170, 80, 330, 640, 1000, 1480, 2100] as const;
 /** Depths of the field rows. */
