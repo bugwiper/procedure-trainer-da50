@@ -862,6 +862,8 @@ export function createSession(deps: SessionDeps): Session {
     },
     toggleChecklist() {
       if (mode.peek() !== 'training' || screen.peek() !== 'running') return;
+      // The sheet names the situation: on Realistic it stays shut until the onset (WR-01, D-04).
+      if (beforeOnset()) return;
       checklistShown.value = !checklistShown.peek();
     },
     decide(id) {

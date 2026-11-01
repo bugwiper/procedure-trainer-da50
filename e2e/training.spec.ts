@@ -230,13 +230,24 @@ test('@hooks Training on Medium: CHECKLIST shows the printed checklist in a non-
   await expect(sheet).toHaveCount(0);
 });
 
-test('@hooks Training on Realistic: CHECKLIST works from the start of the run', async ({
+test('@hooks Training on Realistic: CHECKLIST stays shut until the onset, then shows the sheet', async ({
   page,
   hasTouch,
 }) => {
   await page.goto('./');
   await expect(page.getByTestId('panel')).toBeVisible();
   await startRealistic(page, hasTouch, ENGINE_ROW, 'training');
+  // The clean start: the sheet would name the situation, so the press shows nothing (WR-01).
+  await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(page.getByTestId('run-checklist')).toHaveCount(0);
+  await page.waitForFunction(() => {
+    const host = globalThis as unknown as {
+      __panelSession?: { now(): number | null; onset(): { at: number } | null };
+    };
+    const now = host.__panelSession?.now() ?? null;
+    const onset = host.__panelSession?.onset() ?? null;
+    return now !== null && onset !== null && now >= onset.at;
+  });
   await activate(page.locator(CHECKLIST), hasTouch);
   await expect(page.getByTestId('run-checklist')).toBeVisible();
   // The title of the scenario is still not named on the page; the checklist is the printed one.

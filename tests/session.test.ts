@@ -1944,7 +1944,7 @@ describe('mode and hint (phase 07, SES-02, D-02 to D-04)', () => {
       }
     });
 
-    it('toggles in a Realistic run, which starts at the level pick', async () => {
+    it('stays shut on Realistic until the onset, then toggles (WR-01)', async () => {
       let next = 0;
       const draws = [0.5, 0.75];
       const r = rig({ rng: () => draws[next++] ?? 0 });
@@ -1952,8 +1952,21 @@ describe('mode and hint (phase 07, SES-02, D-02 to D-04)', () => {
       r.session.setMode('training');
       r.session.setLevel('realistic');
       expect(r.session.screen.value).toBe('running');
+      const began = r.session.onset.value;
+      const clock = r.session.clock.value;
+      if (began === null || clock === null) throw new Error('no onset or clock');
+      expect(began.at).toBeGreaterThan(0);
+      // The clean start: the sheet would name the situation, so the press does nothing.
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(false);
+      clock.advance(began.at - 1);
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(false);
+      clock.advance(1);
       r.session.toggleChecklist();
       expect(r.session.checklistShown.value).toBe(true);
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(false);
     });
 
     it('does nothing in Exam mode or outside a run', async () => {
