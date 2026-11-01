@@ -8,9 +8,10 @@
 export const STRIP_ZONE = { x0: 4, x1: 107, y0: 30, y1: 343 } as const;
 /**
  * The strip was 142 wide before the owner's walkthrough of 2026-11-01 asked for about two thirds of
- * it; it may not be wider than this (a tolerance of a few units above 2/3 of 142).
+ * it; it may not be wider than this. The owner's second round (2026-11-01) wants it only slightly wider
+ * than one arc (diameter 50 plus about 10 percent), so about 64.
  */
-export const STRIP_MAX_W = 100;
+export const STRIP_MAX_W = 70;
 /** The map rectangle starts at least this far right of the strip's right edge. */
 export const STRIP_MAP_GAP = 6;
 export const STRIP_MARGIN = 2;
@@ -57,8 +58,8 @@ export const STRIP_FLOW = { id: 'fuel_flow', quantity: 'fuel_flow_gph', decimals
 export const STRIP_TRIM = { id: 'trim', quantity: 'rudder_trim_pct' } as const;
 export const STRIP_FUEL_SCALE = [0, 5, 10, 15, 20, 25] as const;
 
-/** Smallest cell height of each shape: an arc of radius 23 with its ticks and ends, a slim bar, the rest. */
-export const STRIP_MIN_H = { arc: 46, bar: 20, flow: 10, dual: 33, trim: 20 } as const;
+/** Smallest cell height of each shape: an arc of radius 25 with its ticks and ends, a slim bar, the rest. */
+export const STRIP_MIN_H = { arc: 58, bar: 20, flow: 10, dual: 33, trim: 20 } as const;
 
 /** The gauges that print a number (the arcs; the bars show a pointer only); the fuel flow is a row. */
 export const STRIP_NUMBER_GAUGES = ['Load', 'RPM'] as const;

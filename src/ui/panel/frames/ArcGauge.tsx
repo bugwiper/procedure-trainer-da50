@@ -24,7 +24,8 @@ export interface ArcGaugeProps {
   readonly tone?: GaugeTone;
   /**
    * The slim look of the map strip: a narrow ring, fine ticks and numerals at `numerals`, a thin
-   * needle, the caption and the number to the right of the ring. Absent is the engine page look.
+   * needle with a small head, the caption and the number inside the open lower part of the ring,
+   * centred under the hub. Absent is the engine page look.
    */
   readonly fine?: boolean;
   /** The values that carry a fine tick and a small numeral (fine only); absent ticks the two ends. */
@@ -41,8 +42,13 @@ const FINE_NUMERAL_IN = 7.5;
 const FINE_NUMERAL_OUT = 3;
 const FINE_NUMERAL_FONT = 6;
 const FINE_CAPTION_FONT = 8;
-const FINE_CAPTION_GAP = 6;
-const FINE_READOUT_BELOW = 10;
+/** The slim caption baseline below the hub (between the two ring ends) and the number below it. */
+const FINE_CAPTION_BELOW_HUB = 17;
+const FINE_READOUT_BELOW = 9;
+/** The needle head: length from the tip, half width, and the tip's distance inside the ring. */
+const FINE_HEAD_LEN = 6;
+const FINE_HEAD_HALF_W = 2.3;
+const FINE_HEAD_TIP_IN = 1;
 const READOUT_FONT = 10;
 /**
  * The caption and the number stand below the arc. The two ends of the 240 degree sweep lie r / 2
@@ -112,14 +118,15 @@ export function ArcGauge({
   const readout = readoutText(value, decimals);
   const labelFont = fine ? FINE_CAPTION_FONT : LABEL_FONT;
   const readoutFont = fine ? FINE_CAPTION_FONT : READOUT_FONT;
-  // Slim: the texts stand to the right of the ring, level with the hub; else centred under it.
-  const textX = fine ? cx + r + FINE_CAPTION_GAP : cx;
-  const anchor = fine ? 'start' : 'middle';
-  const labelBaseline = fine ? cy + 1 : cy + r / 2 + CAPTION_BELOW_ENDS;
+  // Slim: the texts stand in the open lower part of the ring, just under the hub; else centred
+  // under the ring. Both are centred on the hub.
+  const textX = cx;
+  const anchor = 'middle';
+  const labelBaseline = fine ? cy + FINE_CAPTION_BELOW_HUB : cy + r / 2 + CAPTION_BELOW_ENDS;
   const readoutBaseline = labelBaseline + (fine ? FINE_READOUT_BELOW : READOUT_BELOW_CAPTION);
   const labelW = textBoxWidth(caption, labelFont) + 2 * BOX_PAD;
   const readoutW = textBoxWidth(readout, readoutFont, true) + 2 * BOX_PAD;
-  const boxX = (w: number): number => (fine ? textX - BOX_PAD : textX - w / 2);
+  const boxX = (w: number): number => textX - w / 2;
   const needleAngle = angleOf(value, min, max);
   const tickValues = fine
     ? (numerals ?? [min, max])
@@ -128,17 +135,23 @@ export function ArcGauge({
   const bandW = fine ? FINE_BAND_W : 7;
   const innerTick = fine ? bandW / 2 : 7;
   const outerTick = fine ? bandW / 2 + 1.5 : 5;
-  // The lowest value stands outside the ring end at the left, every other one inside the ring.
+  // The two end values stand outside the ring ends (left and right), every other one inside the
+  // ring, so the open lower part holds the caption and the number alone.
   const numeralNodes = fine
     ? (numerals ?? []).map((v) => {
-        const outside = v <= min;
+        const outside = v <= min || v >= max;
         const at = point(
           cx,
           cy,
           outside ? r + FINE_NUMERAL_OUT : r - FINE_NUMERAL_IN,
           angleOf(v, min, max),
         );
-        return { v, x: at.x, y: at.y + FINE_NUMERAL_FONT / 3, anchor: outside ? 'end' : 'middle' };
+        return {
+          v,
+          x: at.x,
+          y: at.y + FINE_NUMERAL_FONT / 3,
+          anchor: v <= min ? 'end' : v >= max ? 'start' : 'middle',
+        };
       })
     : [];
   return (
@@ -210,13 +223,21 @@ export function ArcGauge({
         x1={cx}
         y1={cy}
         x2={cx}
-        y2={cy - r + (fine ? 3 : 4)}
+        y2={cy - r + (fine ? FINE_HEAD_TIP_IN + FINE_HEAD_LEN : 4)}
         stroke={style.pointerFill}
         stroke-width={fine ? 1.2 : 2.5}
         stroke-linecap="round"
         transform={`rotate(${needleAngle.toFixed(2)} ${cx} ${cy})`}
         pointer-events="none"
       />
+      {fine ? (
+        <polygon
+          points={`${cx},${cy - r + FINE_HEAD_TIP_IN} ${cx + FINE_HEAD_HALF_W},${cy - r + FINE_HEAD_TIP_IN + FINE_HEAD_LEN} ${cx - FINE_HEAD_HALF_W},${cy - r + FINE_HEAD_TIP_IN + FINE_HEAD_LEN}`}
+          fill={style.pointerFill}
+          transform={`rotate(${needleAngle.toFixed(2)} ${cx} ${cy})`}
+          pointer-events="none"
+        />
+      ) : null}
       <circle
         cx={cx}
         cy={cy}

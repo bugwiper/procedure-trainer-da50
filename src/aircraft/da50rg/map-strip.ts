@@ -1,8 +1,8 @@
 // The layout of the engine strip at the left of the MFD map page as data (Phase 6 walkthrough): the
-// left column of the engine page, slimmer and about two thirds as wide, in the order of the real
+// left column of the engine page, slimmer and only a little wider than one arc, in the order of the real
 // display: the Load arc above the RPM arc, the fuel flow line, five slim bars, the two-pointer Fuel
 // Qty bar with both tanks and its scale, and the rudder trim scale. The rectangles are absolute in
-// the local space of the MFD region (495 x 367; the strip stands in x 8 to 103 and y 32 to 335).
+// the local space of the MFD region (495 x 367; the strip stands in x 8 to 72 and y 32 to 341).
 // The entries are the same kinds as the engine page, drawn by the same code in its slim (`fine`)
 // look; a move is an edit of this table and of the independent reference in
 // tests/map-strip-reference.ts. Static text only in capitals; no unit after a number; the bars show
@@ -11,17 +11,17 @@
 import type { PageEntry, BarEntry } from './engine-page';
 
 const STRIP_X = 8;
-const STRIP_W = 95;
+const STRIP_W = 64;
 /** The right edge of the strip; the map rectangle starts a gap to the right of it. */
 export const MAP_STRIP_RIGHT = STRIP_X + STRIP_W;
 
-const ARC_RADIUS = 23;
+const ARC_RADIUS = 25;
 const ARC_Y = 32;
-/** Room above the ring (ticks and ring) and below its two ends; the caption stands beside the ring. */
-const ARC_CELL_H = 48;
+/** Room above the ring (ticks and ring) and below its two ends; the caption and the number stand in the open part of the ring. */
+const ARC_CELL_H = 60;
 /** The ring centre lies this far below the top of its cell and this far right of the strip's left edge. */
-const ARC_CENTRE_DY = 28;
-const ARC_CENTRE_DX = 29;
+const ARC_CENTRE_DY = 31;
+const ARC_CENTRE_DX = 32;
 
 const arc = (
   id: string,
@@ -42,7 +42,8 @@ const arc = (
   numerals,
 });
 
-const BAR_H = 24;
+const BAR_H = 22;
+const STRIP_BOTTOM = 341;
 
 const bar = (
   id: string,
@@ -66,7 +67,9 @@ const FLOW_H = 11;
 const BARS_Y = FLOW_Y + FLOW_H + 3;
 const FUEL_Y = BARS_Y + 5 * BAR_H + 4;
 const FUEL_H = 33;
-const TRIM_Y = FUEL_Y + FUEL_H + 8;
+const TRIM_H = 20;
+/** The rudder trim stands at the very bottom of the strip zone. */
+const TRIM_Y = STRIP_BOTTOM - TRIM_H;
 
 export const MAP_STRIP: readonly PageEntry[] = [
   arc('load', 'Load', 'load_pct', ARC_Y, [0, 25, 50, 75, 100]),
@@ -104,6 +107,6 @@ export const MAP_STRIP: readonly PageEntry[] = [
     quantity: 'rudder_trim_pct',
     marks: ['L', 'R'],
     fine: true,
-    rect: { x: STRIP_X, y: TRIM_Y, w: STRIP_W, h: 20 },
+    rect: { x: STRIP_X, y: TRIM_Y, w: STRIP_W, h: TRIM_H },
   },
 ];

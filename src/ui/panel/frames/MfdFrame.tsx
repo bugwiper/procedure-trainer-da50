@@ -411,8 +411,8 @@ const TRIM_CAPTION_DY = 7;
 const TRIM_LABELLED_LINE_DY = 19;
 const TRIM_MARK_GAP = 3;
 /** The slim rows of the map strip: the flow row type and baseline, the trim scale measures. */
-const FINE_ROW_FONT = 8;
-const FINE_ROW_BASELINE = 8;
+const FINE_ROW_FONT = 6.5;
+const FINE_ROW_BASELINE = 7;
 const FINE_TRIM_INSET = 8;
 const FINE_TRIM_CAPTION_DY = 6.5;
 const FINE_TRIM_LINE_DY = 13;
@@ -472,7 +472,7 @@ export function MfdFrame({ region, bridge }: FrameProps) {
 }
 
 function MapPage({ w, quantities }: { readonly w: number; readonly quantities: Quantities }) {
-  const mapX = MAP_STRIP_RIGHT + 8;
+  const mapX = MAP_STRIP_RIGHT + 12;
   const mapW = w - mapX - 8;
   const cx = mapX + mapW / 2;
   // Map rectangle y 34..343 (Table D6); its centre line is 188.

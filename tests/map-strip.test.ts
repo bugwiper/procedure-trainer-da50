@@ -164,6 +164,22 @@ describe('the drawn strip against the reference', () => {
     expect(findElements(strip, (e) => e.tag === 'circle')).toHaveLength(2);
   });
 
+  it('centres the caption and the number of each arc under its hub, in the open part of the ring', () => {
+    for (const a of MAP_STRIP.filter((e) => e.kind === 'arc')) {
+      const g = findElements(draw(), (e) => e.props['data-gauge'] === a.label)[0];
+      if (g === undefined || a.kind !== 'arc') throw new Error(a.id);
+      const texts = findElements(g, (e) => e.tag === 'text').filter(
+        (e) => e.props['text-anchor'] === 'middle' && Number(e.props['y']) > a.centre.y,
+      );
+      // The caption and the number: two texts, both centred on the hub, below it, between the ends.
+      expect(texts, a.id).toHaveLength(2);
+      for (const t of texts) {
+        expect(Number(t.props['x']), a.id).toBe(a.centre.x);
+        expect(Number(t.props['y']), a.id).toBeGreaterThan(a.centre.y + a.radius / 2);
+      }
+    }
+  });
+
   it('draws only texts of the reference label table, and every text of the table', () => {
     const texts = findElements(
       draw(),
