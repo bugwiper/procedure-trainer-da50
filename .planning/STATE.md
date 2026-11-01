@@ -1,10 +1,10 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 6
-current_phase_name: Fuel, tank and engine fidelity and the engine page
+current_phase: 6.1
+current_phase_name: PFD fidelity
 current_plan: Not started
 status: planning
-stopped_at: Phase 5.1 complete, ready to plan Phase 6
+stopped_at: Phase 6 complete, ready to plan Phase 6.1
 last_updated: "2026-10-28T09:53:58.841Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 5.1 complete, transitioned to Phase 6
@@ -31,9 +31,9 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 Phase: 6 — Fuel, tank and engine fidelity and the engine page
 Current Plan: 06-04 complete (plans 06-01 to 06-04 executed)
 Total Plans in Phase: 4
-Status: Phase 6 executed, awaiting the owner UAT (docs/PANEL-REVIEW.md, section Phase 6) and the phase code review
+Status: Phase 6 complete (owner walk-through passed 2026-10-31, code review warnings fixed, map strip reworked to the real display), ready to plan Phase 6.1
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
-Last activity: 2026-10-29 — Phase 6 plan 06-04 complete (pitot and stall heat cautions, oil pressure tables, icing heat_off variant, phase documents)
+Last activity: 2026-11-01 — Phase 6 complete (walk-through passed; MFD map strip follows the real display; low red bands on the temperature bars)
 
 Progress: [███████░░░] 70%
 
@@ -270,5 +270,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-23T10:34:20.154Z
-Stopped at: Phase 5.1 complete, ready to plan Phase 6
+Stopped at: Phase 6 complete, ready to plan Phase 6.1
 Resume file: None

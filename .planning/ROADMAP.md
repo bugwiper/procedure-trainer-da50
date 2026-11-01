@@ -22,7 +22,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Electrical system fidelity** - Bus model with bus tie relay, ALT 1 and ALT 2 behaviour, ESS BUS path, combined amps gauge, ALTN 2 FAIL scenario, ALTN checklist fidelity (completed 2026-10-27)
 - [x] **Phase 5: Windscreen and failure cues** - A windscreen area above the panel with scenes (parked, takeoff roll, cruise) and cues driven by the simulation: engine fire flames and smoke, cabin smoke, windscreen ice with warm air and TKS spray; the onset cue declared in scenario data and checked by lint (completed 2026-10-27)
 - [x] **Phase 5.1: Ground and takeoff emergencies** (INSERTED) - Rudder pedals with service brakes, ground speed on the takeoff roll, the transponder in the co-pilot footwell, the oval emergency window, and the scenarios engine fire on ground, on takeoff (abort and no abort), electrical fire on ground and in flight, unintentional flight into icing (completed 2026-10-28)
-- [ ] **Phase 6: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim, the real engine page layout and a live PFD
+- [x] **Phase 6: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim, the real engine page layout and a live PFD (completed 2026-11-01)
+- [ ] **Phase 6.1: PFD fidelity** (INSERTED) - Synthetic vision under the whole PFD, translucent tapes, vertical speed scale, QNH in hPa, vertically stacked fine CAS messages, simple compass rose
 - [ ] **Phase 7: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
 - [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop
 
@@ -543,11 +544,21 @@ Plans:
 
 - [x] 06-04 — PITOT HEAT and STALL HEAT cautions with the ground cut-out (folded todo), oil pressure that follows oil temperature and POWER (two tables in the aircraft data), the icing situation adapted by a heat-off variant, and the phase-end documentation
 
+### Phase 6.1: PFD fidelity (INSERTED)
+
+**Goal:** The PFD looks and reads like the real one (owner finding 2026-11-01): the simplified outside view of the windscreen is the synthetic vision under the whole PFD and follows pitch and bank; the speed and altitude tapes lie translucent over it; a narrow vertical speed scale with a black pointer stands right of the altitude tape (replacing the VS box); the barometer setting under the altitude tape reads in hPa; the CAS messages stack vertically in one column, about half as wide and much finer, joined without gaps and growing upward with each further message (most severe on top); the compass stays a simple rose, without map and without lateral deviation bar. Message texts stay unchanged.
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 06.1 to break down)
+
 ### Phase 7: Training Mode, Further Actions and Repeat Loop
 
 **Goal**: Users can learn from a scenario with a checklist and hints, make non-panel decisions such as MAYDAY and the landing choice, and retry or move on to improve their debrief; authors can add scenarios by following a guide. The authoring guide and the training hints must describe the variant format, the cues (Phase 5) and the fidelity (Phase 6).
 **Mode:** mvp
-**Depends on**: Phase 5, Phase 6
+**Depends on**: Phase 5, Phase 6, Phase 6.1
 **Requirements**: SES-02, SES-05, SES-06, CNT-02
 **Success Criteria** (what must be TRUE):
 
