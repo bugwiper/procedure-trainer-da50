@@ -7,7 +7,7 @@ import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { grade } from '../src/engine/grading';
 import type { GradeResult, Recording } from '../src/engine/grading';
 import { checkScenario } from '../src/scenario/lint';
-import { startScenario } from './support/session';
+import { pickFurther, startScenario } from './support/session';
 import {
   FULL_VIEWBOX,
   activate,
@@ -28,6 +28,7 @@ interface SessionHook {
   scenarioId(): string | null;
   result(): GradeResult | null;
   now(): number | null;
+  recording(): Recording | null;
 }
 type HookHost = { __panel?: RecordedHook; __panelSession?: SessionHook };
 
@@ -85,6 +86,7 @@ test('@hooks the UI verdicts equal a node replay of the recorded log', async ({
   await afterPairWindow(page);
   await leaveZoom(page, hasTouch);
   await goldenTaps(page, hasTouch);
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
 
   // The retracted tap is not in the log, the three real actuations are.
   const log = await loggedEvents(page);
@@ -103,6 +105,11 @@ test('@hooks the UI verdicts equal a node replay of the recorded log', async ({
     () => (globalThis as HookHost).__panelSession?.now() ?? 0,
   );
   expect(shown).not.toBeNull();
+  // The decisions of the run (Phase 7) are part of the recording the debrief was graded from.
+  const decisions = await page.evaluate(
+    () => (globalThis as HookHost).__panelSession?.recording()?.decisions ?? [],
+  );
+  expect(decisions.map((d) => d.id)).toEqual(['conduct_precautionary']);
 
   // The replay in node: the blueprint text from the repository, the same environment, the log.
   const checked = checkScenario(readFileSync(BLUEPRINT_FILE, 'utf8'), DA50RG_ENV);
@@ -111,6 +118,7 @@ test('@hooks the UI verdicts equal a node replay of the recorded log', async ({
     scenarioId: checked.scenario.id,
     completedAt,
     events: log.map((e) => ({ t: e.t, id: e.id, value: e.value })),
+    decisions,
   };
   const replayed = grade(checked.scenario, DA50RG_ENV, recording);
   expect(replayed).toEqual(shown);

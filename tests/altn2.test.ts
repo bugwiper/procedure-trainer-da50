@@ -10,6 +10,7 @@ import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
 import { resolveVariant } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
 import type { Scenario } from '../src/scenario/schema';
+import { PRECAUTION } from './further-support';
 
 // ALTN 2 FAIL (phase 4, plan 02, E-12 to E-14): every cause of the shipped file replayed on Easy and
 // on Realistic, the harmful and harmless extra actions, and the simulated bus. Ids and counts are
@@ -97,6 +98,7 @@ describe('every variant of ALTN 2 FAIL, replayed on Easy and on Realistic', () =
       variant: { id, seed: 7 },
       ...(realistic ? { onset: { at: ONSET_AT, seed: 1 } } : {}),
       events,
+      decisions: PRECAUTION,
     });
     const golden = (id: string): SimEventLike[] =>
       (solutions[id] ?? []).map((a) => ({ t: base + a.dt, id: a.id, value: a.value }));
@@ -191,6 +193,7 @@ describe('every variant of ALTN 2 FAIL, replayed on Easy and on Realistic', () =
       completedAt: 30_000,
       variant: { id: 'breaker_popped', seed: 7 },
       events: [{ t: 3000, id: 'sw.alternator_2', value: 'off' }],
+      decisions: PRECAUTION,
     };
     const result = grade(ALTN2, DA50RG_ENV, rec);
     expect(result.result).toBe('fail');

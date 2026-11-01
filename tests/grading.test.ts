@@ -62,6 +62,9 @@ function run(
   });
 }
 
+/** The right flight decision of the real blueprint (Phase 7): ad hoc panel cases make it, so a panel verdict stands alone. */
+const PRECAUTION: NonNullable<Recording['decisions']> = [{ t: 19000, id: 'conduct_precautionary' }];
+
 const blueprint = load(BLUEPRINT);
 const ordered = load(ORDERED);
 const electrical = load(ELECTRICAL);
@@ -153,24 +156,46 @@ const power_increased = (t: number, seq: number, failsRun = true) => ({
 });
 
 /**
- * What the further declaration of the real Engine Fire file adds to an expected result (Phase 7,
- * plan 07-02): the roles and the accepted conduct are typed here, independent of the engine, and the
- * picks are read from the recording of the fixture. The reasons go where D-11 puts them: after the
- * outcome and the missed critical steps, before the order and forbidden reasons.
+ * What the further declarations of the real files add to an expected result (Phase 7, plan 07-02):
+ * the roles and the accepted conduct of each shipped scenario are typed here, independent of the
+ * engine, and the picks are read from the recording of the fixture. The reasons go where D-11 puts
+ * them: after the outcome and the missed critical steps, before the order and forbidden reasons.
+ * The synthetic copies of tests/fixtures/scenarios declare nothing and keep their expectations.
  */
-const FIRE_FURTHER_ROLES = [
-  ['atc_mayday', 'required'],
+const ALL_OPTIONAL = [
+  ['atc_mayday', 'optional'],
   ['atc_pan_pan', 'optional'],
-  ['brief_passengers', 'recommended'],
+  ['brief_passengers', 'optional'],
 ] as const;
-const FIRE_FURTHER_ACCEPT = ['conduct_emergency'];
+const FURTHER_DECLARED: Readonly<
+  Record<
+    string,
+    {
+      readonly roles: readonly (readonly [string, 'required' | 'recommended' | 'optional'])[];
+      readonly accept: readonly string[];
+    }
+  >
+> = {
+  'eng-fire-in-flight': {
+    roles: [
+      ['atc_mayday', 'required'],
+      ['atc_pan_pan', 'optional'],
+      ['brief_passengers', 'recommended'],
+    ],
+    accept: ['conduct_emergency'],
+  },
+  'eng-oil-temp-green': { roles: ALL_OPTIONAL, accept: ['conduct_precautionary'] },
+  'elec-altn1-fail': { roles: ALL_OPTIONAL, accept: ['conduct_precautionary'] },
+};
 
-function withFireFurther(name: string, expected: GradeResult): GradeResult {
+function withFurther(name: string, expected: GradeResult): GradeResult {
+  const declared = FURTHER_DECLARED[expected.scenarioId];
+  if (declared === undefined) return expected;
   const picks = (recording(name).decisions ?? []).map((decision) => decision.id);
   const conductPicks = picks.filter((id) => id.startsWith('conduct_'));
   const last = conductPicks.at(-1) ?? null;
-  const status = last === null ? 'missing' : FIRE_FURTHER_ACCEPT.includes(last) ? 'ok' : 'wrong';
-  const actions = FIRE_FURTHER_ROLES.map(([id, role]) => ({
+  const status = last === null ? 'missing' : declared.accept.includes(last) ? 'ok' : 'wrong';
+  const actions = declared.roles.map(([id, role]) => ({
     id,
     role,
     done: picks.includes(id),
@@ -660,7 +685,7 @@ describe('golden recordings (Table R1)', () => {
 
   for (const { name, scenario, expected } of cases) {
     it(`grades ${name} exactly`, () => {
-      const want = scenario === fire ? withFireFurther(name, expected) : expected;
+      const want = withFurther(name, expected);
       expect(grade(scenario, DA50RG_ENV, recording(name))).toEqual(want);
     });
   }
@@ -699,7 +724,10 @@ describe('named outcomes (R10, D-06, C-26)', () => {
       completedAt: outcome.t - STEP_MS,
     });
     expect(early.outcome).toBeNull();
-    expect(early.reasons).toEqual([{ kind: 'critical_missed', count: 2 }]);
+    expect(early.reasons).toEqual([
+      { kind: 'critical_missed', count: 2 },
+      { kind: 'conduct', status: 'missing' },
+    ]);
     const exact = grade(blueprint, DA50RG_ENV, {
       ...recording('do-nothing-long'),
       completedAt: outcome.t,
@@ -740,6 +768,8 @@ describe('named outcomes (R10, D-06, C-26)', () => {
     return [
       { kind: 'outcome', id: declaredOutcome?.id },
       { kind: 'critical_missed', count: missed },
+      // The ignored run made no flight decision either (Phase 7).
+      { kind: 'conduct', status: 'missing' },
     ];
   }
 });
@@ -864,7 +894,11 @@ describe('step targets relative to the baseline (D-02, D-09)', () => {
   });
 
   it('does not credit a step whose target no longer holds after the last event', () => {
-    const result = run(blueprint, [power(1000, 'p60'), cowl(2000, 'open'), power(3000, 'p75')]);
+    const result = run(
+      blueprint,
+      [power(1000, 'p60'), cowl(2000, 'open'), power(3000, 'p75')],
+      PRECAUTION,
+    );
     expect(result.steps[0]).toMatchObject({ credited: false, enteredAt: null });
     expect(result.steps[1]).toMatchObject({ credited: true, enteredAt: 1 });
     expect(result.reasons).toEqual([{ kind: 'critical_missed', count: 1 }]);
@@ -923,7 +957,7 @@ describe('branch applicability (D-23, D-25)', () => {
       { path: 'procedure.0.branches.1', status: 'not_applicable' },
       { path: 'procedure.0.branches.1.nodes.3', status: 'not_applicable' },
     ]);
-    const result = run(lowPressure, []);
+    const result = run(lowPressure, [], PRECAUTION);
     expect(result.steps).toEqual([]);
     expect(result.result).toBe('pass');
   });
@@ -949,7 +983,7 @@ describe('branch applicability (D-23, D-25)', () => {
         ].join('\n'),
       ),
     );
-    const result = run(nested, [power(1000, 'p60'), cowl(2000, 'open')]);
+    const result = run(nested, [power(1000, 'p60'), cowl(2000, 'open')], PRECAUTION);
     expect(result.steps.map((s) => s.id)).toEqual(['reduce_power', 'open_cowl_flap']);
     expect(result.result).toBe('pass');
   });
@@ -1023,6 +1057,7 @@ describe('reaction time from the onset (D-05, C-33, C-34)', () => {
     completedAt,
     onset: { at: onsetAt, seed: 7 },
     events,
+    decisions: PRECAUTION,
   });
 
   it('measures the first action from the onset; the event before the onset earns no credit (R12)', () => {
@@ -1093,6 +1128,7 @@ describe('reaction time from the onset (D-05, C-33, C-34)', () => {
       scenarioId: blueprint.id,
       completedAt: 20000,
       events: [power(4000, 'p60'), cowl(6000, 'open')],
+      decisions: PRECAUTION,
     });
     expect(plain.result).toBe('pass');
     expect(JSON.stringify(plain)).not.toContain('preempted');
@@ -1124,6 +1160,7 @@ describe('reaction time from the onset (D-05, C-33, C-34)', () => {
       scenarioId: blueprint.id,
       completedAt: 20000,
       events,
+      decisions: PRECAUTION,
     });
     expect({ ...withOnset, timing: null }).toEqual({ ...without, timing: null });
     expect(withOnset.timing).not.toEqual(without.timing);

@@ -12,3 +12,7 @@ Idea: a button ("conduct emergency landing") or an automatic transition after th
 ## Status (2026-10-29): planned for Phase 7
 
 The owner confirmed (D-12) that the continuation belongs to Phase 7, where the landing decision (SES-05) defines the transition. Its prerequisite is delivered by Phase 6: scripted flight profiles for every situation, the live PFD with airspeed, altitude, vertical speed and attitude, and the engine-stopped glide regime. Still to do there: a landing scene, a session transition and a newly printed checklist (EMERGENCY LANDING, page 9). Note: after the engine stops right after lift-off in T/O FIRE NO ABORT the aircraft reaches the runway height within seconds and stays level, because no landing model exists.
+
+## Status (2026-11-01): the decision is delivered, the landing stays open
+
+Phase 7 plan 07-02 delivered the decision and the note: the pilot chooses the further flight conduct in the FURTHER ACTIONS modal (continue normally, precautionary landing, emergency landing), a scenario declares which one is right (`further.conduct`), the choice is recorded and graded, and when the last pick is the emergency landing the debrief says that the landing itself is not trained yet. Still open (owner decision D-12, not in Phase 7): the follow-on scenarios with and without engine power, the landing scene, a session transition from the choice into such a scenario and the newly printed checklist EMERGENCY LANDING (page 9).

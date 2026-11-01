@@ -126,3 +126,14 @@ onset:
     oil_temp_c: 114
   # Latest second after the onset by which the message must show in a run that does nothing.
   message_within_s: 22
+# The further actions (Phase 7). The roles and the right flight conduct are instructor-review values, listed in docs/PANEL-REVIEW.md; no call is required for this caution, a precautionary landing is the safe decision, and the passenger briefing is informative.
+further:
+  actions[3]:
+    - id: atc_mayday
+      role: optional
+    - id: atc_pan_pan
+      role: optional
+    - id: brief_passengers
+      role: optional
+  conduct:
+    accept[1]: conduct_precautionary

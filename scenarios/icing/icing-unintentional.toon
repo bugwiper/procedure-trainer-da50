@@ -207,3 +207,14 @@ onset:
     altitude_ft: 7500
   message_within_s: 24
   cues[2]: ice_pilot_side,ice_copilot_side
+# The further actions (Phase 7). The roles and the right flight conduct are instructor-review values, listed in docs/PANEL-REVIEW.md; the printed heading says inform ATC without naming a call, so both calls stay optional; a precautionary landing is the safe decision.
+further:
+  actions[3]:
+    - id: atc_mayday
+      role: optional
+    - id: atc_pan_pan
+      role: optional
+    - id: brief_passengers
+      role: optional
+  conduct:
+    accept[1]: conduct_precautionary

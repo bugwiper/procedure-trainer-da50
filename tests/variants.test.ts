@@ -10,6 +10,7 @@ import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
 import { resolveVariant, variantFromSeed } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
 import type { ProcedureNode, Scenario } from '../src/scenario/schema';
+import { PRECAUTION } from './further-support';
 
 // Scenario variants (phase 3.1, SCN-09): resolveVariant, variantFromSeed and the grade of a
 // recording that names a variant. The shipped ALTN 1 FAIL file is the subject.
@@ -50,6 +51,7 @@ const recording = (
   completedAt,
   ...(variant === null ? {} : { variant: { id: variant, seed: 7 } }),
   events,
+  decisions: PRECAUTION,
 });
 
 const PUSH = { t: 3000, id: 'cb.alt1', value: 'in' };
@@ -292,6 +294,7 @@ describe('every variant of ALTN 1 FAIL, replayed on Easy and on Realistic', () =
       variant: { id, seed: 7 },
       ...(realistic ? { onset: { at: ONSET_AT, seed: 1 } } : {}),
       events,
+      decisions: PRECAUTION,
     });
     const golden = (id: string) =>
       (solutions[id] ?? []).map((a) => ({ t: base + a.dt, id: a.id, value: a.value }));
@@ -374,6 +377,7 @@ describe('every variant of ALTN 1 FAIL, replayed on Easy and on Realistic', () =
         { t: 3000, id: 'sw.alternator_1', value: 'off' },
         { t: 4000, id: 'sw.ess_bus', value: 'on' },
       ],
+      decisions: PRECAUTION,
     };
     const result = grade(ALTN, DA50RG_ENV, rec);
     expect(result.result).toBe('fail');

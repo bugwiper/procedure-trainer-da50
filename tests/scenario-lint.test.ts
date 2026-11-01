@@ -684,10 +684,15 @@ describe('L26: the messages of a run that does nothing (Phase 6 review, WR-01)',
 
   it('rejects the late message of the Realistic run on its own, in the Realistic form', () => {
     // The blueprint has an onset; the ground message shows in the Easy run and in both Realistic runs.
+    // A ground scenario declares conduct none (L28), so the further block says it.
     const text = swap(
-      BLUEPRINT,
-      'parameters:\n  oil_cooling: 0.55',
-      'profile:\n  ground_roll: 1\nparameters:\n  oil_cooling: 0.55',
+      swap(
+        BLUEPRINT,
+        'parameters:\n  oil_cooling: 0.55',
+        'profile:\n  ground_roll: 1\nparameters:\n  oil_cooling: 0.55',
+      ),
+      '  conduct:\n    accept[1]: conduct_precautionary',
+      '  conduct: none',
     );
     const messages = issuesOf(text).map((issue) => issue.message);
     expect(messages).toContain(

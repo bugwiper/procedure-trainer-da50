@@ -16,6 +16,7 @@ import { createPackProvider, OPEN_ACCESS, openScenario } from '../src/scenario/p
 import type { AccessPolicy } from '../src/scenario/packs';
 import { VITE_PACKS } from '../src/scenario/packs-vite';
 import type { Scenario } from '../src/scenario/schema';
+import { PRECAUTION } from './further-support';
 
 // Tracer of phase 02 (SCN-01, SCN-03, SCN-07): the real blueprint file is decoded with the
 // pinned TOON parser, validated by the format-1 schema and resolved against the DA50 RG registry
@@ -503,6 +504,7 @@ describe('grading the blueprint', () => {
     scenarioId: scenario.id,
     completedAt: 20000,
     events,
+    decisions: PRECAUTION,
   });
 
   it('grades the golden events pass with both steps credited', () => {

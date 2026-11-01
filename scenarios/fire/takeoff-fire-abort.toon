@@ -157,3 +157,13 @@ onset:
     airspeed_kt: 40
     stall_heat_timer_s: 60
   cues[1]: flames
+# The further actions (Phase 7). The roles and the right flight conduct are instructor-review values, listed in docs/PANEL-REVIEW.md; the MAYDAY call is recommended on the ground, nothing else is rated, and no flight conduct decision exists there.
+further:
+  actions[3]:
+    - id: atc_mayday
+      role: recommended
+    - id: atc_pan_pan
+      role: optional
+    - id: brief_passengers
+      role: optional
+  conduct: none

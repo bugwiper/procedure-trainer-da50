@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { SESSION_LAYOUT, pageCount } from '../src/ui/panel/session-area';
-import { startScenario, shippedScenarios } from './support/session';
+import { startScenario, shippedScenarios, pickFurther } from './support/session';
 import { activate, activateAt, afterPairWindow, leaveZoom, zoomIntoRegion } from './support/zoom';
 
 // The fire and smoke pack (Phase 5.1, plan 02) as the pilot meets it on the built panel: the
@@ -298,6 +298,7 @@ test('@hooks T/O FIRE NO ABORT: the four critical rows grade PASS, the window an
   await expect.poll(() => speedOf(page)).toBe(70);
   await expect.poll(() => markRate(page)).toEqual([1]);
 
+  await pickFurther(page, hasTouch, ['atc_mayday', 'conduct_emergency']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   for (const id of ['windows_open', 'doors_open']) {
@@ -339,6 +340,7 @@ test('@hooks Electrical Fire in Flight: smoke over the cruise scene from the sta
   await flightGolden(page, hasTouch);
   await expect(page.locator(SMOKE)).toHaveCount(0, { timeout: CLEARS_WITHIN_MS });
 
+  await pickFurther(page, hasTouch, ['atc_mayday', 'conduct_emergency']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   for (const id of ['av_master_off', 'elect_master_off', 'circ_air_fresh', 'ecs_pulled']) {

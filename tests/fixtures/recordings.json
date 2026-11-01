@@ -13,6 +13,12 @@
         "id": "lv.cowl_flap",
         "value": "open"
       }
+    ],
+    "decisions": [
+      {
+        "t": 15500,
+        "id": "conduct_precautionary"
+      }
     ]
   },
   "do-nothing": {
@@ -38,6 +44,12 @@
         "t": 14000,
         "id": "lv.cowl_flap",
         "value": "open"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 14500,
+        "id": "conduct_precautionary"
       }
     ]
   },
@@ -70,6 +82,12 @@
         "id": "lv.cowl_flap",
         "value": "open"
       }
+    ],
+    "decisions": [
+      {
+        "t": 15500,
+        "id": "conduct_precautionary"
+      }
     ]
   },
   "toggle-back": {
@@ -90,6 +108,12 @@
         "t": 12000,
         "id": "lv.cowl_flap",
         "value": "closed"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 12500,
+        "id": "conduct_precautionary"
       }
     ]
   },
@@ -128,6 +152,12 @@
         "id": "lv.cowl_flap",
         "value": "open"
       }
+    ],
+    "decisions": [
+      {
+        "t": 15500,
+        "id": "conduct_precautionary"
+      }
     ]
   },
   "elec-golden": {
@@ -144,6 +174,12 @@
         "id": "sw.ess_bus",
         "value": "on"
       }
+    ],
+    "decisions": [
+      {
+        "t": 9500,
+        "id": "conduct_precautionary"
+      }
     ]
   },
   "elec-golden-long": {
@@ -159,6 +195,12 @@
         "t": 9000,
         "id": "sw.ess_bus",
         "value": "on"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 9500,
+        "id": "conduct_precautionary"
       }
     ]
   },
@@ -191,6 +233,12 @@
         "id": "sw.ess_bus",
         "value": "on"
       }
+    ],
+    "decisions": [
+      {
+        "t": 11500,
+        "id": "conduct_precautionary"
+      }
     ]
   },
   "elec-wrong-order": {
@@ -206,6 +254,12 @@
         "t": 9000,
         "id": "sw.alternator_1",
         "value": "off"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 9500,
+        "id": "conduct_precautionary"
       }
     ]
   },

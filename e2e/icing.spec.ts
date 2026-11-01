@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { quantityOf, startRealistic, startScenario } from './support/session';
+import { quantityOf, startRealistic, startScenario, pickFurther } from './support/session';
 import { activate, activateAt } from './support/zoom';
 
 // Unintentional Flight Into Icing (Phase 5.1, plans 03 and 04: the booklet page 23) as the pilot meets it on the
@@ -71,6 +71,7 @@ test('@hooks Unintentional Flight Into Icing: the cloud scene and the ice of bot
   await activate(page.locator('[data-detent="lv.alt_air:open"]'), hasTouch);
   await expect(control(page, 'lv.alt_air')).toHaveAttribute('data-state', 'open');
 
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   for (const id of [

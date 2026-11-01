@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { parseScenario } from '../src/scenario/parse';
-import { forceVariant, startRealistic, startScenario } from './support/session';
+import { forceVariant, startRealistic, startScenario, pickFurther } from './support/session';
 import { activate, leaveZoom, zoomIntoRegion } from './support/zoom';
 
 // Phase 3.1 (plan 02): every cause of ALTN 1 FAIL played on the built panel to a PASS debrief that
@@ -110,6 +110,7 @@ for (const variant of VARIANTS) {
       }
     }
 
+    await pickFurther(page, hasTouch, ['conduct_precautionary']);
     await activate(page.getByTestId('procedure-complete'), hasTouch);
     await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
     await expect(page.getByTestId('debrief-variant')).toHaveText(`Cause: ${variant.debrief}`);
@@ -136,6 +137,7 @@ test('@hooks ALTN 1 FAIL on Realistic, cause breaker_popped: the breaker pops af
   await expect(control(page, BREAKER)).toHaveAttribute('data-state', 'in');
   await expect(chip(page)).toHaveCount(0);
 
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   await expect(page.getByTestId('debrief-variant')).toHaveText(`Cause: ${popped.debrief}`);

@@ -64,6 +64,7 @@ test('@hooks ALTN 1 FAIL: the golden run grades PASS', async ({ page, hasTouch }
   await activate(page.locator('[data-hit="sw.ess_bus"]'), hasTouch);
   await expect(control(page, 'sw.ess_bus')).toHaveAttribute('data-state', 'on');
 
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
 });

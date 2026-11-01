@@ -782,6 +782,7 @@ describe('complete', () => {
     const r = await started();
     r.bridge.actuate('lv.power', 'p50');
     r.bridge.actuate('lv.cowl_flap', 'open');
+    r.session.decide('conduct_precautionary');
     r.session.complete();
 
     expect(r.session.screen.value).toBe('debrief');
@@ -798,7 +799,11 @@ describe('complete', () => {
     r.session.complete();
     const result = r.session.result.value;
     expect(result?.result).toBe('fail');
-    expect(result?.reasons).toEqual([{ kind: 'critical_missed', count: 2 }]);
+    // The shipped file also asks for the flight decision (Phase 7), which an empty run did not make.
+    expect(result?.reasons).toEqual([
+      { kind: 'critical_missed', count: 2 },
+      { kind: 'conduct', status: 'missing' },
+    ]);
   });
 
   it('hands grade plain records stamped by the run clock, and pauses that clock', async () => {
@@ -869,6 +874,7 @@ describe('complete', () => {
     r.bridge.retract(raised.event.seq);
     r.bridge.actuate('lv.power', 'p50');
     r.bridge.actuate('lv.cowl_flap', 'open');
+    r.session.decide('conduct_precautionary');
     r.session.complete();
     expect(r.session.result.value?.harmful).toEqual([]);
     expect(r.session.result.value?.result).toBe('pass');
@@ -1424,6 +1430,7 @@ scenarios[1]:
     expect(r.bridge.stateOf('cb.alt1').value).toBe('out');
 
     expect(r.bridge.actuate('cb.alt1', 'in').ok).toBe(true);
+    r.session.decide('conduct_precautionary');
     r.session.complete();
     const recording = r.session.recording.value;
     expect(recording?.variant).toEqual({ id: 'breaker_popped', seed });
@@ -1443,6 +1450,7 @@ scenarios[1]:
     expect(r.bridge.stateOf('cb.alt1').value).toBe('in');
     r.bridge.actuate('sw.alternator_1', 'off');
     r.bridge.actuate('sw.ess_bus', 'on');
+    r.session.decide('conduct_precautionary');
     r.session.complete();
     expect(r.session.result.value?.variant).toBe('alternator_dead');
     expect(r.session.result.value?.result).toBe('pass');
@@ -1868,6 +1876,7 @@ describe('mode and hint (phase 07, SES-02, D-02 to D-04)', () => {
       if (asking) r.session.askHint();
       r.bridge.actuate('lv.cowl_flap', 'open');
       if (asking) r.session.askHint();
+      r.session.decide('conduct_precautionary');
       r.session.complete();
       results.push(JSON.stringify(r.session.result.value));
       results.push(JSON.stringify(r.session.recording.value));

@@ -11,6 +11,7 @@ import {
   shippedScenarios,
   startRealistic,
   startScenario,
+  pickFurther,
 } from './support/session';
 import { FULL_VIEWBOX, activate, afterPairWindow } from './support/zoom';
 
@@ -427,6 +428,7 @@ test('@hooks Level question: Easy, Medium and Realistic come before any briefing
   await expect(page.getByTestId('briefing')).toBeHidden();
   expect(await screenOf(page)).toBe('running');
   await goldenTaps(page, hasTouch);
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   await expect(page.getByTestId('debrief-level')).toHaveText('Level: Medium');
@@ -477,6 +479,7 @@ test('@hooks Realistic starts without a briefing, names nothing, the failure com
     })
     .toBeGreaterThanOrEqual(onset.at);
   await goldenTaps(page, hasTouch);
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   await expect(page.getByTestId('debrief-level')).toHaveText('Level: Realistic');
@@ -579,6 +582,7 @@ test('@hooks the ENG OIL TEMP chip shows during the run and stays after the debr
   await expect(page.locator('[data-testid="cas-chips"] [aria-live]')).toHaveCount(0);
 
   await goldenTaps(page, hasTouch);
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   await activate(page.getByTestId('debrief-back'), hasTouch);
@@ -635,6 +639,7 @@ test('@hooks the golden run grades PASS and keeps the end state', async ({ page,
   await startRun(page, hasTouch);
   await goldenTaps(page, hasTouch);
 
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
@@ -660,6 +665,7 @@ test('@hooks the debrief shows the outline with verdicts, Not graded and the bra
 }) => {
   await startRun(page, hasTouch);
   await goldenTaps(page, hasTouch);
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
 
@@ -708,6 +714,7 @@ test('@hooks a power increase is a harmful action that fails the run', async ({
   await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p100');
   await goldenTaps(page, hasTouch);
 
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
   await expect(page.getByTestId('debrief-reason')).toHaveText(
@@ -740,6 +747,7 @@ test('@hooks a power increase is a harmful action that fails the run', async ({
 test('@hooks a run without harmful actions says None.', async ({ page, hasTouch }) => {
   await startRun(page, hasTouch);
   await goldenTaps(page, hasTouch);
+  await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   await expect(page.getByRole('heading', { name: 'Harmful actions (0)' })).toBeVisible();
@@ -751,7 +759,11 @@ test('@hooks doing nothing grades FAIL', async ({ page, hasTouch }) => {
   await activate(page.getByTestId('procedure-complete'), hasTouch);
 
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
-  await expect(page.getByTestId('debrief-reason')).toHaveText('2 critical steps were missed.');
+  // The file also asks for the flight decision (Phase 7), which a run that does nothing did not make.
+  await expect(page.getByTestId('debrief-reason')).toHaveText([
+    '2 critical steps were missed.',
+    'The flight decision was missing.',
+  ]);
   const rows = page.getByTestId('debrief-row');
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toHaveAttribute('data-verdict', 'Missed');

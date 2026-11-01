@@ -13,6 +13,7 @@ import type { SimState } from '../src/engine/sim';
 import { resolveVariant } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
 import type { Scenario } from '../src/scenario/schema';
+import { solutionDecisions } from './further-support';
 
 // The fire and smoke pack (Phase 5.1, plan 02): the shipped scenario files are graded by control
 // state with the golden recordings below, a run that does nothing fails, and the Realistic replay
@@ -38,7 +39,12 @@ function run(
   log: readonly RecordedEvent[],
   completedAt = 60 * SECOND_MS,
 ): GradeResult {
-  return grade(scenario, DA50RG_ENV, { scenarioId: scenario.id, completedAt, events: log });
+  return grade(scenario, DA50RG_ENV, {
+    scenarioId: scenario.id,
+    completedAt,
+    events: log,
+    decisions: solutionDecisions(scenario),
+  });
 }
 
 /** The levels of the cues of a Realistic run at `afterMs` past the onset, doing nothing. */
@@ -440,6 +446,7 @@ describe('Unintentional Flight Into Icing', () => {
         scenarioId: scenario.id,
         completedAt: 60 * SECOND_MS,
         events: golden,
+        decisions: solutionDecisions(scenario),
         ...named,
       });
       expect(result.result).toBe('pass');
@@ -448,6 +455,7 @@ describe('Unintentional Flight Into Icing', () => {
         completedAt: 60 * SECOND_MS,
         events: golden.map((e) => ({ ...e, t: e.t + 6 * SECOND_MS })),
         onset: { at: 6 * SECOND_MS, seed: 0 },
+        decisions: solutionDecisions(scenario),
         ...named,
       });
       expect(realistic.result).toBe('pass');

@@ -161,7 +161,8 @@ test('@hooks an ignored run escalates: the debrief opens by itself as FAIL and n
   await expect(page.getByTestId('debrief-result')).toBeVisible({ timeout: 220_000 });
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
   await expect(page.getByTestId('debrief-reason').first()).toContainText(outcome.text);
-  await expect(page.getByTestId('debrief-reason')).toHaveCount(2);
+  // The outcome, the missed critical steps and the flight decision an ignored run did not make.
+  await expect(page.getByTestId('debrief-reason')).toHaveCount(3);
 });
 
 /** Mirror of the quantities() and onset()/now() read-only hooks of the e2e build; no DOM lib here. */
