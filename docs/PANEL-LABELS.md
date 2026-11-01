@@ -167,6 +167,8 @@ The session pad in the co-pilot legroom is trainer content, not an aircraft part
 | `session.choose` | CHOOSE SITUATION | none | existing, phase 02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx` |
 | `session.next` | NEXT PAGE (the choose list shows four situations per page; the button stands beside CLOSE LIST and only when there are more than four, after the last page it wraps to the first) | none | owner-visible need of Phase 5.1 (more than four situations), new trainer part | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
 | `session.reset` | RESET | none; third button under CHOOSE SITUATION, same size and press behaviour | owner request (2026-10-23), new trainer part | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
+| `session.checklist` | CHECKLIST (drawn in the run view only, and only in Training mode; the label never changes, the shown sheet is marked by the pressed rim) | none; left of HINT in the second row of the run view | Phase 7 plan 07-01 (D-03, D-05), planner default, owner may veto | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
+| `session.hint` | HINT (drawn in the run view only, and only in Training mode; the label never changes) | none; right of CHECKLIST in the second row of the run view | Phase 7 plan 07-01 (D-04, D-05), planner default, owner may veto | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
 
 ## Environmental control
 

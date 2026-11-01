@@ -2030,3 +2030,30 @@ describe('mode and hint (phase 07, SES-02, D-02 to D-04)', () => {
     });
   });
 });
+
+describe('grading ignores both display axes (phase 07, D-02)', () => {
+  it('gives the same JSON for every combination of mode and level, with hints and the sheet in use', async () => {
+    const results: string[] = [];
+    for (const mode of MODES) {
+      for (const level of ['easy', 'medium'] as const) {
+        const r = rig();
+        await r.session.newSituation();
+        r.session.setMode(mode);
+        r.session.setLevel(level);
+        r.session.startRun();
+        // In Training the aids are used; in Exam the calls do nothing. Neither reaches the grade.
+        r.session.askHint();
+        r.session.toggleChecklist();
+        r.bridge.actuate('lv.power', 'p100');
+        r.bridge.actuate('lv.power', 'p50');
+        r.session.askHint();
+        r.bridge.actuate('lv.cowl_flap', 'open');
+        r.session.complete();
+        results.push(JSON.stringify(r.session.result.value));
+      }
+    }
+    expect(results.length).toBe(MODES.length * 2);
+    expect(results[0]).toContain('"result":"fail"');
+    for (const json of results) expect(json).toBe(results[0]);
+  });
+});

@@ -10,7 +10,7 @@ The code is `src/engine/grading.ts` (the function `grade`), `src/engine/predicat
 
 The result holds the verdict (`pass` or `fail`), the reasons for a fail, one entry per graded step, the status of every branch of the checklist, the order violations and the harmful actions.
 
-The level chosen before the briefing (Easy, Medium or Realistic) is not an input of `grade`: every level grades the same rules (R11). The level only changes what the briefing shows, how the run starts and what the debrief names. The one run datum that differs on Realistic is the recorded onset, which is part of the recording and not a level flag.
+The level chosen before the briefing (Easy, Medium or Realistic) is not an input of `grade`: every level grades the same rules (R11). The level only changes what the briefing shows, how the run starts and what the debrief names. The one run datum that differs on Realistic is the recorded onset, which is part of the recording and not a level flag. The mode chosen on its own card before the level (Training or Exam, Phase 7) is not an input of `grade` either. In Training the pilot can ask for a hint and show the checklist during the run; a hint is the grade of the partial recording read for its first open critical or standard step (`src/engine/hint.ts`, rule R12 applies), it is not stored, counted or penalised and changes nothing. In Exam there are neither hints nor the checklist. The same recording gives the same result in every combination of mode and level.
 
 ## The rules
 

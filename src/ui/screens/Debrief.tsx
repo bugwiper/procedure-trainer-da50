@@ -3,8 +3,8 @@ import type { Scenario } from '../../scenario/schema';
 import { causeLine, harmfulLine, limitLine, reasonLines, timingLine } from '../debrief-text';
 import { buildOutline, checklistHead } from '../outline';
 import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
-import { LEVEL_NAMES } from '../session';
-import type { Level } from '../session';
+import { LEVEL_NAMES, MODE_NAMES } from '../session';
+import type { Level, Mode } from '../session';
 import { Modal } from './Modal';
 
 /**
@@ -12,19 +12,21 @@ import { Modal } from './Modal';
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
  * apply muted (the table form and the printed heading follow the scenario, plan 03-14), an order line under every ordered group and the harmful actions in log order
- * (no time). It names the level of the run ("Level: Easy") and, on a meta line before it, the scenario (D-05); a scenario with variants adds one line naming the cause that was drawn (V-08); a run the 30-minute cap ended adds the limit line after the level line (V-14); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
+ * (no time). It names the level of the run ("Level: Easy"), then the mode ("Mode: Training", Phase 7) and, on a meta line before it, the scenario (D-05); a scenario with variants adds one line naming the cause that was drawn (V-08); a run the 30-minute cap ended adds the limit line after the level line (V-14); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
   scenario,
   result,
   level,
+  mode,
   completedAt,
   onClose,
 }: {
   readonly scenario: Scenario;
   readonly result: GradeResult;
   readonly level: Level;
+  readonly mode: Mode;
   /** The run clock at the end of the run (the recording's completedAt). */
   readonly completedAt: number;
   readonly onClose: () => void;
@@ -69,6 +71,9 @@ export function Debrief({
       </p>
       <p class="briefing-meta" data-testid="debrief-level">
         {`Level: ${LEVEL_NAMES[level]}`}
+      </p>
+      <p class="briefing-meta" data-testid="debrief-mode">
+        {`Mode: ${MODE_NAMES[mode]}`}
       </p>
       {limit === null ? null : (
         <p class="briefing-meta" data-testid="debrief-limit">

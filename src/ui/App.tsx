@@ -343,6 +343,7 @@ export function App() {
         <Briefing
           briefed={briefed}
           level={session.level.value}
+          mode={session.mode.value}
           onStart={startRun}
           onBack={backToPanel}
         />
@@ -352,6 +353,7 @@ export function App() {
           scenario={scenario}
           result={result}
           level={session.level.value}
+          mode={session.mode.value}
           completedAt={session.recording.value?.completedAt ?? 0}
           onClose={closeDebrief}
         />

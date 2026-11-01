@@ -15,6 +15,10 @@
 // A scenario with variants (phase 3.1) draws one cause on every level with a second seed, taken
 // after the onset seed; the engine resolves it into the scenario the run uses (resolveVariant), the
 // draw is recorded (the signal `variant`, then Recording.variant) and only the debrief names it.
+// Phase 7 adds the mode (Training or Exam), asked on its own card before the level: display state
+// like the level and never an input of grade. In Training a run can ask for a hint (askHint: the
+// grade of the partial recording read for its first open step, src/engine/hint.ts) and show the
+// checklist sheet (toggleChecklist); in Exam both do nothing. Neither is a modal.
 
 import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
@@ -85,6 +89,10 @@ export const MODE_HINTS: Readonly<Record<Mode, string>> = {
   training: 'Checklist and hints on demand during the run.',
   exam: 'Silent. No checklist, no hints.',
 };
+
+/** The note of the briefing in Training mode (own wording, H-05); the Exam note is the briefing's own. */
+export const TRAINING_NOTE =
+  'Training mode: show the checklist and ask for a hint during the run. When you are done, press Procedure complete.';
 
 /** What the hint line shows after HINT: the next open step, or the fixed sentence when none is open. */
 export type HintState =

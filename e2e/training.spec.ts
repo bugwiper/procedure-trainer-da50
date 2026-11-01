@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { MODE_HINTS } from '../src/ui/session';
+import { MODE_HINTS, MODE_NAMES, TRAINING_NOTE } from '../src/ui/session';
 import { parseScenario } from '../src/scenario/parse';
 import type { ProcedureNode, Scenario, Step } from '../src/scenario/schema';
 import { chooseScenario, pickMode, startRealistic, startScenario } from './support/session';
@@ -255,3 +255,30 @@ test('the sheet is gone when the run ends', async ({ page, hasTouch }) => {
   await expect(page.getByTestId('debrief-result')).toBeVisible();
   await expect(page.getByTestId('run-checklist')).toHaveCount(0);
 });
+
+for (const mode of ['training', 'exam'] as const) {
+  test(`@hooks the briefing and the debrief name the mode: ${mode}`, async ({ page, hasTouch }) => {
+    await page.goto('./');
+    await expect(page.getByTestId('panel')).toBeVisible();
+    await chooseScenario(page, hasTouch, ENGINE_ROW);
+    await pickMode(page, hasTouch, mode);
+    await page.waitForTimeout(450);
+    await activate(page.getByTestId('level-pick-easy'), hasTouch);
+    await expect(page.getByTestId('briefing')).toBeVisible();
+    if (mode === 'training') {
+      await expect(page.getByTestId('briefing-training')).toHaveText(TRAINING_NOTE);
+      await expect(page.getByTestId('briefing-exam')).toHaveCount(0);
+    } else {
+      await expect(page.getByTestId('briefing-exam')).toHaveText(
+        'Exam mode: no hints. When you are done, press Procedure complete.',
+      );
+      await expect(page.getByTestId('briefing-training')).toHaveCount(0);
+    }
+    await activate(page.getByTestId('briefing-start'), hasTouch);
+    await expect(page.getByTestId('procedure-complete')).toBeVisible();
+    await activate(page.getByTestId('procedure-complete'), hasTouch);
+    await expect(page.getByTestId('debrief-result')).toBeVisible();
+    await expect(page.getByTestId('debrief-mode')).toHaveText(`Mode: ${MODE_NAMES[mode]}`);
+    await expect(page.getByTestId('debrief-level')).toHaveText('Level: Easy');
+  });
+}
