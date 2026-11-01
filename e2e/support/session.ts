@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { DA50RG_ENV } from '../../src/aircraft/da50rg/aircraft';
 import { variantFromSeed } from '../../src/engine/variants';
 import { parseManifest, parseScenario } from '../../src/scenario/parse';
 import { pageCount } from '../../src/ui/panel/session-area';
@@ -154,4 +155,33 @@ export async function forceVariant(page: Page, file: string, id: string): Promis
   }, seed);
   await page.reload();
   await expect(page.getByTestId('panel')).toBeVisible();
+}
+
+/**
+ * Opens FURTHER ACTIONS during a run, picks the options `ids` in order (an action of a group through
+ * its group, a conduct through the conduct item) and closes the modal (Phase 7, plan 07-02).
+ */
+export async function pickFurther(
+  page: Page,
+  hasTouch: boolean,
+  ids: readonly string[],
+): Promise<void> {
+  await activate(page.locator('[data-session-hit="session.further"]'), hasTouch);
+  await expect(page.getByTestId('further')).toBeVisible();
+  await expect(page.getByTestId('further-modal')).not.toHaveAttribute('data-shield', 'on');
+  for (const id of ids) {
+    const option = DA50RG_ENV.further.option(id);
+    if (option === undefined) throw new Error(`no further option "${id}"`);
+    if (option.kind === 'conduct') await activate(page.getByTestId('further-conduct'), hasTouch);
+    else if (option.group !== undefined) {
+      await activate(page.getByTestId(`further-group-${option.group}`), hasTouch);
+    }
+    await activate(page.getByTestId(`further-opt-${id}`), hasTouch);
+    await expect(page.getByTestId(`further-opt-${id}`)).toHaveAttribute('data-done', 'true');
+    if (option.kind === 'conduct' || option.group !== undefined) {
+      await activate(page.getByTestId('further-back'), hasTouch);
+    }
+  }
+  await activate(page.getByTestId('further-close'), hasTouch);
+  await expect(page.getByTestId('further')).toHaveCount(0);
 }

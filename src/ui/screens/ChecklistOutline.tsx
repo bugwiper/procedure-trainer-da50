@@ -21,7 +21,7 @@ const NOTE_WORDS: Readonly<Record<Exclude<CommentStyle, 'subheading'>, string>> 
   caution: 'CAUTION',
 };
 
-const TONE_COLORS: Readonly<Record<VerdictTone, string>> = {
+export const TONE_COLORS: Readonly<Record<VerdictTone, string>> = {
   done: '#2fd36f',
   critical: '#ff5a50',
   standard: '#f2c230',

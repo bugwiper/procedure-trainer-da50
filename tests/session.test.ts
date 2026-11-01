@@ -2057,3 +2057,218 @@ describe('grading ignores both display axes (phase 07, D-02)', () => {
     for (const json of results) expect(json).toBe(results[0]);
   });
 });
+
+describe('further actions (phase 07, plan 02, D-07)', () => {
+  /** The shipped text without its own further section, so the cases declare theirs. */
+  const stripFurther = (text: string): string => text.split(/^(?:# [^\n]*\n)?further:/m)[0] ?? text;
+  const ACCEPT = `further:
+  actions[1]:
+    - id: atc_mayday
+      role: required
+  conduct:
+    accept[1]: conduct_precautionary
+`;
+  const NONE = `further:
+  actions[1]:
+    - id: atc_mayday
+      role: recommended
+  conduct: none
+`;
+  const withBlock = (text: string, block: string): string => `${stripFurther(text)}${block}`;
+  const GROUND_TEXT = readFileSync(join(root, 'scenarios/fire/eng-fire-ground.toon'), 'utf8');
+  const GROUND_MANIFEST = `format: 1
+title: Engine
+free: true
+scenarios[1]:
+  - id: eng-fire-ground
+    title: ENGINE FIRE GROUND
+    file: eng-fire-ground
+`;
+
+  /** A started run on the oil temperature scenario with the accept declaration. */
+  async function inFlight(mode: 'training' | 'exam' = 'exam'): Promise<Rig> {
+    const r = rig({ files: { 'eng-oil-temp-green': withBlock(BLUEPRINT, ACCEPT) } });
+    await r.session.newSituation();
+    r.session.setMode(mode);
+    r.session.setLevel('easy');
+    r.session.startRun();
+    expect(r.session.screen.value).toBe('running');
+    return r;
+  }
+
+  const ids = (r: Rig): string[] => r.session.decisions.value.map((d) => d.id);
+
+  it('logs each pick once, in order, with the run clock time', async () => {
+    const r = await inFlight();
+    const clock = r.session.clock.value;
+    if (clock === null) throw new Error('no clock');
+    clock.advance(1200);
+    r.session.decide('atc_mayday');
+    clock.advance(800);
+    r.session.decide('brief_passengers');
+    r.session.decide('atc_mayday');
+    clock.advance(500);
+    r.session.decide('conduct_precautionary');
+    expect(r.session.decisions.value).toEqual([
+      { t: 1200, id: 'atc_mayday' },
+      { t: 2000, id: 'brief_passengers' },
+      { t: 2500, id: 'conduct_precautionary' },
+    ]);
+  });
+
+  it('works in Training and in Exam mode alike', async () => {
+    for (const mode of ['training', 'exam'] as const) {
+      const r = await inFlight(mode);
+      r.session.decide('atc_pan_pan');
+      expect(ids(r)).toEqual(['atc_pan_pan']);
+    }
+  });
+
+  it('ignores an unknown id and every call outside a running run', async () => {
+    const r = rig({ files: { 'eng-oil-temp-green': withBlock(BLUEPRINT, ACCEPT) } });
+    r.session.decide('atc_mayday');
+    expect(ids(r)).toEqual([]);
+    await r.session.newSituation();
+    r.session.decide('atc_mayday');
+    expect(ids(r)).toEqual([]);
+    r.session.setLevel('easy');
+    r.session.startRun();
+    r.session.decide('nope');
+    r.session.decide('constructor');
+    expect(ids(r)).toEqual([]);
+    r.session.complete();
+    r.session.decide('atc_mayday');
+    expect(ids(r)).toEqual([]);
+  });
+
+  it('lets the conduct be picked again, ignores a repeat of the last pick, and counts the last', async () => {
+    const r = await inFlight();
+    r.session.decide('conduct_continue');
+    r.session.decide('conduct_continue');
+    r.session.decide('conduct_precautionary');
+    r.session.decide('conduct_continue');
+    r.session.decide('conduct_continue');
+    expect(ids(r)).toEqual(['conduct_continue', 'conduct_precautionary', 'conduct_continue']);
+    r.session.complete();
+    expect(r.session.result.value?.further?.conduct).toMatchObject({
+      last: 'conduct_continue',
+      status: 'wrong',
+    });
+    expect(r.session.result.value?.further?.conduct.picks).toEqual(ids(r));
+  });
+
+  it('offers no conduct where the scenario declares none, on the ground, or has no section', async () => {
+    const ground = rig({
+      manifest: GROUND_MANIFEST,
+      files: { 'eng-fire-ground': withBlock(GROUND_TEXT, NONE) },
+    });
+    await ground.session.newSituation();
+    ground.session.setLevel('easy');
+    ground.session.startRun();
+    expect(ground.session.screen.value).toBe('running');
+    ground.session.decide('conduct_emergency');
+    ground.session.decide('atc_mayday');
+    expect(ids(ground)).toEqual(['atc_mayday']);
+
+    const bare = rig({ files: { 'eng-oil-temp-green': stripFurther(BLUEPRINT) } });
+    await bare.session.newSituation();
+    bare.session.setLevel('easy');
+    bare.session.startRun();
+    bare.session.decide('conduct_continue');
+    bare.session.decide('brief_passengers');
+    expect(ids(bare)).toEqual(['brief_passengers']);
+  });
+
+  it('puts the decisions into the recording and leaves the key out without a pick', async () => {
+    const quiet = await inFlight();
+    quiet.session.complete();
+    expect(quiet.session.recording.value).not.toBeNull();
+    expect('decisions' in (quiet.session.recording.value ?? {})).toBe(false);
+
+    const r = await inFlight();
+    r.session.clock.value?.advance(700);
+    r.session.decide('atc_mayday');
+    r.session.complete();
+    expect(r.session.recording.value?.decisions).toEqual([{ t: 700, id: 'atc_mayday' }]);
+  });
+
+  it('passes with the required call and the right conduct, and fails without the call', async () => {
+    const play = async (call: boolean): Promise<Rig> => {
+      const r = await inFlight();
+      r.bridge.actuate('lv.power', 'p50');
+      r.bridge.actuate('lv.cowl_flap', 'open');
+      if (call) r.session.decide('atc_mayday');
+      r.session.decide('conduct_precautionary');
+      r.session.complete();
+      return r;
+    };
+    const good = await play(true);
+    expect(good.session.result.value?.result).toBe('pass');
+    expect(reasonLines(good.session.result.value ?? ({} as never))).toEqual([
+      'All critical steps done.',
+    ]);
+    const bad = await play(false);
+    expect(bad.session.result.value?.result).toBe('fail');
+    expect(bad.session.result.value?.reasons).toEqual([{ kind: 'further_missed', count: 1 }]);
+  });
+
+  it('clears the log wherever a run is left or a new one starts', async () => {
+    const r = await inFlight();
+    r.session.decide('atc_mayday');
+    r.session.openFurther();
+    expect(r.session.furtherOpen.value).toBe(true);
+    r.session.complete();
+    expect(r.session.furtherOpen.value).toBe(false);
+    r.session.closeDebrief();
+    expect(ids(r)).toEqual([]);
+
+    const again = await inFlight();
+    again.session.decide('atc_mayday');
+    again.session.resetPanel();
+    again.session.keepGoing();
+    expect(ids(again)).toEqual(['atc_mayday']);
+    again.session.resetPanel();
+    await again.session.leaveRun();
+    expect(ids(again)).toEqual([]);
+    expect(again.session.furtherOpen.value).toBe(false);
+
+    await again.session.newSituation();
+    again.session.setLevel('easy');
+    again.session.startRun();
+    expect(ids(again)).toEqual([]);
+  });
+
+  it('opens and closes the modal only in a running run', async () => {
+    const r = rig({ files: { 'eng-oil-temp-green': withBlock(BLUEPRINT, ACCEPT) } });
+    r.session.openFurther();
+    expect(r.session.furtherOpen.value).toBe(false);
+    await r.session.newSituation();
+    r.session.setLevel('easy');
+    r.session.openFurther();
+    expect(r.session.furtherOpen.value).toBe(false);
+    r.session.startRun();
+    r.session.openFurther();
+    expect(r.session.furtherOpen.value).toBe(true);
+    r.session.closeFurther();
+    expect(r.session.furtherOpen.value).toBe(false);
+  });
+
+  it('ignores the modal and every pick before the onset of a Realistic run', async () => {
+    const r = rig({ files: { 'eng-oil-temp-green': withBlock(BLUEPRINT, ACCEPT) } });
+    await r.session.newSituation();
+    r.session.setLevel('realistic');
+    expect(r.session.screen.value).toBe('running');
+    const began = r.session.onset.value;
+    if (began === null) throw new Error('no onset');
+    expect(began.at).toBeGreaterThan(0);
+    r.session.openFurther();
+    r.session.decide('atc_mayday');
+    expect(r.session.furtherOpen.value).toBe(false);
+    expect(ids(r)).toEqual([]);
+    r.session.clock.value?.advance(began.at);
+    r.session.openFurther();
+    r.session.decide('atc_mayday');
+    expect(r.session.furtherOpen.value).toBe(true);
+    expect(r.session.decisions.value).toEqual([{ t: began.at, id: 'atc_mayday' }]);
+  });
+});

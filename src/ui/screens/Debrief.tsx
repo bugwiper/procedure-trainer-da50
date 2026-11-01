@@ -1,8 +1,17 @@
+import type { FurtherSet } from '../../engine/further';
 import type { GradeResult } from '../../engine/grading';
 import type { Scenario } from '../../scenario/schema';
-import { causeLine, harmfulLine, limitLine, reasonLines, timingLine } from '../debrief-text';
+import {
+  causeLine,
+  furtherNote,
+  furtherRows,
+  harmfulLine,
+  limitLine,
+  reasonLines,
+  timingLine,
+} from '../debrief-text';
 import { buildOutline, checklistHead } from '../outline';
-import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
+import { ChecklistHeading, ChecklistOutline, TONE_COLORS } from './ChecklistOutline';
 import { LEVEL_NAMES, MODE_NAMES } from '../session';
 import type { Level, Mode } from '../session';
 import { Modal } from './Modal';
@@ -16,6 +25,7 @@ import { Modal } from './Modal';
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
+  further,
   scenario,
   result,
   level,
@@ -23,6 +33,8 @@ export function Debrief({
   completedAt,
   onClose,
 }: {
+  /** The further actions of the aircraft: the texts of the rows (Phase 7). */
+  readonly further: FurtherSet;
   readonly scenario: Scenario;
   readonly result: GradeResult;
   readonly level: Level;
@@ -37,6 +49,8 @@ export function Debrief({
   const reasons = reasonLines(result);
   const cause = causeLine(scenario, result);
   const limit = limitLine(completedAt);
+  const furtherList = furtherRows(result, further);
+  const note = furtherNote(result, further);
 
   return (
     <Modal
@@ -93,6 +107,40 @@ export function Debrief({
       <h3 class="debrief-heading">Steps</h3>
       <ChecklistHeading heading={head.heading} message={head.message} />
       <ChecklistOutline items={outline} form={head.form} />
+      {furtherList.length === 0 ? null : (
+        <>
+          <h3 class="debrief-heading" data-testid="debrief-further-heading">
+            Further actions
+          </h3>
+          <ul class="outline-list debrief-further" data-testid="debrief-further">
+            {furtherList.map((entry) => (
+              <li
+                key={entry.id}
+                class="further-row"
+                data-testid="debrief-further-row"
+                data-further-id={entry.id}
+                data-verdict={entry.verdict}
+              >
+                <span class="further-label">{entry.label}</span>
+                {entry.role === null ? null : <span class="outline-tag">{entry.role}</span>}
+                <span class="outline-verdict" style={{ color: TONE_COLORS[entry.tone] }}>
+                  {entry.verdict}
+                </span>
+                {entry.picks === null ? null : (
+                  <span class="further-picks" data-testid="debrief-further-picks">
+                    {entry.picks}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {note === null ? null : (
+            <p class="briefing-meta" data-testid="debrief-further-note">
+              {note}
+            </p>
+          )}
+        </>
+      )}
       <h3 class="debrief-heading" data-testid="debrief-harmful-heading">
         {`Harmful actions (${String(result.harmful.length)})`}
       </h3>

@@ -19,6 +19,9 @@
 // like the level and never an input of grade. In Training a run can ask for a hint (askHint: the
 // grade of the partial recording read for its first open step, src/engine/hint.ts) and show the
 // checklist sheet (toggleChecklist); in Exam both do nothing. Neither is a modal.
+// The further actions (Phase 7, plan 02): during a run the pilot can pick the decisions that are not
+// panel actions (inform ATC, brief passengers, the flight conduct) in a modal; each pick is logged by
+// decide() as { t, id } with the run clock's time and goes into the recording beside the store log.
 
 import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
@@ -32,6 +35,8 @@ import type {
   RecordedVariant,
   Recording,
 } from '../engine/grading';
+import { offersConduct } from '../engine/further';
+import type { RecordedDecision } from '../engine/further';
 import { nextOpenStep } from '../engine/hint';
 import type { OpenStep } from '../engine/hint';
 import { initialQuantities, realisticQuantities } from '../engine/predicates';
@@ -218,6 +223,13 @@ export interface Session {
    */
   readonly runBranches: ReadonlySignal<readonly BranchVerdict[]>;
   /**
+   * The further actions picked in the current run, in the order picked, with the run time of each
+   * (D-07); empty outside a run. They go into the recording, never into the store log.
+   */
+  readonly decisions: ReadonlySignal<readonly RecordedDecision[]>;
+  /** True while the Further actions modal is open; the run clock waits meanwhile like for every modal. */
+  readonly furtherOpen: ReadonlySignal<boolean>;
+  /**
    * The onset of the current or last realistic run (time in run ms and the seed it was drawn
    * from); null for Easy and Medium and outside a run. Run data, kept until the next start.
    */
@@ -288,6 +300,17 @@ export interface Session {
    * or outside a run. It records nothing and changes no grade.
    */
   toggleChecklist(): void;
+  /**
+   * Running only: logs one further action or flight conduct pick at the run clock's time. Ignored
+   * before the onset of a Realistic run, for an id the aircraft does not have, for a conduct when the
+   * scenario declares no accept, for an action already logged and for a repeat of the last conduct
+   * pick (D-07, R16).
+   */
+  decide(id: string): void;
+  /** Running only, and not before the onset of a Realistic run: opens the Further actions modal. */
+  openFurther(): void;
+  /** Closes the Further actions modal; the picks stay logged. */
+  closeFurther(): void;
   /** Briefing only: the panel takes the scenario's initial state and the run begins. */
   startRun(): void;
   /** Briefing only: back to the free panel, nothing changed. */
@@ -377,6 +400,8 @@ export function createSession(deps: SessionDeps): Session {
     hint.value = null;
     checklistShown.value = false;
     runBranches.value = [];
+    decisions.value = [];
+    furtherOpen.value = false;
     confirm.value = null;
     choices.value = [];
     choosePage.value = 0;
@@ -392,6 +417,8 @@ export function createSession(deps: SessionDeps): Session {
   const hint = signal<HintState | null>(null);
   const checklistShown = signal(false);
   const runBranches = signal<readonly BranchVerdict[]>([]);
+  const decisions = signal<readonly RecordedDecision[]>([]);
+  const furtherOpen = signal(false);
   const onset = signal<RecordedOnset | null>(null);
   const variant = signal<RecordedVariant | null>(null);
   const recording = signal<Recording | null>(null);
@@ -414,7 +441,15 @@ export function createSession(deps: SessionDeps): Session {
         .map((e) => ({ t: e.t, id: e.id, value: e.value })),
       ...(onset.peek() === null ? {} : { onset: onset.peek() }),
       ...(variant.peek() === null ? {} : { variant: variant.peek() }),
+      ...(decisions.peek().length === 0 ? {} : { decisions: decisions.peek() }),
     };
+  };
+
+  /** True before the failure of a Realistic run has begun: nothing may be decided about it yet. */
+  const beforeOnset = (): boolean => {
+    const began = onset.peek();
+    const runClock = clock.peek();
+    return began !== null && runClock !== null && runClock.now() < began.at;
   };
 
   /** Running only: grades the recorded log at the run clock's time and shows the debrief. */
@@ -428,6 +463,7 @@ export function createSession(deps: SessionDeps): Session {
     hint.value = null;
     checklistShown.value = false;
     runBranches.value = [];
+    furtherOpen.value = false;
     runClock.pause();
     bridge.setTimeSource(null);
     screen.value = 'debrief';
@@ -482,6 +518,8 @@ export function createSession(deps: SessionDeps): Session {
     hint.value = null;
     checklistShown.value = false;
     runBranches.value = branchStatuses(opened, env);
+    decisions.value = [];
+    furtherOpen.value = false;
     onset.value = drawn;
     variant.value = cause;
     run.value = current;
@@ -629,6 +667,8 @@ export function createSession(deps: SessionDeps): Session {
     hint,
     checklistShown,
     runBranches,
+    decisions,
+    furtherOpen,
     onset,
     variant,
     recording,
@@ -707,6 +747,8 @@ export function createSession(deps: SessionDeps): Session {
       hint.value = null;
       checklistShown.value = false;
       runBranches.value = [];
+      decisions.value = [];
+      furtherOpen.value = false;
       confirm.value = null;
       lastRequest = null;
       screen.value = 'free';
@@ -764,6 +806,28 @@ export function createSession(deps: SessionDeps): Session {
       if (mode.peek() !== 'training' || screen.peek() !== 'running') return;
       checklistShown.value = !checklistShown.peek();
     },
+    decide(id) {
+      const current = scenario.peek();
+      const runClock = clock.peek();
+      if (screen.peek() !== 'running' || current === null || runClock === null) return;
+      if (beforeOnset()) return;
+      const option = env.further.option(id);
+      if (option === undefined) return;
+      const log = decisions.peek();
+      if (option.kind === 'conduct') {
+        if (!offersConduct(current.further)) return;
+        const lastConduct = log.filter((d) => env.further.option(d.id)?.kind === 'conduct').at(-1);
+        if (lastConduct?.id === id) return;
+      } else if (log.some((d) => d.id === id)) return;
+      decisions.value = [...log, { t: runClock.now(), id }];
+    },
+    openFurther() {
+      if (screen.peek() !== 'running' || beforeOnset()) return;
+      furtherOpen.value = true;
+    },
+    closeFurther() {
+      furtherOpen.value = false;
+    },
     startRun() {
       const briefed = briefing.peek();
       if (screen.peek() !== 'briefing' || briefed === null) return;
@@ -781,6 +845,8 @@ export function createSession(deps: SessionDeps): Session {
       hint.value = null;
       checklistShown.value = false;
       runBranches.value = [];
+      decisions.value = [];
+      furtherOpen.value = false;
       // A run timer cannot outlive its run (C-23): the lamps go dark, the quantities stay as left.
       bridge.setFlags({});
       clock.value = null;

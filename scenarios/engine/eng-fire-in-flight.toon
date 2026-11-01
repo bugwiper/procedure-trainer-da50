@@ -163,3 +163,14 @@ onset:
     # Start altitude of the Realistic run, the same value as in the initial block.
     altitude_ft: 5500
   cues[1]: flames
+# The further actions (Phase 7). The roles and the right flight conduct are instructor-review values, listed in docs/PANEL-REVIEW.md: the MAYDAY call is required, the passenger briefing is recommended and never fails a run, and a fire in flight calls for an emergency landing.
+further:
+  actions[3]:
+    - id: atc_mayday
+      role: required
+    - id: atc_pan_pan
+      role: optional
+    - id: brief_passengers
+      role: recommended
+  conduct:
+    accept[1]: conduct_emergency

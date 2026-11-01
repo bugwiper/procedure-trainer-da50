@@ -288,6 +288,26 @@ export const Variant = z.strictObject({
   debrief: wordsBetween(1, 30),
 });
 
+/** The roles a scenario gives a further action (Phase 7, D-08). */
+export const FURTHER_ROLES = ['required', 'recommended', 'optional', 'harmful'] as const;
+
+/** The role of one further action; whether the id exists and whether `fails_run` fits is lint L27. */
+export const FurtherAction = z.strictObject({
+  id: nodeId,
+  role: z.enum(FURTHER_ROLES),
+  fails_run: z.boolean().default(false),
+});
+
+/**
+ * The further actions of a scenario (Phase 7, D-08 to D-10): the role of each action and the flight
+ * conduct. `conduct` is required inside the section: the literal `none` (no conduct decision exists,
+ * on the ground) or `accept`, the option ids that are right. An action not listed is optional.
+ */
+export const Further = z.strictObject({
+  actions: z.array(FurtherAction).default([]),
+  conduct: z.union([z.literal('none'), z.strictObject({ accept: z.array(nodeId).min(1) })]),
+});
+
 /** The printed form of a checklist and its heading and message tag (all optional, plan 03-13). */
 export const CHECKLIST_FORMS = ['table', 'outline'] as const;
 
@@ -345,6 +365,8 @@ export const Scenario = z.strictObject({
   onset: Onset.optional(),
   /** The several causes behind the failure; empty means one cause, the file as written. */
   variants: z.array(Variant).max(MAX_VARIANTS).default([]),
+  /** The decisions beyond the panel (Phase 7): roles of the further actions and the right conduct. */
+  further: Further.optional(),
 });
 
 /** Table F4: pack manifest. */
@@ -376,5 +398,7 @@ export type Forbidden = z.infer<typeof Forbidden>;
 export type Outcome = z.infer<typeof Outcome>;
 export type Onset = z.infer<typeof Onset>;
 export type Variant = z.infer<typeof Variant>;
+export type FurtherSection = z.infer<typeof Further>;
+export type FurtherRole = (typeof FURTHER_ROLES)[number];
 export type Predicate = z.infer<typeof Predicate>;
 export type Manifest = z.infer<typeof Manifest>;

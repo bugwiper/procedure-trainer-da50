@@ -1,6 +1,6 @@
 // Grading as a pure replay (D-09 to D-13, SCN-04, SCN-05): grade(scenario, env, recording) turns
 // the recorded action log into a PASS or FAIL verdict with step, branch, order and harmful-action
-// detail. The rules R1 to R9 are written down in docs/GRADING.md; rule R10 (D-06, C-26) adds the
+// detail. The rules R1 to R9 (and R16 to R19, Phase 7) are written down in docs/GRADING.md; rule R10 (D-06, C-26) adds the
 // escalation to a named outcome: grade replays the same simulation as the live run up to the end
 // of the recording, and when an outcome of the scenario fires the log is graded only up to the
 // outcome time and the outcome is the first FAIL reason. Nothing here reads a clock, a
@@ -11,6 +11,8 @@
 
 import type { Forbidden, Group, Scenario } from '../scenario/schema';
 import type { AircraftEnv } from './env';
+import { gradeFurther } from './further';
+import type { FurtherReason, FurtherResult, RecordedDecision } from './further';
 import {
   baselineOf,
   evaluatePredicate,
@@ -40,6 +42,8 @@ export interface RecordedVariant {
   readonly seed: number;
 }
 
+export type { RecordedDecision } from './further';
+
 export interface Recording {
   readonly scenarioId: string;
   readonly completedAt: number;
@@ -57,6 +61,11 @@ export interface Recording {
   readonly variant?: RecordedVariant | null;
   /** In log order; never sorted by t. */
   readonly events: readonly RecordedEvent[];
+  /**
+   * The further actions picked in the run (Phase 7, D-07), in the order picked. Absent means none
+   * were made. An id the aircraft does not have makes grade throw, like an unknown control.
+   */
+  readonly decisions?: readonly RecordedDecision[];
 }
 
 export type BranchStatus = 'applies' | 'not_applicable' | 'open';
@@ -108,6 +117,7 @@ export interface OutcomeVerdict {
 export type Reason =
   | { readonly kind: 'outcome'; readonly id: string }
   | { readonly kind: 'critical_missed'; readonly count: number }
+  | FurtherReason
   | { readonly kind: 'order'; readonly group: string }
   | { readonly kind: 'forbidden'; readonly id: string };
 
@@ -136,6 +146,12 @@ export interface GradeResult {
   readonly timing: Timing;
   /** The id of the variant the recording names; present only when it names one. */
   readonly variant?: string;
+  /**
+   * The further actions and the flight decision (Phase 7, R16 to R18); present only when the
+   * scenario has the section or the recording has decisions, so a result without either is
+   * JSON-identical to one from before Phase 7.
+   */
+  readonly further?: FurtherResult;
 }
 
 /** R1: the state of the run before the first event. */
@@ -380,11 +396,21 @@ export function grade(original: Scenario, env: AircraftEnv, recording: Recording
     });
   }
 
-  // R8 and R10: reasons in the order outcome, critical_missed, order, forbidden.
+  // R16 to R18: the decisions of the recording against the section of the scenario.
+  const furtherGrade = gradeFurther(
+    scenario.further,
+    env.further,
+    recording.decisions,
+    outcome === null ? null : outcome.t,
+  );
+
+  // R8, R10 and R17 (D-11): reasons in the order outcome, critical_missed, further_missed, conduct,
+  // order, forbidden, further_harmful.
   const reasons: Reason[] = [];
   if (outcome !== null) reasons.push({ kind: 'outcome', id: outcome.id });
   const missed = steps.filter((s) => s.severity === 'critical' && !s.credited).length;
   if (missed > 0) reasons.push({ kind: 'critical_missed', count: missed });
+  reasons.push(...furtherGrade.early);
   for (const { group } of groups) {
     if (orderViolations.some((v) => v.group === group.id && v.critical)) {
       reasons.push({ kind: 'order', group: group.id });
@@ -395,6 +421,7 @@ export function grade(original: Scenario, env: AircraftEnv, recording: Recording
       reasons.push({ kind: 'forbidden', id: item.id });
     }
   }
+  reasons.push(...furtherGrade.late);
 
   // C-34: the reaction time is measured over the graded events, from the onset (0 without one).
   const first = events.find((event) => event.t >= onsetAt);
@@ -414,5 +441,6 @@ export function grade(original: Scenario, env: AircraftEnv, recording: Recording
     outcome,
     timing,
     ...(named === null ? {} : { variant: named.id }),
+    ...(furtherGrade.result === undefined ? {} : { further: furtherGrade.result }),
   };
 }

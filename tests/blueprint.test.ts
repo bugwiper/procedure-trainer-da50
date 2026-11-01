@@ -73,6 +73,11 @@ const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {
       ...Object.keys(s.onset?.parameters ?? {}),
     ]),
   ),
+  // Phase 7: the further actions are aircraft data; the option ids and the note live in src/aircraft only.
+  'further option id': DA50RG_ENV.further.options.map((option) => option.id),
+  'further debrief note': DA50RG_ENV.further.options.flatMap((option) =>
+    option.debriefNote === undefined ? [] : [option.debriefNote],
+  ),
   'CAS id': CAS_IDS,
   'CAS message': CAS_IDS.flatMap((id) => {
     const text = DA50RG_CAS.get(id)?.text;

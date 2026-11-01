@@ -3,6 +3,7 @@
 
 import type { CasRuleSet } from './cas';
 import type { CueSet } from './cues';
+import type { FurtherSet } from './further';
 import type { Physics } from './physics';
 import type { QuantitySet } from './quantities';
 import type { Registry } from './registry';
@@ -18,4 +19,6 @@ export interface AircraftEnv {
   readonly cues: CueSet;
   /** The views out of the windscreen a scenario may name (Phase 5). */
   readonly scenes: SceneSet;
+  /** The fixed list of further actions and flight conduct options (Phase 7). */
+  readonly further: FurtherSet;
 }

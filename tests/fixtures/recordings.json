@@ -259,6 +259,16 @@
         "id": "sw.elect_master",
         "value": "off"
       }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_mayday"
+      },
+      {
+        "t": 12000,
+        "id": "conduct_emergency"
+      }
     ]
   },
   "fire-golden-long": {
@@ -295,6 +305,16 @@
         "id": "sw.elect_master",
         "value": "off"
       }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_mayday"
+      },
+      {
+        "t": 12000,
+        "id": "conduct_emergency"
+      }
     ]
   },
   "fire-no-squawk": {
@@ -325,6 +345,20 @@
         "t": 10000,
         "id": "sw.elect_master",
         "value": "off"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_mayday"
+      },
+      {
+        "t": 12000,
+        "id": "brief_passengers"
+      },
+      {
+        "t": 13000,
+        "id": "conduct_emergency"
       }
     ]
   },
@@ -377,6 +411,16 @@
         "id": "sw.elect_master",
         "value": "off"
       }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_mayday"
+      },
+      {
+        "t": 12000,
+        "id": "conduct_emergency"
+      }
     ]
   },
   "fire-wrong-order": {
@@ -407,6 +451,24 @@
         "t": 10000,
         "id": "lv.env_circ",
         "value": "fresh"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_pan_pan"
+      },
+      {
+        "t": 12000,
+        "id": "atc_mayday"
+      },
+      {
+        "t": 13000,
+        "id": "conduct_precautionary"
+      },
+      {
+        "t": 14000,
+        "id": "conduct_emergency"
       }
     ]
   },

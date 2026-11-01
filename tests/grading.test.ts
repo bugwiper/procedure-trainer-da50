@@ -49,8 +49,17 @@ function power(t: number, value: string) {
 function cowl(t: number, value: string) {
   return { t, id: 'lv.cowl_flap', value };
 }
-function run(scenario: Scenario, events: Recording['events']): GradeResult {
-  return grade(scenario, DA50RG_ENV, { scenarioId: scenario.id, completedAt: 20000, events });
+function run(
+  scenario: Scenario,
+  events: Recording['events'],
+  decisions?: Recording['decisions'],
+): GradeResult {
+  return grade(scenario, DA50RG_ENV, {
+    scenarioId: scenario.id,
+    completedAt: 20000,
+    events,
+    ...(decisions === undefined ? {} : { decisions }),
+  });
 }
 
 const blueprint = load(BLUEPRINT);
@@ -142,6 +151,45 @@ const power_increased = (t: number, seq: number, failsRun = true) => ({
   seq,
   failsRun,
 });
+
+/**
+ * What the further declaration of the real Engine Fire file adds to an expected result (Phase 7,
+ * plan 07-02): the roles and the accepted conduct are typed here, independent of the engine, and the
+ * picks are read from the recording of the fixture. The reasons go where D-11 puts them: after the
+ * outcome and the missed critical steps, before the order and forbidden reasons.
+ */
+const FIRE_FURTHER_ROLES = [
+  ['atc_mayday', 'required'],
+  ['atc_pan_pan', 'optional'],
+  ['brief_passengers', 'recommended'],
+] as const;
+const FIRE_FURTHER_ACCEPT = ['conduct_emergency'];
+
+function withFireFurther(name: string, expected: GradeResult): GradeResult {
+  const picks = (recording(name).decisions ?? []).map((decision) => decision.id);
+  const conductPicks = picks.filter((id) => id.startsWith('conduct_'));
+  const last = conductPicks.at(-1) ?? null;
+  const status = last === null ? 'missing' : FIRE_FURTHER_ACCEPT.includes(last) ? 'ok' : 'wrong';
+  const actions = FIRE_FURTHER_ROLES.map(([id, role]) => ({
+    id,
+    role,
+    done: picks.includes(id),
+    failsRun: false,
+  }));
+  const added: GradeResult['reasons'][number][] = [];
+  const missed = actions.filter((a) => a.role === 'required' && !a.done).length;
+  if (missed > 0) added.push({ kind: 'further_missed', count: missed });
+  if (status !== 'ok') added.push({ kind: 'conduct', status });
+  const head = expected.reasons.filter((r) => r.kind === 'outcome' || r.kind === 'critical_missed');
+  const tail = expected.reasons.filter((r) => r.kind !== 'outcome' && r.kind !== 'critical_missed');
+  const reasons = [...head, ...added, ...tail];
+  return {
+    ...expected,
+    result: reasons.length === 0 ? 'pass' : 'fail',
+    reasons,
+    further: { actions, conduct: { declared: 'accept', picks: conductPicks, last, status } },
+  };
+}
 
 describe('golden recordings (Table R1)', () => {
   const cases: readonly { name: string; scenario: Scenario; expected: GradeResult }[] = [
@@ -612,7 +660,8 @@ describe('golden recordings (Table R1)', () => {
 
   for (const { name, scenario, expected } of cases) {
     it(`grades ${name} exactly`, () => {
-      expect(grade(scenario, DA50RG_ENV, recording(name))).toEqual(expected);
+      const want = scenario === fire ? withFireFurther(name, expected) : expected;
+      expect(grade(scenario, DA50RG_ENV, recording(name))).toEqual(want);
     });
   }
 });
@@ -779,7 +828,11 @@ describe('Engine Fire replays (plan 03-08, D-08, D-06, C-48)', () => {
     const result = grade(fire, DA50RG_ENV, long);
     expect(result.outcome).toBeNull();
     expect(result.result).toBe('fail');
-    expect(result.reasons).toEqual([{ kind: 'critical_missed', count: 4 }]);
+    expect(result.reasons).toEqual([
+      { kind: 'critical_missed', count: 4 },
+      { kind: 'further_missed', count: 1 },
+      { kind: 'conduct', status: 'missing' },
+    ]);
   });
 
   it('more power is reported as harmful but does not fail a run that is otherwise right', () => {
@@ -787,7 +840,7 @@ describe('Engine Fire replays (plan 03-08, D-08, D-06, C-48)', () => {
       { t: 3000, id: 'lv.power', value: 'p100' },
       ...recording('fire-golden').events.slice(1),
     ];
-    const result = run(fire, events);
+    const result = run(fire, events, recording('fire-golden').decisions);
     expect(result.result).toBe('pass');
     expect(result.harmful).toEqual([
       { id: 'power_increased', text: 'Increase power', t: 3000, seq: 0, failsRun: false },

@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 import type { GradeResult, OrderViolation, Reason } from '../src/engine/grading';
 import type { Group } from '../src/scenario/schema';
 import { MAX_RUN_MS } from '../src/engine/sim';
-import { harmfulLine, limitLine, orderLine, reasonLines, timingLine } from '../src/ui/debrief-text';
+import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
+import {
+  furtherNote,
+  furtherRows,
+  harmfulLine,
+  limitLine,
+  orderLine,
+  reasonLines,
+  timingLine,
+} from '../src/ui/debrief-text';
 
 // Table T1 of plan 02-13: the copy rules of the debrief, pure functions of the grade result.
 
@@ -210,5 +219,138 @@ describe('limitLine (WR-05, V-14)', () => {
     expect(limitLine(MAX_RUN_MS)).toBe(
       `The run reached the ${String(MAX_RUN_MS / 60_000)} minute limit.`,
     );
+  });
+});
+
+describe('further actions (Phase 7, plan 07-02, R19)', () => {
+  const SET = DA50RG_ENV.further;
+  const [mayday, panPan, passengers] = SET.ids('action');
+  const [carryOn, , emergency] = SET.ids('conduct');
+  if (!mayday || !panPan || !passengers || !carryOn || !emergency) throw new Error('short list');
+
+  it('words the reasons of the further actions', () => {
+    expect(reasonLines(failing([{ kind: 'further_missed', count: 1 }]))).toEqual([
+      '1 required further action was missed.',
+    ]);
+    expect(reasonLines(failing([{ kind: 'further_missed', count: 2 }]))).toEqual([
+      '2 required further actions were missed.',
+    ]);
+    expect(reasonLines(failing([{ kind: 'conduct', status: 'missing' }]))).toEqual([
+      'The flight decision was missing.',
+    ]);
+    expect(reasonLines(failing([{ kind: 'conduct', status: 'wrong' }]))).toEqual([
+      'The flight decision was not the right one.',
+    ]);
+    expect(reasonLines(failing([{ kind: 'further_harmful', id: panPan }]))).toEqual([
+      'A harmful action counts as a fail in this scenario.',
+    ]);
+    // A harmful panel action and a harmful further action are one cause line.
+    expect(
+      reasonLines(
+        failing([
+          { kind: 'forbidden', id: 'x' },
+          { kind: 'further_harmful', id: panPan },
+        ]),
+      ),
+    ).toEqual(['A harmful action counts as a fail in this scenario.']);
+  });
+
+  const withFurther = (further: GradeResult['further']): GradeResult => result({ further });
+
+  it('gives no rows for a result without a further entry', () => {
+    expect(furtherRows(result({}), SET)).toEqual([]);
+    expect(furtherNote(result({}), SET)).toBeNull();
+  });
+
+  it('gives a row per entry with the role word and the verdict word, then the flight decision', () => {
+    const rows = furtherRows(
+      withFurther({
+        actions: [
+          { id: mayday, role: 'required', done: false, failsRun: false },
+          { id: panPan, role: 'optional', done: true, failsRun: false },
+          { id: passengers, role: 'recommended', done: false, failsRun: false },
+        ],
+        conduct: { declared: 'accept', picks: [], last: null, status: 'missing' },
+      }),
+      SET,
+    );
+    expect(rows.map((r) => [r.id, r.role, r.verdict])).toEqual([
+      [mayday, 'Required', 'Missed'],
+      [panPan, 'Optional', 'Done'],
+      [passengers, 'Recommended', 'Recommended and not done'],
+      ['conduct', 'Required', 'Missing'],
+    ]);
+    expect(rows[0]?.label).toBe(SET.option(mayday)?.text);
+    expect(rows[3]?.label).toBe(SET.conductTitle);
+    expect(rows[3]?.picks).toBeNull();
+  });
+
+  it('words the harmful rows and the right and wrong flight decision with the earlier picks', () => {
+    const base = {
+      actions: [
+        { id: mayday, role: 'harmful' as const, done: true, failsRun: true },
+        { id: panPan, role: 'harmful' as const, done: false, failsRun: true },
+      ],
+    };
+    const right = furtherRows(
+      withFurther({
+        ...base,
+        conduct: {
+          declared: 'accept',
+          picks: [carryOn, emergency],
+          last: emergency,
+          status: 'ok',
+        },
+      }),
+      SET,
+    );
+    expect(right.map((r) => r.verdict)).toEqual(['Harmful', 'Not done', 'Right']);
+    expect(right[2]?.picks).toBe(
+      `Picks in order: ${SET.option(carryOn)?.text ?? ''}, then ${SET.option(emergency)?.text ?? ''}`,
+    );
+    const wrong = furtherRows(
+      withFurther({
+        actions: [],
+        conduct: { declared: 'accept', picks: [carryOn], last: carryOn, status: 'wrong' },
+      }),
+      SET,
+    );
+    expect(wrong.map((r) => r.verdict)).toEqual(['Wrong']);
+    expect(wrong[0]?.picks).toBe(`Picked: ${SET.option(carryOn)?.text ?? ''}`);
+  });
+
+  it('shows no conduct row for none without a pick, and a row marked Not graded with one', () => {
+    const none = (picks: string[]) =>
+      furtherRows(
+        withFurther({
+          actions: [],
+          conduct: {
+            declared: 'none',
+            picks,
+            last: picks.at(-1) ?? null,
+            status: 'not_declared',
+          },
+        }),
+        SET,
+      );
+    expect(none([])).toEqual([]);
+    expect(none([carryOn]).map((r) => [r.role, r.verdict])).toEqual([[null, 'Not graded']]);
+  });
+
+  it('gives the note of the aircraft data only when the last conduct pick carries one', () => {
+    const last = (id: string | null): GradeResult =>
+      withFurther({
+        actions: [],
+        conduct: {
+          declared: 'accept',
+          picks: id === null ? [] : [id],
+          last: id,
+          status: 'ok',
+        },
+      });
+    expect(furtherNote(last(emergency), SET)).toBe(SET.option(emergency)?.debriefNote);
+    expect(furtherNote(last(emergency), SET)).not.toBeNull();
+    expect(furtherNote(last(carryOn), SET)).toBeNull();
+    expect(furtherNote(last(null), SET)).toBeNull();
   });
 });

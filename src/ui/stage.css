@@ -436,6 +436,45 @@ body,
   list-style: none;
 }
 
+/* A row of the Further actions section of the debrief: the label, the role word, the verdict word
+   (the order and the look of a step row of the outline) and, under them, what was picked. */
+.further-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 12px;
+  padding: 4px 0;
+}
+
+.further-row .further-label {
+  flex: 1 1 60%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.further-row .outline-tag {
+  min-width: 0;
+  text-transform: uppercase;
+}
+
+.further-row .further-picks {
+  order: 4;
+  flex: 0 0 100%;
+  font-size: 14px;
+  color: #aab3bd;
+}
+
+/* On narrow screens the label takes a line of its own, the role word and the verdict sit below it. */
+@media (max-width: 480px) {
+  .further-row .further-label {
+    flex-basis: 100%;
+  }
+
+  .further-row .outline-verdict {
+    margin-left: auto;
+  }
+}
+
 .outline-list .outline-list {
   padding-left: 16px;
   box-shadow: inset 2px 0 0 #3a424b;

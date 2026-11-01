@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { SESSION_LAYOUT, pageCount } from '../src/ui/panel/session-area';
-import { forceVariant, shippedScenarios, startScenario } from './support/session';
+import { forceVariant, pickFurther, shippedScenarios, startScenario } from './support/session';
 import { activate, activateAt, afterPairWindow, leaveZoom, zoomIntoRegion } from './support/zoom';
 
 // CNT-01 (phase 03): the shipped pack as the pilot meets it on the built panel. CHOOSE SITUATION
@@ -110,6 +110,9 @@ test('@hooks Engine Fire: the golden run with squawk 7700 grades PASS', async ({
 
   await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
   await expect(control(page, 'sw.elect_master')).toHaveAttribute('data-state', 'off');
+
+  // The further actions the file requires (Phase 7): the MAYDAY call and the emergency landing.
+  await pickFurther(page, hasTouch, ['atc_mayday', 'conduct_emergency']);
 
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
