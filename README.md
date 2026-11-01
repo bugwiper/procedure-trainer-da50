@@ -61,13 +61,273 @@ How it behaves:
 The session pad sits in the lower right of the panel, in the co-pilot legroom; zoom in with a double tap to use its buttons at full size.
 
 - **NEW SITUATION** picks a situation at random and opens its briefing; **CHOOSE SITUATION** lists the situations and a row opens its briefing. There are ten situations, listed four to a page (NEXT PAGE turns the page): ALTN 1 FAIL and ALTN 2 FAIL (the alternator failures; the debrief names the cause), ENG OIL TEMP (with the oil pressure in the green range) and ENGINE FIRE in flight on page 1; the fire and smoke pack ENGINE FIRE GROUND, ELEC FIRE GROUND (one list of five rows, the engine runs), T/O FIRE ABORT and T/O FIRE NO ABORT on page 2; ELEC FIRE FLIGHT (cabin smoke over the panel, clearing after the right actions) and ICING CONDITIONS (ice on both halves of the windscreen; the icing area ends after three minutes and a WIND SHIELD press keeps the pilot half clear for ten minutes) on page 3. The checklists of the ground, take-off and icing situations are shown as the checklist booklet (edition 4.1) prints them, with number marks, the comment lines and the boxed reference. The parked situations read 0 knots on the PFD and the take-off roll follows the POWER and the toe brakes. A run ends by itself at 30 minutes.
-- The **briefing** shows the situation, the training-aid disclaimer, and the source record at the bottom. Before the briefing a **Choose a level** card asks for the level: **Easy** (the situation and the checklist with the panel steps), **Medium** (the situation only, no checklist) or **Realistic** (no briefing at all: the panel starts in normal flight with nothing said, the failure begins by itself after a few seconds, and the debrief reveals which situation it was and how long after the onset your first action came). The level is asked every time a situation is opened. The run is an exam: nothing gives hints. **Start run** puts the panel into the initial state of the scenario and shows the annunciation on the PFD (the red ENG OIL TEMP message).
-- During the run the panel reacts: the gauges on the MFD engine page move (the engine page has the layout of the real one: the Load and RPM arcs, Oil Pres, Oil Temp, Coolant and Gearbox bars, the fuel box with the two tanks as one bar with an L and an R pointer, the fuel flow and the fuel calculator, the Electrical box with one Amps bar and a pointer for each alternator, the oxygen, de-ice and total service boxes; the oil pressure falls with hot oil and rises with a cold engine and with POWER; the PFD is live in a situation, with a rolling horizon, speed and altitude tapes and the vertical speed, while the free panel stays static), an ignored failure gets worse and an ignored failure that goes far enough ends the run by itself with a named outcome (for example "Engine failure from overheating", the debrief opens as FAIL), while the right actions bring the readings back. The transponder below the panel on the pilot's side takes a squawk code (for example 7700 in ENGINE FIRE). The PITOT/STALL HEAT switch off shows the yellow messages PITOT HEAT and STALL HEAT on the PFD, and on the ground STALL HEAT returns a few seconds after the heat is on (in the air it does not). The simulation runs only during a scenario run; the free panel shows fixed cruise readings. Nothing says whether an action was right. When you are done, press **Procedure complete** in the footer.
-- The **debrief** shows PASS or FAIL first, one line per reason, the level of the run, the checklist outline with a verdict for every graded step (always, on every level), the order of ordered groups and the harmful actions by name, without a time (for example "Increase power"). In ENG OIL TEMP a power increase fails the run. The level never changes the grade. There is no score. Back to panel keeps the end state of the panel. The grading rules are written down in [docs/GRADING.md](docs/GRADING.md); the same recorded run always gives the same verdicts.
+- The **briefing** shows the situation, the training-aid disclaimer, and the source record at the bottom. Two cards come before the briefing, each asked every time a situation is opened. The **mode** card asks **Training** (a CHECKLIST button shows the checklist during the run and a HINT button names the next open step; nothing else changes) or **Exam** (silent, no checklist and no hint). The **Choose a level** card then asks for the level: **Easy** (the situation and the checklist with the panel steps), **Medium** (the situation only, no checklist) or **Realistic** (no briefing at all: the panel starts in normal flight with nothing said, the failure begins by itself after a few seconds, and the debrief reveals which situation it was and how long after the onset your first action came). Mode and level are two separate questions and neither is an input of the grade. **Start run** puts the panel into the initial state of the scenario and shows the annunciation on the PFD (the red ENG OIL TEMP message).
+- During the run the panel reacts: the gauges on the MFD engine page move (the engine page has the layout of the real one: the Load and RPM arcs, Oil Pres, Oil Temp, Coolant and Gearbox bars, the fuel box with the two tanks as one bar with an L and an R pointer, the fuel flow and the fuel calculator, the Electrical box with one Amps bar and a pointer for each alternator, the oxygen, de-ice and total service boxes; the oil pressure falls with hot oil and rises with a cold engine and with POWER; the PFD is live in a situation, with a rolling horizon, speed and altitude tapes and the vertical speed, while the free panel stays static), an ignored failure gets worse and an ignored failure that goes far enough ends the run by itself with a named outcome (for example "Engine failure from overheating", the debrief opens as FAIL), while the right actions bring the readings back. The transponder below the panel on the pilot's side takes a squawk code (for example 7700 in ENGINE FIRE). The PITOT/STALL HEAT switch off shows the yellow messages PITOT HEAT and STALL HEAT on the PFD, and on the ground STALL HEAT returns a few seconds after the heat is on (in the air it does not). The simulation runs only during a scenario run; the free panel shows fixed cruise readings. Nothing says whether an action was right (a Training hint names a step still open, it never says that something was wrong). While a run is live the session pad shows FURTHER ACTIONS, CHECKLIST and HINT (the last two in Training only), NEW SITUATION and CHOOSE SITUATION (both ask before they leave the run) and RESET. **FURTHER ACTIONS** opens a list of the decisions beyond the panel: inform ATC (MAYDAY or PAN PAN PAN), brief the passengers and the further flight conduct (continue, precautionary landing or emergency landing); any combination can be picked, and the run clock waits while the list is open. When you are done, press **Procedure complete** in the footer.
+- The **debrief** shows PASS or FAIL first, one line per reason, the level of the run, the checklist outline with a verdict for every graded step (always, on every level), the order of ordered groups and the harmful actions by name, without a time (for example "Increase power"). In ENG OIL TEMP a power increase fails the run. A section "Further actions" lists what the situation asks of the calls and the flight decision, with the picks in the order made. The level and the mode never change the grade. There is no score. **Retry** starts the same situation again from a clean start at the same mode and level, with the same cause and, on Realistic, the same onset, so a better result comes from you and not from the draw; **Next situation** opens the next one in the order of CHOOSE SITUATION (after the last it wraps to the first) with the mode and level kept, as its briefing on Easy and Medium and as a started run on Realistic; **Back to panel** keeps the end state of the panel. The grading rules are written down in [docs/GRADING.md](docs/GRADING.md); the same recorded run always gives the same verdicts.
 
-## Scenario files
+## Writing a scenario
 
-Scenarios are hand-written TOON text files under `scenarios/<pack>/`, with one `pack.toon` manifest per pack. `npm run validate` checks every file against the schema and the control registry of the panel and prints each problem as `file:line:col: message`; the CI runs it, so a bad file fails the build. Read the [Content policy](docs/CONTENT-POLICY.md) before adding any scenario text.
+This section is for a developer who wants to add a situation without reading the code. A scenario is one hand-written TOON text file; the rules for what a file may contain are checked by `npm run validate`, the CI and the unit tests, so a bad file fails the build and never reaches a pilot. Read the [Content policy](docs/CONTENT-POLICY.md) before adding any scenario text: checklist text copied from a printed page is reproduced exactly as printed, everything else (briefing, labels, debrief lines) is in your own words. The text of the example below is own wording and is not an AFM page.
+
+### 1. Where the files go
+
+- A pack is a folder `scenarios/<pack>/` with one manifest `pack.toon` and one file per scenario. The manifest lists the scenarios without loading them; the file name is the entry's `file` plus `.toon`.
+- The title of a scenario is at most 18 characters and is shown in CHOOSE SITUATION; `free: true` marks a pack everybody may open.
+- A new pack needs no code change: `src/scenario/packs-vite.ts` globs `scenarios/*/pack.toon` and `scenarios/*/*.toon`, so a new folder with a manifest is found by the next `npm run dev` or `npm run build` and gets its own chunk. The chooser lists the packs in folder-name order and each pack in manifest order.
+
+```toon fragment
+# scenarios/engine/pack.toon (the manifest of an existing pack)
+format: 1
+title: Engine
+free: true
+scenarios[2]:
+  - id: eng-oil-temp-green
+    title: ENG OIL TEMP
+    file: eng-oil-temp-green
+  - id: eng-fire-in-flight
+    title: ENGINE FIRE
+    file: eng-fire-in-flight
+```
+
+### 2. The TOON rules of this project
+
+- Hand-write the files and never run them through the library encoder: it drops comments, and the comments carry the reasons for the numbers. A comment line starts with `#`.
+- A list is written as `name[n]:` with `n` items, each item an object after `- `; the decoder checks `n`. No tabular rows, no root arrays.
+- Quote a text that looks like a number or a switch word (`"018"`, `"OFF"`, `"ON"`), and a text with a colon.
+- Ids are lower case with underscores (`reduce_power`), checked by the schema, which is strict: an unknown field is an error, not ignored.
+
+### 3. A complete worked example
+
+This is a small scenario, a toy built from the shipped ENG OIL TEMP file with own-wording text. `tests/readme-guide.test.ts` parses this very block and runs the same check as `npm run validate` against the DA50 RG, so it cannot go stale.
+
+```toon example
+# A toy scenario for the README guide: own wording throughout, not an AFM page.
+format: 1
+id: toy-hot-oil
+title: HOT OIL TOY
+source:
+  document: "Own exercise for the authoring guide"
+  issue: "none"
+  section: "none"
+  verified: "2026-11-01"
+disclaimer: training-aid
+scene: cruise
+briefing:
+  situation: "You are in cruise flight when the red ENG OIL TEMP message appears. The oil temperature reads high and a thin film of oil is running back over the windscreen."
+initial:
+  controls:
+    lv.power: p75
+    lv.cowl_flap: closed
+  quantities:
+    altitude_ft: 4500
+    oil_temp_c: 128
+    oil_pressure_bar: 4.16
+parameters:
+  oil_cooling: 0.55
+profile:
+  flight_speed_kt: 120
+annunciations[1]: eng_oil_temp
+checklist:
+  form: table
+  heading: HOT OIL TOY
+  message: OIL TEMPERATURE HIGH
+procedure[3]:
+  - kind: group
+    id: cool_down
+    ordered: true
+    steps[2]:
+      - id: reduce_power
+        severity: critical
+        number: 1
+        text: Power lever
+        action: REDUCE
+        done:
+          check: travel_rel
+          control: lv.power
+          op: lte
+          delta: -10
+      - id: open_cowl_flap
+        severity: critical
+        number: 2
+        text: Cowl flap
+        action: OPEN
+        done:
+          check: state
+          control: lv.cowl_flap
+          is: open
+  - kind: group
+    id: extras
+    ordered: false
+    steps[1]:
+      - id: landing_light
+        severity: optional
+        number: 3
+        text: Landing light
+        action: "ON"
+        done:
+          check: state
+          control: sw.light_landing
+          is: "on"
+  - kind: comment
+    text: Land at the nearest suitable airfield if the temperature does not fall.
+forbidden[1]:
+  - id: power_increased
+    text: Increase power
+    fails_run: true
+    trigger:
+      check: travel_rel
+      control: lv.power
+      op: gt
+      delta: 0
+outcomes[1]:
+  - id: engine_failure
+    text: Engine failure from overheating
+    hold_s: 15
+    when:
+      check: quantity
+      quantity: oil_temp_c
+      op: gte
+      value: 140
+onset:
+  window_s[2]: 2,6
+  quantities:
+    altitude_ft: 4500
+    oil_temp_c: 114
+  parameters:
+    oil_leak: 0.6
+  message_within_s: 22
+  cues[1]: oil_streaks
+further:
+  actions[2]:
+    - id: atc_pan_pan
+      role: recommended
+    - id: brief_passengers
+      role: optional
+  conduct:
+    accept[1]: conduct_precautionary
+```
+
+Walk through it from the top:
+
+- **`source`, `disclaimer`, `briefing`.** Where the checklist comes from, the training-aid marker (the only value) and the situation text of the briefing. The situation says what the pilot sees and never names the cause or the right action.
+- **`initial`.** The panel at the start of the run (`controls`: an id and a legal position; everything not listed stays at the registry default, the in-flight configuration) and the start `quantities` (the readings the simulation starts from). `parameters` switch hidden failure effects on (`oil_cooling` makes the oil run hot); `profile` scripts the flight itself, see section 5.
+- **`annunciations`.** The cautions and warnings that show at the start (`eng_oil_temp` is a rule of the aircraft's annunciation table in `src/aircraft/da50rg/cas.ts`).
+- **`checklist` and `procedure`.** The heading and message of the printed checklist, then its rows in printed order. `form: table` is the numbered booklet form with `number` marks and an `action` column; `form: outline` has markers, decisions and branches instead (see `scenarios/engine/eng-oil-temp-green.toon`). A `group` holds graded steps: `ordered: true` says the declared order is the right order and the debrief reports a swap; the order fails the run only with `order_critical: true`, and `false` accepts any order. A step has an `id`, a `severity` (`critical` fails the run when missed, `standard` and `optional` do not) and a `done` predicate. A `line` is shown but not graded, a `comment` is a plain printed row.
+- **`forbidden`.** An action that is harmful, with `fails_run: true` when it fails the run by itself; its `trigger` is a predicate as well.
+- **`outcomes`.** What happens when the failure is ignored: the run ends as FAIL with this name once the predicate has held for `hold_s` seconds of run time.
+- **`onset`.** The level Realistic: the failure begins at a random second inside `window_s`, from the `quantities` given there, with the effects of `onset.parameters`; the listed messages and cues must show within `message_within_s`.
+- **`further`.** The decisions beyond the panel, see section 5.
+
+#### The predicates
+
+Every `done`, `trigger`, `when` and `outcomes` condition is one of six checks. They are data: nothing in a scenario file is ever evaluated as code, and there are no expression strings.
+
+| Check        | Fields                    | True when                                                                                                 |
+| ------------ | ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `state`      | `control`, `is`           | the control is in this position                                                                           |
+| `state_in`   | `control`, `in[n]`        | the control is in one of these positions                                                                  |
+| `travel`     | `control`, `op`, `value`  | a lever's position, 0 to 100 per cent of its travel, compares to `value`                                  |
+| `travel_rel` | `control`, `op`, `delta`  | a lever's change from its position at the start, in per cent of travel (-10 is ten down), compares to `delta` |
+| `quantity`   | `quantity`, `op`, `value` | a simulated reading compares to `value`                                                                   |
+| `band`       | `quantity`, `in[n]`       | a reading lies in one of these colour bands (`low_red`, `low_yellow`, `green`, `high_yellow`, `high_red`) |
+
+`op` is `lt`, `lte`, `gt` or `gte`. The ids come from the aircraft data, never from the scenario layer: controls from `src/aircraft/da50rg/controls/*.ts` (the id prefix names the kind, `sw.`, `lv.`, `kn.`, `cb.` and so on, and the legal positions are those of the control), quantities and their bands from `src/aircraft/da50rg/quantities.ts`, messages from `cas.ts`. `npm run validate` names the id it does not know, for example `unknown control "lv.cowl"`.
+
+### 4. Validate it
+
+```
+npm run validate     # checks every file under scenarios/
+```
+
+Every problem is printed as `file:line:col: path: message`, and the exit code is 1 when there is any. A step that asks for a position the control does not have reads:
+
+```text
+scenarios/toy/toy-hot-oil.toon:54:11: procedure.0.steps.1.done.is: "opened" is not a state of control "lv.cowl_flap"
+1 scenario files checked, 1 problems
+```
+
+Besides the schema and the registry, `npm run validate` applies the lint rules (the header of `src/scenario/lint.ts` lists them): among others, a run that does nothing must fail, every message that appears in such a run must be declared, a Realistic start must begin clean, the row marks must run 1, 2, 3 (or A, B, C), and the variants and the further actions must be consistent. The CI runs the same check and the unit tests load every shipped file, so a rule that fails here also fails the build.
+
+### 5. The optional sections
+
+The format is 1 and every section below is optional; the rules and their reasons are in [docs/GRADING.md](docs/GRADING.md) ("Variants for authors", "Scenes and cues for authors", "Flight profile for authors", "Further actions for authors").
+
+**Variants** are several causes behind one failure message. A run draws one by seed and records it; `applies` says which steps and forbidden items count for that cause, and the debrief names the cause afterwards:
+
+```toon fragment
+variants[2]:
+  - id: alternator_dead
+    weight: 60
+    applies[2]: alt1_off,ess_bus_on
+    debrief: The breaker was in and alternator 1 had failed.
+  - id: breaker_popped
+    weight: 40
+    controls:
+      cb.alt1: out
+    parameters:
+      alt1_output: 1
+    applies[1]: alt1_breaker_in
+    debrief: The alternator 1 circuit breaker had popped. Pushing it in cleared the message.
+```
+
+**Scene and cues** are the view out of the windscreen and what the failure looks like there. A cue is drawn from a simulated quantity, never from the pilot's actions:
+
+```toon fragment
+scene: cruise
+onset:
+  window_s[2]: 2,6
+  cues[1]: flames
+```
+
+- **Scenes:** `parked`, `takeoff_roll`, `cruise`, `cloud`.
+- **Cues:** `flames`, `cabin_smoke`, `ice_pilot_side`, `ice_copilot_side`, `prop_stopped`, `oil_streaks`, `roll_speed`.
+
+An onset needs at least one annunciation or one cue, and a cue must not be visible at the Realistic start.
+
+**The flight profile** scripts the PFD of the situation (speed, climb or descent, bank, the glide values, the terrain height) from the first second at every level; the free panel stays static and nothing in it is graded:
+
+```toon fragment
+initial:
+  quantities:
+    altitude_ft: 1450
+profile:
+  flight_speed_kt: 70
+  flight_vs_fpm: 500
+onset:
+  window_s[2]: 2,6
+  quantities:
+    altitude_ft: 1450
+```
+
+Start values for the Realistic run go in `onset.quantities`, because that start is the base values with only the onset block laid over them. A situation on the ground sets `ground_roll: 1` in the profile.
+
+**The further section** grades the decisions that are not panel actions. The aircraft owns the fixed list; the scenario gives each its role (`required`, `recommended`, `optional` or `harmful`, an unlisted one is `optional`) and the flight conduct that is right. Put it last in the file:
+
+```toon fragment
+# The roles are instructor-review values.
+further:
+  actions[3]:
+    - id: atc_mayday
+      role: required
+    - id: atc_pan_pan
+      role: optional
+    - id: brief_passengers
+      role: recommended
+  conduct:
+    accept[1]: conduct_emergency
+```
+
+- **Further options:** `atc_mayday`, `atc_pan_pan`, `brief_passengers`, `conduct_continue`, `conduct_precautionary`, `conduct_emergency`.
+
+The conduct rule: a scenario with a `further` section writes `conduct` with `accept` (the right options; at least one, never all three, and the last pick of the run must be one of them), except a scenario on the ground, which writes `conduct: none` and is never graded on it. The ground rule is checked: `none` exactly when the profile puts the aircraft on the ground. A scenario without a `further` section grades no further action, and every shipped scenario has one.
+
+### 6. How the training hints are derived
+
+There is no hint text in a scenario file. In Training mode the HINT button grades the recording so far, takes the first step in the declared order of the checklist whose severity is `critical` or `standard` and that is not credited yet, and shows its stored row mark, text and action exactly as written in the file. An `optional` step is never named, nothing is shown before the onset of a Realistic run, and Exam mode has no hints. The order in which you declare the checklist is therefore the order of the hints, and the hint can never disagree with the debrief, because it is the same grade.
+
+### 7. Play it
+
+Run `npm run dev`, open CHOOSE SITUATION (zoom into the session pad with a double tap) and pick the new row; the new situation appears at once, the manifest title in the list and the file's own title in the briefing. Answer the mode card and the level card (Realistic is offered only when the file has an `onset`), operate the panel and press Procedure complete. In the debrief **Retry** restarts the same situation with the same cause and onset, which makes it a quick loop while tuning a file, and **Next situation** moves on in the order of the list.
 
 ## Content policy
 
