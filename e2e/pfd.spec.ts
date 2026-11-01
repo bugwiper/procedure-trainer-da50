@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { VS_SCALE_MAX_FPM, verticalSpeedPointerPx } from '../src/aircraft/da50rg/pfd-layout';
+import {
+  ALTITUDE_READOUT,
+  SPEED_READOUT,
+  VS_SCALE_MAX_FPM,
+  verticalSpeedPointerPx,
+} from '../src/aircraft/da50rg/pfd-layout';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { startScenario } from './support/session';
@@ -209,4 +214,30 @@ test('inside a situation the PFD draws the scene id of the windscreen layer', as
   const windscreen = await page.locator('[data-layer="windscreen"]').getAttribute('data-scene-id');
   expect(windscreen).not.toBeNull();
   await expect(page.locator(SVT)).toHaveAttribute('data-svt-scene', windscreen ?? '');
+});
+
+test('the widest readout numbers fit their narrower boxes with room on both sides', async ({
+  page,
+}, testInfo) => {
+  // Font metrics differ a little between platforms; a margin of 4 units on each side covers it.
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'text fit runs on desktop-chromium');
+  const altitudeMax = DA50RG_QUANTITIES.get('altitude_ft')?.max;
+  const speedMax = DA50RG_QUANTITIES.get('airspeed_kt')?.max;
+  if (altitudeMax === undefined || speedMax === undefined) throw new Error('no PFD quantity');
+  await page.goto(`./?q=altitude_ft:${String(altitudeMax)},airspeed_kt:${String(speedMax)}`);
+  await expect(page.getByTestId('panel')).toBeVisible();
+  const dismiss = page.getByTestId('rotate-hint-dismiss');
+  if (await dismiss.isVisible()) await dismiss.click();
+  const read = (selector: string) =>
+    page.locator(selector).evaluate((node) => {
+      const box = (node as unknown as SVGGraphicsElement).getBBox();
+      return { left: box.x, right: box.x + box.width, height: box.height };
+    });
+  const altitude = await read(ALTITUDE);
+  const speed = await read('[data-testid="pfd-airspeed"] [data-airspeed-readout]');
+  expect(altitude.left).toBeGreaterThanOrEqual(ALTITUDE_READOUT.x + 4);
+  expect(altitude.right).toBeLessThanOrEqual(ALTITUDE_READOUT.x + ALTITUDE_READOUT.width - 4);
+  expect(speed.left).toBeGreaterThanOrEqual(SPEED_READOUT.x + 4);
+  expect(speed.right).toBeLessThanOrEqual(SPEED_READOUT.x + SPEED_READOUT.width - 4);
+  expect(altitude.height).toBeLessThanOrEqual(ALTITUDE_READOUT.height - 4);
 });

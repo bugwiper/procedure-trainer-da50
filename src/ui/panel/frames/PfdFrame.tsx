@@ -230,9 +230,9 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
             class="glass-digits"
             data-airspeed-readout
             x={SPEED_READOUT.textRight}
-            y={HORIZON_Y + 8}
+            y={HORIZON_Y + SPEED_READOUT.textBaseline}
             text-anchor="end"
-            font-size={14}
+            font-size={SPEED_READOUT.textSize}
             fill={WHITE}
           >
             {String(airspeedReadout(airspeed))}
@@ -285,9 +285,9 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
             class="glass-digits"
             data-altitude-readout
             x={ALTITUDE_READOUT.textRight}
-            y={HORIZON_Y + 8}
+            y={HORIZON_Y + ALTITUDE_READOUT.textBaseline}
             text-anchor="end"
-            font-size={14}
+            font-size={ALTITUDE_READOUT.textSize}
             fill={WHITE}
           >
             {String(altitudeReadout(altitude))}

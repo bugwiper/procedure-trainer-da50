@@ -50,6 +50,9 @@ import {
   TAPE_TICKS_REF,
   QNH_BOX_REF,
   QNH_REF,
+  READOUT_FONT_REF,
+  SIDE_MARGIN_REF,
+  TAPE_WIDTH_REF,
   VS_REF,
   VS_STRIP_REF,
   VS_TRAVEL_REF,
@@ -235,7 +238,7 @@ describe('the tapes and the compass as drawn', () => {
   });
 });
 
-describe('the altitude block as drawn (moved 50 units left)', () => {
+describe('the altitude block as drawn', () => {
   it('starts at the reference x', () => {
     expect(ALTITUDE_BLOCK.x).toBe(ALTITUDE_TAPE_REF.x);
   });
@@ -248,7 +251,7 @@ describe('the altitude block as drawn (moved 50 units left)', () => {
     expect(findElements(tree, (e) => 'data-baro-box' in e.props)).toHaveLength(0);
   });
 
-  it('leaves the speed tape where it was', () => {
+  it('draws the speed tape at the reference rectangle', () => {
     expect(rectOf(rectsIn(byTestId('pfd-airspeed'))[0])).toEqual(SPEED_TAPE_REF);
   });
 
@@ -257,6 +260,52 @@ describe('the altitude block as drawn (moved 50 units left)', () => {
       INSET_MAP_REF,
     );
     expect(rectOf(rectsIn(byTestId('pfd-heading'))[0])).toEqual(HEADING_BOX_REF);
+  });
+});
+
+describe('the symmetric arrangement of the tapes and the margins', () => {
+  const vsRight = VS_STRIP_REF.x + VS_STRIP_REF.w;
+
+  it('has both tapes at the reference width, clearly narrower than the old 80', () => {
+    expect(SPEED_TAPE.width).toBe(TAPE_WIDTH_REF);
+    expect(ALTITUDE_TAPE.width).toBe(TAPE_WIDTH_REF);
+    expect(SPEED_TAPE_REF.w).toBe(TAPE_WIDTH_REF);
+    expect(ALTITUDE_TAPE_REF.w).toBe(TAPE_WIDTH_REF);
+    expect(TAPE_WIDTH_REF).toBeLessThanOrEqual(60);
+  });
+
+  it('keeps the left margin and the right margin equal to the reference margin', () => {
+    expect(SPEED_TAPE_REF.x - ZONE_REF.x0).toBe(SIDE_MARGIN_REF);
+    expect(ZONE_REF.x1 - vsRight).toBe(SIDE_MARGIN_REF);
+    expect(SPEED_TAPE.x - PFD_ZONE.x0).toBe(PFD_ZONE.x1 - (VS_STRIP.x + VS_STRIP.width));
+  });
+
+  it('sets the readout numbers in the reference size and keeps the boxes inside their tapes', () => {
+    expect(SPEED_READOUT.textSize).toBe(READOUT_FONT_REF);
+    expect(ALTITUDE_READOUT.textSize).toBe(READOUT_FONT_REF);
+    expect(GLASS_FONT_SCALE).toContain(READOUT_FONT_REF);
+    expect(SPEED_READOUT_REF.x + SPEED_READOUT_REF.w).toBeLessThanOrEqual(
+      SPEED_TAPE_REF.x + SPEED_TAPE_REF.w,
+    );
+    expect(ALTITUDE_READOUT_REF.x).toBeGreaterThanOrEqual(ALTITUDE_TAPE_REF.x);
+    expect(ALTITUDE_READOUT_REF.x + ALTITUDE_READOUT_REF.w).toBeLessThanOrEqual(
+      ALTITUDE_TAPE_REF.x + ALTITUDE_TAPE_REF.w,
+    );
+  });
+
+  it('puts the CAS column in the right margin, right of the strip and the whole travel of the box', () => {
+    expect(CAS_REF.x).toBeGreaterThanOrEqual(VS_TRAVEL_REF.x + VS_TRAVEL_REF.w);
+    expect(CAS_REF.x + CAS_REF.width).toBeLessThanOrEqual(ZONE_REF.x1 - ZONE_MARGIN);
+  });
+
+  it('starts the CAS column in the lower third of the zone', () => {
+    const lowerThird = ZONE_REF.y0 + (2 * (ZONE_REF.y1 - ZONE_REF.y0)) / 3;
+    expect(CAS_REF.bottom).toBeGreaterThanOrEqual(lowerThird);
+    expect(CAS_REF.bottom).toBeLessThanOrEqual(ZONE_REF.y1);
+  });
+
+  it('keeps the tip of the box clear of the altitude tape', () => {
+    expect(VS_TRAVEL_REF.x).toBeGreaterThanOrEqual(ALTITUDE_TAPE_REF.x + ALTITUDE_TAPE_REF.w);
   });
 });
 

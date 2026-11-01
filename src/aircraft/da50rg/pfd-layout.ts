@@ -30,13 +30,14 @@ export const ATTITUDE = {
 } as const;
 
 /**
- * The altitude block: the tape and everything that hangs on it (readout box, FT label, baro box,
- * VS box) share one left edge. It moved 50 units left of its old place (x 405) to make room for the
- * CAS column in the lower right corner.
+ * The altitude block: the tape and everything that hangs on it (readout box, FT label, baro box)
+ * share one left edge. Both tapes are 56 wide and the arrangement is symmetric: the margin from the
+ * zone edge to the speed tape equals the margin from the vertical speed strip to the zone edge (56
+ * each), and the right margin holds the CAS column.
  */
 export const ALTITUDE_BLOCK = {
   /** Left edge of the altitude tape. */
-  x: 355,
+  x: 353,
 } as const;
 
 /** Fill opacity of the dark glass of the speed and altitude tapes over the synthetic vision (D-09). */
@@ -44,13 +45,13 @@ export const TAPE_OPACITY = 0.55;
 
 /** The speed tape: a dark glass rectangle with ticks at its right edge. */
 export const SPEED_TAPE = {
-  x: 10,
+  x: 60,
   y: 34,
-  width: 80,
+  width: 56,
   height: 232,
   /** Ticks run from this x to the right edge of the tape. */
-  tickX1: 74,
-  tickX2: 90,
+  tickX1: 104,
+  tickX2: 116,
   /** Offset of the tick pattern below the top of the tape. */
   tickTop: 9,
 } as const;
@@ -59,35 +60,40 @@ export const SPEED_TAPE = {
 export const ALTITUDE_TAPE = {
   x: ALTITUDE_BLOCK.x,
   y: 34,
-  width: 80,
+  width: 56,
   height: 232,
   /** Tick length from the left edge. */
-  tickLength: 16,
+  tickLength: 12,
   tickTop: 9,
 } as const;
 
 /** The white-framed black readout box of the speed tape, centred on the attitude centre height. */
 export const SPEED_READOUT = {
-  x: 10,
-  y: ATTITUDE.cy - 16,
-  width: 64,
-  height: 32,
+  x: 60,
+  y: ATTITUDE.cy - 12,
+  width: 44,
+  height: 24,
   /** Right edge of the number (text anchored at the end). */
-  textRight: 66,
+  textRight: 100,
+  /** Type size of the number and its baseline below the centre line. */
+  textSize: 10,
+  textBaseline: 4,
 } as const;
 
 /** The readout box of the altitude tape. */
 export const ALTITUDE_READOUT = {
-  x: ALTITUDE_BLOCK.x + 6,
-  y: ATTITUDE.cy - 16,
-  width: 74,
-  height: 32,
-  textRight: ALTITUDE_BLOCK.x + 75,
+  x: ALTITUDE_BLOCK.x + 4,
+  y: ATTITUDE.cy - 12,
+  width: 52,
+  height: 24,
+  textRight: ALTITUDE_BLOCK.x + 51,
+  textSize: 10,
+  textBaseline: 4,
 } as const;
 
 /** Anchors (text centre, baseline) of the static unit labels under the tapes. */
-export const KT_LABEL = { x: 50, y: 276 } as const;
-export const FT_LABEL = { x: ALTITUDE_BLOCK.x + 40, y: 276 } as const;
+export const KT_LABEL = { x: 88, y: 276 } as const;
+export const FT_LABEL = { x: ALTITUDE_BLOCK.x + 28, y: 276 } as const;
 
 /**
  * The barometer setting (D-12): the value in whole hPa, right-aligned, and the small static unit
@@ -95,8 +101,8 @@ export const FT_LABEL = { x: ALTITUDE_BLOCK.x + 40, y: 276 } as const;
  * at `valueRight`, the unit starts at `unitX`, both on `baseline`).
  */
 export const QNH_READOUT = {
-  valueRight: 398,
-  unitX: 400,
+  valueRight: 384,
+  unitX: 386,
   baseline: 290,
   valueSize: 8,
   unitSize: 6,
@@ -125,18 +131,19 @@ export const HEADING_BOX = { x: 218, y: 282, width: 60, height: 26 } as const;
 export const INSET_MAP = { x: 6, y: 280, width: 90, height: 60 } as const;
 
 /**
- * The CAS column (PNL-25, D-03 to D-05): black rows joined without a gap at the lower right, right
- * of the altitude tape. The bottom edge is fixed, so each further message grows the column upward.
+ * The CAS column (PNL-25, D-03 to D-05): black rows joined without a gap in the right margin, right
+ * of the vertical speed strip and its box. The bottom edge is fixed in the lower third of the glass
+ * (the lower third begins at about y 239), so each further message grows the column upward.
  */
 export const CAS_COLUMN = {
   /** Left edge of every row. */
-  x: 437,
+  x: 441,
   /** Row width: about half of the old 100 wide chip. */
-  width: 52,
+  width: 48,
   /** Row height: much finer than the old 20 high chip. */
   rowHeight: 9,
-  /** Bottom edge of the lowest row, just inside the bottom of the content zone. */
-  bottom: 341,
+  /** Bottom edge of the lowest row, at the start of the lower third of the glass. */
+  bottom: 250,
   /** Text baseline below the row top: centres a size 6 capital line in the row. */
   textBaseline: 6.5,
   /** Type size, the smallest of the declared glass scale 6, 8, 10, 14. */
@@ -186,7 +193,7 @@ export const VS_NUMERAL_FPM: readonly number[] = [1000, 2000, 3000];
 
 /** The strip: a translucent dark glass rectangle, the zero line in the middle of its height. */
 export const VS_STRIP = {
-  x: 439,
+  x: 413,
   y: ATTITUDE.cy - VS_HALF_HEIGHT,
   width: 22,
   height: 2 * VS_HALF_HEIGHT,
@@ -194,7 +201,7 @@ export const VS_STRIP = {
   tickShort: 4,
   tickLong: 7,
   /** Left edge of a numeral (text anchored at the start) and its size. */
-  numeralX: 449,
+  numeralX: 423,
   numeralSize: 6,
 } as const;
 
@@ -205,14 +212,14 @@ export const VS_STRIP = {
  */
 export const VS_BOX = {
   /** Left edge of the body (the tip reaches `tipLength` further left, toward the tape). */
-  x: 443,
+  x: 417,
   width: 22,
   height: 11,
   /** The arrow tip: how far it reaches left of the body and its half height at the body. */
   tipLength: 4,
   tipHalfHeight: 3,
   /** The number: right-aligned text inside the body, size 7, baseline below the centre line. */
-  textRight: 463.5,
+  textRight: 437.5,
   textSize: 7,
   textBaseline: 2.5,
 } as const;
