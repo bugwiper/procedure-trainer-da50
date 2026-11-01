@@ -32,6 +32,8 @@ export function Debrief({
   mode,
   completedAt,
   onClose,
+  onRetry,
+  onNext,
 }: {
   /** The further actions of the aircraft: the texts of the rows (Phase 7). */
   readonly further: FurtherSet;
@@ -42,6 +44,10 @@ export function Debrief({
   /** The run clock at the end of the run (the recording's completedAt). */
   readonly completedAt: number;
   readonly onClose: () => void;
+  /** Starts the same situation again (D-14). */
+  readonly onRetry: () => void;
+  /** Opens the next situation in listing order (D-14). */
+  readonly onNext: () => void;
 }) {
   const outline = buildOutline(scenario, result.branches, 'debrief', result);
   const head = checklistHead(scenario);
@@ -61,9 +67,32 @@ export function Debrief({
       cardTestId="debrief"
       cardClass="debrief"
       actions={
-        <button type="button" class="primary-button" data-testid="debrief-back" onClick={onClose}>
-          Back to panel
-        </button>
+        <>
+          <button
+            type="button"
+            class="primary-button"
+            data-testid="debrief-retry"
+            onClick={onRetry}
+          >
+            Retry
+          </button>
+          <button
+            type="button"
+            class="secondary-button"
+            data-testid="debrief-next"
+            onClick={onNext}
+          >
+            Next situation
+          </button>
+          <button
+            type="button"
+            class="secondary-button"
+            data-testid="debrief-back"
+            onClick={onClose}
+          >
+            Back to panel
+          </button>
+        </>
       }
     >
       <h2

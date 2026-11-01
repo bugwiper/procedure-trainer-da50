@@ -86,6 +86,8 @@ describe('Debrief on the shell', () => {
 
   it('renders as a Modal with the debrief id and Escape as Back to panel', () => {
     const onClose = vi.fn();
+    const onRetry = vi.fn();
+    const onNext = vi.fn();
     const vnode = Debrief({
       further: DA50RG_ENV.further,
       scenario,
@@ -94,6 +96,8 @@ describe('Debrief on the shell', () => {
       mode: 'exam',
       completedAt: 0,
       onClose,
+      onRetry,
+      onNext,
     });
     expect(vnode.type).toBe(Modal);
     const props = vnode.props as {
@@ -101,14 +105,21 @@ describe('Debrief on the shell', () => {
       labelledBy: string;
       layer?: string;
       onEscape: (() => void) | null;
-      actions: { props: Record<string, unknown> };
+      actions: { props: { children: { props: Record<string, unknown> }[] } };
     };
     expect(props.id).toBe('debrief');
     expect(props.labelledBy).toBe('debrief-result');
     expect(props.layer).toBeUndefined();
     expect(props.onEscape).toBe(onClose);
-    // The primary action is Back to panel and runs the same close.
-    expect(props.actions.props['data-testid']).toBe('debrief-back');
-    expect(props.actions.props['onClick']).toBe(onClose);
+    // Retry is the primary action (first), then Next situation; Back to panel runs the same close.
+    const buttons = props.actions.props.children.map((child) => child.props);
+    expect(buttons.map((b) => b['data-testid'])).toEqual([
+      'debrief-retry',
+      'debrief-next',
+      'debrief-back',
+    ]);
+    expect(buttons[0]?.['onClick']).toBe(onRetry);
+    expect(buttons[1]?.['onClick']).toBe(onNext);
+    expect(buttons[2]?.['onClick']).toBe(onClose);
   });
 });

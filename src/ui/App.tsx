@@ -372,6 +372,12 @@ export function App() {
           mode={session.mode.value}
           completedAt={session.recording.value?.completedAt ?? 0}
           onClose={closeDebrief}
+          onRetry={() => {
+            session.retry();
+          }}
+          onNext={() => {
+            void session.nextSituation();
+          }}
         />
       ) : null}
       {session.confirm.value !== null ? (

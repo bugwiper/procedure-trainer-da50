@@ -319,6 +319,37 @@ export interface Session {
   complete(): void;
   /** Debrief only: back to free; the control state and quantities stay as the run left them. */
   closeDebrief(): void;
+  /**
+   * Debrief only, not while a load runs: starts the same scenario again from a clean initial state
+   * at the same level and mode, with the same cause and, on Realistic, the same onset (D-14,
+   * `retrySeeds`). Nothing carries over from the graded run.
+   */
+  retry(): void;
+  /**
+   * Debrief only, not while a load runs: opens the scenario after the current one in listing order
+   * (all allowed packs, manifest order, wrapping) at the same mode and level, as its briefing on
+   * Easy and Medium and as a started run on Realistic; the level card when the next scenario has no
+   * onset (D-14).
+   */
+  nextSituation(): Promise<void>;
+}
+
+/** The two records a retry reuses: the onset of a Realistic run and the cause of a variant run. */
+export interface RetrySeeds {
+  readonly onset: RecordedOnset | null;
+  readonly variant: RecordedVariant | null;
+}
+
+/**
+ * The one place that decides which seeds a retry keeps (D-14, L-01): both as recorded, so a better
+ * result comes from the pilot and not from the draw. The alternative rule (a new seed unless the
+ * run was Realistic) is a change of this function and of its test only.
+ */
+export function retrySeeds(
+  onset: RecordedOnset | null,
+  variant: RecordedVariant | null,
+): RetrySeeds {
+  return { onset, variant };
 }
 
 /** The item at min(n - 1, floor(rng() * n)); throws RangeError for an empty list. */
@@ -422,6 +453,8 @@ export function createSession(deps: SessionDeps): Session {
   const onset = signal<RecordedOnset | null>(null);
   const variant = signal<RecordedVariant | null>(null);
   const recording = signal<Recording | null>(null);
+  /** The entry the opened scenario came from: Next situation moves on from it. */
+  let openedRef: ScenarioRef | null = null;
 
   /**
    * The recording of the run so far, stamped with the run clock's time now: the pilot's events only
@@ -475,17 +508,23 @@ export function createSession(deps: SessionDeps): Session {
    * quantities laid over by the scenario's onset quantities) and lets the scenario's parameters,
    * with those of its onset block, act from the onset; otherwise the quantities are the scenario's and the failure is there from t 0.
    */
-  const start = (opened: Scenario, realistic: boolean): void => {
+  const start = (opened: Scenario, realistic: boolean, seeds?: RetrySeeds): void => {
     const window = realistic ? opened.onset?.window_s : undefined;
     let drawn: RecordedOnset | null = null;
-    if (window !== undefined) {
-      const seed = Math.floor(rng() * SEED_RANGE);
-      drawn = { at: onsetFromSeed(seed, window), seed };
-    }
     let cause: RecordedVariant | null = null;
-    if (opened.variants.length > 0) {
-      const seed = Math.floor(rng() * SEED_RANGE);
-      cause = { id: variantFromSeed(seed, opened.variants), seed };
+    if (seeds !== undefined) {
+      // A retry (D-14) takes the records it was given and draws nothing.
+      drawn = window === undefined ? null : seeds.onset;
+      cause = opened.variants.length === 0 ? null : seeds.variant;
+    } else {
+      if (window !== undefined) {
+        const seed = Math.floor(rng() * SEED_RANGE);
+        drawn = { at: onsetFromSeed(seed, window), seed };
+      }
+      if (opened.variants.length > 0) {
+        const seed = Math.floor(rng() * SEED_RANGE);
+        cause = { id: variantFromSeed(seed, opened.variants), seed };
+      }
     }
     // The run uses the scenario its cause makes; the signal and the grade keep the file's own.
     const used = resolveVariant(opened, cause?.id ?? null, drawn !== null);
@@ -561,22 +600,41 @@ export function createSession(deps: SessionDeps): Session {
     }
   };
 
-  /** Opens a scenario through the seam and shows its briefing; a failure is kept for the screens. */
-  const openBriefing = async (ref: ScenarioRef): Promise<void> => {
+  /**
+   * Opens a scenario through the seam and shows its briefing; a failure is kept for the screens.
+   * `keepPicks` (Next situation, D-14) leaves the debrief like RESET does and keeps the mode and
+   * the level, so their cards are skipped: a Realistic level starts the run at once when the
+   * scenario has an onset and shows the level card when it has none.
+   */
+  const openBriefing = async (ref: ScenarioRef, keepPicks = false): Promise<void> => {
     const opened = await openScenario(packs, env, ref);
+    if (keepPicks) toFreePanel();
     if (!opened.ok) {
       loadFailure.value = opened;
       return;
     }
+    openedRef = { pack: ref.pack, scenario: ref.scenario };
     // The briefing leaves the panel, the log and the last run untouched (D-14).
-    briefing.value = {
+    const briefed: Briefed = {
       scenario: opened.scenario,
       branches: branchStatuses(opened.scenario, env),
     };
+    briefing.value = briefed;
     choices.value = [];
-    modePicked.value = false;
-    levelPicked.value = false;
     screen.value = 'briefing';
+    if (!keepPicks) {
+      modePicked.value = false;
+      levelPicked.value = false;
+      return;
+    }
+    modePicked.value = true;
+    const realistic = level.peek() === 'realistic';
+    if (realistic && opened.scenario.onset === undefined) {
+      levelPicked.value = false;
+      return;
+    }
+    levelPicked.value = true;
+    if (realistic) begin(briefed, true);
   };
 
   /** A random allowed scenario opens its briefing (NEW SITUATION). */
@@ -851,6 +909,59 @@ export function createSession(deps: SessionDeps): Session {
       bridge.setFlags({});
       clock.value = null;
       screen.value = 'free';
+    },
+    retry() {
+      const current = scenario.peek();
+      if (screen.peek() !== 'debrief' || busy.peek() || current === null) return;
+      // The graded run is over: its records are read before the cleanup clears them.
+      const seeds = retrySeeds(
+        onset.peek() ?? recording.peek()?.onset ?? null,
+        variant.peek() ?? recording.peek()?.variant ?? null,
+      );
+      endRun();
+      hint.value = null;
+      checklistShown.value = false;
+      runBranches.value = [];
+      decisions.value = [];
+      furtherOpen.value = false;
+      bridge.setFlags({});
+      clock.value = null;
+      result.value = null;
+      recording.value = null;
+      try {
+        start(current, level.peek() === 'realistic', seeds);
+      } catch (error) {
+        // An illegal baseline changes nothing (bridge.reset); lint should have caught it.
+        toFreePanel();
+        loadFailure.value = failure(
+          'invalid',
+          error instanceof Error ? error.message : 'the baseline could not be applied',
+        );
+      }
+    },
+    async nextSituation() {
+      if (screen.peek() !== 'debrief' || busy.peek()) return;
+      const here = openedRef;
+      await loading('session.next', async () => {
+        const listed = await listChoices();
+        if (!listed.ok) {
+          loadFailure.value = listed;
+          return;
+        }
+        const entries = listed.choices;
+        const at = entries.findIndex(
+          (entry) => here !== null && entry.pack === here.pack && entry.scenario === here.scenario,
+        );
+        const target = entries[(at + 1) % entries.length];
+        if (target === undefined) {
+          empty.value = true;
+          return;
+        }
+        const ref = { pack: target.pack, scenario: target.scenario };
+        await openBriefing(ref, true);
+        // A failure to load leaves the free panel with the message; Retry repeats this entry.
+        if (loadFailure.peek() !== null) lastRequest = { kind: 'chosen', ref, key: 'session.next' };
+      });
     },
   };
 }

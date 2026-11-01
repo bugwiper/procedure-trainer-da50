@@ -29,6 +29,7 @@ import {
   RUN_ERROR_PATH,
   createSession,
   pickRandom,
+  retrySeeds,
 } from '../src/ui/session';
 
 // The session machine (plan 02-06, Table N1; plan 02-11 adds the briefing; SES-01, SES-03, SES-04,
@@ -2279,5 +2280,330 @@ scenarios[1]:
     r.session.decide('atc_mayday');
     expect(r.session.furtherOpen.value).toBe(true);
     expect(r.session.decisions.value).toEqual([{ t: began.at, id: 'atc_mayday' }]);
+  });
+});
+
+describe('retry and next situation (phase 07, plan 03, D-14)', () => {
+  const ALTN = readFileSync(join(root, 'scenarios/electrical/elec-altn1-fail.toon'), 'utf8');
+  const altnParsed = parseScenario(ALTN);
+  if (!altnParsed.ok) throw new Error('the ALTN 1 FAIL file does not parse');
+  const altn = altnParsed.value;
+  const NO_ONSET = BLUEPRINT.replace(/\n#[^\n]*\nonset:\n[\s\S]*$/, '\n').replace(
+    'id: eng-oil-temp-green',
+    'id: eng-oil-temp-plain',
+  );
+  if (NO_ONSET.includes('onset:'))
+    throw new Error('the onset block of the blueprint was not found');
+  const MANIFEST_THREE = `format: 1
+title: Engine
+free: true
+scenarios[3]:
+  - id: eng-oil-temp-green
+    title: ENG OIL TEMP
+    file: eng-oil-temp-green
+  - id: eng-oil-temp-copy
+    title: ENG OIL TEMP 2
+    file: eng-oil-temp-copy
+  - id: eng-oil-temp-plain
+    title: ENG OIL TEMP 3
+    file: eng-oil-temp-plain
+`;
+  const THREE = {
+    'eng-oil-temp-green': BLUEPRINT,
+    'eng-oil-temp-copy': COPY,
+    'eng-oil-temp-plain': NO_ONSET,
+  };
+  const MANIFEST_ALTN = `format: 1
+title: Electrical
+free: true
+scenarios[1]:
+  - id: ${altn.id}
+    title: ALTN 1 FAIL
+    file: ${altn.id}
+`;
+  const SEED_DRAW = 0.75;
+
+  /** An rng that returns the given values in turn, then 0, and counts its calls. */
+  const counting = (values: readonly number[]) => {
+    const state = { calls: 0 };
+    const next = (): number => values[state.calls++] ?? 0;
+    return { next, state };
+  };
+
+  /** Picks the scenario, the mode and the level through the cards, runs and completes it. */
+  async function debriefOf(
+    r: Rig,
+    mode: 'training' | 'exam',
+    level: 'easy' | 'medium' | 'realistic',
+  ): Promise<void> {
+    await r.session.newSituation();
+    r.session.setMode(mode);
+    r.session.setLevel(level);
+    if (level !== 'realistic') r.session.startRun();
+    expect(r.session.screen.value).toBe('running');
+    r.session.complete();
+    expect(r.session.screen.value).toBe('debrief');
+  }
+
+  describe('retrySeeds', () => {
+    it('returns the recorded onset and variant as they are', () => {
+      const onset = { at: 91000, seed: 7 };
+      const variant = { id: 'breaker_popped', seed: 9 };
+      expect(retrySeeds(onset, variant)).toEqual({ onset, variant });
+      expect(retrySeeds(onset, null)).toEqual({ onset, variant: null });
+    });
+
+    it('returns null for a record that does not exist', () => {
+      expect(retrySeeds(null, null)).toEqual({ onset: null, variant: null });
+    });
+  });
+
+  describe('retry', () => {
+    it('starts the same scenario at the same level and mode from a clean state', async () => {
+      const r = rig({ files: { 'eng-oil-temp-green': BLUEPRINT } });
+      await r.session.newSituation();
+      r.session.setMode('training');
+      r.session.setLevel('medium');
+      r.session.startRun();
+      const startPanel = ['lv.power', 'lv.cowl_flap'].map((id) => r.bridge.stateOf(id).value);
+      const startQuantities = { ...r.bridge.quantities.value };
+      r.bridge.actuate('lv.power', 'p50');
+      r.bridge.actuate('lv.cowl_flap', 'open');
+      r.session.clock.value?.advance(4000);
+      r.session.askHint();
+      r.session.toggleChecklist();
+      r.session.decide('atc_mayday');
+      r.session.complete();
+      expect(r.session.result.value).not.toBeNull();
+      expect(r.session.recording.value).not.toBeNull();
+      const before = r.onRunStart.mock.calls.length;
+
+      r.session.retry();
+
+      expect(r.session.screen.value).toBe('running');
+      expect(r.session.scenario.value?.id).toBe('eng-oil-temp-green');
+      expect(r.session.level.value).toBe('medium');
+      expect(r.session.mode.value).toBe('training');
+      expect(r.bridge.store.events()).toEqual([]);
+      expect(['lv.power', 'lv.cowl_flap'].map((id) => r.bridge.stateOf(id).value)).toEqual(
+        startPanel,
+      );
+      expect(r.bridge.quantities.value).toEqual(startQuantities);
+      expect(r.session.clock.value?.now()).toBe(0);
+      expect(r.session.hint.value).toBeNull();
+      expect(r.session.checklistShown.value).toBe(false);
+      expect(r.session.decisions.value).toEqual([]);
+      expect(r.session.furtherOpen.value).toBe(false);
+      expect(r.session.result.value).toBeNull();
+      expect(r.session.recording.value).toBeNull();
+      expect(r.onRunStart.mock.calls.length).toBe(before + 1);
+    });
+
+    it('draws nothing and keeps the cause of a scenario with variants', async () => {
+      const draw = counting([0, 0.4]);
+      const r = rig({
+        manifest: MANIFEST_ALTN,
+        files: { [altn.id]: ALTN },
+        rng: draw.next,
+      });
+      await debriefOf(r, 'exam', 'easy');
+      const cause = r.session.variant.value;
+      expect(cause).not.toBeNull();
+      const calls = draw.state.calls;
+
+      r.session.retry();
+
+      expect(r.session.screen.value).toBe('running');
+      expect(r.session.variant.value).toEqual(cause);
+      expect(draw.state.calls).toBe(calls);
+      // The same cause puts the same state on the panel.
+      r.session.complete();
+      expect(r.session.recording.value?.variant).toEqual(cause);
+    });
+
+    it('keeps the onset of a Realistic run, and again at the second retry', async () => {
+      const draw = counting([0, SEED_DRAW]);
+      const r = rig({ files: { 'eng-oil-temp-green': BLUEPRINT }, rng: draw.next });
+      await debriefOf(r, 'exam', 'realistic');
+      const onset = r.session.onset.value;
+      if (onset === null) throw new Error('no onset');
+      const calls = draw.state.calls;
+
+      r.session.retry();
+      expect(r.session.screen.value).toBe('running');
+      expect(r.session.level.value).toBe('realistic');
+      expect(r.session.onset.value).toEqual(onset);
+      r.session.complete();
+      expect(r.session.recording.value?.onset).toEqual(onset);
+
+      r.session.retry();
+      expect(r.session.onset.value).toEqual(onset);
+      expect(draw.state.calls).toBe(calls);
+    });
+
+    it('does nothing outside the debrief and while a load runs', async () => {
+      const free = rig();
+      free.session.retry();
+      expect(free.session.screen.value).toBe('free');
+
+      const r = await started();
+      const log = r.onRunStart.mock.calls.length;
+      r.session.retry();
+      expect(r.onRunStart.mock.calls.length).toBe(log);
+      expect(r.session.screen.value).toBe('running');
+
+      const d = rig({ files: THREE, manifest: MANIFEST_THREE });
+      await debriefOf(d, 'exam', 'easy');
+      const pending = d.session.nextSituation();
+      expect(d.session.busy.value).toBe(true);
+      const starts = d.onRunStart.mock.calls.length;
+      d.session.retry();
+      expect(d.onRunStart.mock.calls.length).toBe(starts);
+      await pending;
+    });
+
+    it('keeps an illegal baseline as a load failure, like a normal start', async () => {
+      const r = rig({ files: { 'eng-oil-temp-green': BLUEPRINT } });
+      await debriefOf(r, 'exam', 'easy');
+      const original = r.bridge.reset.bind(r.bridge);
+      let calls = 0;
+      // Only the baseline of the retry fails; the cleanup that follows resets normally.
+      r.bridge.reset = (...args: Parameters<typeof original>): void => {
+        if (calls++ === 0) throw new Error('illegal baseline');
+        original(...args);
+      };
+      r.session.retry();
+      r.bridge.reset = original;
+      expect(r.session.screen.value).toBe('free');
+      expect(r.session.loadFailure.value?.reason).toBe('invalid');
+      expect(r.session.loadFailure.value?.issues[0]?.message).toContain('illegal baseline');
+    });
+
+    it('a normal start still draws the onset first and the cause second', async () => {
+      const draw = counting([0, SEED_DRAW, 0.5]);
+      const r = rig({ files: { 'eng-oil-temp-green': BLUEPRINT }, rng: draw.next });
+      await r.session.newSituation();
+      r.session.setLevel('realistic');
+      // One draw for the pick, one for the onset; the blueprint has no variants.
+      expect(draw.state.calls).toBe(2);
+      expect(r.session.onset.value?.seed).toBe(Math.floor(SEED_DRAW * 4_294_967_296));
+    });
+  });
+
+  describe('nextSituation', () => {
+    it('opens the entry after the current one and wraps from the last to the first', async () => {
+      const r = rig({ files: THREE, manifest: MANIFEST_THREE });
+      await debriefOf(r, 'exam', 'easy');
+      expect(r.session.scenario.value?.id).toBe('eng-oil-temp-green');
+
+      await r.session.nextSituation();
+      expect(r.session.screen.value).toBe('briefing');
+      expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-copy');
+      r.session.startRun();
+      r.session.complete();
+
+      await r.session.nextSituation();
+      expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-plain');
+      r.session.startRun();
+      r.session.complete();
+
+      await r.session.nextSituation();
+      expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-green');
+    });
+
+    it('a single entry gives the same one', async () => {
+      const r = rig();
+      await debriefOf(r, 'exam', 'easy');
+      await r.session.nextSituation();
+      expect(r.session.screen.value).toBe('briefing');
+      expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-green');
+    });
+
+    it('keeps mode and level and shows the briefing, not the cards, on Easy and Medium', async () => {
+      for (const level of ['easy', 'medium'] as const) {
+        const r = rig({ files: THREE, manifest: MANIFEST_THREE });
+        await debriefOf(r, 'training', level);
+        await r.session.nextSituation();
+        expect(r.session.screen.value).toBe('briefing');
+        expect(r.session.mode.value).toBe('training');
+        expect(r.session.level.value).toBe(level);
+        expect(r.session.modePicked.value).toBe(true);
+        expect(r.session.levelPicked.value).toBe(true);
+        // The run of the debrief is gone: the free-panel cleanup ran.
+        expect(r.session.result.value).toBeNull();
+        expect(r.session.recording.value).toBeNull();
+        expect(r.session.scenario.value).toBeNull();
+        expect(r.session.clock.value).toBeNull();
+        expect(r.bridge.store.events()).toEqual([]);
+        r.session.startRun();
+        expect(r.session.screen.value).toBe('running');
+        expect(r.session.scenario.value?.id).toBe('eng-oil-temp-copy');
+      }
+    });
+
+    it('starts the run at once on Realistic when the next scenario has an onset', async () => {
+      const draw = counting([0, SEED_DRAW, 0.25]);
+      const r = rig({ files: THREE, manifest: MANIFEST_THREE, rng: draw.next });
+      await debriefOf(r, 'training', 'realistic');
+      await r.session.nextSituation();
+      expect(r.session.screen.value).toBe('running');
+      expect(r.session.scenario.value?.id).toBe('eng-oil-temp-copy');
+      expect(r.session.level.value).toBe('realistic');
+      expect(r.session.mode.value).toBe('training');
+      expect(r.session.onset.value).not.toBeNull();
+    });
+
+    it('shows the level card when the next scenario has no onset on Realistic', async () => {
+      const r = rig({ files: THREE, manifest: MANIFEST_THREE });
+      await debriefOf(r, 'exam', 'realistic');
+      r.session.retry();
+      r.session.complete();
+      await r.session.nextSituation();
+      r.session.startRun();
+      r.session.complete();
+      // The second entry had an onset; the third has none.
+      await r.session.nextSituation();
+      expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-plain');
+      expect(r.session.screen.value).toBe('briefing');
+      expect(r.session.modePicked.value).toBe(true);
+      expect(r.session.levelPicked.value).toBe(false);
+    });
+
+    it('keeps a load failure of the next entry for the message and leaves the debrief', async () => {
+      const files: Record<string, string | Error> = { ...THREE };
+      const r = rig({ files, manifest: MANIFEST_THREE });
+      await debriefOf(r, 'exam', 'easy');
+      // The file is read at call time: it fails only for the request of the next entry.
+      files['eng-oil-temp-copy'] = new Error('network down');
+      await r.session.nextSituation();
+      expect(r.session.loadFailure.value).not.toBeNull();
+      expect(r.session.screen.value).toBe('free');
+      expect(r.session.busy.value).toBe(false);
+    });
+
+    it('does nothing outside the debrief and while busy', async () => {
+      const free = rig({ files: THREE, manifest: MANIFEST_THREE });
+      await free.session.nextSituation();
+      expect(free.session.screen.value).toBe('free');
+      expect(free.loads).toEqual([]);
+
+      const running = await started({ files: THREE, manifest: MANIFEST_THREE });
+      await running.session.nextSituation();
+      expect(running.session.screen.value).toBe('running');
+
+      const d = rig({ files: THREE, manifest: MANIFEST_THREE });
+      await debriefOf(d, 'exam', 'easy');
+      const loadsBefore = d.loads.length;
+      const first = d.session.nextSituation();
+      await d.session.nextSituation();
+      await first;
+      // The second call loaded nothing: the same count as one call alone makes.
+      const single = rig({ files: THREE, manifest: MANIFEST_THREE });
+      await debriefOf(single, 'exam', 'easy');
+      const singleBefore = single.loads.length;
+      await single.session.nextSituation();
+      expect(d.loads.length - loadsBefore).toBe(single.loads.length - singleBefore);
+      expect(d.session.briefing.value?.scenario.id).toBe('eng-oil-temp-copy');
+    });
   });
 });
