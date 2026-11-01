@@ -547,7 +547,7 @@ Plans:
 ### Phase 6.1: PFD fidelity (INSERTED)
 
 **Goal:** The PFD looks and reads like the real one (owner finding 2026-11-01): the simplified outside view of the windscreen is the synthetic vision under the whole PFD and follows pitch and bank; the speed and altitude tapes lie translucent over it; a narrow vertical speed scale with a black pointer stands right of the altitude tape (replacing the VS box); the barometer setting under the altitude tape reads in hPa; the CAS messages stack vertically in one column, about half as wide and much finer, joined without gaps and growing upward with each further message (most severe on top); the compass stays a simple rose, without map and without lateral deviation bar. Message texts stay unchanged.
-**Requirements**: TBD
+**Requirements**: PNL-25, PNL-26, PNL-27
 **Depends on:** Phase 6
 **Plans:** 3 plans (lean form, see WORKFLOW.md); decisions in 06.1-CONTEXT.md
 
@@ -555,15 +555,15 @@ Plans:
 
 **Wave 1**
 
-- [ ] 06.1-01 — Tracer: the CAS messages as one stacked column at the lower right (rows joined without a gap, about half as wide and much finer, bottom edge fixed, growing upward, warning on top then caution then advisory, texts unchanged); the PFD layout as data with an independent reference table; the altitude block moves left to make room
+- [x] 06.1-01 — Tracer: the CAS messages as one stacked column at the lower right (rows joined without a gap, about half as wide and much finer, bottom edge fixed, growing upward, warning on top then caution then advisory, texts unchanged); the PFD layout as data with an independent reference table; the altitude block moves left to make room
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 06.1-02 — Tracer: synthetic vision under the whole PFD from the situation's windscreen scene (sky, terrain, apron, runway) that follows pitch and bank; translucent speed and altitude tapes; the compass with a translucent backing, no map and no deviation bar
+- [x] 06.1-02 — Tracer: synthetic vision under the whole PFD from the situation's windscreen scene (sky, terrain, apron, runway) that follows pitch and bank; translucent speed and altitude tapes; the compass with a translucent backing, no map and no deviation bar
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 06.1-03 — Tracer: the narrow vertical speed scale with a black pointer in place of the VS box; QNH in hPa in turquoise under the altitude tape (static display quantity); the phase-end documents, requirements PNL-25 to PNL-27 and the final gates
+- [x] 06.1-03 — Tracer: the narrow vertical speed scale (plus and minus 3000 fpm) with a moving black readout box in place of the VS box; QNH in hPa in turquoise under the altitude tape (static display quantity); the phase-end documents, requirements PNL-25 to PNL-27 and the final gates
 
 ### Phase 7: Training Mode, Further Actions and Repeat Loop
 
@@ -611,5 +611,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 5. Windscreen and failure cues                        | 3/3 | Complete    | 2026-10-27 |
 | 5.1 Ground and takeoff emergencies                    | 4/3 | Complete    | 2026-10-28 |
 | 6. Fuel, tank and engine fidelity and the engine page | 4/4            | Executed, awaiting UAT | 2026-10-29 |
+| 6.1. PFD fidelity                                     | 3/3            | Executed, awaiting UAT | 2026-11-01 |
 | 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |

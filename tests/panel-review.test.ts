@@ -521,15 +521,16 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
   };
   const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
 
-  it('has Phase 6: owner review as the last section after Phase 5.1, 5, 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
+  it('has Phase 6.1: owner review as the last section after Phase 6, 5.1, 5, 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Phase 6: owner review');
-    expect(headings[headings.length - 2]).toBe('## Phase 5.1: owner review');
-    expect(headings[headings.length - 3]).toBe('## Phase 5: owner review');
-    expect(headings[headings.length - 4]).toBe('## Phase 4: owner review');
-    expect(headings[headings.length - 5]).toBe('## Phase 3.1: owner review');
-    expect(headings[headings.length - 6]).toBe('## Phase 3: owner review');
-    expect(headings[headings.length - 7]).toBe('## Phase 2: owner review');
+    expect(headings[headings.length - 1]).toBe('## Phase 6.1: owner review');
+    expect(headings[headings.length - 2]).toBe('## Phase 6: owner review');
+    expect(headings[headings.length - 3]).toBe('## Phase 5.1: owner review');
+    expect(headings[headings.length - 4]).toBe('## Phase 5: owner review');
+    expect(headings[headings.length - 5]).toBe('## Phase 4: owner review');
+    expect(headings[headings.length - 6]).toBe('## Phase 3.1: owner review');
+    expect(headings[headings.length - 7]).toBe('## Phase 3: owner review');
+    expect(headings[headings.length - 8]).toBe('## Phase 2: owner review');
     expect(headings).toContain('## Round 5: morning review');
     expect(headings).toContain('## Round 4: morning review');
   });
@@ -788,5 +789,57 @@ describe('phase 5 owner review (plan 05-03)', () => {
   it('names the three preview flags and the Sound control', () => {
     for (const flag of ['?scene=', '?q=', '&flags=']) expect(section).toContain(flag);
     expect(section).toMatch(/Sound/);
+  });
+});
+
+describe('phase 6.1 owner review (plan 06.1-03)', () => {
+  const at = review.search(/^## Phase 6\.1: owner review/m);
+  const phase6 = review.search(/^## Phase 6: owner review/m);
+  const section = at === -1 ? '' : review.slice(at);
+
+  it('is the last section, after Phase 6, points to the layout data and says nothing was pushed', () => {
+    expect(at).toBeGreaterThan(-1);
+    expect(at).toBeGreaterThan(phase6);
+    expect(section).toMatch(/nothing was pushed/i);
+    expect(section).toContain('pfd-layout.ts');
+    expect(section).toContain('PANEL-LABELS.md');
+  });
+
+  it('numbers its items 1 to 9 without a gap, has no unfilled item and quotes no private material', () => {
+    expect(section).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b|@@/i);
+    expect(section).not.toMatch(/\bRESULTS\b/);
+    expect(section).not.toMatch(/\.input\//);
+    const numbers = section
+      .split('\n')
+      .map((line) => /^(\d+)\. /.exec(line)?.[1])
+      .filter((n): n is string => n !== undefined)
+      .map(Number);
+    expect(numbers).toEqual(numbers.map((_, i) => i + 1));
+    expect(numbers).toHaveLength(9);
+  });
+
+  it('names severity, hPa, the pointer box and the exclusions of the owner', () => {
+    expect(section).toMatch(/severity/i);
+    expect(section).toContain('hPa');
+    expect(section).toMatch(/readout box|moving.*box/i);
+    for (const word of ['deviation bar', 'DPRT', 'live heading']) expect(section).toContain(word);
+  });
+
+  it('names the results of the final gates in item 9', () => {
+    const item = /^9\. .*$/m.exec(section)?.[0] ?? '';
+    expect(item).toMatch(/unit/i);
+    expect(item).toMatch(/Playwright/);
+    expect(item).toMatch(/recordings\.json/);
+  });
+
+  it('the corrected sentences of the U-15 row and of Phase 6 items 4 and 16 point to Phase 6.1', () => {
+    const row = /^\| PFD additions \(U-15\) .*$/m.exec(review)?.[0] ?? '';
+    expect(row).toContain('Phase 6.1');
+    expect(row).not.toMatch(/a baro box reading 1013 HPA;/);
+    const phase6Section = review.slice(phase6, at);
+    expect(phase6Section).toMatch(
+      /4\. \*\*Where the white FUEL TRANS chip sits\.\*\* \(Changed in Phase 6\.1/,
+    );
+    expect(phase6Section).toMatch(/Phase 6\.1 replaced the small VS box/);
   });
 });

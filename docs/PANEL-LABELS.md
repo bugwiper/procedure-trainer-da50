@@ -255,6 +255,7 @@ The glass displays, their knob and key columns and the three centre-stack units 
 | Audio panel | key legends COM1 MIC, COM1, COM2 MIC, COM2, AUX MIC, AUX, DME, NAV1, ADF, NAV2, PILOT ICS, TEL, COPLT ICS, MUS1, PASS ICS, MUS2, SPKR PA, MKR MUTE, HI SENS, PLAY, MAN SQ (a legend with a space is set on two lines); the red round button has the legends DISPLAY (above) and BACKUP (below); the volume knob has no word | photo read, high confidence for the key list (U2-16) | `avionics.ts` (`AUDIO_PANEL`), `frames/AudioPanelFrame.tsx` |
 | Autopilot panel | VOL, PUSH ID (small knob); NAV, PUSH, 1-2 (NAV knob); HDG, PUSH, HDG SYNC (HDG knob); key legends AP, YD, FD, HDG, NAV, APR, ALT, VNV, VS, NOSE UP, FLC, NOSE DN; ALT (ALT knob) | photo read, assumption (the column is the left strip of the MFD in the photos, U2-17) | `avionics.ts` (`AUTOPILOT_PANEL`), `frames/AutopilotPanelFrame.tsx` |
 | Backup EFIS | KTS, FEET, BARO (the labels of the tape display; the numerals and readings are idle artwork, not labels) | photo read, medium confidence (U2-18) | `avionics.ts` (`STANDBY_EFIS`), `frames/StandbyEfisFrame.tsx` |
+| PFD tapes, vertical speed scale and compass (Phase 6.1) | KT (under the speed tape) and FT (under the altitude tape), HDG (under the heading box), HPA (the small unit after the QNH value) and the numerals 1, 2 and 3 at plus and minus each thousand of the vertical speed scale (each numeral twice, size 6); the numbers (airspeed, altitude, heading 360, the QNH value in turquoise, the number in the moving vertical speed box) follow quantities or stand as idle values and are not labels; no VS label and no 1013 HPA box any more | KT, FT and HDG existing; HPA and the numerals owner screenshot 2026-11-01, medium confidence (HPA is the unit the owner asked for) | `pfd-layout.ts` (positions), `avionics.ts`, `frames/PfdFrame.tsx`, `frames/VerticalSpeedScale.tsx` |
 
 ## MFD engine page text (phase 6)
 
@@ -282,10 +283,11 @@ Layout assumptions, flagged for review (none is an AFM figure; the quantities ar
 | `rudder_trim_pct` | base 0 (neutral), scale -100 to 100, no bands | owner confirms the scale |
 | `service_hours` | base 249.5 h, no bands | owner confirms the figure |
 | `deice_qty_gal` | tank maximum 8.3 US gal (the owner figure), base 6.8, bands red to 1, green above | owner confirms the base and the red limit |
+| `qnh_hpa` | base 1013 hPa (standard pressure), scale 950 to 1050, no bands; the PFD shows it in whole hPa under the altitude tape and it does not correct the altitude (Phase 6.1) | owner confirms the base |
 
 ## PFD messages (phase 6)
 
-The messages on the PFD are rule-derived chips (`src/aircraft/da50rg/cas.ts`); their text is part of the rule table, static, in capitals, and never changes with a control state (the chip appears or disappears, the word stays). The two texts below were added by plan 06-04; both are cautions (yellow). The earlier messages (ENG OIL TEMP, OIL PRES, ALTN 1 FAIL, ALTN 2 FAIL, FUEL TRANS) are listed in their sections of `docs/GRADING.md`.
+The messages on the PFD are rule-derived chips (`src/aircraft/da50rg/cas.ts`); their text is part of the rule table, static, in capitals, and never changes with a control state (the chip appears or disappears, the word stays). The two texts below were added by plan 06-04; both are cautions (yellow). The earlier messages (ENG OIL TEMP, OIL PRES, ALTN 1 FAIL, ALTN 2 FAIL, FUEL TRANS) are listed in their sections of `docs/GRADING.md`. Since Phase 6.1 the messages stand as rows of one thin column at the lower right of the PFD (most severe on top); the texts did not change.
 
 | Message | Level | Shows when | Basis | File to edit |
 |---------|-------|-----------|-------|--------------|
