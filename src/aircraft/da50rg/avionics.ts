@@ -475,7 +475,8 @@ export function speedTickOffsets(value: number | undefined): number[] {
 export const PFD_ALTITUDE_QUANTITY = 'altitude_ft';
 export const PFD_VERTICAL_SPEED_QUANTITY = 'vertical_speed_fpm';
 
-function readingOr(value: number | undefined, id: string): number {
+/** A reading, or the base of the quantity for a missing or non-finite one. */
+export function readingOr(value: number | undefined, id: string): number {
   if (value !== undefined && Number.isFinite(value)) return value;
   return DA50RG_QUANTITIES.get(id)?.base ?? 0;
 }
@@ -504,13 +505,6 @@ export function altitudeTickOffsets(value: number | undefined): number[] {
     { length: ALTITUDE_TICK_COUNT },
     (_, i) => (ALTITUDE_TICK_PX / 2 + i * ALTITUDE_TICK_PX + shift) % span,
   );
-}
-
-/** The vertical speed text: feet per minute to the nearest 10, a plus sign for a climb, 0 plain. */
-export function verticalSpeedText(value: number | undefined): string {
-  const fpm = Math.round(readingOr(value, PFD_VERTICAL_SPEED_QUANTITY) / 10) * 10;
-  if (fpm > 0) return `+${String(fpm)}`;
-  return fpm < 0 ? String(fpm) : '0';
 }
 
 /**

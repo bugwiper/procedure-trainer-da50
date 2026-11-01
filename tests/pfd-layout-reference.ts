@@ -27,7 +27,28 @@ export const SPEED_TAPE_REF: RectRef = { x: 10, y: 34, w: 80, h: 232 };
 export const ALTITUDE_TAPE_REF: RectRef = { x: 355, y: 34, w: 80, h: 232 };
 export const ALTITUDE_READOUT_REF: RectRef = { x: 361, y: 134, w: 74, h: 32 };
 export const BARO_BOX_REF: RectRef = { x: 355, y: 280, w: 80, h: 20 };
-export const VS_BOX_REF: RectRef = { x: 355, y: 304, w: 80, h: 20 };
+
+/**
+ * The vertical speed scale (D-11): a strip right of the altitude tape, plus and minus 3000 fpm over
+ * 168 units (84 each side of the zero line at the attitude centre height 150), a tick every 500 fpm,
+ * the numerals 1, 2, 3 at plus and minus each thousand, and a moving readout box of 22 x 11 whose
+ * arrow tip reaches 4 units left of its body.
+ */
+export const VS_REF = {
+  maxFpm: 3000,
+  halfHeight: 84,
+  tickStepFpm: 500,
+  numeralFpm: [1000, 2000, 3000],
+  zeroY: 150,
+  /** Typed by hand: 0 and 500 to 3000 each side make 13 ticks; 1, 2, 3 each side make 6 numerals. */
+  tickCount: 13,
+  numeralCount: 6,
+  numeralTexts: ['1', '1', '2', '2', '3', '3'],
+  box: { x: 443, w: 22, h: 11, tip: 4 },
+} as const;
+export const VS_STRIP_REF: RectRef = { x: 439, y: 66, w: 22, h: 168 };
+/** Everything the moving box can reach: the tip at x 439 to the body edge x 465, y 60.5 to 239.5. */
+export const VS_TRAVEL_REF: RectRef = { x: 439, y: 60.5, w: 26, h: 179 };
 
 /** The compass arc: radius 66 about (247.5, 338), the upper half, so x 181.5 to 313.5, y 272 to 338. */
 export const COMPASS_BOX_REF: RectRef = { x: 181.5, y: 272, w: 132, h: 66 };

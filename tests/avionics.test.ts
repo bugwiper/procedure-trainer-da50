@@ -548,6 +548,7 @@ describe('glass header, content and legend zones', () => {
       'pfd-attitude',
       'pfd-airspeed',
       'pfd-altitude',
+      'pfd-vs',
       'pfd-heading',
       'cas-chips',
     ]);
@@ -582,11 +583,16 @@ describe('glass header, content and legend zones', () => {
       '#0e1a14',
     ]);
     expect(textsIn(content)).toContain('1013 HPA');
-    // Plan 06-03: the altitude readout and the vertical speed box (static label VS, number by value).
+    // Plan 06-03: the altitude readout; Phase 6.1: the vertical speed scale replaces the VS box (no
+    // label VS; the static numerals 1, 2, 3 twice each; the bare number lives in the moving box).
     expect(textsIn(content)).toContain('1400');
-    expect(text('VS')?.props['font-size']).toBe(6);
+    expect(text('VS')).toBeUndefined();
     expect(findElements(content, (e) => 'data-altitude-readout' in e.props)).toHaveLength(1);
     expect(findElements(content, (e) => 'data-vs-readout' in e.props)).toHaveLength(1);
+    const numerals = findElements(content, (e) => 'data-vs-numeral' in e.props);
+    expect(numerals.map(textOf).sort()).toEqual(['1', '1', '2', '2', '3', '3']);
+    expect(numerals.every((n) => n.props['font-size'] === 6)).toBe(true);
+    expect(findElements(content, (e) => 'data-vs-tick' in e.props)).toHaveLength(13);
   });
 
   it('the MFD content follows Table D6 (the strip gauges, the engine page rows of the reference)', () => {

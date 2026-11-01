@@ -13,6 +13,12 @@ import {
   SPEED_READOUT,
   SPEED_TAPE,
   TAPE_OPACITY,
+  VS_BOX,
+  VS_HALF_HEIGHT,
+  VS_NUMERAL_FPM,
+  VS_SCALE_MAX_FPM,
+  VS_STRIP,
+  VS_TICK_STEP_FPM,
   PFD_ZONE,
   ALTITUDE_BLOCK,
   casColumnRows,
@@ -42,7 +48,9 @@ import {
   TAPE_OPACITY_RANGE,
   TAPE_OPACITY_REF,
   TAPE_TICKS_REF,
-  VS_BOX_REF,
+  VS_REF,
+  VS_STRIP_REF,
+  VS_TRAVEL_REF,
   ZONE_MARGIN,
   ZONE_REF,
   insideZone,
@@ -230,15 +238,13 @@ describe('the altitude block as drawn (moved 50 units left)', () => {
     expect(ALTITUDE_BLOCK.x).toBe(ALTITUDE_TAPE_REF.x);
   });
 
-  it('draws the tape, the readout box, the baro box and the VS box at the reference rectangles', () => {
+  it('draws the tape, the readout box and the baro box at the reference rectangles', () => {
     const altitude = byTestId('pfd-altitude');
     const [tape, readout] = rectsIn(altitude);
     expect(rectOf(tape)).toEqual(ALTITUDE_TAPE_REF);
     expect(rectOf(readout)).toEqual(ALTITUDE_READOUT_REF);
     const baro = findElements(tree, (e) => 'data-baro-box' in e.props)[0];
-    const vs = findElements(tree, (e) => 'data-vs-box' in e.props)[0];
     expect(rectOf(baro)).toEqual(BARO_BOX_REF);
-    expect(rectOf(vs)).toEqual(VS_BOX_REF);
   });
 
   it('leaves the speed tape where it was', () => {
@@ -250,6 +256,77 @@ describe('the altitude block as drawn (moved 50 units left)', () => {
       INSET_MAP_REF,
     );
     expect(rectOf(rectsIn(byTestId('pfd-heading'))[0])).toEqual(HEADING_BOX_REF);
+  });
+});
+
+describe('the vertical speed scale data and drawing', () => {
+  const vs = byTestId('pfd-vs');
+  const strip = findElements(vs, (e) => 'data-vs-strip' in e.props)[0];
+
+  it('equals the reference scale: range, half height, step, numeral values, strip rectangle', () => {
+    expect(VS_SCALE_MAX_FPM).toBe(VS_REF.maxFpm);
+    expect(VS_HALF_HEIGHT).toBe(VS_REF.halfHeight);
+    expect(VS_TICK_STEP_FPM).toBe(VS_REF.tickStepFpm);
+    expect([...VS_NUMERAL_FPM]).toEqual([...VS_REF.numeralFpm]);
+    expect(asRect(VS_STRIP)).toEqual(VS_STRIP_REF);
+    expect(VS_STRIP.y + VS_HALF_HEIGHT).toBe(VS_REF.zeroY);
+    expect(VS_REF.zeroY).toBe(ATTITUDE_REF.cy);
+  });
+
+  it('is linear: the half height times 2 is the strip height, 28 units per 1000 fpm', () => {
+    expect(2 * VS_HALF_HEIGHT).toBe(VS_STRIP.height);
+    expect((VS_HALF_HEIGHT / VS_SCALE_MAX_FPM) * 1000).toBe(28);
+    expect(VS_REF.maxFpm).toBe(DA50RG_QUANTITIES.get('vertical_speed_fpm')?.max);
+  });
+
+  it('draws the strip at the reference rectangle, narrow and right of the altitude tape', () => {
+    expect(rectOf(strip)).toEqual(VS_STRIP_REF);
+    expect(VS_STRIP_REF.x).toBeGreaterThanOrEqual(ALTITUDE_TAPE_REF.x + ALTITUDE_TAPE_REF.w);
+    expect(VS_STRIP_REF.w).toBeLessThanOrEqual(30);
+  });
+
+  it('draws the counts of the reference: 13 ticks, 6 numerals with the texts 1, 2, 3 twice', () => {
+    expect((2 * VS_REF.maxFpm) / VS_REF.tickStepFpm + 1).toBe(VS_REF.tickCount);
+    expect(2 * VS_REF.numeralFpm.length).toBe(VS_REF.numeralCount);
+    expect(findElements(vs, (e) => 'data-vs-tick' in e.props)).toHaveLength(VS_REF.tickCount);
+    const numerals = findElements(vs, (e) => 'data-vs-numeral' in e.props);
+    expect(numerals).toHaveLength(VS_REF.numeralCount);
+    expect(numerals.map(textOf).sort()).toEqual([...VS_REF.numeralTexts]);
+  });
+
+  it('draws the ticks symmetric about the zero line, the thousands longer', () => {
+    const ticks = findElements(vs, (e) => 'data-vs-tick' in e.props);
+    const ys = ticks.map((t) => Number(t.props['y1'])).sort((a, b) => a - b);
+    ys.forEach((y, i) => {
+      expect(y + (ys[ys.length - 1 - i] ?? Number.NaN)).toBeCloseTo(2 * VS_REF.zeroY, 9);
+    });
+    expect(ys[0]).toBeCloseTo(VS_REF.zeroY - VS_REF.halfHeight, 9);
+    const length = (t: El): number => Number(t.props['x2']) - Number(t.props['x1']);
+    const atY = (y: number): El | undefined => ticks.find((t) => Number(t.props['y1']) === y);
+    expect(length(atY(VS_REF.zeroY) as El)).toBeGreaterThan(length(atY(VS_REF.zeroY - 14) as El));
+  });
+
+  it('draws the readout box at the zero line: 22 x 11 body, tip toward the tape, centred on 150', () => {
+    const pointer = findElements(vs, (e) => 'data-vs-pointer' in e.props)[0];
+    expect(pointer?.props['transform']).toBe('translate(0 0.00)');
+    expect(VS_BOX.x).toBe(VS_REF.box.x);
+    expect(VS_BOX.width).toBe(VS_REF.box.w);
+    expect(VS_BOX.height).toBe(VS_REF.box.h);
+    expect(VS_BOX.tipLength).toBe(VS_REF.box.tip);
+    // The tip points toward the tape: it reaches left of the body and not into the tape.
+    expect(VS_BOX.x - VS_BOX.tipLength).toBeGreaterThanOrEqual(
+      ALTITUDE_TAPE_REF.x + ALTITUDE_TAPE_REF.w,
+    );
+    // The body straddles the strip: it starts inside it and reaches past its right edge.
+    expect(VS_BOX.x).toBeGreaterThan(VS_STRIP_REF.x);
+    expect(VS_BOX.x + VS_BOX.width).toBeGreaterThan(VS_STRIP_REF.x + VS_STRIP_REF.w);
+  });
+
+  it('keeps the whole travel of the box inside the strip height plus half its own', () => {
+    expect(VS_TRAVEL_REF.x).toBe(VS_REF.box.x - VS_REF.box.tip);
+    expect(VS_TRAVEL_REF.x + VS_TRAVEL_REF.w).toBe(VS_REF.box.x + VS_REF.box.w);
+    expect(VS_TRAVEL_REF.y).toBe(VS_REF.zeroY - VS_REF.halfHeight - VS_REF.box.h / 2);
+    expect(VS_TRAVEL_REF.h).toBe(2 * VS_REF.halfHeight + VS_REF.box.h);
   });
 });
 
@@ -295,7 +372,8 @@ describe('a full column against the rest of the PFD', () => {
     'altitude tape': ALTITUDE_TAPE_REF,
     'altitude readout': ALTITUDE_READOUT_REF,
     'baro box': BARO_BOX_REF,
-    'vs box': VS_BOX_REF,
+    'vs strip': VS_STRIP_REF,
+    'vs travel': VS_TRAVEL_REF,
     compass: COMPASS_BOX_REF,
     'compass backing': BACKING_BOX_REF,
     'speed readout': SPEED_READOUT_REF,
@@ -331,7 +409,7 @@ describe('a full column against the rest of the PFD', () => {
       'compass backing': BACKING_BOX_REF,
       'inset map': INSET_MAP_REF,
       'baro box': BARO_BOX_REF,
-      'vs box': VS_BOX_REF,
+      'vs travel': VS_TRAVEL_REF,
       'cas column': full,
     };
     const names = Object.keys(apart);

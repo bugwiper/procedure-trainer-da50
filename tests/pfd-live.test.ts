@@ -15,8 +15,13 @@ import {
   altitudeTickOffsets,
   horizonRotationDeg,
   pitchShiftPx,
-  verticalSpeedText,
 } from '../src/aircraft/da50rg/avionics';
+import {
+  VS_HALF_HEIGHT,
+  VS_SCALE_MAX_FPM,
+  verticalSpeedPointerPx,
+  verticalSpeedReadout,
+} from '../src/aircraft/da50rg/pfd-layout';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import type { PanelBridge } from '../src/ui/bridge';
@@ -45,6 +50,9 @@ function render(values: Record<string, number>): El {
   } as unknown as PanelBridge;
   return expand(PfdFrame({ region, bridge }));
 }
+
+const pointerTransform = (tree: El): unknown =>
+  findElements(tree, (e) => 'data-vs-pointer' in e.props)[0]?.props['transform'];
 
 const readout = (tree: El, attribute: string): string =>
   textOf(findElements(tree, (e) => e.props[attribute] !== undefined)[0] ?? tree);
@@ -98,21 +106,73 @@ describe('altitudeTickOffsets', () => {
   });
 });
 
-describe('verticalSpeedText', () => {
-  it('rounds to the nearest 10 fpm, with a plus sign for a climb and 0 plain', () => {
-    expect(verticalSpeedText(500)).toBe('+500');
-    expect(verticalSpeedText(504)).toBe('+500');
-    expect(verticalSpeedText(505)).toBe('+510');
-    expect(verticalSpeedText(-700)).toBe('-700');
-    expect(verticalSpeedText(-4)).toBe('0');
-    expect(verticalSpeedText(4)).toBe('0');
-    expect(verticalSpeedText(0)).toBe('0');
+describe('verticalSpeedPointerPx', () => {
+  it('stands on the zero line at 0, also for a negative zero', () => {
+    expect(verticalSpeedPointerPx(0)).toBe(0);
+    expect(Object.is(verticalSpeedPointerPx(0), 0)).toBe(true);
+    expect(Object.is(verticalSpeedPointerPx(-0), 0)).toBe(true);
   });
 
-  it('gives the base (0) for a missing reading', () => {
-    expect(verticalSpeedText(undefined)).toBe('0');
-    expect(verticalSpeedText(Number.NaN)).toBe('0');
-    expect(DA50RG_QUANTITIES.get(PFD_VERTICAL_SPEED_QUANTITY)?.base).toBe(0);
+  it('moves up for a climb and down for a sink, linear over the half height', () => {
+    expect(verticalSpeedPointerPx(VS_SCALE_MAX_FPM)).toBe(-VS_HALF_HEIGHT);
+    expect(verticalSpeedPointerPx(-VS_SCALE_MAX_FPM)).toBe(VS_HALF_HEIGHT);
+    expect(verticalSpeedPointerPx(500)).toBeCloseTo(-VS_HALF_HEIGHT / 6, 9);
+    expect(verticalSpeedPointerPx(1000)).toBeCloseTo(-28, 9);
+    expect(verticalSpeedPointerPx(-700)).toBeCloseTo(19.6, 9);
+  });
+
+  it('is symmetric about the zero line', () => {
+    for (const fpm of [50, 500, 1234, 2999, 3000]) {
+      expect(verticalSpeedPointerPx(fpm) + verticalSpeedPointerPx(-fpm), String(fpm)).toBe(0);
+    }
+  });
+
+  it('clamps at both ends of the scale', () => {
+    expect(verticalSpeedPointerPx(3500)).toBe(-VS_HALF_HEIGHT);
+    expect(verticalSpeedPointerPx(-9999)).toBe(VS_HALF_HEIGHT);
+  });
+
+  it('reads the base (0) for a missing or non-finite reading', () => {
+    expect(verticalSpeedPointerPx(undefined)).toBe(0);
+    expect(verticalSpeedPointerPx(Number.NaN)).toBe(0);
+    expect(verticalSpeedPointerPx(Number.POSITIVE_INFINITY)).toBe(0);
+  });
+
+  it('has the scale maximum of the quantity data', () => {
+    const def = DA50RG_QUANTITIES.get(PFD_VERTICAL_SPEED_QUANTITY);
+    expect(def?.max).toBe(VS_SCALE_MAX_FPM);
+    expect(def?.min).toBe(-VS_SCALE_MAX_FPM);
+    expect(def?.base).toBe(0);
+  });
+});
+
+describe('verticalSpeedReadout', () => {
+  it('is the bare number rounded to the nearest 50 fpm', () => {
+    expect(verticalSpeedReadout(1200)).toBe('1200');
+    expect(verticalSpeedReadout(1224)).toBe('1200');
+    expect(verticalSpeedReadout(1225)).toBe('1250');
+    expect(verticalSpeedReadout(500)).toBe('500');
+    expect(verticalSpeedReadout(24)).toBe('0');
+    expect(verticalSpeedReadout(25)).toBe('50');
+  });
+
+  it('never carries a sign: a sink reads the same number, and never "-0"', () => {
+    expect(verticalSpeedReadout(-700)).toBe('700');
+    expect(verticalSpeedReadout(-704)).toBe('700');
+    expect(verticalSpeedReadout(-1224)).toBe('1200');
+    expect(verticalSpeedReadout(-4)).toBe('0');
+    expect(verticalSpeedReadout(-0)).toBe('0');
+    expect(verticalSpeedReadout(0)).toBe('0');
+    for (const fpm of [-3000, -25, -24, -0.4, 0, 0.4, 25, 3000]) {
+      expect(verticalSpeedReadout(fpm), String(fpm)).toMatch(/^\d+$/);
+    }
+  });
+
+  it('is clamped at the ends of the scale and reads 0 for a missing reading', () => {
+    expect(verticalSpeedReadout(4000)).toBe('3000');
+    expect(verticalSpeedReadout(-4000)).toBe('3000');
+    expect(verticalSpeedReadout(undefined)).toBe('0');
+    expect(verticalSpeedReadout(Number.NaN)).toBe('0');
   });
 });
 
@@ -121,6 +181,7 @@ describe('the PFD frame', () => {
     const tree = render(baseValues);
     expect(readout(tree, 'data-altitude-readout')).toBe('1400');
     expect(readout(tree, 'data-vs-readout')).toBe('0');
+    expect(pointerTransform(tree)).toBe('translate(0 0.00)');
   });
 
   it('shows the altitude and the vertical speed of the quantities', () => {
@@ -130,7 +191,17 @@ describe('the PFD frame', () => {
       [PFD_VERTICAL_SPEED_QUANTITY]: -704,
     });
     expect(readout(tree, 'data-altitude-readout')).toBe('4510');
-    expect(readout(tree, 'data-vs-readout')).toBe('-700');
+    // A sink of 704 fpm: the number is bare and rounded to 50, the box lies below the zero line.
+    expect(readout(tree, 'data-vs-readout')).toBe('700');
+    expect(pointerTransform(tree)).toBe(`translate(0 ${((704 / 3000) * 84).toFixed(2)})`);
+  });
+
+  it('puts the box above the zero line for a climb and moves it with the reading', () => {
+    const climb = render({ ...baseValues, [PFD_VERTICAL_SPEED_QUANTITY]: 1200 });
+    expect(readout(climb, 'data-vs-readout')).toBe('1200');
+    expect(pointerTransform(climb)).toBe('translate(0 -33.60)');
+    const pegged = render({ ...baseValues, [PFD_VERTICAL_SPEED_QUANTITY]: 3000 });
+    expect(pointerTransform(pegged)).toBe('translate(0 -84.00)');
   });
 
   it('draws the altitude tape ticks at the offsets of the helper', () => {
@@ -147,11 +218,11 @@ describe('the PFD frame', () => {
     });
   });
 
-  it('prints the static label VS beside the number, in a box under the barometer box', () => {
+  it('prints no label VS and keeps the readout inside the moving box', () => {
     const tree = render(baseValues);
-    const label = findElements(tree, (e) => e.tag === 'text' && textOf(e) === 'VS')[0];
-    expect(label).toBeDefined();
-    expect([6, 8, 10, 14]).toContain(label?.props['font-size']);
+    expect(findElements(tree, (e) => e.tag === 'text' && textOf(e) === 'VS')).toHaveLength(0);
+    const box = findElements(tree, (e) => 'data-vs-pointer' in e.props)[0];
+    expect(findElements(box ?? tree, (e) => 'data-vs-readout' in e.props)).toHaveLength(1);
   });
 });
 

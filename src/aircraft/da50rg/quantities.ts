@@ -477,14 +477,15 @@ export const DA50RG_QUANTITIES = defineQuantities([
     bands: [{ id: 'unmarked', colour: 'none', to: 20000 }],
   },
   {
-    // Hidden: no gauge. The vertical speed in feet per minute, the PFD VS readout (V-02). Base 0:
-    // level flight. One unmarked band.
+    // Hidden: no gauge. The vertical speed in feet per minute, the PFD vertical speed scale (V-02).
+    // Plus and minus 3000 since Phase 6.1 (D-11: the scale of the real display). Base 0: level
+    // flight. One unmarked band.
     id: 'vertical_speed_fpm',
     unit: 'fpm',
-    min: -2000,
-    max: 2000,
+    min: -3000,
+    max: 3000,
     base: 0,
-    bands: [{ id: 'unmarked', colour: 'none', to: 2000 }],
+    bands: [{ id: 'unmarked', colour: 'none', to: 3000 }],
   },
   {
     // Hidden: no gauge. The pitch attitude in degrees, positive nose up; the PFD horizon draws it

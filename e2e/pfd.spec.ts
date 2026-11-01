@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { VS_SCALE_MAX_FPM, verticalSpeedPointerPx } from '../src/aircraft/da50rg/pfd-layout';
 import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { startScenario } from './support/session';
 import { activate } from './support/zoom';
@@ -10,6 +11,7 @@ import { activate } from './support/zoom';
 
 const ALTITUDE = '[data-testid="pfd-altitude"] [data-altitude-readout]';
 const VS = '[data-vs-readout]';
+const VS_POINTER = '[data-testid="pfd-vs"] [data-vs-pointer]';
 const NO_ABORT_ROW = 'fire.takeoff-fire-no-abort';
 
 test.beforeEach(async ({ page }) => {
@@ -21,23 +23,57 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('rotate-hint')).toBeHidden();
 });
 
+/** The y offset of the moving vertical speed box from the zero line, read from its transform. */
+async function pointerY(page: Page): Promise<number> {
+  const transform = (await page.locator(VS_POINTER).getAttribute('transform')) ?? '';
+  const match = /^translate\(0 (-?[\d.]+)\)$/.exec(transform);
+  if (match?.[1] === undefined) throw new Error(`unexpected pointer transform "${transform}"`);
+  return Number(match[1]);
+}
+
 const numberOf = async (page: Page, selector: string): Promise<number> =>
   Number(await page.locator(selector).first().textContent());
 
 test('the free panel reads the static altitude and vertical speed of old', async ({ page }) => {
   await expect(page.locator(ALTITUDE)).toHaveText('1400');
   await expect(page.locator(VS)).toHaveText('0');
+  expect(await pointerY(page)).toBe(0);
   await page.waitForTimeout(1500);
   await expect(page.locator(ALTITUDE)).toHaveText('1400');
   await expect(page.locator(VS)).toHaveText('0');
+  expect(await pointerY(page)).toBe(0);
 });
 
-test('the vertical speed box carries the static label VS', async ({ page }) => {
-  const box = page.locator('[data-glass-zone="content"] text', { hasText: /^VS$/ });
-  await expect(box.first()).toBeVisible();
+test('the vertical speed strip carries the static numerals 1, 2 and 3 and no label VS', async ({
+  page,
+}) => {
+  const numerals = page.locator('[data-testid="pfd-vs"] [data-vs-numeral]');
+  await expect(numerals).toHaveCount(6);
+  expect((await numerals.allTextContents()).sort()).toEqual(['1', '1', '2', '2', '3', '3']);
+  await expect(page.locator('[data-glass-zone="content"] text', { hasText: /^VS$/ })).toHaveCount(
+    0,
+  );
 });
 
-test('T/O FIRE NO ABORT, Easy: the altitude rises and the vertical speed reads a plus number', async ({
+test('?q=vertical_speed_fpm: puts the box on the scale, a climb above the zero line', async ({
+  page,
+}) => {
+  await page.goto('./?q=vertical_speed_fpm:1000');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  expect(await pointerY(page)).toBe(verticalSpeedPointerPx(1000));
+  expect(await pointerY(page)).toBeLessThan(0);
+  await expect(page.locator(VS)).toHaveText('1000');
+  await page.goto('./?q=vertical_speed_fpm:-700');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  expect(await pointerY(page)).toBeGreaterThan(0);
+  // A sink reads the bare number: the sign shows by the place of the box only.
+  await expect(page.locator(VS)).toHaveText('700');
+  await page.goto(`./?q=vertical_speed_fpm:${String(VS_SCALE_MAX_FPM)}`);
+  await expect(page.getByTestId('panel')).toBeVisible();
+  expect(await pointerY(page)).toBe(verticalSpeedPointerPx(VS_SCALE_MAX_FPM));
+});
+
+test('T/O FIRE NO ABORT, Easy: the altitude rises and the vertical speed box moves above the zero line', async ({
   page,
   hasTouch,
 }) => {
@@ -45,7 +81,8 @@ test('T/O FIRE NO ABORT, Easy: the altitude rises and the vertical speed reads a
   const start = await numberOf(page, ALTITUDE);
   expect(start).toBeGreaterThanOrEqual(1450);
   await expect.poll(() => numberOf(page, ALTITUDE), { timeout: 10_000 }).toBeGreaterThan(start);
-  await expect(page.locator(VS)).toHaveText(/^\+\d+$/, { timeout: 10_000 });
+  await expect.poll(() => pointerY(page), { timeout: 10_000 }).toBeLessThan(0);
+  await expect(page.locator(VS)).toHaveText(/^[1-9]\d*$/);
 });
 
 // The horizon and the flight regimes of the profile (task 2).
@@ -94,13 +131,15 @@ test('ENGINE FIRE in flight, Easy: level before the engine stop, then the glide 
   await page.waitForTimeout(1500);
   expect(await numberOf(page, ALTITUDE)).toBe(level);
   await expect(page.locator(VS)).toHaveText('0');
+  expect(await pointerY(page)).toBe(0);
   // ENGINE MASTER off: the aircraft glides, the vertical speed turns negative and the altitude falls.
   await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
   await expect(page.locator('[data-control-id="sw.engine_master"]')).toHaveAttribute(
     'data-state',
     'off',
   );
-  await expect(page.locator(VS)).toHaveText(/^-\d+$/, { timeout: 20_000 });
+  await expect.poll(() => pointerY(page), { timeout: 20_000 }).toBeGreaterThan(0);
+  await expect(page.locator(VS)).toHaveText(/^[1-9]\d*$/);
   await expect.poll(() => numberOf(page, ALTITUDE), { timeout: 20_000 }).toBeLessThan(level);
 });
 

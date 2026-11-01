@@ -14,7 +14,6 @@ import {
   horizonRotationDeg,
   pitchShiftPx,
   speedTickOffsets,
-  verticalSpeedText,
 } from '../../../aircraft/da50rg/avionics';
 import { DEFAULT_SCENE } from '../../../aircraft/da50rg/scenes';
 import {
@@ -37,6 +36,7 @@ import { CasChips } from './CasChips';
 import { GlassHeader, LegendRow, SCREEN_FILL, glassSecondRowLive } from './MfdFrame';
 import type { FrameProps } from './MfdFrame';
 import { SyntheticVision } from './SyntheticVision';
+import { VerticalSpeedScale } from './VerticalSpeedScale';
 
 const WHITE = '#ffffff';
 /** The dark glass of the tapes (translucent by TAPE_OPACITY) and of the compass backing. */
@@ -297,6 +297,9 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
           </text>
         </g>
 
+        {/* The vertical speed scale right of the altitude tape (Phase 6.1, D-11). */}
+        <VerticalSpeedScale verticalSpeed={verticalSpeed} />
+
         {/* Compass arc, drawn first so the heading block reads on top of it. A translucent dark half
             disc lies under it so that the ticks read on the synthetic vision (D-10). */}
         <g>
@@ -383,32 +386,6 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
         />
         <text x={ALTITUDE_BLOCK.x + 40} y={293.5} text-anchor="middle" font-size={6} fill={WHITE}>
           1013 HPA
-        </text>
-
-        {/* Vertical speed box under the barometer box: the label VS is static, the number follows
-            the quantity (a text that changes by value, never by control state). */}
-        <rect
-          data-vs-box
-          x={ALTITUDE_BLOCK.x}
-          y={304}
-          width={80}
-          height={20}
-          fill="#12181e"
-          stroke="#3a424b"
-        />
-        <text x={ALTITUDE_BLOCK.x + 6} y={317.5} font-size={6} fill={LABEL}>
-          VS
-        </text>
-        <text
-          class="glass-digits"
-          data-vs-readout
-          x={ALTITUDE_BLOCK.x + 75}
-          y={318}
-          text-anchor="end"
-          font-size={10}
-          fill={WHITE}
-        >
-          {verticalSpeedText(verticalSpeed)}
         </text>
 
         {/* Annunciations: derived from the aircraft CAS rules, one column at the lower right, drawn

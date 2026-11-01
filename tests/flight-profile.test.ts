@@ -92,7 +92,7 @@ const q = (state: { quantities: Readonly<Record<string, number>> }, id: string):
 describe('the flight quantities and the profile parameters (V-02, V-03)', () => {
   it('altitude and vertical speed are hidden quantities with the static bases of the free panel', () => {
     expect([def(ALT).min, def(ALT).max, def(ALT).base]).toEqual([0, 20000, 1400]);
-    expect([def(VS).min, def(VS).max, def(VS).base]).toEqual([-2000, 2000, 0]);
+    expect([def(VS).min, def(VS).max, def(VS).base]).toEqual([-3000, 3000, 0]);
   });
 
   it('the flight parameters and the two situation parameters of plan 01 carry the profile flag', () => {

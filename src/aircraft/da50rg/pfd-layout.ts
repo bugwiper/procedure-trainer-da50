@@ -5,7 +5,7 @@
 // `+ - * /` with clamping only, no UI imports.
 
 import { MAX_CAS_CHIPS } from '../../engine/cas';
-import { GLASS } from './avionics';
+import { GLASS, PFD_VERTICAL_SPEED_QUANTITY, readingOr } from './avionics';
 
 /** The glass content zone: where every painted PFD element between header and legend must lie. */
 export const PFD_ZONE = {
@@ -156,4 +156,76 @@ export function casColumnRows(count: number): CasRow[] {
     });
   }
   return rows;
+}
+
+/**
+ * The vertical speed scale (PNL-27, D-11): a narrow strip right of the altitude tape with a linear
+ * scale of plus and minus 3000 fpm. The zero line stands at the height of the attitude centre; a
+ * climb moves up. 84 region units for 3000 fpm make 28 per 1000 fpm. A tick stands every 500 fpm and
+ * the thousands carry the static numerals 1, 2 and 3 (thousand feet per minute).
+ */
+export const VS_SCALE_MAX_FPM = 3000;
+/** Region units from the zero line to either end of the scale. */
+export const VS_HALF_HEIGHT = 84;
+export const VS_TICK_STEP_FPM = 500;
+/** The values (in fpm) that carry a numeral, at plus and minus each of them. */
+export const VS_NUMERAL_FPM: readonly number[] = [1000, 2000, 3000];
+
+/** The strip: a translucent dark glass rectangle, the zero line in the middle of its height. */
+export const VS_STRIP = {
+  x: 439,
+  y: ATTITUDE.cy - VS_HALF_HEIGHT,
+  width: 22,
+  height: 2 * VS_HALF_HEIGHT,
+  /** Tick length from the left edge of the strip: the 500 steps, the thousands, the zero mark. */
+  tickShort: 4,
+  tickLong: 7,
+  /** Left edge of a numeral (text anchored at the start) and its size. */
+  numeralX: 449,
+  numeralSize: 6,
+} as const;
+
+/**
+ * The moving readout box: a black body with a white frame and a small arrow tip toward the tape on
+ * its left. It straddles the strip at the current rate and carries the bare number. All values are
+ * for the box at the zero line; the box moves by `verticalSpeedPointerPx`.
+ */
+export const VS_BOX = {
+  /** Left edge of the body (the tip reaches `tipLength` further left, toward the tape). */
+  x: 443,
+  width: 22,
+  height: 11,
+  /** The arrow tip: how far it reaches left of the body and its half height at the body. */
+  tipLength: 4,
+  tipHalfHeight: 3,
+  /** The number: right-aligned text inside the body, size 7, baseline below the centre line. */
+  textRight: 463.5,
+  textSize: 7,
+  textBaseline: 2.5,
+} as const;
+
+/** The reading in fpm clamped to the scale; a missing or non-finite reading is the quantity base. */
+function clampedFpm(value: number | undefined): number {
+  const reading = readingOr(value, PFD_VERTICAL_SPEED_QUANTITY);
+  if (reading > VS_SCALE_MAX_FPM) return VS_SCALE_MAX_FPM;
+  return reading < -VS_SCALE_MAX_FPM ? -VS_SCALE_MAX_FPM : reading;
+}
+
+/**
+ * The offset of the readout box from the zero line in region units: a climb is negative (up), a
+ * sink positive (down). The reading is clamped to the scale; a missing or non-finite reading is the
+ * base of the quantity. A negative zero turns into 0, so the free panel has the identity transform.
+ */
+export function verticalSpeedPointerPx(value: number | undefined): number {
+  return 0 - (clampedFpm(value) / VS_SCALE_MAX_FPM) * VS_HALF_HEIGHT + 0;
+}
+
+/**
+ * The number in the box: the bare vertical speed in fpm, never a sign (sinking shows by the position
+ * of the box only), rounded to the nearest 50 fpm and clamped to the scale. Never "-0".
+ */
+export function verticalSpeedReadout(value: number | undefined): string {
+  const fpm = clampedFpm(value);
+  const magnitude = fpm < 0 ? 0 - fpm : fpm;
+  return String(Math.round(magnitude / 50) * 50);
 }
