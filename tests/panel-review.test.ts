@@ -521,16 +521,17 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
   };
   const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
 
-  it('has Phase 6.1: owner review as the last section after Phase 6, 5.1, 5, 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
+  it('has Phase 7: owner review as the last section after Phase 6.1, 6, 5.1, 5, 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Phase 6.1: owner review');
-    expect(headings[headings.length - 2]).toBe('## Phase 6: owner review');
-    expect(headings[headings.length - 3]).toBe('## Phase 5.1: owner review');
-    expect(headings[headings.length - 4]).toBe('## Phase 5: owner review');
-    expect(headings[headings.length - 5]).toBe('## Phase 4: owner review');
-    expect(headings[headings.length - 6]).toBe('## Phase 3.1: owner review');
-    expect(headings[headings.length - 7]).toBe('## Phase 3: owner review');
-    expect(headings[headings.length - 8]).toBe('## Phase 2: owner review');
+    expect(headings[headings.length - 1]).toBe('## Phase 7: owner review');
+    expect(headings[headings.length - 2]).toBe('## Phase 6.1: owner review');
+    expect(headings[headings.length - 3]).toBe('## Phase 6: owner review');
+    expect(headings[headings.length - 4]).toBe('## Phase 5.1: owner review');
+    expect(headings[headings.length - 5]).toBe('## Phase 5: owner review');
+    expect(headings[headings.length - 6]).toBe('## Phase 4: owner review');
+    expect(headings[headings.length - 7]).toBe('## Phase 3.1: owner review');
+    expect(headings[headings.length - 8]).toBe('## Phase 3: owner review');
+    expect(headings[headings.length - 9]).toBe('## Phase 2: owner review');
     expect(headings).toContain('## Round 5: morning review');
     expect(headings).toContain('## Round 4: morning review');
   });
@@ -795,9 +796,13 @@ describe('phase 5 owner review (plan 05-03)', () => {
 describe('phase 6.1 owner review (plan 06.1-03)', () => {
   const at = review.search(/^## Phase 6\.1: owner review/m);
   const phase6 = review.search(/^## Phase 6: owner review/m);
-  const section = at === -1 ? '' : review.slice(at);
+  // The section ends at the next heading (the Phase 7 review follows it).
+  const rest = at === -1 ? '' : review.slice(at + 3);
+  const nextHeading = rest.search(/^## /m);
+  const section =
+    at === -1 ? '' : review.slice(at, nextHeading === -1 ? undefined : at + 3 + nextHeading);
 
-  it('is the last section, after Phase 6, points to the layout data and says nothing was pushed', () => {
+  it('follows Phase 6, points to the layout data and says nothing was pushed', () => {
     expect(at).toBeGreaterThan(-1);
     expect(at).toBeGreaterThan(phase6);
     expect(section).toMatch(/nothing was pushed/i);
@@ -841,5 +846,90 @@ describe('phase 6.1 owner review (plan 06.1-03)', () => {
       /4\. \*\*Where the white FUEL TRANS chip sits\.\*\* \(Changed in Phase 6\.1/,
     );
     expect(phase6Section).toMatch(/Phase 6\.1 replaced the small VS box/);
+  });
+});
+
+describe('phase 7 owner review (plan 07-03)', () => {
+  const at = review.search(/^## Phase 7: owner review/m);
+  const phase61 = review.search(/^## Phase 6\.1: owner review/m);
+  const section = at === -1 ? '' : review.slice(at);
+  const numbers = section
+    .split('\n')
+    .map((line) => /^(\d+)\. /.exec(line)?.[1])
+    .filter((n): n is string => n !== undefined)
+    .map(Number);
+  const item = (n: number): string =>
+    section.split('\n').find((line) => line.startsWith(`${String(n)}. `)) ?? '';
+
+  it('is the last section, after Phase 6.1, and says nothing was pushed', () => {
+    expect(at).toBeGreaterThan(-1);
+    expect(at).toBeGreaterThan(phase61);
+    expect(section).toMatch(/nothing was pushed/i);
+  });
+
+  it('numbers its items from 1 without a gap, has no unfilled item and quotes no private material', () => {
+    expect(section).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b|@@/i);
+    expect(section).not.toMatch(/\bRESULTS\b/);
+    expect(section).not.toMatch(/\.input\//);
+    expect(numbers.length).toBeGreaterThan(0);
+    expect(numbers).toEqual(numbers.map((_, i) => i + 1));
+  });
+
+  it('names the conduct, the hint and the retry rules', () => {
+    for (const word of ['conduct', 'hint', 'Retry', 'Next situation', 'last pick']) {
+      expect(section, word).toContain(word);
+    }
+  });
+
+  it('lists the open points of plans 07-01 and 07-02 and the missing either-call role', () => {
+    const lower = section.toLowerCase();
+    for (const point of [
+      'card order',
+      'run view',
+      'bottom sheet',
+      'pauses the run clock',
+      'either call',
+      'verdict words',
+    ]) {
+      expect(lower, point).toContain(point);
+    }
+  });
+
+  it('shows the D-13 table with every role and accept list of the shipped situations', () => {
+    for (const row of [
+      'ENG OIL TEMP, ALTN 1 FAIL, ALTN 2 FAIL',
+      'ICING CONDITIONS',
+      'ENGINE FIRE (in flight), ELEC FIRE FLIGHT, T/O FIRE NO ABORT',
+      'ENGINE FIRE GROUND, ELEC FIRE GROUND, T/O FIRE ABORT',
+    ]) {
+      expect(section, row).toContain(row);
+    }
+    for (const word of [
+      'atc_mayday',
+      'atc_pan_pan',
+      'brief_passengers',
+      'conduct_precautionary',
+      'conduct_emergency',
+      'required',
+      'recommended',
+      'optional',
+    ]) {
+      expect(section, word).toContain(word);
+    }
+  });
+
+  it('names the results of the final gates in its last item', () => {
+    const last = item(numbers.length);
+    expect(last).toMatch(/unit/i);
+    expect(last).toMatch(/Playwright/);
+    expect(last).toMatch(/recordings\.json/);
+  });
+
+  it('the Session area section points to Phase 7 for the run view', () => {
+    const sessionArea = review.slice(
+      review.search(/^## Session area/m),
+      review.search(/^## Simplified transponder/m),
+    );
+    expect(sessionArea).toContain('Phase 7');
   });
 });

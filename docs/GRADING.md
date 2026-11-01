@@ -12,6 +12,8 @@ The result holds the verdict (`pass` or `fail`), the reasons for a fail, one ent
 
 The level chosen before the briefing (Easy, Medium or Realistic) is not an input of `grade`: every level grades the same rules (R11). The level only changes what the briefing shows, how the run starts and what the debrief names. The one run datum that differs on Realistic is the recorded onset, which is part of the recording and not a level flag. The mode chosen on its own card before the level (Training or Exam, Phase 7) is not an input of `grade` either. In Training the pilot can ask for a hint and show the checklist during the run; a hint is the grade of the partial recording read for its first open critical or standard step (`src/engine/hint.ts`, rule R12 applies), it is not stored, counted or penalised and changes nothing. In Exam there are neither hints nor the checklist. The same recording gives the same result in every combination of mode and level.
 
+A retry is a new run (Phase 7): nothing of the graded run carries over into it, no event, no decision, no hint, no clock time. Only the two records that make the situation the same are reused, the onset and the variant (see "Retry and next situation (phase 7)"), and the recording of the retry is made from its own run like any other. The recording description above stays current: events, onset, variant and decisions, and nothing else.
+
 ## The rules
 
 1. **Starting point.** The run starts from the baseline: every control at its normal in-flight position, then the positions that the scenario file sets. On the levels Easy and Medium the quantities (for example oil temperature) start at the values the scenario sets, with the failure already present. On the level Realistic the controls are the same, but the quantities start at the base values of the aircraft (the cruise readings) laid over by the quantities of the scenario's `onset` block (for ENG OIL TEMP the oil temperature just below the yellow band), and the failure begins at a seeded onset: until the onset the normal parameters act, from the onset on the faulted parameters of the scenario, laid over by the parameters of its `onset` block. Easy and Medium never read the `onset` block. The onset lies inside the window the scenario declares (`onset`, 1 to 120 s, on a 100 ms step boundary) and is recorded with the run, so a replay reproduces it. The starting point is not an action of the pilot and is not in the recording.
@@ -138,6 +140,15 @@ The check `npm run validate` adds two rules for the section (each is reported wi
 - L28: `conduct` is `none` exactly when the profile sets the ground parameter above 0 (a ground scenario must say none, any other scenario with the section must say accept); every `accept` id is a conduct option of the aircraft and listed once; `accept` must not list every conduct option.
 
 The L20 solution of a scenario with variants also makes the required decisions and the first accepted conduct, so the solution of every variant still passes.
+
+## Retry and next situation (phase 7)
+
+The debrief offers two ways on. Neither is an input of `grade`; both start a normal run through the same code as a first start, so the baseline check and the replay rules apply unchanged.
+
+- **Retry** starts the same scenario again from a clean state (the panel at the scenario's baseline, the quantities reset, a new clock, an empty log, no decisions) at the same mode and level. The seed rule is one function, `retrySeeds(onset, variant)` in `src/ui/session.ts`: a retry reuses the records of the graded run as recorded, the variant with its seed on every level that has variants and the onset with its seed on Realistic, and it draws nothing, so a better result comes from the pilot and not from the draw. The alternative rule (a new draw unless the run was Realistic) is a change of that one function and of its test. A normal start draws the onset seed first and the variant seed second, as before, so no recorded run changes.
+- **Next situation** opens the entry after the current one in the listing of CHOOSE SITUATION (every allowed pack in manifest order, wrapping after the last; a single entry gives the same one), leaves the debrief like RESET does and keeps the mode and the level. Easy and Medium show the briefing, Realistic starts the run at once when the scenario declares an onset and shows the level card when it does not. It draws new seeds as every start does.
+
+Both buttons are ignored outside the debrief and while a load runs.
 
 ## Golden recordings
 

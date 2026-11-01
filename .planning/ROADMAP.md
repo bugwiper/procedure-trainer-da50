@@ -574,12 +574,26 @@ Plans:
 **Success Criteria** (what must be TRUE):
 
 1. In Training mode the user can show or hide the scenario checklist and ask for a hint during the scenario, while Exam mode stays silent.
-2. A "Further actions" section lets the user pick from a fixed list of non-panel actions (e.g. monitor oil pressure, declare MAYDAY, brief passengers) and choose a landing decision from the ladder (continue flight, safety landing on a suitable field, emergency landing on the next field, outlanding if necessary); both are graded in the debrief.
+2. A "Further actions" modal lets the user pick, in any combination, from a fixed list of non-panel actions (inform ATC with MAYDAY or PAN PAN PAN, brief passengers) and choose the further flight conduct (continue normally, precautionary landing, emergency landing); a scenario declares which are required, recommended, optional or harmful and which conduct is right (none on the ground), and the picks are graded and shown in the debrief.
 3. From the debrief the user can retry the same scenario from a clean initial state or move straight to the next situation.
-4. Following only the authoring guide, a non-developer can add a new scenario TOON file, validate it and play it in the app without any code change.
+4. Following only the authoring guide (a README section for developers), a developer can add a new scenario TOON file, validate it and play it in the app without any code change; its worked example is parsed and linted by a test.
 
-**Plans**: TBD
+**Plans:** 3 plans (lean form, see WORKFLOW.md); decisions in 07-CONTEXT.md
 **UI hint**: yes
+
+Plans:
+
+**Wave 1**
+
+- [x] 07-01 — Tracer: Training or Exam on its own card before the level, the hint (the first open critical or standard step in the printed wording), the checklist sheet and the run view of the session pad
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [x] 07-02 — Tracer: the further actions as aircraft data, the optional `further` section with roles and conduct, lint L27 and L28, grading rules R16 to R19, the FURTHER ACTIONS modal, the debrief section and the declarations of all ten shipped scenarios
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [x] 07-03 — Tracer: Retry and Next situation from the debrief, the README section "Writing a scenario" with a tested example, the phase-end documents, requirements and the final gates
 
 ### Phase 8: Offline PWA and Real-Device Hardening
 
@@ -612,5 +626,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 5.1 Ground and takeoff emergencies                    | 4/3 | Complete    | 2026-10-28 |
 | 6. Fuel, tank and engine fidelity and the engine page | 4/4            | Executed, awaiting UAT | 2026-10-29 |
 | 6.1. PFD fidelity                                     | 3/3            | Complete    | 2026-11-01 |
-| 7. Training Mode, Further Actions and Repeat Loop     | 0/TBD          | Not started | -          |
+| 7. Training Mode, Further Actions and Repeat Loop     | 3/3            | Executed, awaiting UAT | 2026-11-01 |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |
