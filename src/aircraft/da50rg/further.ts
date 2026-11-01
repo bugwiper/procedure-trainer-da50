@@ -12,7 +12,13 @@ export const DA50RG_FURTHER = defineFurther({
   options: [
     { id: 'atc_mayday', text: 'MAYDAY (121.5 or current frequency)', kind: 'action', group: 'atc' },
     { id: 'atc_pan_pan', text: 'PAN PAN PAN (advise ATC)', kind: 'action', group: 'atc' },
-    { id: 'brief_passengers', text: 'Brief passengers (if time permits)', kind: 'action' },
+    {
+      id: 'brief_passengers',
+      text: 'Brief passengers (if time permits)',
+      kind: 'action',
+      // Never required, never fails a run (D-08, R17): lint L27 enforces it.
+      unrated: true,
+    },
     { id: 'conduct_continue', text: 'Continue flight normally', kind: 'conduct' },
     {
       id: 'conduct_precautionary',

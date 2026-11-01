@@ -1858,6 +1858,25 @@ describe('L27 and L28: the further actions (Phase 7, plan 07-02)', () => {
     expect(checkScenario(good, DA50RG_ENV).ok).toBe(true);
   });
 
+  it('L27: an unrated action (brief passengers) is never required or harmful, WR-02', () => {
+    const unrated = DA50RG_ENV.further.ids('action').filter((id) => {
+      return DA50RG_ENV.further.option(id)?.unrated === true;
+    });
+    expect(unrated.length).toBeGreaterThan(0);
+    for (const id of unrated) {
+      for (const role of ['required', 'harmful']) {
+        const text = withFurther(FIRE, section(`    - id: ${id}\n      role: ${role}`, ACCEPT));
+        const [hit] = found(text, 'is never graded');
+        expect(hit?.path).toBe('further.actions.0.role');
+        expect(hit?.line).toBe(lastLineOf(text, `role: ${role}`));
+      }
+      for (const role of ['recommended', 'optional']) {
+        const text = withFurther(FIRE, section(`    - id: ${id}\n      role: ${role}`, ACCEPT));
+        expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
+      }
+    }
+  });
+
   it('L28: a scenario in flight must not declare none', () => {
     const text = withFurther(FIRE, section(CALL, 'none'));
     const [hit] = found(text, 'a scenario in flight must declare conduct: accept');

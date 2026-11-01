@@ -728,7 +728,8 @@ function checkVariantRuns(
 
 /**
  * L27 and L28: the `further` section. L27: every action id is an action option of the aircraft and
- * listed once, and `fails_run` belongs to the role harmful only. L28: the conduct is `none` exactly
+ * listed once, `fails_run` belongs to the role harmful only, and an unrated action (brief passengers,
+ * `unrated` in the aircraft data) is never `required` or `harmful`. L28: the conduct is `none` exactly
  * when the flight profile puts the aircraft on the ground (the ground parameter above 0); otherwise
  * `accept` lists conduct options of the aircraft, each once, and not every option (a list of all of
  * them would grade nothing).
@@ -764,6 +765,15 @@ function checkFurther(
     seen.add(entry.id);
     if (entry.fails_run && entry.role !== 'harmful') {
       add([...at, 'fails_run'], 'fails_run is only for the role harmful');
+    }
+    if (
+      set.option(entry.id)?.unrated === true &&
+      (entry.role === 'required' || entry.role === 'harmful')
+    ) {
+      add(
+        [...at, 'role'],
+        `the further action "${entry.id}" is never graded: its role must be recommended or optional, not ${entry.role}`,
+      );
     }
   });
 

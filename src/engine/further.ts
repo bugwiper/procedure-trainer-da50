@@ -21,6 +21,11 @@ export interface FurtherOption {
   readonly kind: FurtherKind;
   /** The group an action is listed under in the modal (a second selection step). */
   readonly group?: string;
+  /**
+   * True for an action the verdict never depends on (brief passengers): lint L27 rejects the roles
+   * `required` and `harmful` for it, so it can neither be missed nor fail a run. Actions only.
+   */
+  readonly unrated?: boolean;
   /** A line the debrief adds when this option is the last conduct pick. */
   readonly debriefNote?: string;
 }
@@ -74,6 +79,9 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
       if (option.kind !== 'action') {
         throw new FurtherError(`option "${option.id}" is a conduct and cannot be in a group`);
       }
+    }
+    if (option.unrated === true && option.kind !== 'action') {
+      throw new FurtherError(`option "${option.id}" is a conduct and cannot be unrated`);
     }
     if (option.debriefNote !== undefined && option.kind !== 'conduct') {
       throw new FurtherError(`option "${option.id}" is an action and cannot carry a debrief note`);
