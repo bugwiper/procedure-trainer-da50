@@ -765,6 +765,11 @@ describe('MFD gauges read quantities (plan 03-02)', () => {
       for (const label of labels) {
         const { quantity, decimals, def, second } = refOf(label);
         const shown = (values[quantity] ?? Number.NaN).toFixed(decimals);
+        // The slim bars of the map strip show a pointer only; the arcs print the number.
+        if (pageName === 'map' && !isArc(label)) {
+          expect(readoutsOf(gaugeOf(tree, label)), label).toEqual([]);
+          continue;
+        }
         if (second !== undefined) {
           const shown2 = (values[second] ?? Number.NaN).toFixed(decimals);
           expect(readoutsOf(gaugeOf(tree, label)), label).toEqual([shown, shown2]);

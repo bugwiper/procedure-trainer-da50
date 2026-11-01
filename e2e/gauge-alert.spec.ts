@@ -54,7 +54,7 @@ async function expectAlert(gauge: Locator, tone: Tone, kind: 'bar' | 'arc' = 'ba
  * text box (getBBox) must be inside the rectangle; vertically the baseline and the cap line (0.7
  * of the font size above it) must be, because the text box of a font also holds its line gap.
  */
-async function expectBoxesHoldTheirText(gauge: Locator): Promise<void> {
+async function expectBoxesHoldTheirText(gauge: Locator, count = 2): Promise<void> {
   const geometry = await gauge.evaluate((g) => {
     const rects = Array.from(g.querySelectorAll<SVGRectElement>('[data-alert-box]'));
     const texts = Array.from(g.querySelectorAll<SVGTextElement>(':scope > text'));
@@ -76,7 +76,7 @@ async function expectBoxesHoldTheirText(gauge: Locator): Promise<void> {
       };
     });
   });
-  expect(geometry).toHaveLength(2);
+  expect(geometry).toHaveLength(count);
   for (const { box, text } of geometry) {
     // The box width is an estimate; glyph widths differ between macOS and the Linux CI runner
     // by under a unit, so the text may touch the box edge within FONT_SLACK.
@@ -87,6 +87,7 @@ async function expectBoxesHoldTheirText(gauge: Locator): Promise<void> {
     expect(text.baseline, 'baseline').toBeLessThanOrEqual(box.bottom);
   }
   const [a, b] = geometry;
+  if (count === 1) return;
   if (a === undefined || b === undefined) throw new Error('missing boxes');
   const apart =
     a.box.right <= b.box.left ||
@@ -102,8 +103,15 @@ test('the oil temperature is red-boxed on the map strip at the start of an Easy 
 }) => {
   await startScenario(page, hasTouch, ROW);
   const oilTemp = gaugeOf(page, 'Oil temp');
-  await expectAlert(oilTemp, 'red');
-  await expectBoxesHoldTheirText(oilTemp);
+  // The slim bar of the strip has a label and a pointer, no number: one red box behind the label.
+  await expect(oilTemp).toHaveAttribute('data-alert', 'red');
+  const boxes = oilTemp.locator('[data-alert-box]');
+  await expect(boxes).toHaveCount(1);
+  await expect(boxes.first()).toHaveAttribute('data-alert-box', 'label');
+  await expect(boxes.first()).toHaveAttribute('fill', RED);
+  await expect(oilTemp.locator(':scope > text')).toHaveAttribute('fill', WHITE);
+  await expect(oilTemp.locator('[data-bar-pointer]')).toHaveAttribute('fill', RED);
+  await expectBoxesHoldTheirText(oilTemp, 1);
   // An untouched gauge in its green band has no alert mark and no box.
   const oilPres = gaugeOf(page, 'Oil pres');
   await expect(oilPres).not.toHaveAttribute('data-alert', /.*/);

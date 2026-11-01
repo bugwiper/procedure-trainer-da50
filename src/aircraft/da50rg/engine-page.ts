@@ -27,10 +27,10 @@ export interface ArcEntry extends Base {
   readonly decimals: number;
   readonly centre: { readonly x: number; readonly y: number };
   readonly radius: number;
-  /** Narrow ring and thin needle (the map strip). */
+  /** The slim look of the map strip: narrow ring, caption and number to the right of it. */
   readonly fine?: boolean;
-  /** Small numerals at the inner ticks (Load); needs `fine`. */
-  readonly scaleLabels?: boolean;
+  /** The values with a fine tick and a small numeral (fine only); absent ticks the two ends. */
+  readonly numerals?: readonly number[];
 }
 
 /** A one-pointer bar; `unit: false` prints the number alone, as every bar of the real page does. */
@@ -40,6 +40,8 @@ export interface BarEntry extends Base {
   readonly quantity: string;
   readonly decimals: number;
   readonly unit: boolean;
+  /** The slim look of the map strip: label and pointer only, no number. */
+  readonly fine?: boolean;
 }
 
 /** The two-pointer bar: pointer 1 above and pointer 2 below the bar, each with its own quantity. */
@@ -53,6 +55,8 @@ export interface DualEntry extends Base {
   readonly marks: readonly [string, string];
   /** Numerals (with a tick each) under the bar; absent for none. */
   readonly scale?: readonly number[];
+  /** The slim look of the map strip: label and pointers only, a fine scale, no numbers. */
+  readonly fine?: boolean;
 }
 
 /** A framed box with its title cut into the top edge. */
@@ -68,6 +72,8 @@ export interface FlowEntry extends Base {
   readonly label: string;
   readonly quantity: string;
   readonly decimals: number;
+  /** The slim look of the map strip (smaller type). */
+  readonly fine?: boolean;
 }
 
 /** The fuel calculator sub-box: remain, used, endurance and range. */
@@ -84,6 +90,8 @@ export interface TrimEntry extends Base {
   readonly label?: string;
   readonly quantity: string;
   readonly marks: readonly [string, string];
+  /** The slim look of the map strip: thin line, small ticks, small type and pointer. */
+  readonly fine?: boolean;
 }
 
 /** The de-ice endurance sub-box: the Norm and the High endurance of the de-ice quantity. */

@@ -5,10 +5,17 @@
 // the drawn strip with it. A row added or moved is an edit of both.
 
 /** The strip lies inside the left part of the glass content zone of the MFD (region space). */
-export const STRIP_ZONE = { x0: 4, x1: 158, y0: 30, y1: 343 } as const;
+export const STRIP_ZONE = { x0: 4, x1: 107, y0: 30, y1: 343 } as const;
+/**
+ * The strip was 142 wide before the owner's walkthrough of 2026-11-01 asked for about two thirds of
+ * it; it may not be wider than this (a tolerance of a few units above 2/3 of 142).
+ */
+export const STRIP_MAX_W = 100;
+/** The map rectangle starts at least this far right of the strip's right edge. */
+export const STRIP_MAP_GAP = 6;
 export const STRIP_MARGIN = 2;
 
-/** Row ids from top to bottom (the two arcs stand side by side, Load at the left). */
+/** Row ids from top to bottom (the two arcs stand one above the other, Load on top). */
 export const STRIP_ORDER = [
   'load',
   'rpm',
@@ -50,12 +57,16 @@ export const STRIP_FLOW = { id: 'fuel_flow', quantity: 'fuel_flow_gph', decimals
 export const STRIP_TRIM = { id: 'trim', quantity: 'rudder_trim_pct' } as const;
 export const STRIP_FUEL_SCALE = [0, 5, 10, 15, 20, 25] as const;
 
-/** Smallest cell height of each shape: an arc of radius 20 with caption and number, a bar, the rest. */
-export const STRIP_MIN_H = { arc: 60, bar: 26, flow: 12, dual: 52, trim: 28 } as const;
+/** Smallest cell height of each shape: an arc of radius 23 with its ticks and ends, a slim bar, the rest. */
+export const STRIP_MIN_H = { arc: 46, bar: 20, flow: 10, dual: 33, trim: 20 } as const;
+
+/** The gauges that print a number (the arcs; the bars show a pointer only); the fuel flow is a row. */
+export const STRIP_NUMBER_GAUGES = ['Load', 'RPM'] as const;
 
 /** Every static text the strip may draw (glass-digits numbers excluded). */
-/** Small numerals inside the Load ring (the photo shows 25, 50 and 75). */
-export const STRIP_LOAD_SCALE: readonly number[] = [25, 50, 75];
+/** Small numerals at the ticks of the two rings (the photo shows 0, 25, 50, 75, 100 and 0, 2600). */
+export const STRIP_LOAD_SCALE: readonly number[] = [0, 25, 50, 75, 100];
+export const STRIP_RPM_SCALE: readonly number[] = [0, 2500];
 
 export const STRIP_LABELS: readonly string[] = [
   'LOAD %',
@@ -72,4 +83,5 @@ export const STRIP_LABELS: readonly string[] = [
   'R',
   ...STRIP_FUEL_SCALE.map(String),
   ...STRIP_LOAD_SCALE.map(String),
+  ...STRIP_RPM_SCALE.map(String),
 ];

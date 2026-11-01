@@ -11,7 +11,7 @@ import {
   startRealistic,
   startScenario,
 } from './support/session';
-import { FULL_VIEWBOX, activate } from './support/zoom';
+import { FULL_VIEWBOX, activate, afterPairWindow } from './support/zoom';
 
 // SES-01, SES-03, SES-04, SCN-05, SCN-07, PLT-04 (phase 02): the pilot's path on the built panel.
 // NEW SITUATION in the co-pilot legroom opens the briefing over the unchanged panel, Start run
@@ -597,18 +597,25 @@ test('@hooks the MFD oil gauges read the base values in the free panel and the l
   const oilTemp = DA50RG_QUANTITIES.get('oil_temp_c');
   const oilPres = DA50RG_QUANTITIES.get('oil_pressure_bar');
   if (oilTemp === undefined || oilPres === undefined) throw new Error('missing quantity data');
-  // The strip prints the bare number (no unit), as the engine page does.
+  // The Map strip shows a pointer only on its bars; the bare numbers are on the engine page.
+  await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
+  await expect(page.getByTestId('mfd-engine-page')).toBeVisible();
   await expect(mfdGauge(page, 'Oil temp')).toContainText(oilTemp.base.toFixed(0));
   await expect(mfdGauge(page, 'Oil pres')).toContainText(oilPres.base.toFixed(1));
+  await afterPairWindow(page);
+  await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
+  await expect(page.getByTestId('mfd-engine-strip')).toBeVisible();
+  await afterPairWindow(page);
 
   await startRun(page, hasTouch);
   // The oil temperature moves during a run (D-01), so the start values 128 degrees C and 5 bar are
   // read with a tolerance right after Start run; the pressure sits at its base, which is 5.
   expect(Math.abs((await quantityOf(page, 'oil_temp_c')) - 128)).toBeLessThanOrEqual(3);
   expect(Math.abs((await quantityOf(page, 'oil_pressure_bar')) - 5)).toBeLessThanOrEqual(3);
-  // Map page: the engine strip shows the bare number, as the engine page does.
-  await expect(mfdGauge(page, 'Oil temp')).toContainText(/\d+/);
-  await expect(mfdGauge(page, 'Oil pres')).toContainText(/\d/);
+  // Map page: the engine strip shows a pointer on each bar and the number on the arcs.
+  await expect(mfdGauge(page, 'Oil temp').locator('[data-bar-pointer]')).toHaveCount(1);
+  await expect(mfdGauge(page, 'Oil pres').locator('[data-bar-pointer]')).toHaveCount(1);
+  await expect(mfdGauge(page, 'Load')).toContainText(/\d/);
   // Engine page: the same values on the arc and the bar.
   await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
   await expect(page.getByTestId('mfd-engine-page')).toBeVisible();

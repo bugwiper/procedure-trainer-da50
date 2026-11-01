@@ -10,7 +10,7 @@ import {
 import type { DisplayId } from '../../../aircraft/da50rg/avionics';
 import { ENGINE_PAGE } from '../../../aircraft/da50rg/engine-page';
 import type { PageEntry } from '../../../aircraft/da50rg/engine-page';
-import { MAP_STRIP } from '../../../aircraft/da50rg/map-strip';
+import { MAP_STRIP, MAP_STRIP_RIGHT } from '../../../aircraft/da50rg/map-strip';
 import { deiceEndurance } from '../../../aircraft/da50rg/deice-endurance';
 import { formatEndurance, fuelCalculator } from '../../../aircraft/da50rg/fuel-calculator';
 import { DA50RG_QUANTITIES } from '../../../aircraft/da50rg/quantities';
@@ -24,7 +24,13 @@ import { BarGauge } from './BarGauge';
 import { BoxFrame } from './BoxFrame';
 import { DualGauge } from './DualGauge';
 import { GLASS_DARK, GREEN, RED, YELLOW, textBoxWidth, toneOf } from './gauge-alert';
-import { POINTER_OUTLINE, pointerPath } from './pointer';
+import {
+  POINTER_DEFAULT,
+  POINTER_FINE,
+  POINTER_FINE_OUTLINE,
+  POINTER_OUTLINE,
+  pointerPath,
+} from './pointer';
 
 export interface FrameProps {
   readonly region: Region;
@@ -404,6 +410,16 @@ const TRIM_TICK_CENTRE_H = 7;
 const TRIM_CAPTION_DY = 7;
 const TRIM_LABELLED_LINE_DY = 19;
 const TRIM_MARK_GAP = 3;
+/** The slim rows of the map strip: the flow row type and baseline, the trim scale measures. */
+const FINE_ROW_FONT = 8;
+const FINE_ROW_BASELINE = 8;
+const FINE_TRIM_INSET = 8;
+const FINE_TRIM_CAPTION_DY = 6.5;
+const FINE_TRIM_LINE_DY = 13;
+const FINE_TRIM_TICK_H = 2.5;
+const FINE_TRIM_TICK_CENTRE_H = 4;
+const FINE_TRIM_FONT = 7;
+const FINE_TRIM_MARK_FONT = 6;
 /** Room for the unit text HRS at the end of the service row. */
 const SERVICE_UNIT_W = 28;
 /** The range where there is none (engine stopped). */
@@ -415,7 +431,6 @@ function valueOf(quantity: QuantityId, quantities: Quantities): number {
 }
 
 export const SCREEN_FILL = GLASS_DARK;
-const STRIP_W = 150;
 /**
  * MFD frame (D-04a): the Map page with a small engine strip, or the full Engine page,
  * selected by the page softkey state. Every gauge reads a simulated quantity (D-12); no handlers
@@ -457,7 +472,7 @@ export function MfdFrame({ region, bridge }: FrameProps) {
 }
 
 function MapPage({ w, quantities }: { readonly w: number; readonly quantities: Quantities }) {
-  const mapX = STRIP_W + 8;
+  const mapX = MAP_STRIP_RIGHT + 8;
   const mapW = w - mapX - 8;
   const cx = mapX + mapW / 2;
   // Map rectangle y 34..343 (Table D6); its centre line is 188.
@@ -530,7 +545,7 @@ function PageEntryView({
           cy={entry.centre.y}
           r={entry.radius}
           fine={entry.fine}
-          scaleLabels={entry.scaleLabels}
+          numerals={entry.numerals}
         />
       );
     }
@@ -548,6 +563,7 @@ function PageEntryView({
           decimals={g.decimals}
           tone={toneOf(DA50RG_QUANTITIES, g.quantity, value)}
           labelAlign="centre"
+          fine={entry.fine}
           x={entry.rect.x}
           y={entry.rect.y}
           w={entry.rect.w}
@@ -569,6 +585,7 @@ function PageEntryView({
           decimals={g.decimals}
           marks={entry.marks}
           scale={entry.scale}
+          fine={entry.fine}
           first={{ value: first, tone: toneOf(DA50RG_QUANTITIES, g.quantity, first) }}
           second={{ value: second, tone: toneOf(DA50RG_QUANTITIES, entry.second, second) }}
           x={entry.rect.x}
@@ -596,16 +613,21 @@ function PageEntryView({
       const value = valueOf(entry.quantity, quantities);
       return (
         <g data-row={entry.id} pointer-events="none">
-          <text x={entry.rect.x} y={entry.rect.y + ROW_BASELINE} font-size={10} fill={ROW_LABEL}>
+          <text
+            x={entry.rect.x}
+            y={entry.rect.y + (entry.fine ? FINE_ROW_BASELINE : ROW_BASELINE)}
+            font-size={entry.fine ? FINE_ROW_FONT : 10}
+            fill={ROW_LABEL}
+          >
             {entry.label.toUpperCase()}
           </text>
           <text
             class="glass-digits"
             data-readout={entry.id}
             x={entry.rect.x + entry.rect.w}
-            y={entry.rect.y + ROW_BASELINE}
+            y={entry.rect.y + (entry.fine ? FINE_ROW_BASELINE : ROW_BASELINE)}
             text-anchor="end"
-            font-size={10}
+            font-size={entry.fine ? FINE_ROW_FONT : 10}
             fill={ROW_VALUE}
           >
             {value.toFixed(entry.decimals)}
@@ -663,11 +685,18 @@ function PageEntryView({
       const min = def?.min ?? -100;
       const max = def?.max ?? 100;
       const value = Math.min(max, Math.max(min, valueOf(entry.quantity, quantities)));
+      const fine = entry.fine === true;
+      const inset = fine ? FINE_TRIM_INSET : TRIM_INSET;
       const scaleAt = (v: number): number =>
-        entry.rect.x + TRIM_INSET + ((v - min) / (max - min)) * (entry.rect.w - 2 * TRIM_INSET);
+        entry.rect.x + inset + ((v - min) / (max - min)) * (entry.rect.w - 2 * inset);
       const labelled = entry.label !== undefined;
-      const lineY = entry.rect.y + (labelled ? TRIM_LABELLED_LINE_DY : TRIM_LINE_DY);
-      const markY = labelled ? lineY + 3 : entry.rect.y + TRIM_MARK_DY;
+      const lineY =
+        entry.rect.y + (fine ? FINE_TRIM_LINE_DY : labelled ? TRIM_LABELLED_LINE_DY : TRIM_LINE_DY);
+      const lineW = fine ? 0.6 : 1.5;
+      const tickH = fine ? FINE_TRIM_TICK_H : TRIM_TICK_H;
+      const tickCentreH = fine ? FINE_TRIM_TICK_CENTRE_H : TRIM_TICK_CENTRE_H;
+      const markFont = fine ? FINE_TRIM_MARK_FONT : 8;
+      const markY = fine ? lineY + 2 : labelled ? lineY + 3 : entry.rect.y + TRIM_MARK_DY;
       const ticks = [min, min + (max - min) / 4, min + (max - min) / 2, max - (max - min) / 4, max];
       const pointerX = scaleAt(value);
       return (
@@ -678,7 +707,7 @@ function PageEntryView({
             x2={scaleAt(max)}
             y2={lineY}
             stroke={ROW_LABEL}
-            stroke-width={1.5}
+            stroke-width={lineW}
           />
           {ticks.map((t, i) => (
             <line
@@ -686,25 +715,29 @@ function PageEntryView({
               x1={scaleAt(t)}
               y1={lineY}
               x2={scaleAt(t)}
-              y2={lineY + (i === 2 ? TRIM_TICK_CENTRE_H : TRIM_TICK_H)}
+              y2={lineY + (i === 2 ? tickCentreH : tickH)}
               stroke={ROW_LABEL}
-              stroke-width={1.5}
+              stroke-width={lineW}
             />
           ))}
           <path
             data-trim-pointer
-            d={pointerPath(pointerX, lineY + 1, 'above')}
+            d={
+              fine
+                ? pointerPath(pointerX, lineY + 0.5, 'above', POINTER_FINE)
+                : pointerPath(pointerX, lineY + 1, 'above', POINTER_DEFAULT)
+            }
             fill={ROW_VALUE}
             stroke={GLASS_DARK}
-            stroke-width={POINTER_OUTLINE}
+            stroke-width={fine ? POINTER_FINE_OUTLINE : POINTER_OUTLINE}
           />
           {entry.label === undefined ? null : (
             <text
               data-trim-caption
               x={entry.rect.x + entry.rect.w / 2}
-              y={entry.rect.y + TRIM_CAPTION_DY}
+              y={entry.rect.y + (fine ? FINE_TRIM_CAPTION_DY : TRIM_CAPTION_DY)}
               text-anchor="middle"
-              font-size={8}
+              font-size={fine ? FINE_TRIM_FONT : 8}
               fill={ROW_LABEL}
             >
               {entry.label.toUpperCase()}
@@ -714,7 +747,7 @@ function PageEntryView({
             x={labelled ? scaleAt(min) - TRIM_MARK_GAP : scaleAt(min)}
             y={markY}
             text-anchor={labelled ? 'end' : 'middle'}
-            font-size={8}
+            font-size={markFont}
             fill={ROW_LABEL}
           >
             {entry.marks[0]}
@@ -723,7 +756,7 @@ function PageEntryView({
             x={labelled ? scaleAt(max) + TRIM_MARK_GAP : scaleAt(max)}
             y={markY}
             text-anchor={labelled ? 'start' : 'middle'}
-            font-size={8}
+            font-size={markFont}
             fill={ROW_LABEL}
           >
             {entry.marks[1]}

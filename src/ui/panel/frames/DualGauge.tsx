@@ -10,7 +10,14 @@ import {
   worseTone,
 } from './gauge-alert';
 import type { GaugeTone } from './gauge-alert';
-import { POINTER_OUTLINE, POINTER_SINK, pointerPath, pointerRectCentreY } from './pointer';
+import {
+  POINTER_DEFAULT,
+  POINTER_FINE,
+  POINTER_FINE_OUTLINE,
+  POINTER_OUTLINE,
+  pointerPath,
+  pointerRectCentreY,
+} from './pointer';
 
 /** One pointer's reading: the number and the tone of the band it is in. */
 export interface DualReading {
@@ -36,7 +43,15 @@ export interface DualGaugeProps {
   readonly w: number;
   /** Digits after the point in the readouts. */
   readonly decimals?: number;
+  /**
+   * The slim look of the map strip: small centred label, no readouts, a 4 thick bar, small
+   * pointers and a scale of fine ticks and small numerals. The cell is about 33 tall.
+   */
+  readonly fine?: boolean;
 }
+
+/** The cell height of the slim look (label, pointer 1, bar, pointer 2, scale). */
+export const DUAL_FINE_H = 33;
 
 /** Height of the whole gauge cell: title row, pointer 1, bar, pointer 2. */
 export const DUAL_GAUGE_H = 42;
@@ -62,6 +77,15 @@ const SCALE_TICK_H = 2;
 /** Where the ticks of the scale start below the top of the cell, and the numeral baseline. */
 const SCALE_TICK_TOP = 42;
 const SCALE_BASELINE = 51;
+/** The slim look: label, bar top and thickness, the scale ticks and numerals under the bar. */
+const FINE_FONT = 7;
+const FINE_BASELINE = 9;
+const FINE_BAR_TOP = 15;
+const FINE_BAR_H = 4;
+const FINE_MARK_FONT = 4;
+const FINE_TICK_H = 3;
+const FINE_SCALE_FONT = 6;
+const FINE_NUMERAL_DY = 10;
 
 /**
  * The two-pointer bar (the Amps bar of the Electrical box, Fuel Qty and Fuel Temp of the Fuel
@@ -83,19 +107,28 @@ export function DualGauge({
   y,
   w,
   decimals,
+  fine = false,
 }: DualGaugeProps) {
   const frac = (v: number) => (Math.min(max, Math.max(min, v)) - min) / (max - min);
-  const barY = y + BAR_TOP;
+  const barH = fine ? FINE_BAR_H : BAR_H;
+  const font = fine ? FINE_FONT : FONT;
+  const baseline = fine ? FINE_BASELINE : BASELINE;
+  const markFont = fine ? FINE_MARK_FONT : MARK_FONT;
+  const size = fine ? POINTER_FINE : POINTER_DEFAULT;
+  const outline = fine ? POINTER_FINE_OUTLINE : POINTER_OUTLINE;
+  const barY = y + (fine ? FINE_BAR_TOP : BAR_TOP);
   const labelText = label.toUpperCase();
   const firstText = readoutText(first.value, decimals);
   const secondText = readoutText(second.value, decimals);
-  const labelW = textBoxWidth(labelText, FONT);
-  const firstW = textBoxWidth(firstText, FONT, true);
-  const secondW = textBoxWidth(secondText, FONT, true);
+  const labelW = textBoxWidth(labelText, font);
+  const firstW = fine ? 0 : textBoxWidth(firstText, FONT, true);
+  const secondW = fine ? 0 : textBoxWidth(secondText, FONT, true);
   // The side padding shrinks when the three boxes would not fit the width with the full one.
-  const pad = Math.max(0, Math.min(BOX_PAD, (w - labelW - firstW - secondW - 2) / 6));
-  const boxY = y + BASELINE - CAP_EM * FONT - BOX_ABOVE_CAP;
-  const boxH = FONT + BOX_EXTRA_H;
+  const pad = fine
+    ? BOX_PAD
+    : Math.max(0, Math.min(BOX_PAD, (w - labelW - firstW - secondW - 2) / 6));
+  const boxY = y + baseline - CAP_EM * font - BOX_ABOVE_CAP;
+  const boxH = font + BOX_EXTRA_H;
   const worst = worseTone(first.tone, second.tone);
   const labelStyle = gaugeAlertStyle(worst);
   const firstStyle = gaugeAlertStyle(first.tone);
@@ -104,10 +137,14 @@ export function DualGauge({
   const firstX = x + frac(first.value) * w;
   const secondX = x + frac(second.value) * w;
   // Pointer 1 stands above the bar, pointer 2 below it; each tip reaches POINTER_SINK into the bar.
-  const firstTipY = barY + POINTER_SINK;
-  const secondTipY = barY + BAR_H - POINTER_SINK;
+  const firstTipY = barY + size.sink;
+  const secondTipY = barY + barH - size.sink;
   const markY = (tipY: number, from: 'above' | 'below'): number =>
-    pointerRectCentreY(tipY, from) + (MARK_CAP_EM * MARK_FONT) / 2;
+    pointerRectCentreY(tipY, from, size) + (MARK_CAP_EM * markFont) / 2;
+  const tickTop = fine ? barY + barH : y + SCALE_TICK_TOP;
+  const tickBottom = tickTop + (fine ? FINE_TICK_H : SCALE_TICK_H);
+  const numeralY = fine ? tickBottom + FINE_NUMERAL_DY - FINE_TICK_H : y + SCALE_BASELINE;
+  const tickWidth = fine ? 0.5 : 1;
   return (
     <g data-gauge={label} data-alert={labelStyle.boxes ? worst : undefined} pointer-events="none">
       {labelStyle.boxes ? (
@@ -122,7 +159,7 @@ export function DualGauge({
           pointer-events="none"
         />
       ) : null}
-      {firstStyle.boxes ? (
+      {firstStyle.boxes && !fine ? (
         <rect
           data-alert-box="first"
           x={x - pad}
@@ -134,7 +171,7 @@ export function DualGauge({
           pointer-events="none"
         />
       ) : null}
-      {secondStyle.boxes ? (
+      {secondStyle.boxes && !fine ? (
         <rect
           data-alert-box="second"
           x={x + w - secondW - pad}
@@ -146,64 +183,93 @@ export function DualGauge({
           pointer-events="none"
         />
       ) : null}
-      <text
-        class="glass-digits"
-        data-dual-readout="1"
-        x={x}
-        y={y + BASELINE}
-        font-size={FONT}
-        fill={firstStyle.valueFill}
-        pointer-events="none"
-      >
-        {firstText}
-      </text>
+      {fine ? null : (
+        <text
+          class="glass-digits"
+          data-dual-readout="1"
+          x={x}
+          y={y + BASELINE}
+          font-size={FONT}
+          fill={firstStyle.valueFill}
+          pointer-events="none"
+        >
+          {firstText}
+        </text>
+      )}
       <text
         x={x + w / 2}
-        y={y + BASELINE}
+        y={y + baseline}
         text-anchor="middle"
-        font-size={FONT}
+        font-size={font}
         fill={labelStyle.labelFill}
         pointer-events="none"
       >
         {labelText}
       </text>
-      <text
-        class="glass-digits"
-        data-dual-readout="2"
-        x={x + w}
-        y={y + BASELINE}
-        text-anchor="end"
-        font-size={FONT}
-        fill={secondStyle.valueFill}
-        pointer-events="none"
-      >
-        {secondText}
-      </text>
+      {fine ? null : (
+        <text
+          class="glass-digits"
+          data-dual-readout="2"
+          x={x + w}
+          y={y + BASELINE}
+          text-anchor="end"
+          font-size={FONT}
+          fill={secondStyle.valueFill}
+          pointer-events="none"
+        >
+          {secondText}
+        </text>
+      )}
       {bands.map((b) => (
         <rect
           key={`${b.from}-${b.to}`}
           x={x + frac(b.from) * w}
           y={barY}
           width={(frac(b.to) - frac(b.from)) * w}
-          height={BAR_H}
+          height={barH}
           fill={b.color}
           pointer-events="none"
         />
       ))}
+      {scale === undefined
+        ? null
+        : scale.map((v) => (
+            <g key={v} data-dual-scale={v}>
+              <line
+                x1={x + frac(v) * w}
+                y1={tickTop}
+                x2={x + frac(v) * w}
+                y2={tickBottom}
+                stroke={DIGIT_COLOUR}
+                stroke-width={tickWidth}
+                pointer-events="none"
+              />
+              <text
+                x={x + frac(v) * w}
+                y={numeralY}
+                text-anchor="middle"
+                font-size={fine ? FINE_SCALE_FONT : SCALE_FONT}
+                fill={DIGIT_COLOUR}
+                pointer-events="none"
+              >
+                {String(v)}
+              </text>
+            </g>
+          ))}
       <path
         data-dual-pointer="1"
-        d={pointerPath(firstX, firstTipY, 'above')}
+        d={pointerPath(firstX, firstTipY, 'above', size)}
         fill={firstStyle.pointerFill}
         stroke={GLASS_DARK}
-        stroke-width={POINTER_OUTLINE}
+        stroke-width={outline}
         pointer-events="none"
       />
       <path
         data-dual-pointer="2"
-        d={pointerPath(secondX, secondTipY, 'below')}
+        d={pointerPath(secondX, secondTipY, 'below', size)}
         fill={secondStyle.pointerFill}
         stroke={GLASS_DARK}
-        stroke-width={POINTER_OUTLINE}
+        stroke-width={outline}
         pointer-events="none"
       />
       <text
@@ -211,7 +277,7 @@ export function DualGauge({
         x={firstX}
         y={markY(firstTipY, 'above')}
         text-anchor="middle"
-        font-size={MARK_FONT}
+        font-size={markFont}
         fill={GLASS_DARK}
         pointer-events="none"
       >
@@ -222,37 +288,12 @@ export function DualGauge({
         x={secondX}
         y={markY(secondTipY, 'below')}
         text-anchor="middle"
-        font-size={MARK_FONT}
+        font-size={markFont}
         fill={GLASS_DARK}
         pointer-events="none"
       >
         {marks[1]}
       </text>
-      {scale === undefined
-        ? null
-        : scale.map((v) => (
-            <g key={v} data-dual-scale={v}>
-              <line
-                x1={x + frac(v) * w}
-                y1={y + SCALE_TICK_TOP}
-                x2={x + frac(v) * w}
-                y2={y + SCALE_TICK_TOP + SCALE_TICK_H}
-                stroke={DIGIT_COLOUR}
-                stroke-width={1}
-                pointer-events="none"
-              />
-              <text
-                x={x + frac(v) * w}
-                y={y + SCALE_BASELINE}
-                text-anchor="middle"
-                font-size={SCALE_FONT}
-                fill={DIGIT_COLOUR}
-                pointer-events="none"
-              >
-                {String(v)}
-              </text>
-            </g>
-          ))}
     </g>
   );
 }

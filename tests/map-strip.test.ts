@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENGINE_PAGE } from '../src/aircraft/da50rg/engine-page';
 import type { PageRect } from '../src/aircraft/da50rg/engine-page';
-import { MAP_STRIP } from '../src/aircraft/da50rg/map-strip';
+import { MAP_STRIP, MAP_STRIP_RIGHT } from '../src/aircraft/da50rg/map-strip';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import type { PanelBridge } from '../src/ui/bridge';
@@ -11,8 +11,11 @@ import {
   STRIP_FUEL_SCALE,
   STRIP_GAUGES,
   STRIP_LABELS,
+  STRIP_MAP_GAP,
   STRIP_MARGIN,
+  STRIP_MAX_W,
   STRIP_MIN_H,
+  STRIP_NUMBER_GAUGES,
   STRIP_ORDER,
   STRIP_TRIM,
   STRIP_ZONE,
@@ -62,6 +65,37 @@ describe('the strip layout data against the reference', () => {
         expect(overlap(a.rect, b.rect), `${a.id} ${b.id}`).toBe(false),
       ),
     );
+  });
+
+  it('is about two thirds as wide as before, and the map rectangle starts right of it', () => {
+    const left = Math.min(...MAP_STRIP.map((e) => e.rect.x));
+    const rightEdge = Math.max(...MAP_STRIP.map((e) => right(e.rect)));
+    expect(rightEdge - left).toBeLessThanOrEqual(STRIP_MAX_W);
+    expect(MAP_STRIP_RIGHT).toBe(rightEdge);
+    const map = findElements(
+      expand(MfdFrame({ region: mfd, bridge: bridge() })),
+      (e) => e.props['data-testid'] === 'mfd-map',
+    )[0];
+    const mapRect = map === undefined ? undefined : findElements(map, (e) => e.tag === 'rect')[0];
+    expect(Number(mapRect?.props['x'])).toBeGreaterThanOrEqual(rightEdge + STRIP_MAP_GAP);
+  });
+
+  it('stacks the Load arc above the RPM arc, both with a ring that stays inside its cell', () => {
+    const arcs = MAP_STRIP.filter((e) => e.kind === 'arc');
+    const [load, rpm] = arcs;
+    if (load?.kind !== 'arc' || rpm?.kind !== 'arc') throw new Error('arcs');
+    expect(arcs.map((a) => a.id)).toEqual(['load', 'rpm']);
+    expect(load.centre.x).toBe(rpm.centre.x);
+    expect(bottom(load.rect)).toBeLessThanOrEqual(rpm.rect.y);
+    for (const a of arcs) {
+      expect(a.centre.y - a.radius, a.id).toBeGreaterThanOrEqual(a.rect.y);
+      expect(a.centre.y + a.radius / 2, a.id).toBeLessThanOrEqual(bottom(a.rect));
+      expect(a.centre.x - a.radius, a.id).toBeGreaterThanOrEqual(a.rect.x);
+    }
+  });
+
+  it('draws every row in the slim look', () => {
+    for (const entry of MAP_STRIP) expect('fine' in entry && entry.fine, entry.id).toBe(true);
   });
 
   it('gives each row a cell at least as tall as its component needs', () => {
@@ -150,16 +184,32 @@ describe('the drawn strip against the reference', () => {
     expect(texts(high)).toEqual(texts({}));
   });
 
-  it('shows both tanks on the Fuel Qty bar with whole numbers and the scale of the reference', () => {
-    const strip = draw({ fuel_qty_lh_gal: 17.3, fuel_qty_rh_gal: 4.2 });
-    const gauge = findElements(strip, (e) => e.props['data-gauge'] === 'Fuel qty gal')[0];
+  it('shows both tanks on the Fuel Qty bar with a pointer each, no numbers and the scale of the reference', () => {
+    const at = (values: Record<string, number>, which: '1' | '2'): number => {
+      const gauge = findElements(draw(values), (e) => e.props['data-gauge'] === 'Fuel qty gal')[0];
+      if (gauge === undefined) throw new Error('no fuel gauge');
+      const p = findElements(gauge, (e) => e.props['data-dual-pointer'] === which)[0];
+      return Number(/^M ([\d.-]+) /.exec(String(p?.props['d']))?.[1]);
+    };
+    const gauge = findElements(draw(), (e) => e.props['data-gauge'] === 'Fuel qty gal')[0];
     if (gauge === undefined) throw new Error('no fuel gauge');
-    expect(
-      findElements(gauge, (e) => e.props['data-dual-readout'] !== undefined).map((e) => textOf(e)),
-    ).toEqual(['17', '4']);
+    expect(findElements(gauge, (e) => e.props['data-dual-readout'] !== undefined)).toEqual([]);
     expect(
       findElements(gauge, (e) => e.props['data-dual-scale'] !== undefined).map((e) => textOf(e)),
     ).toEqual(STRIP_FUEL_SCALE.map(String));
+    const values = { fuel_qty_lh_gal: 17.3, fuel_qty_rh_gal: 4.2 };
+    expect(at(values, '1')).toBeGreaterThan(at(values, '2'));
+  });
+
+  it('prints a number only on the two arcs; the bars show a pointer', () => {
+    const strip = draw();
+    for (const g of findElements(strip, (e) => e.props['data-gauge'] !== undefined)) {
+      const label = String(g.props['data-gauge']);
+      const digits = findElements(g, (e) => e.props['class'] === 'glass-digits');
+      expect(digits.length > 0, label).toBe(
+        (STRIP_NUMBER_GAUGES as readonly string[]).includes(label),
+      );
+    }
   });
 
   it('prints the fuel flow with one decimal on one line with its label', () => {

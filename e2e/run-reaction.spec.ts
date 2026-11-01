@@ -31,6 +31,9 @@ test('@hooks the oil temperature rises while ignored and falls after POWER down 
   hasTouch,
 }) => {
   await startScenario(page, hasTouch, ROW);
+  // The Map strip shows a pointer only; the number is on the engine page.
+  await activate(page.locator('[data-hit="sw.mfd_page"]'), hasTouch);
+  await expect(page.getByTestId('mfd-engine-page')).toBeVisible();
   const gauge = page.locator('[data-region-id="mfd"] [data-gauge="Oil temp"]');
 
   const v0 = await quantityOf(page, OIL_TEMP);

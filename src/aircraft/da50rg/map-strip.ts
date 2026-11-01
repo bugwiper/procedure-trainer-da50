@@ -1,42 +1,48 @@
 // The layout of the engine strip at the left of the MFD map page as data (Phase 6 walkthrough): the
-// left column of the engine page in a smaller size, in the order of the real display: the Load and
-// RPM arcs side by side, the fuel flow line, five bars, the two-pointer Fuel Qty bar with both tanks
-// and the rudder trim scale. The rectangles are absolute in the local space of the MFD region (495 x
-// 367; the strip stands in x 4 to 158 and y 30 to 343). The entries are the same kinds as the engine
-// page and are drawn by the same code; a move is an edit of this table and of the independent
-// reference in tests/map-strip-reference.ts. Static text only in capitals; no unit after a number.
-// Data only: no AFM wording.
+// left column of the engine page, slimmer and about two thirds as wide, in the order of the real
+// display: the Load arc above the RPM arc, the fuel flow line, five slim bars, the two-pointer Fuel
+// Qty bar with both tanks and its scale, and the rudder trim scale. The rectangles are absolute in
+// the local space of the MFD region (495 x 367; the strip stands in x 8 to 103 and y 32 to 335).
+// The entries are the same kinds as the engine page, drawn by the same code in its slim (`fine`)
+// look; a move is an edit of this table and of the independent reference in
+// tests/map-strip-reference.ts. Static text only in capitals; no unit after a number; the bars show
+// a pointer only, as the real display does. Data only: no AFM wording.
 
 import type { PageEntry, BarEntry } from './engine-page';
 
-const BAR_H = 28;
 const STRIP_X = 8;
-const STRIP_W = 142;
-const ARC_RADIUS = 20;
+const STRIP_W = 95;
+/** The right edge of the strip; the map rectangle starts a gap to the right of it. */
+export const MAP_STRIP_RIGHT = STRIP_X + STRIP_W;
+
+const ARC_RADIUS = 23;
 const ARC_Y = 32;
-/** Room above the arc centre (scale mark and ring) and below it (caption and number). */
-const ARC_CELL_H = 64;
-/** The arc centre lies this far below the top of its cell. */
-const ARC_CENTRE_DY = 26;
+/** Room above the ring (ticks and ring) and below its two ends; the caption stands beside the ring. */
+const ARC_CELL_H = 48;
+/** The ring centre lies this far below the top of its cell and this far right of the strip's left edge. */
+const ARC_CENTRE_DY = 28;
+const ARC_CENTRE_DX = 29;
 
 const arc = (
   id: string,
   label: string,
   quantity: string,
-  x: number,
-  scaleLabels = false,
+  y: number,
+  numerals: readonly number[],
 ): PageEntry => ({
   id,
   kind: 'arc',
   label,
   quantity,
   decimals: 0,
-  rect: { x, y: ARC_Y, w: STRIP_W / 2, h: ARC_CELL_H },
-  centre: { x: x + STRIP_W / 4, y: ARC_Y + ARC_CENTRE_DY },
+  rect: { x: STRIP_X, y, w: STRIP_W, h: ARC_CELL_H },
+  centre: { x: STRIP_X + ARC_CENTRE_DX, y: y + ARC_CENTRE_DY },
   radius: ARC_RADIUS,
   fine: true,
-  scaleLabels,
+  numerals,
 });
+
+const BAR_H = 24;
 
 const bar = (
   id: string,
@@ -51,22 +57,28 @@ const bar = (
   quantity,
   decimals,
   unit: false,
+  fine: true,
   rect: { x: STRIP_X, y, w: STRIP_W, h: BAR_H },
 });
 
-const FLOW_Y = ARC_Y + ARC_CELL_H + 1;
-const BARS_Y = FLOW_Y + 13;
+const FLOW_Y = ARC_Y + 2 * ARC_CELL_H + 2;
+const FLOW_H = 11;
+const BARS_Y = FLOW_Y + FLOW_H + 3;
+const FUEL_Y = BARS_Y + 5 * BAR_H + 4;
+const FUEL_H = 33;
+const TRIM_Y = FUEL_Y + FUEL_H + 8;
 
 export const MAP_STRIP: readonly PageEntry[] = [
-  arc('load', 'Load', 'load_pct', STRIP_X, true),
-  arc('rpm', 'RPM', 'rpm', STRIP_X + STRIP_W / 2),
+  arc('load', 'Load', 'load_pct', ARC_Y, [0, 25, 50, 75, 100]),
+  arc('rpm', 'RPM', 'rpm', ARC_Y + ARC_CELL_H, [0, 2500]),
   {
     id: 'fuel_flow',
     kind: 'flow',
     label: 'FFlow GPH',
     quantity: 'fuel_flow_gph',
     decimals: 1,
-    rect: { x: STRIP_X, y: FLOW_Y, w: STRIP_W, h: 12 },
+    fine: true,
+    rect: { x: STRIP_X, y: FLOW_Y, w: STRIP_W, h: FLOW_H },
   },
   bar('oil_pres', 'Oil pres', 'oil_pressure_bar', 1, BARS_Y),
   bar('oil_temp', 'Oil temp', 'oil_temp_c', 0, BARS_Y + BAR_H),
@@ -82,7 +94,8 @@ export const MAP_STRIP: readonly PageEntry[] = [
     decimals: 0,
     marks: ['L', 'R'],
     scale: [0, 5, 10, 15, 20, 25],
-    rect: { x: STRIP_X, y: BARS_Y + 5 * BAR_H + 1, w: STRIP_W, h: 52 },
+    fine: true,
+    rect: { x: STRIP_X, y: FUEL_Y, w: STRIP_W, h: FUEL_H },
   },
   {
     id: 'trim',
@@ -90,6 +103,7 @@ export const MAP_STRIP: readonly PageEntry[] = [
     label: 'Rudder trim',
     quantity: 'rudder_trim_pct',
     marks: ['L', 'R'],
-    rect: { x: STRIP_X, y: BARS_Y + 5 * BAR_H + 55, w: STRIP_W, h: 32 },
+    fine: true,
+    rect: { x: STRIP_X, y: TRIM_Y, w: STRIP_W, h: 20 },
   },
 ];
