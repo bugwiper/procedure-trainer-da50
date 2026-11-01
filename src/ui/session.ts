@@ -37,8 +37,8 @@ import type {
 } from '../engine/grading';
 import { offersConduct } from '../engine/further';
 import type { RecordedDecision } from '../engine/further';
-import { nextOpenStep } from '../engine/hint';
-import type { OpenStep } from '../engine/hint';
+import { nextOpenStep, openFurtherItems } from '../engine/hint';
+import type { OpenFurther, OpenStep } from '../engine/hint';
 import { initialQuantities, realisticQuantities } from '../engine/predicates';
 import { Run } from '../engine/run';
 import { MAX_RUN_MS, onsetFromSeed, simSetup } from '../engine/sim';
@@ -101,11 +101,28 @@ export const TRAINING_NOTE =
 
 /** What the hint line shows after HINT: the next open step, or the fixed sentence when none is open. */
 export type HintState =
-  { readonly kind: 'step'; readonly step: OpenStep } | { readonly kind: 'none' };
+  | { readonly kind: 'step'; readonly step: OpenStep }
+  | { readonly kind: 'none'; readonly further?: OpenFurther };
 
 /** The hint line when no required step is open (own wording, H-05). */
 export const HINT_NONE_TEXT =
   'All required steps are done. Press Procedure complete when you are ready.';
+
+/** The hint line when the steps are done but the verdict still waits for a further item (IN-02). */
+export const HINT_FURTHER_TEXTS = {
+  actions:
+    'All checklist steps are done. A required further action is still open: see FURTHER ACTIONS.',
+  conduct: 'All checklist steps are done. The flight conduct is still open: see FURTHER ACTIONS.',
+  both: 'All checklist steps are done. A required further action and the flight conduct are still open: see FURTHER ACTIONS.',
+} as const;
+
+/** The sentence of a "nothing open" hint: it never claims completion while the verdict waits. */
+export function hintNoneText(hint: { readonly further?: OpenFurther }): string {
+  const further = hint.further;
+  if (further === undefined || (further.actions === 0 && !further.conduct)) return HINT_NONE_TEXT;
+  if (further.actions > 0 && further.conduct) return HINT_FURTHER_TEXTS.both;
+  return further.conduct ? HINT_FURTHER_TEXTS.conduct : HINT_FURTHER_TEXTS.actions;
+}
 
 /** The seeds the session draws are unsigned 32-bit integers. */
 const SEED_RANGE = 4_294_967_296;
@@ -858,7 +875,13 @@ export function createSession(deps: SessionDeps): Session {
       const began = onset.peek();
       if (began !== null && graded.completedAt < began.at) return;
       const open = nextOpenStep(current, env, graded);
-      hint.value = open === null ? { kind: 'none' } : { kind: 'step', step: open };
+      if (open !== null) {
+        hint.value = { kind: 'step', step: open };
+        return;
+      }
+      const further = openFurtherItems(current, env, graded);
+      hint.value =
+        further.actions > 0 || further.conduct ? { kind: 'none', further } : { kind: 'none' };
     },
     toggleChecklist() {
       if (mode.peek() !== 'training' || screen.peek() !== 'running') return;

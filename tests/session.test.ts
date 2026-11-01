@@ -20,7 +20,9 @@ import { SESSION_LAYOUT, pageCount, pageSlice } from '../src/ui/panel/session-ar
 import { reasonLines } from '../src/ui/debrief-text';
 import { attachClockDriver } from '../src/ui/clock-driver';
 import {
+  HINT_FURTHER_TEXTS,
   HINT_NONE_TEXT,
+  hintNoneText,
   LEVELS,
   LEVEL_HINTS,
   MODES,
@@ -1824,7 +1826,8 @@ describe('mode and hint (phase 07, SES-02, D-02 to D-04)', () => {
 
     r.bridge.actuate('lv.cowl_flap', 'open');
     r.session.askHint();
-    expect(r.session.hint.value).toEqual({ kind: 'none' });
+    // The shipped blueprint also asks for the flight conduct; the plain sentence is IN-02's case below.
+    expect(r.session.hint.value).toEqual({ kind: 'none', further: { actions: 0, conduct: true } });
     expect(HINT_NONE_TEXT).toBe(
       'All required steps are done. Press Procedure complete when you are ready.',
     );
@@ -2274,6 +2277,60 @@ scenarios[1]:
     expect(r.session.furtherOpen.value).toBe(true);
     r.session.closeFurther();
     expect(r.session.furtherOpen.value).toBe(false);
+  });
+
+  it('the hint with every step done names an open further item instead of claiming completion (IN-02)', async () => {
+    const r = await inFlight('training');
+    r.bridge.actuate('lv.power', 'p50');
+    r.bridge.actuate('lv.cowl_flap', 'open');
+    r.session.askHint();
+    expect(r.session.hint.value).toEqual({ kind: 'none', further: { actions: 1, conduct: true } });
+    const both = hintNoneText({ further: { actions: 1, conduct: true } });
+    expect(both).toBe(HINT_FURTHER_TEXTS.both);
+    expect(both).not.toBe(HINT_NONE_TEXT);
+    expect(both).toContain('FURTHER ACTIONS');
+
+    r.session.decide('atc_mayday');
+    r.session.askHint();
+    expect(r.session.hint.value).toEqual({ kind: 'none', further: { actions: 0, conduct: true } });
+    expect(hintNoneText({ further: { actions: 0, conduct: true } })).toBe(
+      HINT_FURTHER_TEXTS.conduct,
+    );
+
+    // A wrong conduct is still open, a right one settles it.
+    r.session.decide('conduct_continue');
+    r.session.askHint();
+    expect(r.session.hint.value).toEqual({ kind: 'none', further: { actions: 0, conduct: true } });
+    r.session.decide('conduct_precautionary');
+    r.session.askHint();
+    expect(r.session.hint.value).toEqual({ kind: 'none' });
+    expect(hintNoneText({})).toBe(HINT_NONE_TEXT);
+
+    // The required action alone.
+    const only = await inFlight('training');
+    only.bridge.actuate('lv.power', 'p50');
+    only.bridge.actuate('lv.cowl_flap', 'open');
+    only.session.decide('conduct_precautionary');
+    only.session.askHint();
+    expect(only.session.hint.value).toEqual({
+      kind: 'none',
+      further: { actions: 1, conduct: false },
+    });
+    expect(hintNoneText({ further: { actions: 1, conduct: false } })).toBe(
+      HINT_FURTHER_TEXTS.actions,
+    );
+  });
+
+  it('the hint of a scenario without a further section is the plain sentence (IN-02)', async () => {
+    const r = rig({ files: { 'eng-oil-temp-green': stripFurther(BLUEPRINT) } });
+    await r.session.newSituation();
+    r.session.setMode('training');
+    r.session.setLevel('easy');
+    r.session.startRun();
+    r.bridge.actuate('lv.power', 'p50');
+    r.bridge.actuate('lv.cowl_flap', 'open');
+    r.session.askHint();
+    expect(r.session.hint.value).toEqual({ kind: 'none' });
   });
 
   it('ignores the modal and every pick before the onset of a Realistic run', async () => {

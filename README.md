@@ -323,7 +323,7 @@ The conduct rule: a scenario with a `further` section writes `conduct` with `acc
 
 ### 6. How the training hints are derived
 
-There is no hint text in a scenario file. In Training mode the HINT button grades the recording so far, takes the first step in the declared order of the checklist whose severity is `critical` or `standard` and that is not credited yet, and shows its stored row mark, text and action exactly as written in the file. An `optional` step is never named, nothing is shown before the onset of a Realistic run, and Exam mode has no hints. The order in which you declare the checklist is therefore the order of the hints, and the hint can never disagree with the debrief, because it is the same grade.
+There is no hint text in a scenario file. In Training mode the HINT button grades the recording so far, takes the first step in the declared order of the checklist whose severity is `critical` or `standard` and that is not credited yet, and shows its stored row mark, text and action exactly as written in the file. An `optional` step is never named, nothing is shown before the onset of a Realistic run (the CHECKLIST sheet stays shut until then as well), and Exam mode has no hints. When every step is done but a required further action or the flight conduct is still open, the hint says so instead of announcing completion. The order in which you declare the checklist is therefore the order of the hints, and the hint can never disagree with the debrief, because it is the same grade.
 
 ### 7. Play it
 

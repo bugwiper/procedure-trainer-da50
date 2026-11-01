@@ -20,6 +20,32 @@ export interface OpenStep {
   readonly action?: string;
 }
 
+/** What the verdict still waits for besides the checklist steps (IN-02); derived from the grade. */
+export interface OpenFurther {
+  /** Required further actions not picked yet. */
+  readonly actions: number;
+  /** The flight conduct is declared and not (rightly) chosen. */
+  readonly conduct: boolean;
+}
+
+/**
+ * The required further actions and the flight conduct that still fail the run in `recording`. A
+ * scenario without a `further` section has none. Reads only the grade, so it never disagrees with
+ * the debrief, and names no option id.
+ */
+export function openFurtherItems(
+  scenario: Scenario,
+  env: AircraftEnv,
+  recording: Recording,
+): OpenFurther {
+  const further = grade(scenario, env, recording).further;
+  if (further === undefined) return { actions: 0, conduct: false };
+  return {
+    actions: further.actions.filter((entry) => entry.role === 'required' && !entry.done).length,
+    conduct: further.conduct.status === 'missing' || further.conduct.status === 'wrong',
+  };
+}
+
 /** The step with this id: a depth-first walk over groups, branches and decisions. */
 function findStep(nodes: readonly ProcedureNode[], id: string): Step | undefined {
   for (const node of nodes) {

@@ -1,4 +1,4 @@
-import { HINT_NONE_TEXT } from '../session';
+import { hintNoneText } from '../session';
 import type { HintState } from '../session';
 
 /**
@@ -13,7 +13,7 @@ export function HintLine({ hint }: { readonly hint: HintState }) {
     <div class="hint-line" role="status" data-testid="hint-line">
       {hint.kind === 'none' ? (
         <span class="hint-text" data-testid="hint-text">
-          {HINT_NONE_TEXT}
+          {hintNoneText(hint)}
         </span>
       ) : (
         <>
