@@ -1,5 +1,5 @@
 // Session area layout (phase 02, UI-SPEC "Session Control Area"): region-local rectangles of the
-// two views of the region scenario_area, as pure data. Origin (0, 0) is the top left of the region
+// three views (main, choose and, since Phase 7, run) of the region scenario_area, as pure data. Origin (0, 0) is the top left of the region
 // (global x 1300, y 780); the region is 440 x 480 (it was 820 wide until Phase 5.1 moved the
 // transponder beside it). The widgets that draw the buttons come in
 // plan 06; nothing here touches the DOM or a registry control.
@@ -25,6 +25,9 @@ const BUTTON_W = 370;
 const HALF_GAP = 16;
 const HALF_W = (BUTTON_W - HALF_GAP) / 2;
 
+/** Row tops of the run view (Phase 7, H-03): four rows of 80 units, 16 apart. */
+const RUN_ROW_TOPS = [20, 116, 212, 308] as const;
+
 /** Row tops of the choose view; at most four situations are listed on a page. */
 const CHOOSE_ROW_TOPS = [110, 200, 290, 380] as const;
 
@@ -46,6 +49,20 @@ export const SESSION_LAYOUT = {
     next: { x: BUTTON_X + HALF_W + HALF_GAP, y: 20, w: HALF_W, h: 80 },
     rows: CHOOSE_ROW_TOPS.map((y): LocalRect => ({ x: BUTTON_X, y, w: BUTTON_W, h: 80 })),
     maxRows: CHOOSE_ROW_TOPS.length,
+  },
+  /**
+   * Run view (Phase 7, D-05, H-03), drawn while a run is live: FURTHER ACTIONS on top (plan 07-02,
+   * reserved here), CHECKLIST and HINT side by side (Training only), NEW SITUATION and CHOOSE
+   * SITUATION side by side and RESET. The ids and the leave-run confirm of the three session
+   * buttons are those of the main view; only the rectangles change.
+   */
+  run: {
+    further: { x: BUTTON_X, y: RUN_ROW_TOPS[0], w: BUTTON_W, h: 80 },
+    checklist: { x: BUTTON_X, y: RUN_ROW_TOPS[1], w: HALF_W, h: 80 },
+    hint: { x: BUTTON_X + HALF_W + HALF_GAP, y: RUN_ROW_TOPS[1], w: HALF_W, h: 80 },
+    new: { x: BUTTON_X, y: RUN_ROW_TOPS[2], w: HALF_W, h: 80 },
+    choose: { x: BUTTON_X + HALF_W + HALF_GAP, y: RUN_ROW_TOPS[2], w: HALF_W, h: 80 },
+    reset: { x: BUTTON_X, y: RUN_ROW_TOPS[3], w: BUTTON_W, h: 80 },
   },
   /** Button labels: size 14, weight 700, centred on their button, baseline top + h / 2 + 5. */
   label: { size: 14, weight: 700, baselineOffset: 5 },
@@ -75,15 +92,15 @@ export function labelBaseline(r: LocalRect): number {
 }
 
 /**
- * Global rectangles of every session button of both views (new, choose, reset, close, next and the choose rows),
+ * Global rectangles of every session button of the three views (new, choose, reset, close, next, the choose rows and the run view),
  * moved by the origin of the region scenario_area. A conservative superset like controlFootprints:
- * the Full panel corner chooser avoids all of them in either view.
+ * the Full panel corner chooser avoids all of them in every view.
  */
 export function sessionFootprints(regionBounds: {
   readonly x: number;
   readonly y: number;
 }): Rect[] {
-  const { main, choose } = SESSION_LAYOUT;
+  const { main, choose, run } = SESSION_LAYOUT;
   const locals: readonly LocalRect[] = [
     main.new,
     main.choose,
@@ -91,6 +108,7 @@ export function sessionFootprints(regionBounds: {
     choose.close,
     choose.next,
     ...choose.rows,
+    ...Object.values(run),
   ];
   return locals.map((r) => ({
     x: regionBounds.x + r.x,

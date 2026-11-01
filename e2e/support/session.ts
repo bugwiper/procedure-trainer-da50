@@ -20,6 +20,9 @@ const SHIELD_WAIT_MS = 500;
 
 export type Level = 'easy' | 'medium';
 
+/** The mode card (Phase 7): Training offers a hint and the checklist, Exam is silent. */
+export type Mode = 'training' | 'exam';
+
 /** One shipped scenario as CHOOSE SITUATION lists it. */
 export interface ShippedScenario {
   /** The row key "pack.scenario" that chooseScenario and startScenario take. */
@@ -57,7 +60,7 @@ export function shippedScenarios(): readonly ShippedScenario[] {
   });
 }
 
-/** Opens CHOOSE SITUATION, taps the row "pack.scenario" and waits for the level card. */
+/** Opens CHOOSE SITUATION, taps the row "pack.scenario" and waits for the mode card. */
 export async function chooseScenario(page: Page, hasTouch: boolean, row: string): Promise<void> {
   await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
   await page.waitForTimeout(SHIELD_WAIT_MS);
@@ -70,20 +73,33 @@ export async function chooseScenario(page: Page, hasTouch: boolean, row: string)
     await activate(next, hasTouch);
   }
   await activate(target, hasTouch);
+  await expect(page.getByTestId('mode-pick')).toBeVisible();
+}
+
+/**
+ * Taps Training or Exam on the mode card (after its input shield) and waits for the level card.
+ * Every start goes through this card before the level (Phase 7, D-02).
+ */
+export async function pickMode(page: Page, hasTouch: boolean, mode: Mode = 'exam'): Promise<void> {
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId(`mode-pick-${mode}`), hasTouch);
   await expect(page.getByTestId('level-pick')).toBeVisible();
 }
 
 /**
- * Starts the scenario of the row "pack.scenario" at the given level (default easy): CHOOSE
- * SITUATION, the row, the level card, Start run; waits until Procedure complete is visible.
+ * Starts the scenario of the row "pack.scenario" at the given level (default easy) and mode
+ * (default exam): CHOOSE SITUATION, the row, the mode card, the level card, Start run; waits until
+ * Procedure complete is visible.
  */
 export async function startScenario(
   page: Page,
   hasTouch: boolean,
   row: string,
   level: Level = 'easy',
+  mode: Mode = 'exam',
 ): Promise<void> {
   await chooseScenario(page, hasTouch, row);
+  await pickMode(page, hasTouch, mode);
   await page.waitForTimeout(450);
   await activate(page.getByTestId(`level-pick-${level}`), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -94,11 +110,17 @@ export async function startScenario(
 
 /**
  * Starts the scenario of the row "pack.scenario" at the level Realistic (D-05): CHOOSE SITUATION,
- * the row, the level card, then Realistic; no briefing follows. Waits until Procedure complete is
+ * the row, the mode card, the level card, then Realistic; no briefing follows. Waits until Procedure complete is
  * visible.
  */
-export async function startRealistic(page: Page, hasTouch: boolean, row: string): Promise<void> {
+export async function startRealistic(
+  page: Page,
+  hasTouch: boolean,
+  row: string,
+  mode: Mode = 'exam',
+): Promise<void> {
   await chooseScenario(page, hasTouch, row);
+  await pickMode(page, hasTouch, mode);
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-realistic'), hasTouch);
   await expect(page.getByTestId('procedure-complete')).toBeVisible();

@@ -18,13 +18,15 @@ import { isStrayFullPanelClick } from './panel/tap-intent';
 import { buttonCorner, isZoomed, viewChangedByTapAt, zoomOut } from './panel/zoom';
 import { Ack } from './screens/Ack';
 import { Briefing } from './screens/Briefing';
+import { HintLine } from './screens/HintLine';
 import { LevelPick } from './screens/LevelPick';
+import { ModePick } from './screens/ModePick';
 import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
 import { Debrief } from './screens/Debrief';
 import { parsePreviewFlags, parsePreviewQuantities } from './preview';
 import { RUN_ERROR_PATH, createSession } from './session';
 import type { LoadFailure } from './session';
-import type { Level } from './session';
+import type { Level, Mode } from './session';
 
 const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
 
@@ -203,6 +205,10 @@ const setLevel = (level: Level) => {
   session.setLevel(level);
 };
 
+const setMode = (mode: Mode) => {
+  session.setMode(mode);
+};
+
 const backToPanel = () => {
   session.backToPanel();
 };
@@ -212,6 +218,7 @@ export function App() {
   const scenario = session.scenario.value;
   const briefed = session.briefing.value;
   const result = session.result.value;
+  const hint = session.hint.value;
   // The footer grows to hold the 44 px run button from the briefing until the debrief closes, so
   // the panel does not resize at Start run or at Procedure complete (UI-SPEC D-15, U-02).
   const inSession = screen !== 'free' && screen !== 'choosing';
@@ -257,6 +264,7 @@ export function App() {
             Full panel
           </button>
         ) : null}
+        {screen === 'running' && hint !== null ? <HintLine hint={hint} /> : null}
       </div>
       {rotateHintDismissed.value ? null : (
         <div class="rotate-hint" data-testid="rotate-hint" role="status">
@@ -302,7 +310,16 @@ export function App() {
         </div>
       </footer>
       {aboutOpen.value ? <About onClose={closeAbout} /> : null}
-      {screen === 'briefing' && briefed !== null && !session.levelPicked.value ? (
+      {screen === 'briefing' &&
+      briefed !== null &&
+      !session.modePicked.value &&
+      !session.levelPicked.value ? (
+        <ModePick onMode={setMode} onBack={backToPanel} />
+      ) : null}
+      {screen === 'briefing' &&
+      briefed !== null &&
+      session.modePicked.value &&
+      !session.levelPicked.value ? (
         <LevelPick
           realistic={briefed.scenario.onset !== undefined}
           onLevel={setLevel}

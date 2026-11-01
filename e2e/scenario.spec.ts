@@ -6,6 +6,7 @@ import { parseScenario } from '../src/scenario/parse';
 import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
 import {
   chooseScenario,
+  pickMode,
   quantityOf,
   shippedScenarios,
   startRealistic,
@@ -71,6 +72,7 @@ async function afterShield(page: Page): Promise<void> {
 /** Opens ENG OIL TEMP through CHOOSE SITUATION, picks Easy and waits until the briefing is open. */
 async function openBriefing(page: Page, hasTouch: boolean): Promise<void> {
   await chooseScenario(page, hasTouch, ENGINE_ROW);
+  await pickMode(page, hasTouch, 'exam');
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -106,7 +108,8 @@ test('@hooks NEW SITUATION opens one of the shipped scenarios in its initial sta
 
   // NEW SITUATION picks at random among the shipped scenarios; Easy, then Start run.
   await activate(page.locator(NEW_SITUATION), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await expect(page.getByTestId('mode-pick')).toBeVisible();
+  await pickMode(page, hasTouch, 'exam');
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -180,7 +183,8 @@ test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its br
   await activate(page.locator(CHOOSE_SITUATION), hasTouch);
   await afterShield(page);
   await activate(page.locator(`[data-session-hit="session.row.${ENGINE_ROW}"]`), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await expect(page.getByTestId('mode-pick')).toBeVisible();
+  await pickMode(page, hasTouch, 'exam');
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -233,7 +237,8 @@ test('@hooks NEW SITUATION during a run asks first; Keep going and Escape keep t
   await activate(page.locator(NEW_SITUATION), hasTouch);
   await expect(confirm).toBeVisible();
   await activate(page.getByTestId('leave-leave'), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await expect(page.getByTestId('mode-pick')).toBeVisible();
+  await pickMode(page, hasTouch, 'exam');
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -284,7 +289,8 @@ test('@hooks a pack that cannot be loaded shows the error; Try again retries the
   await expect(error).toBeVisible();
   await page.unroute('**/pack-*', abort);
   await activate(page.getByTestId('load-error-retry'), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await expect(page.getByTestId('mode-pick')).toBeVisible();
+  await pickMode(page, hasTouch, 'exam');
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -374,6 +380,7 @@ test('@hooks Level question: Easy, Medium and Realistic come before any briefing
   hasTouch,
 }) => {
   await chooseScenario(page, hasTouch, ENGINE_ROW);
+  await pickMode(page, hasTouch, 'exam');
   await expect(page.getByTestId('briefing')).toHaveCount(0);
   const easy = page.getByTestId('level-pick-easy');
   const medium = page.getByTestId('level-pick-medium');

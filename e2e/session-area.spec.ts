@@ -98,9 +98,9 @@ test('@hooks a double tap or double click on NEW SITUATION opens exactly one bri
   hasTouch,
 }) => {
   await doubleActivateAt(page, await newSituationCentre(page), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await expect(page.getByTestId('mode-pick')).toBeVisible();
   await afterPairWindow(page);
-  await expect(page.getByTestId('level-pick')).toHaveCount(1);
+  await expect(page.getByTestId('mode-pick')).toHaveCount(1);
   await expect(dialogs(page)).toHaveCount(1);
   expect(await events(page)).toEqual([]);
 });
@@ -117,9 +117,9 @@ test('@hooks a double tap or double click on the list row opens exactly one brie
   const box = await row.boundingBox();
   if (box === null) throw new Error('the row has no box');
   await doubleActivateAt(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await expect(page.getByTestId('mode-pick')).toBeVisible();
   await afterPairWindow(page);
-  await expect(page.getByTestId('level-pick')).toHaveCount(1);
+  await expect(page.getByTestId('mode-pick')).toHaveCount(1);
   await expect(dialogs(page)).toHaveCount(1);
   expect(await events(page)).toEqual([]);
 });

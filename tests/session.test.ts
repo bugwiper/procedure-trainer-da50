@@ -18,7 +18,17 @@ import { createPanelBridge } from '../src/ui/bridge';
 import { SESSION_LAYOUT, pageCount, pageSlice } from '../src/ui/panel/session-area';
 import { reasonLines } from '../src/ui/debrief-text';
 import { attachClockDriver } from '../src/ui/clock-driver';
-import { LEVELS, LEVEL_HINTS, RUN_ERROR_PATH, createSession, pickRandom } from '../src/ui/session';
+import {
+  HINT_NONE_TEXT,
+  LEVELS,
+  LEVEL_HINTS,
+  MODES,
+  MODE_HINTS,
+  MODE_NAMES,
+  RUN_ERROR_PATH,
+  createSession,
+  pickRandom,
+} from '../src/ui/session';
 
 // The session machine (plan 02-06, Table N1; plan 02-11 adds the briefing; SES-01, SES-03, SES-04,
 // SCN-05, D-13, D-14): node environment, a real bridge over the DA50 RG and a fake pack provider built from the real
@@ -1671,5 +1681,236 @@ describe('scene (phase 05, W-07 to W-09)', () => {
   it('the shipped scenarios all name a scene of the aircraft', () => {
     expect(DA50RG_ENV.scenes.has('cruise')).toBe(true);
     expect(BLUEPRINT).toContain('scene: cruise');
+  });
+});
+
+describe('mode and hint (phase 07, SES-02, D-02 to D-04)', () => {
+  const parsed = parseScenario(BLUEPRINT);
+  if (!parsed.ok) throw new Error('the blueprint does not parse');
+  const blueprint = parsed.value;
+  const window = blueprint.onset?.window_s;
+  if (window === undefined) throw new Error('the blueprint declares no onset');
+  const [first, second] = blueprint.procedure
+    .flatMap((node) => (node.kind === 'decision' ? node.branches.flatMap((b) => b.nodes) : []))
+    .flatMap((node) => (node.kind === 'group' ? node.steps : []));
+  if (first === undefined || second === undefined)
+    throw new Error('the blueprint has no two steps');
+
+  /** A started Training run on Easy (the default level of the helper). */
+  async function training(options: Parameters<typeof rig>[0] = {}): Promise<Rig> {
+    const r = rig(options);
+    await r.session.newSituation();
+    r.session.setMode('training');
+    r.session.setLevel('easy');
+    r.session.startRun();
+    expect(r.session.screen.value).toBe('running');
+    return r;
+  }
+
+  it('has the two modes in display order with their names and their one line each', () => {
+    expect(MODES).toEqual(['training', 'exam']);
+    expect(MODES.map((mode) => MODE_NAMES[mode])).toEqual(['Training', 'Exam']);
+    expect(MODES.map((mode) => MODE_HINTS[mode])).toEqual([
+      'Checklist and hints on demand during the run.',
+      'Silent. No checklist, no hints.',
+    ]);
+  });
+
+  it('is exam at creation and unpicked on every opened briefing', async () => {
+    const r = rig();
+    expect(r.session.mode.value).toBe('exam');
+    expect(r.session.modePicked.value).toBe(false);
+    await r.session.newSituation();
+    expect(r.session.modePicked.value).toBe(false);
+    r.session.setMode('training');
+    expect(r.session.mode.value).toBe('training');
+    expect(r.session.modePicked.value).toBe(true);
+    r.session.backToPanel();
+    await r.session.newSituation();
+    // The question is asked again; the last answer stays as the default of the display state.
+    expect(r.session.modePicked.value).toBe(false);
+    expect(r.session.mode.value).toBe('training');
+  });
+
+  it('is set in the briefing before the level is picked, and nowhere else', async () => {
+    const r = rig();
+    r.session.setMode('training');
+    expect(r.session.mode.value).toBe('exam');
+    expect(r.session.modePicked.value).toBe(false);
+
+    await r.session.newSituation();
+    r.session.setLevel('easy');
+    r.session.setMode('training');
+    expect(r.session.mode.value).toBe('exam');
+    expect(r.session.modePicked.value).toBe(false);
+
+    r.session.startRun();
+    r.session.setMode('training');
+    expect(r.session.mode.value).toBe('exam');
+    r.session.complete();
+    r.session.setMode('training');
+    expect(r.session.mode.value).toBe('exam');
+    expect(r.session.screen.value).toBe('debrief');
+  });
+
+  it('leaves setLevel working without a picked mode, so a path that never picks one is unchanged', async () => {
+    const r = rig();
+    await r.session.newSituation();
+    r.session.setLevel('medium');
+    expect(r.session.levelPicked.value).toBe(true);
+    expect(r.session.modePicked.value).toBe(false);
+    r.session.startRun();
+    expect(r.session.screen.value).toBe('running');
+    expect(r.session.mode.value).toBe('exam');
+  });
+
+  it('keeps the mode through the run and the debrief', async () => {
+    const r = await training();
+    expect(r.session.mode.value).toBe('training');
+    r.session.complete();
+    expect(r.session.mode.value).toBe('training');
+    r.session.closeDebrief();
+    expect(r.session.mode.value).toBe('training');
+  });
+
+  it('askHint does nothing in exam mode', async () => {
+    const r = await started();
+    expect(r.session.mode.value).toBe('exam');
+    r.session.askHint();
+    expect(r.session.hint.value).toBeNull();
+  });
+
+  it('askHint does nothing outside a run', async () => {
+    const r = rig();
+    r.session.setMode('training');
+    r.session.askHint();
+    expect(r.session.hint.value).toBeNull();
+    await r.session.newSituation();
+    r.session.setMode('training');
+    r.session.askHint();
+    expect(r.session.hint.value).toBeNull();
+    r.session.setLevel('easy');
+    r.session.startRun();
+    r.session.complete();
+    expect(r.session.screen.value).toBe('debrief');
+    r.session.askHint();
+    expect(r.session.hint.value).toBeNull();
+  });
+
+  it('names the first open step with its stored wording, then the next one after the control is operated', async () => {
+    const r = await training();
+    expect(r.session.hint.value).toBeNull();
+    r.session.askHint();
+    expect(r.session.hint.value).toEqual({
+      kind: 'step',
+      step: { id: first.id, text: first.text },
+    });
+
+    r.bridge.actuate('lv.power', 'p50');
+    // The hint line keeps what it showed until the next press.
+    expect(r.session.hint.value).toMatchObject({ kind: 'step', step: { id: first.id } });
+    r.session.askHint();
+    expect(r.session.hint.value).toMatchObject({ kind: 'step', step: { id: second.id } });
+
+    r.bridge.actuate('lv.cowl_flap', 'open');
+    r.session.askHint();
+    expect(r.session.hint.value).toEqual({ kind: 'none' });
+    expect(HINT_NONE_TEXT).toBe(
+      'All required steps are done. Press Procedure complete when you are ready.',
+    );
+  });
+
+  it('records nothing: the store log, the panel and the run clock are as before', async () => {
+    const r = await training();
+    const clock = r.session.clock.value;
+    if (clock === null) throw new Error('no clock');
+    clock.advance(1500);
+    const log = JSON.stringify(r.bridge.store.events());
+    const quantities = JSON.stringify(r.bridge.quantities.value);
+    r.session.askHint();
+    r.session.askHint();
+    expect(JSON.stringify(r.bridge.store.events())).toBe(log);
+    expect(JSON.stringify(r.bridge.quantities.value)).toBe(quantities);
+    expect(clock.now()).toBe(1500);
+  });
+
+  it('gives a Realistic run no hint before its onset and one after it (T-07-02)', async () => {
+    const SEED_DRAW = 0.75;
+    let next = 0;
+    const draws = [0.5, SEED_DRAW];
+    const r = rig({ rng: () => draws[next++] ?? 0 });
+    await r.session.newSituation();
+    r.session.setMode('training');
+    r.session.setLevel('realistic');
+    expect(r.session.screen.value).toBe('running');
+    const onset = r.session.onset.value;
+    if (onset === null) throw new Error('no onset');
+    expect(onset.at).toBe(onsetFromSeed(Math.floor(SEED_DRAW * 4_294_967_296), window));
+    const clock = r.session.clock.value;
+    if (clock === null) throw new Error('no clock');
+
+    clock.advance(onset.at - 1);
+    r.session.askHint();
+    expect(r.session.hint.value).toBeNull();
+
+    clock.advance(1);
+    r.session.askHint();
+    expect(r.session.hint.value).toMatchObject({ kind: 'step', step: { id: first.id } });
+  });
+
+  it('completes with the same result with and without hints', async () => {
+    const results: string[] = [];
+    for (const asking of [false, true]) {
+      const r = await training();
+      if (asking) r.session.askHint();
+      r.bridge.actuate('lv.power', 'p50');
+      if (asking) r.session.askHint();
+      r.bridge.actuate('lv.cowl_flap', 'open');
+      if (asking) r.session.askHint();
+      r.session.complete();
+      results.push(JSON.stringify(r.session.result.value));
+      results.push(JSON.stringify(r.session.recording.value));
+    }
+    expect(results[0]).toBe(results[2]);
+    expect(results[1]).toBe(results[3]);
+    expect(results[0]).toContain('"result":"pass"');
+  });
+
+  it('clears the hint when the run is completed, left, reset or the debrief closes', async () => {
+    const r = await training();
+    r.session.askHint();
+    expect(r.session.hint.value).not.toBeNull();
+    r.session.complete();
+    expect(r.session.hint.value).toBeNull();
+
+    const left = await training();
+    left.session.askHint();
+    void left.session.resetPanel();
+    expect(left.session.confirm.value).toBe('reset');
+    await left.session.leaveRun();
+    expect(left.session.screen.value).toBe('free');
+    expect(left.session.hint.value).toBeNull();
+
+    const closed = await training();
+    closed.session.askHint();
+    closed.session.complete();
+    closed.session.closeDebrief();
+    expect(closed.session.hint.value).toBeNull();
+
+    const next = await training();
+    next.session.askHint();
+    next.session.complete();
+    next.session.closeDebrief();
+    await next.session.newSituation();
+    next.session.setLevel('easy');
+    next.session.startRun();
+    expect(next.session.hint.value).toBeNull();
+  });
+
+  it('clears the hint when a failed step ends the run', async () => {
+    const r = await training();
+    r.session.askHint();
+    r.session.failRun(new Error('boom'));
+    expect(r.session.hint.value).toBeNull();
   });
 });

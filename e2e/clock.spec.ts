@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { pickMode } from './support/session';
 import { activate } from './support/zoom';
 
 // SCN-08 (phase 02): the run's virtual clock advances with real frames only while the run is live
@@ -20,7 +21,8 @@ function clockNow(page: Page): Promise<number | null> {
 /** NEW SITUATION, then Start run: the briefing is a modal, so the clock starts at Start run. */
 async function startRun(page: Page, hasTouch: boolean): Promise<void> {
   await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await expect(page.getByTestId('mode-pick')).toBeVisible();
+  await pickMode(page, hasTouch, 'exam');
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -44,7 +46,8 @@ test('@hooks the run clock does not exist during the briefing and starts at Star
   hasTouch,
 }) => {
   await activate(page.locator('[data-session-hit="session.new"]'), hasTouch);
-  await expect(page.getByTestId('level-pick')).toBeVisible();
+  await expect(page.getByTestId('mode-pick')).toBeVisible();
+  await pickMode(page, hasTouch, 'exam');
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();

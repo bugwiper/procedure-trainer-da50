@@ -6,7 +6,9 @@ import type { FrameProps } from './MfdFrame';
 
 /**
  * The session area in the co-pilot legroom (D-14, region scenario_area). Main view: NEW SITUATION,
- * CHOOSE SITUATION and RESET at their SESSION_LAYOUT rectangles. Choose view (state choosing): CLOSE LIST
+ * CHOOSE SITUATION and RESET at their SESSION_LAYOUT rectangles. Run view (state running, Phase 7,
+ * D-05): the same three buttons at the SESSION_LAYOUT.run rectangles with the same ids and the same
+ * leave-run confirm and, in Training mode only, HINT. Choose view (state choosing): CLOSE LIST
  * and one page of up to four rows, one per scenario of an allowed pack, titled from the pack
  * manifest; NEXT PAGE beside CLOSE LIST only when there are more rows than one page holds, and it
  * wraps to the first page (Phase 5.1). Trainer
@@ -19,12 +21,13 @@ import type { FrameProps } from './MfdFrame';
  */
 export function ScenarioAreaFrame({ session }: FrameProps) {
   // The time the choose view last appeared; set while rendering the view change.
-  const view = useRef<'main' | 'choose'>('main');
+  const view = useRef<'main' | 'choose' | 'run'>('main');
   const shownAt = useRef(0);
   if (session === undefined) return <g data-session-area />;
 
   const choosing = session.screen.value === 'choosing';
-  const next = choosing ? 'choose' : 'main';
+  const running = session.screen.value === 'running';
+  const next = choosing ? 'choose' : running ? 'run' : 'main';
   if (view.current !== next) {
     view.current = next;
     shownAt.current = performance.now();
@@ -85,6 +88,59 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
             />
           );
         })}
+      </g>
+    );
+  }
+
+  if (running) {
+    const { run } = SESSION_LAYOUT;
+    const training = session.mode.value === 'training';
+    return (
+      <g data-session-area data-session-view="run">
+        {training ? (
+          <SessionButton
+            key="session.hint"
+            id="session.hint"
+            rect={run.hint}
+            label="HINT"
+            ariaLabel="Hint: show the next open checklist step"
+            onActivate={() => {
+              session.askHint();
+            }}
+          />
+        ) : null}
+        <SessionButton
+          key="session.new"
+          id="session.new"
+          rect={run.new}
+          label="NEW SITUATION"
+          ariaLabel="New situation, random"
+          held={busyKey === 'session.new'}
+          onActivate={idle(() => {
+            void session.newSituation();
+          })}
+        />
+        <SessionButton
+          key="session.choose"
+          id="session.choose"
+          rect={run.choose}
+          label="CHOOSE SITUATION"
+          ariaLabel="Choose situation"
+          held={busyKey === 'session.choose'}
+          onActivate={idle(() => {
+            void session.openChooser();
+          })}
+        />
+        <SessionButton
+          key="session.reset"
+          id="session.reset"
+          rect={run.reset}
+          label="RESET"
+          ariaLabel="Reset the panel to its original state"
+          onActivate={idle(() => {
+            session.resetPanel();
+          })}
+        />
       </g>
     );
   }
