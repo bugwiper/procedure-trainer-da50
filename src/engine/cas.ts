@@ -19,7 +19,7 @@ const CAS_LEVELS: readonly CasLevel[] = ['warning', 'caution', 'advisory'];
 
 export const CAS_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
 export const CAS_TEXT_PATTERN = /^[A-Z0-9/ ]{1,12}$/;
-/** Most chips the PFD draws (3 rows of 2); a scenario that fires more is a lint error. */
+/** Most messages the PFD column draws (6 rows); a scenario that fires more is a lint error. */
 export const MAX_CAS_CHIPS = 6;
 
 export interface CasRuleSpec {

@@ -34,7 +34,8 @@ import { AudioPanelFrame } from '../src/ui/panel/frames/AudioPanelFrame';
 import { AutopilotPanelFrame } from '../src/ui/panel/frames/AutopilotPanelFrame';
 import { BezelColumnFrame } from '../src/ui/panel/frames/BezelColumnFrame';
 import { formatReading } from '../src/ui/panel/frames/ArcGauge';
-import { CasChips, casChipSlots } from '../src/ui/panel/frames/CasChips';
+import { CAS_COLUMN, casColumnRows } from '../src/aircraft/da50rg/pfd-layout';
+import { CasChips } from '../src/ui/panel/frames/CasChips';
 import { MfdFrame } from '../src/ui/panel/frames/MfdFrame';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
 import { SoftkeysFrame } from '../src/ui/panel/frames/SoftkeysFrame';
@@ -545,10 +546,10 @@ describe('glass header, content and legend zones', () => {
       );
     expect(ids(pfd)).toEqual([
       'pfd-attitude',
-      'cas-chips',
       'pfd-airspeed',
       'pfd-altitude',
       'pfd-heading',
+      'cas-chips',
     ]);
     expect(ids(mfdMap)).toEqual(['mfd-map-page', 'mfd-engine-strip', 'mfd-map']);
     expect(ids(mfdEngine)).toEqual(['mfd-engine-page']);
@@ -2251,13 +2252,38 @@ describe('CAS chips by level (Phase 6: the white advisory)', () => {
     (e) => e.props['data-testid'] === 'cas-chip',
   );
 
-  it('draws one chip per message in the slot order of the existing chips', () => {
+  it('draws one row per message in the order of the list, the rectangles of the column function', () => {
     expect(chips.map((c) => c.props['data-cas-id'])).toEqual(['w', 'c', 'a']);
-    const slots = casChipSlots(messages.length);
+    const rows = casColumnRows(messages.length);
     chips.forEach((chip, i) => {
       const rect = findElements(chip, (e) => e.tag === 'rect')[0];
-      expect([rect?.props['x'], rect?.props['y']]).toEqual([slots[i]?.x, slots[i]?.y]);
+      expect(
+        [rect?.props['x'], rect?.props['y'], rect?.props['width'], rect?.props['height']],
+        `row ${String(i)}`,
+      ).toEqual([rows[i]?.x, rows[i]?.y, rows[i]?.width, rows[i]?.height]);
     });
+  });
+
+  it('joins the rows without a gap, with no corner radius and no outline', () => {
+    const rects = chips.map((c) => findElements(c, (e) => e.tag === 'rect')[0]);
+    rects.slice(0, -1).forEach((rect, i) => {
+      expect(Number(rect?.props['y']) + Number(rect?.props['height'])).toBe(
+        Number(rects[i + 1]?.props['y']),
+      );
+    });
+    for (const rect of rects) {
+      expect(rect?.props['rx']).toBeUndefined();
+      expect(rect?.props['stroke']).toBeUndefined();
+      expect(rect?.props['fill']).toBe('#000000');
+    }
+  });
+
+  it('sets the text thin: size 6 from the layout data, no bold attribute', () => {
+    for (const chip of chips) {
+      const text = findElements(chip, (e) => e.tag === 'text')[0];
+      expect(text?.props['font-size']).toBe(CAS_COLUMN.fontSize);
+      expect(text?.props['font-weight']).toBeUndefined();
+    }
   });
 
   it('carries the level on the chip and the aria label', () => {

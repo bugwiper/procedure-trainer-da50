@@ -4,10 +4,12 @@ import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { CasError, defineCasRules, MAX_CAS_CHIPS } from '../src/engine/cas';
 import type { CasRuleSpec } from '../src/engine/cas';
 import type { PredicateContext } from '../src/engine/predicates';
-import { casChipSlots } from '../src/ui/panel/frames/CasChips';
+import { CAS_COLUMN, casColumnRows } from '../src/aircraft/da50rg/pfd-layout';
+import { CasChips } from '../src/ui/panel/frames/CasChips';
+import { expand, findElements } from './vnode-walk';
 
 // The CAS rule engine (D-06, D-06a, D-08) on a synthetic table, the DA50 RG table's one rule, and
-// the stacking rule of the chips (UI-SPEC populated-chip backstop).
+// the stacking rule of the CAS column on the PFD (Phase 6.1).
 
 const env = { registry: DA50RG_ENV.registry, quantities: DA50RG_ENV.quantities };
 
@@ -394,22 +396,65 @@ describe('PITOT HEAT and STALL HEAT cautions (Phase 6, plan 04, H-01)', () => {
   });
 });
 
-describe('casChipSlots', () => {
-  it('stacks two per row from row 0 upward, right slot first', () => {
-    expect(casChipSlots(6)).toEqual([
-      { x: 294, y: 236 },
-      { x: 190, y: 236 },
-      { x: 294, y: 212 },
-      { x: 190, y: 212 },
-      { x: 294, y: 188 },
-      { x: 190, y: 188 },
-    ]);
+describe('casColumnRows (Phase 6.1: the stacked CAS column)', () => {
+  it('gives no rows for no message', () => {
+    expect(casColumnRows(0)).toEqual([]);
   });
 
-  it('draws only the slots that exist for 7 chips', () => {
+  it('shares x and width between the rows', () => {
+    for (let n = 1; n <= MAX_CAS_CHIPS; n += 1) {
+      const rows = casColumnRows(n);
+      expect(new Set(rows.map((r) => r.x)).size, `n ${String(n)}`).toBe(1);
+      expect(new Set(rows.map((r) => r.width)).size, `n ${String(n)}`).toBe(1);
+    }
+  });
+
+  it('joins the rows without a gap: the bottom of row i is the top of row i + 1', () => {
+    const rows = casColumnRows(MAX_CAS_CHIPS);
+    rows.slice(0, -1).forEach((row, i) => {
+      expect(row.y + row.height, `row ${String(i)}`).toBe(rows[i + 1]?.y);
+    });
+  });
+
+  it('keeps the bottom edge for every count and raises the top edge by one row per message', () => {
+    const bottomOf = (n: number): number => {
+      const last = casColumnRows(n).at(-1);
+      return (last?.y ?? Number.NaN) + (last?.height ?? Number.NaN);
+    };
+    const topOf = (n: number): number => casColumnRows(n)[0]?.y ?? Number.NaN;
+    for (let n = 1; n <= MAX_CAS_CHIPS; n += 1) {
+      expect(bottomOf(n), `bottom ${String(n)}`).toBe(CAS_COLUMN.bottom);
+      expect(topOf(n), `top ${String(n)}`).toBe(CAS_COLUMN.bottom - n * CAS_COLUMN.rowHeight);
+    }
+    expect(topOf(1) - topOf(2)).toBe(CAS_COLUMN.rowHeight);
+  });
+
+  it('draws only the rows that exist for more than the maximum', () => {
     expect(MAX_CAS_CHIPS).toBe(6);
-    expect(casChipSlots(7)).toHaveLength(6);
-    expect(casChipSlots(0)).toEqual([]);
-    expect(casChipSlots(1)).toEqual([{ x: 294, y: 236 }]);
+    expect(casColumnRows(7)).toEqual(casColumnRows(MAX_CAS_CHIPS));
+    expect(casColumnRows(7)).toHaveLength(MAX_CAS_CHIPS);
+    expect(casColumnRows(-1)).toEqual([]);
+  });
+
+  it('shows the real rule table in warning, caution, advisory order and the chips draw it as given, unsorted', () => {
+    // The table lists the levels in display order on its own, so the column needs no sorting.
+    const mixed = defineCasRules(
+      [
+        rule('a1', { level: 'advisory', text: 'A ONE' }),
+        rule('c1', { level: 'caution', text: 'C ONE' }),
+        rule('w1', { text: 'W ONE' }),
+        rule('c2', { level: 'caution', text: 'C TWO' }),
+      ],
+      env,
+    );
+    const list = mixed.active(at(120), env);
+    expect(list.map((m) => m.level)).toEqual(['warning', 'caution', 'caution', 'advisory']);
+    const chips = findElements(
+      expand(CasChips({ active: list })),
+      (e) => e.props['data-testid'] === 'cas-chip',
+    );
+    expect(chips.map((c) => c.props['data-cas-id'])).toEqual(list.map((m) => m.id));
+    const ys = chips.map((c) => Number(findElements(c, (e) => e.tag === 'rect')[0]?.props['y']));
+    expect([...ys].sort((a, b) => a - b)).toEqual(ys);
   });
 });

@@ -68,6 +68,15 @@ body,
   font-weight: 400;
 }
 
+/* The CAS column on the PFD is set thin (Phase 6.1, D-05): regular weight, a little less letter
+   spacing. The font-size attribute on the SVG text is enough for the size, but not for the weight:
+   the rule above for every panel text forces 700 and a CSS rule beats an SVG presentation
+   attribute, so the weight needs its own scoped rule here. */
+.panel-svg [data-testid='cas-chips'] text {
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
 .footer {
   font-family: var(--font-placard);
   font-weight: 400;
