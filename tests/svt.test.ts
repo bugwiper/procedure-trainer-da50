@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { ATTITUDE } from '../src/aircraft/da50rg/pfd-layout';
+import { DA50RG } from '../src/aircraft/da50rg/panel';
+import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
+import type { PanelBridge } from '../src/ui/bridge';
+import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
 import { SVT_STYLES, SyntheticVision } from '../src/ui/panel/frames/SyntheticVision';
+import type { Session } from '../src/ui/session';
 import { SCENE_GRADIENTS } from '../src/ui/panel/windscreen/scenes';
 import { expand, findElements } from './vnode-walk';
 import type { El } from './vnode-walk';
@@ -86,5 +91,92 @@ describe('the component', () => {
           expect(defined.has(match[1] ?? ''), `${scene} ${String(fill)}`).toBe(true);
       }
     }
+  });
+});
+
+// D-02 guard (Phase 6.1, plan 02): the PFD stays free of a deviation bar and of a map. No paint of
+// the PFD is magenta (the colour of such a bar and of a route), no element names a deviation or a
+// map, and the inset map frame stays an empty frame.
+
+/** Hue in degrees (0 to 360), saturation and lightness of a #rrggbb colour. */
+function hsl(hex: string): { hue: number; saturation: number; lightness: number } {
+  const n = Number.parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => c / 255) as [
+    number,
+    number,
+    number,
+  ];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  const delta = max - min;
+  if (delta === 0) return { hue: 0, saturation: 0, lightness };
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1));
+  let hue: number;
+  if (max === r) hue = ((g - b) / delta + (g < b ? 6 : 0)) * 60;
+  else if (max === g) hue = ((b - r) / delta + 2) * 60;
+  else hue = ((r - g) / delta + 4) * 60;
+  return { hue, saturation, lightness };
+}
+
+/** Magenta by hue (280 to 335) and saturation over 0.5. */
+function isMagenta(hex: string): boolean {
+  const { hue, saturation } = hsl(hex);
+  return hue >= 280 && hue <= 335 && saturation > 0.5;
+}
+
+describe('the magenta helper (self-test)', () => {
+  it('flags magenta and passes the PFD colours', () => {
+    expect(isMagenta('#ff00ff')).toBe(true);
+    expect(isMagenta('#c0409a')).toBe(true);
+    for (const ok of ['#ffffff', '#000000', '#f2c230', '#2c68ad', '#3fd1e0', '#7a5230']) {
+      expect(isMagenta(ok), ok).toBe(false);
+    }
+  });
+});
+
+const pfdRegion = DA50RG.regions.find((r) => r.id === 'pfd');
+if (pfdRegion === undefined) throw new Error('no pfd region');
+
+function pfdTree(scene: string): El {
+  const bridge = {
+    registry: DA50RG,
+    stateOf: () => ({ value: 'map' }),
+    quantities: { value: DA50RG_QUANTITIES.baseValues() },
+    cas: { value: [] },
+  } as unknown as PanelBridge;
+  const session = { scene: { value: scene } } as unknown as Session;
+  return expand(PfdFrame({ region: pfdRegion as never, bridge, session }));
+}
+
+describe('the PFD stays free of a deviation bar and of a map (D-02)', () => {
+  it.each(SCENE_IDS)('%s: no magenta paint anywhere on the PFD', (scene) => {
+    const painted = findElements(pfdTree(scene), () => true).flatMap((e) =>
+      ['fill', 'stroke', 'stop-color'].map((key) => e.props[key]),
+    );
+    const hexes = painted.filter(
+      (v): v is string => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v),
+    );
+    expect(hexes.length).toBeGreaterThan(10);
+    expect(hexes.filter(isMagenta)).toEqual([]);
+  });
+
+  it('has no element that names a deviation bar or a map (the inset map frame excepted)', () => {
+    const marked = findElements(pfdTree(DEFAULT_SCENE), (e) =>
+      Object.entries(e.props).some(([key, value]) => {
+        if (key === 'data-inset-map') return false;
+        const text = `${key} ${typeof value === 'string' ? value : ''}`;
+        return key.startsWith('data-') || key === 'id' || key === 'class'
+          ? /deviation|cdi|vdi|glideslope|\bmap\b|route|waypoint/i.test(text)
+          : false;
+      }),
+    );
+    expect(marked).toEqual([]);
+  });
+
+  it('keeps the inset map frame empty', () => {
+    const frames = findElements(pfdTree(DEFAULT_SCENE), (e) => 'data-inset-map' in e.props);
+    expect(frames).toHaveLength(1);
+    expect(frames[0]?.children).toEqual([]);
   });
 });

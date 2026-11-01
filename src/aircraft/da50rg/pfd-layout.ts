@@ -39,6 +39,78 @@ export const ALTITUDE_BLOCK = {
   x: 355,
 } as const;
 
+/** Fill opacity of the dark glass of the speed and altitude tapes over the synthetic vision (D-09). */
+export const TAPE_OPACITY = 0.55;
+
+/** The speed tape: a dark glass rectangle with ticks at its right edge. */
+export const SPEED_TAPE = {
+  x: 10,
+  y: 34,
+  width: 80,
+  height: 232,
+  /** Ticks run from this x to the right edge of the tape. */
+  tickX1: 74,
+  tickX2: 90,
+  /** Offset of the tick pattern below the top of the tape. */
+  tickTop: 9,
+} as const;
+
+/** The altitude tape: the same size, ticks at its left edge. */
+export const ALTITUDE_TAPE = {
+  x: ALTITUDE_BLOCK.x,
+  y: 34,
+  width: 80,
+  height: 232,
+  /** Tick length from the left edge. */
+  tickLength: 16,
+  tickTop: 9,
+} as const;
+
+/** The white-framed black readout box of the speed tape, centred on the attitude centre height. */
+export const SPEED_READOUT = {
+  x: 10,
+  y: ATTITUDE.cy - 16,
+  width: 64,
+  height: 32,
+  /** Right edge of the number (text anchored at the end). */
+  textRight: 66,
+} as const;
+
+/** The readout box of the altitude tape. */
+export const ALTITUDE_READOUT = {
+  x: ALTITUDE_BLOCK.x + 6,
+  y: ATTITUDE.cy - 16,
+  width: 74,
+  height: 32,
+  textRight: ALTITUDE_BLOCK.x + 75,
+} as const;
+
+/** Anchors (text centre, baseline) of the static unit labels under the tapes. */
+export const KT_LABEL = { x: 50, y: 276 } as const;
+export const FT_LABEL = { x: ALTITUDE_BLOCK.x + 40, y: 276 } as const;
+
+/**
+ * The compass: a half rose of radius 66 about (247.5, 338), plain, no map and no deviation bar
+ * (D-02, D-10). The backing is a translucent dark half disc a little larger, so the ticks read on the
+ * synthetic vision.
+ */
+export const COMPASS = {
+  cx: 247.5,
+  cy: 338,
+  r: 66,
+  backingR: 70,
+  /** Fill opacity of the dark glass of the backing. */
+  backingOpacity: 0.5,
+} as const;
+
+/** The transparent frame round the heading block and the compass ticks. */
+export const HEADING_FRAME = { x: 170, y: 276, width: 155, height: 60 } as const;
+/** The heading box (white frame, black fill). */
+export const HEADING_BOX = { x: 218, y: 282, width: 60, height: 26 } as const;
+
+/** The inset map: an empty frame, never any content. */
+export const INSET_MAP = { x: 6, y: 280, width: 90, height: 60 } as const;
+
 /**
  * The CAS column (PNL-25, D-03 to D-05): black rows joined without a gap at the lower right, right
  * of the altitude tape. The bottom edge is fixed, so each further message grows the column upward.

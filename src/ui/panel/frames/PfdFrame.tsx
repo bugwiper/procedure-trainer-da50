@@ -17,17 +17,33 @@ import {
   verticalSpeedText,
 } from '../../../aircraft/da50rg/avionics';
 import { DEFAULT_SCENE } from '../../../aircraft/da50rg/scenes';
-import { ALTITUDE_BLOCK, ATTITUDE, PFD_ZONE } from '../../../aircraft/da50rg/pfd-layout';
+import {
+  ALTITUDE_BLOCK,
+  ALTITUDE_READOUT,
+  ALTITUDE_TAPE,
+  ATTITUDE,
+  COMPASS,
+  FT_LABEL,
+  HEADING_BOX,
+  HEADING_FRAME,
+  INSET_MAP,
+  KT_LABEL,
+  PFD_ZONE,
+  SPEED_READOUT,
+  SPEED_TAPE,
+  TAPE_OPACITY,
+} from '../../../aircraft/da50rg/pfd-layout';
 import { CasChips } from './CasChips';
 import { GlassHeader, LegendRow, SCREEN_FILL, glassSecondRowLive } from './MfdFrame';
 import type { FrameProps } from './MfdFrame';
 import { SyntheticVision } from './SyntheticVision';
 
 const WHITE = '#ffffff';
+/** The dark glass of the tapes (translucent by TAPE_OPACITY) and of the compass backing. */
+const TAPE_FILL = '#12181e';
+const BACKING_FILL = '#080b0e';
 const LABEL = '#aab3bd';
 
-const ATT_Y = 34;
-const ATT_H = 232;
 const HORIZON_Y = ATTITUDE.cy;
 const HORIZON_REACH = ATTITUDE.reach;
 /** The pitch ladder: a line every 5 degrees, a long one every 10, to 30 degrees each side. */
@@ -43,9 +59,9 @@ const BANK_CY = 150;
 const BANK_TICKS: readonly number[] = [10, 20, 30, 45, 60];
 // Compass arc (Table D5): a semicircle of radius 66 about (247.5, 338) with 12 ticks, 15 degrees
 // apart and symmetric about straight up.
-const COMPASS_CX = 247.5;
-const COMPASS_CY = 338;
-const COMPASS_R = 66;
+const COMPASS_CX = COMPASS.cx;
+const COMPASS_CY = COMPASS.cy;
+const COMPASS_R = COMPASS.r;
 const COMPASS_TICKS: readonly number[] = Array.from({ length: 12 }, (_, i) => -82.5 + 15 * i);
 
 /** A number for a transform: two decimals, never a negative zero (a level horizon is the identity). */
@@ -172,24 +188,39 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
         </g>
 
         <g data-testid="pfd-airspeed">
-          <rect x={10} y={ATT_Y} width={80} height={ATT_H} fill="#12181e" stroke="#3a424b" />
+          <rect
+            x={SPEED_TAPE.x}
+            y={SPEED_TAPE.y}
+            width={SPEED_TAPE.width}
+            height={SPEED_TAPE.height}
+            fill={TAPE_FILL}
+            fill-opacity={TAPE_OPACITY}
+            stroke="#3a424b"
+          />
           {/* The ticks wrap inside the band; the tape moves with the speed (ground speed on the roll). */}
           {speedTickOffsets(airspeed).map((offset, i) => (
             <line
               key={i}
-              x1={74}
-              y1={ATT_Y + 9 + offset}
-              x2={90}
-              y2={ATT_Y + 9 + offset}
+              x1={SPEED_TAPE.tickX1}
+              y1={SPEED_TAPE.y + SPEED_TAPE.tickTop + offset}
+              x2={SPEED_TAPE.tickX2}
+              y2={SPEED_TAPE.y + SPEED_TAPE.tickTop + offset}
               stroke={LABEL}
               stroke-width={1.5}
             />
           ))}
-          <rect x={10} y={HORIZON_Y - 16} width={64} height={32} fill="#000000" stroke={WHITE} />
+          <rect
+            x={SPEED_READOUT.x}
+            y={SPEED_READOUT.y}
+            width={SPEED_READOUT.width}
+            height={SPEED_READOUT.height}
+            fill="#000000"
+            stroke={WHITE}
+          />
           <text
             class="glass-digits"
             data-airspeed-readout
-            x={66}
+            x={SPEED_READOUT.textRight}
             y={HORIZON_Y + 8}
             text-anchor="end"
             font-size={14}
@@ -197,44 +228,45 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
           >
             {String(airspeedReadout(airspeed))}
           </text>
-          <text x={50} y={276} text-anchor="middle" font-size={8} fill={LABEL}>
+          <text x={KT_LABEL.x} y={KT_LABEL.y} text-anchor="middle" font-size={8} fill={LABEL}>
             KT
           </text>
         </g>
 
         <g data-testid="pfd-altitude">
           <rect
-            x={ALTITUDE_BLOCK.x}
-            y={ATT_Y}
-            width={80}
-            height={ATT_H}
-            fill="#12181e"
+            x={ALTITUDE_TAPE.x}
+            y={ALTITUDE_TAPE.y}
+            width={ALTITUDE_TAPE.width}
+            height={ALTITUDE_TAPE.height}
+            fill={TAPE_FILL}
+            fill-opacity={TAPE_OPACITY}
             stroke="#3a424b"
           />
           {/* The ticks wrap inside the band; the tape moves with the altitude, 100 ft per 30 px. */}
           {altitudeTickOffsets(altitude).map((offset, i) => (
             <line
               key={i}
-              x1={ALTITUDE_BLOCK.x}
-              y1={ATT_Y + 9 + offset}
-              x2={ALTITUDE_BLOCK.x + 16}
-              y2={ATT_Y + 9 + offset}
+              x1={ALTITUDE_TAPE.x}
+              y1={ALTITUDE_TAPE.y + ALTITUDE_TAPE.tickTop + offset}
+              x2={ALTITUDE_TAPE.x + ALTITUDE_TAPE.tickLength}
+              y2={ALTITUDE_TAPE.y + ALTITUDE_TAPE.tickTop + offset}
               stroke={LABEL}
               stroke-width={1.5}
             />
           ))}
           <rect
-            x={ALTITUDE_BLOCK.x + 6}
-            y={HORIZON_Y - 16}
-            width={74}
-            height={32}
+            x={ALTITUDE_READOUT.x}
+            y={ALTITUDE_READOUT.y}
+            width={ALTITUDE_READOUT.width}
+            height={ALTITUDE_READOUT.height}
             fill="#000000"
             stroke={WHITE}
           />
           <text
             class="glass-digits"
             data-altitude-readout
-            x={ALTITUDE_BLOCK.x + 75}
+            x={ALTITUDE_READOUT.textRight}
             y={HORIZON_Y + 8}
             text-anchor="end"
             font-size={14}
@@ -242,13 +274,21 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
           >
             {String(altitudeReadout(altitude))}
           </text>
-          <text x={ALTITUDE_BLOCK.x + 40} y={276} text-anchor="middle" font-size={8} fill={LABEL}>
+          <text x={FT_LABEL.x} y={FT_LABEL.y} text-anchor="middle" font-size={8} fill={LABEL}>
             FT
           </text>
         </g>
 
-        {/* Compass arc, drawn first so the heading block reads on top of it. */}
+        {/* Compass arc, drawn first so the heading block reads on top of it. A translucent dark half
+            disc lies under it so that the ticks read on the synthetic vision (D-10). */}
         <g>
+          <path
+            data-compass-backing
+            d={`M ${polar(COMPASS_CX, COMPASS_CY, COMPASS.backingR, -90)} A ${COMPASS.backingR} ${COMPASS.backingR} 0 0 1 ${polar(COMPASS_CX, COMPASS_CY, COMPASS.backingR, 90)} Z`}
+            fill={BACKING_FILL}
+            fill-opacity={COMPASS.backingOpacity}
+            stroke="none"
+          />
           <path
             data-compass-arc
             d={`M ${polar(COMPASS_CX, COMPASS_CY, COMPASS_R, -90)} A ${COMPASS_R} ${COMPASS_R} 0 0 1 ${polar(COMPASS_CX, COMPASS_CY, COMPASS_R, 90)}`}
@@ -270,8 +310,23 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
 
         <g data-testid="pfd-heading">
           {/* A transparent box: the compass ticks show through it. */}
-          <rect x={170} y={276} width={155} height={60} rx={6} fill="none" stroke="none" />
-          <rect x={218} y={282} width={60} height={26} fill="#000000" stroke={WHITE} />
+          <rect
+            x={HEADING_FRAME.x}
+            y={HEADING_FRAME.y}
+            width={HEADING_FRAME.width}
+            height={HEADING_FRAME.height}
+            rx={6}
+            fill="none"
+            stroke="none"
+          />
+          <rect
+            x={HEADING_BOX.x}
+            y={HEADING_BOX.y}
+            width={HEADING_BOX.width}
+            height={HEADING_BOX.height}
+            fill="#000000"
+            stroke={WHITE}
+          />
           <text
             class="glass-digits"
             x={248}
@@ -288,7 +343,15 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
         </g>
 
         {/* Inset map: an empty frame with no map content. */}
-        <rect data-inset-map x={6} y={280} width={90} height={60} fill="#0e1a14" stroke="#3a424b" />
+        <rect
+          data-inset-map
+          x={INSET_MAP.x}
+          y={INSET_MAP.y}
+          width={INSET_MAP.width}
+          height={INSET_MAP.height}
+          fill="#0e1a14"
+          stroke="#3a424b"
+        />
 
         {/* Barometer setting box. */}
         <rect

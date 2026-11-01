@@ -35,6 +35,36 @@ export const COMPASS_BOX_REF: RectRef = { x: 181.5, y: 272, w: 132, h: 66 };
 /** The heading box (a transparent frame around the HDG block and the compass ticks). */
 export const HEADING_BOX_REF: RectRef = { x: 170, y: 276, w: 155, h: 60 };
 
+/** The readout box of the speed tape (centred on the attitude centre height 150). */
+export const SPEED_READOUT_REF: RectRef = { x: 10, y: 134, w: 64, h: 32 };
+
+/** The heading box with its white frame, inside the heading frame. */
+export const HEADING_BLOCK_REF: RectRef = { x: 218, y: 282, w: 60, h: 26 };
+
+/** Tick geometry of the tapes: ticks at the right edge of the speed tape, at the left edge of the altitude tape. */
+export const TAPE_TICKS_REF = {
+  speedX1: 74,
+  speedX2: 90,
+  altitudeLength: 16,
+  /** Offset of the tick pattern below the top of both tapes. */
+  top: 9,
+} as const;
+
+/** The static unit labels under the tapes: text centre and baseline. */
+export const LABELS_REF = { KT: { x: 50, y: 276 }, FT: { x: 395, y: 276 } } as const;
+
+/** The compass: centre, radius of the rose and radius of the translucent backing half disc. */
+export const COMPASS_REF = { cx: 247.5, cy: 338, r: 66, backingR: 70, ticks: 12 } as const;
+
+/** The backing half disc as a box: x 177.5 to 317.5, y 268 to 338. */
+export const BACKING_BOX_REF: RectRef = { x: 177.5, y: 268, w: 140, h: 70 };
+
+/** The fill opacity of the dark glass of both tapes: the exact design value and the allowed range. */
+export const TAPE_OPACITY_REF = 0.55;
+export const TAPE_OPACITY_RANGE = { min: 0.4, max: 0.7 } as const;
+/** The compass backing: dark glass at about half. */
+export const BACKING_OPACITY_REF = 0.5;
+
 /** The empty inset map frame. */
 export const INSET_MAP_REF: RectRef = { x: 6, y: 280, w: 90, h: 60 };
 
