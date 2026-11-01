@@ -33,7 +33,14 @@ test('no horizontal scroll and the whole panel is visible', async ({ page }) => 
   const regions = page.locator('[data-region-id]');
   await expect(regions).toHaveCount(ALL_REGION_IDS.length);
   for (const id of ALL_REGION_IDS) {
-    const box = await page.locator(`[data-region-id="${id}"]`).boundingBox();
+    // A glass region holds a clipped view (the synthetic vision of the PFD, Phase 6.1, is drawn far
+    // larger than the glass and clipped to the content zone). Chromium reports the box of the
+    // unclipped geometry for such a group, so the visible extent of a glass region is its screen
+    // rectangle; every painted part inside the zones is gated in glass.spec.ts.
+    const screen = page.locator(`[data-region-id="${id}"] [data-glass-zone="screen"]`);
+    const target =
+      (await screen.count()) > 0 ? screen.first() : page.locator(`[data-region-id="${id}"]`);
+    const box = await target.boundingBox();
     if (box === null) throw new Error(`region ${id} has no bounding box`);
     expect(box.x, id).toBeGreaterThanOrEqual(svg.x - TOLERANCE_PX);
     expect(box.y, id).toBeGreaterThanOrEqual(svg.y - TOLERANCE_PX);
