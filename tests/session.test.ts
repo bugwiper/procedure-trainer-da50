@@ -15,6 +15,7 @@ import { parseScenario } from '../src/scenario/parse';
 import { OPEN_ACCESS, createPackProvider } from '../src/scenario/packs';
 import type { AccessPolicy } from '../src/scenario/packs';
 import { createPanelBridge } from '../src/ui/bridge';
+import { anyModalOpen } from '../src/ui/modals';
 import { SESSION_LAYOUT, pageCount, pageSlice } from '../src/ui/panel/session-area';
 import { reasonLines } from '../src/ui/debrief-text';
 import { attachClockDriver } from '../src/ui/clock-driver';
@@ -1912,5 +1913,120 @@ describe('mode and hint (phase 07, SES-02, D-02 to D-04)', () => {
     r.session.askHint();
     r.session.failRun(new Error('boom'));
     expect(r.session.hint.value).toBeNull();
+  });
+
+  describe('the checklist sheet (07-01 task 2, D-03)', () => {
+    it('toggles in a Training run on every level and clears when the run ends', async () => {
+      for (const level of ['easy', 'medium'] as const) {
+        const r = rig();
+        await r.session.newSituation();
+        r.session.setMode('training');
+        r.session.setLevel(level);
+        r.session.startRun();
+        expect(r.session.checklistShown.value).toBe(false);
+        r.session.toggleChecklist();
+        expect(r.session.checklistShown.value).toBe(true);
+        r.session.toggleChecklist();
+        expect(r.session.checklistShown.value).toBe(false);
+        r.session.toggleChecklist();
+        r.session.complete();
+        expect(r.session.checklistShown.value).toBe(false);
+      }
+    });
+
+    it('toggles in a Realistic run, which starts at the level pick', async () => {
+      let next = 0;
+      const draws = [0.5, 0.75];
+      const r = rig({ rng: () => draws[next++] ?? 0 });
+      await r.session.newSituation();
+      r.session.setMode('training');
+      r.session.setLevel('realistic');
+      expect(r.session.screen.value).toBe('running');
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(true);
+    });
+
+    it('does nothing in Exam mode or outside a run', async () => {
+      const exam = await started();
+      exam.session.toggleChecklist();
+      expect(exam.session.checklistShown.value).toBe(false);
+
+      const r = rig();
+      r.session.setMode('training');
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(false);
+      await r.session.newSituation();
+      r.session.setMode('training');
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(false);
+      r.session.setLevel('easy');
+      r.session.startRun();
+      r.session.complete();
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(false);
+    });
+
+    it('is cleared by leaving the run, a failed step and closing the debrief', async () => {
+      const left = await training();
+      left.session.toggleChecklist();
+      left.session.resetPanel();
+      await left.session.leaveRun();
+      expect(left.session.checklistShown.value).toBe(false);
+      expect(left.session.runBranches.value).toEqual([]);
+
+      const failed = await training();
+      failed.session.toggleChecklist();
+      failed.session.failRun(new Error('boom'));
+      expect(failed.session.checklistShown.value).toBe(false);
+
+      const closed = await training();
+      closed.session.toggleChecklist();
+      closed.session.complete();
+      closed.session.closeDebrief();
+      expect(closed.session.checklistShown.value).toBe(false);
+
+      const again = await training();
+      expect(again.session.checklistShown.value).toBe(false);
+    });
+
+    it('holds the branch statuses the briefing showed, from the file of the run', async () => {
+      const r = rig();
+      await r.session.newSituation();
+      const briefed = r.session.briefing.value?.branches;
+      r.session.setMode('training');
+      r.session.setLevel('easy');
+      r.session.startRun();
+      expect(briefed?.length).toBeGreaterThan(0);
+      expect(r.session.runBranches.value).toEqual(briefed);
+    });
+
+    it('does not block the run clock: no modal is open with the sheet shown, and the clock keeps advancing', async () => {
+      const r = await training();
+      const clock = r.session.clock.value;
+      const run = r.session.run.value;
+      if (clock === null || run === null) throw new Error('no run');
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(true);
+      expect(anyModalOpen.peek()).toBe(false);
+      const before = clock.now();
+      for (let i = 0; i < 10; i++) run.step();
+      expect(clock.now()).toBeGreaterThan(before);
+      // The panel still takes a press with the sheet shown.
+      r.bridge.actuate('lv.power', 'p50');
+      expect(r.bridge.stateOf('lv.power').value).toBe('p50');
+    });
+
+    it('never touches a grade', async () => {
+      const results: string[] = [];
+      for (const showing of [false, true]) {
+        const r = await training();
+        if (showing) r.session.toggleChecklist();
+        r.bridge.actuate('lv.power', 'p50');
+        r.bridge.actuate('lv.cowl_flap', 'open');
+        r.session.complete();
+        results.push(JSON.stringify(r.session.result.value));
+      }
+      expect(results[0]).toBe(results[1]);
+    });
   });
 });

@@ -200,6 +200,16 @@ export interface Session {
    */
   readonly hint: ReadonlySignal<HintState | null>;
   /**
+   * True while the checklist sheet of a Training run is shown (D-03). A non-modal sheet: the run
+   * clock keeps running and the panel stays operable. Cleared whenever the run ends.
+   */
+  readonly checklistShown: ReadonlySignal<boolean>;
+  /**
+   * The branch statuses of the current run's scenario as the briefing showed them (decided at the
+   * start), for the checklist sheet; empty outside a run.
+   */
+  readonly runBranches: ReadonlySignal<readonly BranchVerdict[]>;
+  /**
    * The onset of the current or last realistic run (time in run ms and the seed it was drawn
    * from); null for Easy and Medium and outside a run. Run data, kept until the next start.
    */
@@ -265,6 +275,11 @@ export interface Session {
    * run. It records nothing and changes no grade.
    */
   askHint(): void;
+  /**
+   * Training run only: shows or hides the checklist sheet, on every level. Does nothing in Exam mode
+   * or outside a run. It records nothing and changes no grade.
+   */
+  toggleChecklist(): void;
   /** Briefing only: the panel takes the scenario's initial state and the run begins. */
   startRun(): void;
   /** Briefing only: back to the free panel, nothing changed. */
@@ -352,6 +367,8 @@ export function createSession(deps: SessionDeps): Session {
     variant.value = null;
     clock.value = null;
     hint.value = null;
+    checklistShown.value = false;
+    runBranches.value = [];
     confirm.value = null;
     choices.value = [];
     choosePage.value = 0;
@@ -365,6 +382,8 @@ export function createSession(deps: SessionDeps): Session {
   const mode = signal<Mode>('exam');
   const modePicked = signal(false);
   const hint = signal<HintState | null>(null);
+  const checklistShown = signal(false);
+  const runBranches = signal<readonly BranchVerdict[]>([]);
   const onset = signal<RecordedOnset | null>(null);
   const variant = signal<RecordedVariant | null>(null);
   const recording = signal<Recording | null>(null);
@@ -399,6 +418,8 @@ export function createSession(deps: SessionDeps): Session {
     recording.value = graded;
     result.value = grade(current, env, graded);
     hint.value = null;
+    checklistShown.value = false;
+    runBranches.value = [];
     runClock.pause();
     bridge.setTimeSource(null);
     screen.value = 'debrief';
@@ -451,6 +472,8 @@ export function createSession(deps: SessionDeps): Session {
     result.value = null;
     recording.value = null;
     hint.value = null;
+    checklistShown.value = false;
+    runBranches.value = branchStatuses(opened, env);
     onset.value = drawn;
     variant.value = cause;
     run.value = current;
@@ -596,6 +619,8 @@ export function createSession(deps: SessionDeps): Session {
     mode,
     modePicked,
     hint,
+    checklistShown,
+    runBranches,
     onset,
     variant,
     recording,
@@ -672,6 +697,8 @@ export function createSession(deps: SessionDeps): Session {
       variant.value = null;
       clock.value = null;
       hint.value = null;
+      checklistShown.value = false;
+      runBranches.value = [];
       confirm.value = null;
       lastRequest = null;
       screen.value = 'free';
@@ -725,6 +752,10 @@ export function createSession(deps: SessionDeps): Session {
       const open = nextOpenStep(current, env, graded);
       hint.value = open === null ? { kind: 'none' } : { kind: 'step', step: open };
     },
+    toggleChecklist() {
+      if (mode.peek() !== 'training' || screen.peek() !== 'running') return;
+      checklistShown.value = !checklistShown.peek();
+    },
     startRun() {
       const briefed = briefing.peek();
       if (screen.peek() !== 'briefing' || briefed === null) return;
@@ -740,6 +771,8 @@ export function createSession(deps: SessionDeps): Session {
       if (screen.peek() !== 'debrief') return;
       endRun();
       hint.value = null;
+      checklistShown.value = false;
+      runBranches.value = [];
       // A run timer cannot outlive its run (C-23): the lamps go dark, the quantities stay as left.
       bridge.setFlags({});
       clock.value = null;

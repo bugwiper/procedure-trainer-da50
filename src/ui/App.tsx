@@ -21,6 +21,7 @@ import { Briefing } from './screens/Briefing';
 import { HintLine } from './screens/HintLine';
 import { LevelPick } from './screens/LevelPick';
 import { ModePick } from './screens/ModePick';
+import { RunChecklist } from './screens/RunChecklist';
 import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
 import { Debrief } from './screens/Debrief';
 import { parsePreviewFlags, parsePreviewQuantities } from './preview';
@@ -209,6 +210,10 @@ const setMode = (mode: Mode) => {
   session.setMode(mode);
 };
 
+const toggleChecklist = () => {
+  session.toggleChecklist();
+};
+
 const backToPanel = () => {
   session.backToPanel();
 };
@@ -219,6 +224,7 @@ export function App() {
   const briefed = session.briefing.value;
   const result = session.result.value;
   const hint = session.hint.value;
+  const sheetShown = screen === 'running' && session.checklistShown.value;
   // The footer grows to hold the 44 px run button from the briefing until the debrief closes, so
   // the panel does not resize at Start run or at Procedure complete (UI-SPEC D-15, U-02).
   const inSession = screen !== 'free' && screen !== 'choosing';
@@ -238,7 +244,7 @@ export function App() {
   }, [choosing]);
   return (
     <div class="stage">
-      <div class="panel-area">
+      <div class="panel-area" data-checklist-shown={sheetShown ? 'true' : undefined}>
         <Panel bridge={bridge} session={session} />
         {isZoomed.value ? (
           <button
@@ -263,6 +269,13 @@ export function App() {
           >
             Full panel
           </button>
+        ) : null}
+        {sheetShown && scenario !== null ? (
+          <RunChecklist
+            scenario={scenario}
+            branches={session.runBranches.value}
+            onHide={toggleChecklist}
+          />
         ) : null}
         {screen === 'running' && hint !== null ? <HintLine hint={hint} /> : null}
       </div>

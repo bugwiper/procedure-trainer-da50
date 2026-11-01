@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { MODE_HINTS } from '../src/ui/session';
 import { parseScenario } from '../src/scenario/parse';
 import type { ProcedureNode, Scenario, Step } from '../src/scenario/schema';
-import { chooseScenario, pickMode, startScenario } from './support/session';
+import { chooseScenario, pickMode, startRealistic, startScenario } from './support/session';
 import { activate } from './support/zoom';
 
 // SES-02 (phase 07, plan 07-01): Training and Exam are their own card before the level. A Training
@@ -58,6 +58,12 @@ async function expectHint(page: Page, step: Step): Promise<void> {
   else await expect(page.getByTestId('hint-action')).toHaveText(step.action);
 }
 
+type HookHost = { __panelSession?: { now(): number | null } };
+function clockNow(page: Page): Promise<number | null> {
+  return page.evaluate(() => (globalThis as HookHost).__panelSession?.now() ?? null);
+}
+
+type Box = { x: number; y: number; width: number; height: number };
 const control = (page: Page, id: string) => page.locator(`[data-control-id="${id}"]`);
 
 test('the mode card comes before the level card and offers Training and Exam with their lines', async ({
@@ -150,4 +156,102 @@ test('Exam: neither HINT nor CHECKLIST is drawn, the three session buttons are',
     await expect(page.locator(`[data-session-hit="${id}"]`)).toHaveCount(1);
   }
   await expect(page.getByTestId('hint-line')).toHaveCount(0);
+});
+
+test('@hooks Training on Medium: CHECKLIST shows the printed checklist in a non-modal sheet, the clock keeps running and the panel works', async ({
+  page,
+  hasTouch,
+}) => {
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  const scenario = scenarioFile('engine/eng-oil-temp-green');
+  const steps = stepsOf(scenario.procedure);
+  const head = scenario.checklist;
+
+  await startScenario(page, hasTouch, ENGINE_ROW, 'medium', 'training');
+  // Medium has no checklist in the briefing; the sheet is the way to see it.
+  await expect(page.getByTestId('run-checklist')).toHaveCount(0);
+
+  await activate(page.locator(CHECKLIST), hasTouch);
+  const sheet = page.getByTestId('run-checklist');
+  await expect(sheet).toBeVisible();
+  if (head?.heading !== undefined) await expect(sheet).toContainText(head.heading);
+  if (head?.message !== undefined) await expect(sheet).toContainText(head.message);
+  for (const step of steps) await expect(sheet).toContainText(step.text);
+  await expect(page.locator('[data-session-button="session.checklist"]')).toHaveAttribute(
+    'data-pressed',
+    'true',
+  );
+  // Not a modal: no dialog, the clock keeps advancing.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const before = await clockNow(page);
+  await page.waitForTimeout(800);
+  expect(await clockNow(page)).toBeGreaterThan((before ?? 0) + 400);
+
+  // The sheet takes at most about 40 per cent of the panel area and stays above the footer.
+  const area = await page.locator('.panel-area').boundingBox();
+  const box = await sheet.boundingBox();
+  const footer = await page.locator('footer').boundingBox();
+  if (area === null || box === null || footer === null) throw new Error('no boxes');
+  expect(box.width * box.height).toBeLessThanOrEqual(area.width * area.height * 0.41);
+  expect(box.y + box.height).toBeLessThanOrEqual(footer.y + 1);
+
+  // A panel control the sheet does not cover takes a press with the sheet open; otherwise it is hidden first.
+  const overlaps = (hit: Box | null, other: Box): boolean =>
+    hit !== null &&
+    hit.x < other.x + other.width &&
+    hit.x + hit.width > other.x &&
+    hit.y < other.y + other.height &&
+    hit.y + hit.height > other.y;
+  const target = page.locator('[data-detent="lv.power:p50"]');
+  const covered = overlaps(await target.boundingBox(), box);
+  if (covered) await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  await activate(target, hasTouch);
+  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p50');
+  if (covered) await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(sheet).toBeVisible();
+
+  // A second tap on CHECKLIST hides the sheet (where the sheet leaves the button free; on a narrow
+  // portrait phone the bottom sheet covers the pad, which is why the sheet has its own hide button),
+  // the hide button hides it, Escape inside it hides it.
+  const padCovered = overlaps(await page.locator(CHECKLIST).boundingBox(), box);
+  if (!padCovered) {
+    await activate(page.locator(CHECKLIST), hasTouch);
+    await expect(sheet).toHaveCount(0);
+    await activate(page.locator(CHECKLIST), hasTouch);
+    await expect(sheet).toBeVisible();
+  }
+  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  await expect(sheet).toHaveCount(0);
+  await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(sheet).toBeVisible();
+  await page.getByTestId('run-checklist-body').focus();
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+});
+
+test('@hooks Training on Realistic: CHECKLIST works from the start of the run', async ({
+  page,
+  hasTouch,
+}) => {
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await startRealistic(page, hasTouch, ENGINE_ROW, 'training');
+  await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(page.getByTestId('run-checklist')).toBeVisible();
+  // The title of the scenario is still not named on the page; the checklist is the printed one.
+  await expect(page.getByTestId('run-checklist')).toContainText(
+    scenarioFile('engine/eng-oil-temp-green').checklist?.heading ?? '',
+  );
+});
+
+test('the sheet is gone when the run ends', async ({ page, hasTouch }) => {
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await startScenario(page, hasTouch, ENGINE_ROW, 'easy', 'training');
+  await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(page.getByTestId('run-checklist')).toBeVisible();
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toBeVisible();
+  await expect(page.getByTestId('run-checklist')).toHaveCount(0);
 });

@@ -1013,3 +1013,82 @@ body,
     max-width: calc(100% - 16px);
   }
 }
+
+/* The checklist sheet of a Training run (Phase 7, H-04): docked to the left of the panel area, at most
+   40 per cent of its width (a bottom sheet of 40 per cent of its height on a narrow portrait phone),
+   scrollable, above the panel and under the modals. It lies inside the panel area, so the footer is
+   never covered. No animation. The hint line moves aside while it is shown. */
+.panel-area[data-checklist-shown] {
+  --sheet-w: min(40%, 380px);
+}
+
+.run-checklist {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 15;
+  box-sizing: border-box;
+  width: var(--sheet-w, min(40%, 380px));
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #3a424b;
+  background: rgba(27, 31, 37, 0.96);
+  color: #e6e9ed;
+  font-family: var(--font-placard);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.run-checklist-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #3a424b;
+}
+
+.run-checklist-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.run-checklist-hide {
+  flex: 0 0 auto;
+}
+
+.run-checklist-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  touch-action: pan-y;
+  padding: 8px 12px 12px;
+}
+
+.panel-area[data-checklist-shown] .hint-line {
+  left: calc(var(--sheet-w) + (100% - var(--sheet-w)) / 2);
+  max-width: min(640px, calc(100% - var(--sheet-w) - 2 * 136px));
+}
+
+@media (orientation: portrait) and (max-width: 700px) {
+  .panel-area[data-checklist-shown] {
+    --sheet-w: 100%;
+  }
+
+  .run-checklist {
+    top: auto;
+    height: 40%;
+    border-right: 0;
+    border-top: 1px solid #3a424b;
+  }
+
+  .panel-area[data-checklist-shown] .hint-line {
+    left: 50%;
+    max-width: calc(100% - 16px);
+  }
+}
