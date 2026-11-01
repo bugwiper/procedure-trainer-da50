@@ -470,8 +470,8 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
     return value;
   };
 
-  /** The static display values of the engine page (Phase 6, E-05): no model moves them. */
-  const STATIC_DISPLAY = ['oxygen_psi', 'rudder_trim_pct', 'service_hours'];
+  /** The static display values (engine page, Phase 6 E-05; the PFD QNH, Phase 6.1): no model moves them. */
+  const STATIC_DISPLAY = ['oxygen_psi', 'rudder_trim_pct', 'service_hours', 'qnh_hpa'];
 
   it('every quantity has exactly one model, except the static display values of the engine page', () => {
     const modelled = DA50RG_PHYSICS.models.map((m) => m.quantity).sort();

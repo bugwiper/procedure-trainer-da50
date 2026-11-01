@@ -10,7 +10,7 @@ import { defineQuantities } from '../../engine/quantities';
 // heat timer and the fuel quantities of Phase 6 (fuel_trans_active, fuel_flow_gph, fuel_used_gal) have no gauge of their
 // own (hidden quantities); the Amps gauge shows alternator 1 (C-10). rudder_trim_pct, oxygen_psi,
 // deice_qty_gal and service_hours are static display values of the engine page (Phase 6, plan 02,
-// E-05): no model moves them (the de-ice quantity has a rate model in physics.ts), a scenario may
+// E-05), and qnh_hpa, the barometer setting of the PFD (Phase 6.1, D-12), is one too: no model moves them (the de-ice quantity has a rate model in physics.ts), a scenario may
 // set them, and their bases and bands are layout assumptions, not AFM figures. The fuel temperatures, the
 // two tank quantities (0 to the tank capacity, one band table) and the fuel flow are the Phase 6 fuel
 // model (physics.ts).
@@ -281,6 +281,17 @@ export const DA50RG_QUANTITIES = defineQuantities([
     max: 99999,
     base: 249.5,
     bands: [{ id: 'unmarked', colour: 'none', to: 99999 }],
+  },
+  {
+    // Static display value (Phase 6.1, D-12): the barometer setting the PFD shows under the altitude
+    // tape, in hPa. No model moves it, a scenario may set it, and it does not correct the altitude.
+    // One unmarked band; the base 1013 (standard pressure) is a layout assumption.
+    id: 'qnh_hpa',
+    unit: 'hPa',
+    min: 950,
+    max: 1050,
+    base: 1013,
+    bands: [{ id: 'unmarked', colour: 'none', to: 1050 }],
   },
   {
     id: 'bus_volts',

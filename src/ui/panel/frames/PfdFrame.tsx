@@ -4,6 +4,7 @@ import {
   PFD_BANK_QUANTITY,
   PFD_LEGENDS,
   PFD_PITCH_QUANTITY,
+  PFD_QNH_QUANTITY,
   PFD_VERTICAL_SPEED_QUANTITY,
   PITCH_LADDER_MAX_DEG,
   PITCH_LADDER_STEP_DEG,
@@ -13,11 +14,11 @@ import {
   altitudeTickOffsets,
   horizonRotationDeg,
   pitchShiftPx,
+  qnhReadout,
   speedTickOffsets,
 } from '../../../aircraft/da50rg/avionics';
 import { DEFAULT_SCENE } from '../../../aircraft/da50rg/scenes';
 import {
-  ALTITUDE_BLOCK,
   ALTITUDE_READOUT,
   ALTITUDE_TAPE,
   ATTITUDE,
@@ -28,12 +29,19 @@ import {
   INSET_MAP,
   KT_LABEL,
   PFD_ZONE,
+  QNH_READOUT,
   SPEED_READOUT,
   SPEED_TAPE,
   TAPE_OPACITY,
 } from '../../../aircraft/da50rg/pfd-layout';
 import { CasChips } from './CasChips';
-import { GlassHeader, LegendRow, SCREEN_FILL, glassSecondRowLive } from './MfdFrame';
+import {
+  GLASS_TURQUOISE,
+  GlassHeader,
+  LegendRow,
+  SCREEN_FILL,
+  glassSecondRowLive,
+} from './MfdFrame';
 import type { FrameProps } from './MfdFrame';
 import { SyntheticVision } from './SyntheticVision';
 import { VerticalSpeedScale } from './VerticalSpeedScale';
@@ -92,6 +100,7 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
   const airspeed = bridge.quantities.value[PFD_AIRSPEED_QUANTITY];
   const altitude = bridge.quantities.value[PFD_ALTITUDE_QUANTITY];
   const verticalSpeed = bridge.quantities.value[PFD_VERTICAL_SPEED_QUANTITY];
+  const qnh = bridge.quantities.value[PFD_QNH_QUANTITY];
   // The horizon group moves down by the pitch and turns by minus the bank about the attitude centre
   // (the numbers pass through toFixed, never as raw strings). The roll pointer turns with it.
   const shift = pitchShiftPx(bridge.quantities.value[PFD_PITCH_QUANTITY]);
@@ -374,18 +383,32 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
           stroke="#3a424b"
         />
 
-        {/* Barometer setting box. */}
-        <rect
-          data-baro-box
-          x={ALTITUDE_BLOCK.x}
-          y={280}
-          width={80}
-          height={20}
-          fill="#12181e"
-          stroke="#3a424b"
-        />
-        <text x={ALTITUDE_BLOCK.x + 40} y={293.5} text-anchor="middle" font-size={6} fill={WHITE}>
-          1013 HPA
+        {/* The barometer setting under the altitude tape (Phase 6.1, D-12): the value follows the
+            static quantity qnh_hpa, the unit label is static (G-0). Display only. */}
+        <text
+          class="glass-digits"
+          data-qnh-readout
+          x={QNH_READOUT.valueRight}
+          y={QNH_READOUT.baseline}
+          text-anchor="end"
+          font-size={QNH_READOUT.valueSize}
+          fill={GLASS_TURQUOISE}
+          stroke={BACKING_FILL}
+          stroke-width={1.5}
+          paint-order="stroke"
+        >
+          {String(qnhReadout(qnh))}
+        </text>
+        <text
+          x={QNH_READOUT.unitX}
+          y={QNH_READOUT.baseline}
+          font-size={QNH_READOUT.unitSize}
+          fill={GLASS_TURQUOISE}
+          stroke={BACKING_FILL}
+          stroke-width={1.5}
+          paint-order="stroke"
+        >
+          HPA
         </text>
 
         {/* Annunciations: derived from the aircraft CAS rules, one column at the lower right, drawn

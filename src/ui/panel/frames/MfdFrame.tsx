@@ -41,7 +41,8 @@ export interface FrameProps {
 
 const TAB_FILL = '#1b2127';
 const TAB_TEXT = '#c9d0d8';
-const TAB_SELECTED_BORDER = '#3fd1e0';
+/** The turquoise of the glass: the selected tab frame, the swap arrows, the PFD barometer setting. */
+export const GLASS_TURQUOISE = '#3fd1e0';
 const TAB_SELECTED_BAR = '#3ddc84';
 
 /**
@@ -75,7 +76,7 @@ export function LegendRow({
               height={h}
               rx={1.5}
               fill={TAB_FILL}
-              stroke={selected ? TAB_SELECTED_BORDER : undefined}
+              stroke={selected ? GLASS_TURQUOISE : undefined}
               stroke-width={selected ? 1.2 : undefined}
             />
             {selected ? (
@@ -100,7 +101,7 @@ const HEADER_ACTIVE = '#ffffff';
 const HEADER_STANDBY = '#c9d0d8';
 const HEADER_TITLE = '#d8dde3';
 /** The swap arrows and the frames of the two standby frequencies (static, never a control). */
-const HEADER_SWAP = TAB_SELECTED_BORDER;
+const HEADER_SWAP = GLASS_TURQUOISE;
 
 const FREQ_FONT = 8;
 const LABEL_FONT = 6;

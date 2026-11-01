@@ -556,7 +556,7 @@ describe('glass header, content and legend zones', () => {
     expect(ids(mfdEngine)).toEqual(['mfd-engine-page']);
   });
 
-  it('the PFD content follows Table D5 (labels, heading block, bank arc, compass, inset map, baro box)', () => {
+  it('the PFD content follows Table D5 (labels, heading block, bank arc, compass, inset map, QNH readout)', () => {
     const content = zoneOf(pfd, 'content')[0];
     if (content === undefined) throw new Error('no content');
     const text = (s: string): El | undefined =>
@@ -575,14 +575,22 @@ describe('glass header, content and legend zones', () => {
     // Compass arc: 12 ticks.
     expect(findElements(content, (e) => 'data-compass-tick' in e.props)).toHaveLength(12);
     expect(findElements(content, (e) => 'data-compass-arc' in e.props)).toHaveLength(1);
-    // Inset map rectangle and baro box.
+    // Inset map rectangle and the QNH readout.
     const inset = findElements(content, (e) => 'data-inset-map' in e.props)[0];
     expect([inset?.props['x'], inset?.props['width'], inset?.props['fill']]).toEqual([
       6,
       90,
       '#0e1a14',
     ]);
-    expect(textsIn(content)).toContain('1013 HPA');
+    // Phase 6.1: the baro box is gone; the QNH value and the static unit HPA stand under the tape.
+    expect(textsIn(content)).toContain('1013');
+    expect(textsIn(content)).toContain('HPA');
+    expect(textsIn(content)).not.toContain('1013 HPA');
+    const turquoise = findElements(
+      content,
+      (e) => e.tag === 'text' && e.props['fill'] === '#3fd1e0',
+    );
+    expect(turquoise.map(textOf).sort()).toEqual(['1013', 'HPA']);
     // Plan 06-03: the altitude readout; Phase 6.1: the vertical speed scale replaces the VS box (no
     // label VS; the static numerals 1, 2, 3 twice each; the bare number lives in the moving box).
     expect(textsIn(content)).toContain('1400');

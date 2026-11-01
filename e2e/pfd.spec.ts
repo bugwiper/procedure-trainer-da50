@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { VS_SCALE_MAX_FPM, verticalSpeedPointerPx } from '../src/aircraft/da50rg/pfd-layout';
+import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import { DEFAULT_SCENE, SCENE_IDS } from '../src/aircraft/da50rg/scenes';
 import { startScenario } from './support/session';
 import { activate } from './support/zoom';
@@ -12,6 +13,7 @@ import { activate } from './support/zoom';
 const ALTITUDE = '[data-testid="pfd-altitude"] [data-altitude-readout]';
 const VS = '[data-vs-readout]';
 const VS_POINTER = '[data-testid="pfd-vs"] [data-vs-pointer]';
+const QNH = '[data-qnh-readout]';
 const NO_ABORT_ROW = 'fire.takeoff-fire-no-abort';
 
 test.beforeEach(async ({ page }) => {
@@ -53,6 +55,31 @@ test('the vertical speed strip carries the static numerals 1, 2 and 3 and no lab
   await expect(page.locator('[data-glass-zone="content"] text', { hasText: /^VS$/ })).toHaveCount(
     0,
   );
+});
+
+// The barometer setting (Phase 6.1, plan 03): a static display quantity, in turquoise under the tape.
+const QNH_DEF = DA50RG_QUANTITIES.get('qnh_hpa');
+if (QNH_DEF === undefined) throw new Error('no qnh_hpa');
+
+test('the free panel reads the base QNH with the static unit HPA and no baro box', async ({
+  page,
+}) => {
+  await expect(page.locator(QNH)).toHaveText(String(QNH_DEF.base));
+  await expect(page.locator('[data-glass-zone="content"] text', { hasText: /^HPA$/ })).toHaveCount(
+    1,
+  );
+  await expect(page.locator('[data-baro-box]')).toHaveCount(0);
+});
+
+test('?q=qnh_hpa: sets the readout and ignores a value outside the range', async ({ page }) => {
+  await page.goto('./?q=qnh_hpa:1021');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await expect(page.locator(QNH)).toHaveText('1021');
+  for (const bad of [QNH_DEF.max + 1, QNH_DEF.min - 1, 99999]) {
+    await page.goto(`./?q=qnh_hpa:${String(bad)}`);
+    await expect(page.getByTestId('panel')).toBeVisible();
+    await expect(page.locator(QNH)).toHaveText(String(QNH_DEF.base));
+  }
 });
 
 test('?q=vertical_speed_fpm: puts the box on the scale, a climb above the zero line', async ({

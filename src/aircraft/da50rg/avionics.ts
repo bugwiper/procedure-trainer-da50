@@ -508,6 +508,18 @@ export function altitudeTickOffsets(value: number | undefined): number[] {
 }
 
 /**
+ * The barometer setting (Phase 6.1, D-12): a static display quantity in hPa that the PFD shows under
+ * the altitude tape in whole hPa. No model moves it and it does not correct the altitude. A missing
+ * or non-finite reading shows the base (1013).
+ */
+export const PFD_QNH_QUANTITY = 'qnh_hpa';
+
+/** The whole hPa of the barometer setting readout. */
+export function qnhReadout(value: number | undefined): number {
+  return Math.round(readingOr(value, PFD_QNH_QUANTITY));
+}
+
+/**
  * The PFD attitude (Phase 6, plan 03, V-06): the horizon group (sky, ground, horizon line and pitch
  * ladder) is shifted by the pitch and rotated by minus the bank about the attitude centre; the bank
  * scale and the aircraft symbol stay fixed, the roll pointer turns with the horizon. A missing

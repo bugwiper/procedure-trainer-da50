@@ -12,6 +12,7 @@ import {
   KT_LABEL,
   SPEED_READOUT,
   SPEED_TAPE,
+  QNH_READOUT,
   TAPE_OPACITY,
   VS_BOX,
   VS_HALF_HEIGHT,
@@ -34,7 +35,6 @@ import {
   ALTITUDE_TAPE_REF,
   BACKING_BOX_REF,
   BACKING_OPACITY_REF,
-  BARO_BOX_REF,
   CAS_REF,
   COMPASS_BOX_REF,
   COMPASS_REF,
@@ -48,6 +48,8 @@ import {
   TAPE_OPACITY_RANGE,
   TAPE_OPACITY_REF,
   TAPE_TICKS_REF,
+  QNH_BOX_REF,
+  QNH_REF,
   VS_REF,
   VS_STRIP_REF,
   VS_TRAVEL_REF,
@@ -238,13 +240,12 @@ describe('the altitude block as drawn (moved 50 units left)', () => {
     expect(ALTITUDE_BLOCK.x).toBe(ALTITUDE_TAPE_REF.x);
   });
 
-  it('draws the tape, the readout box and the baro box at the reference rectangles', () => {
+  it('draws the tape and the readout box at the reference rectangles', () => {
     const altitude = byTestId('pfd-altitude');
     const [tape, readout] = rectsIn(altitude);
     expect(rectOf(tape)).toEqual(ALTITUDE_TAPE_REF);
     expect(rectOf(readout)).toEqual(ALTITUDE_READOUT_REF);
-    const baro = findElements(tree, (e) => 'data-baro-box' in e.props)[0];
-    expect(rectOf(baro)).toEqual(BARO_BOX_REF);
+    expect(findElements(tree, (e) => 'data-baro-box' in e.props)).toHaveLength(0);
   });
 
   it('leaves the speed tape where it was', () => {
@@ -330,6 +331,33 @@ describe('the vertical speed scale data and drawing', () => {
   });
 });
 
+describe('the barometer setting data and drawing', () => {
+  it('equals the reference anchors', () => {
+    expect({ ...QNH_READOUT }).toEqual({ ...QNH_REF });
+  });
+
+  it('draws the value and the unit on the baseline of the reference, under the FT label', () => {
+    const value = findElements(tree, (e) => 'data-qnh-readout' in e.props)[0];
+    const unit = findElements(tree, (e) => e.tag === 'text' && textOf(e) === 'HPA')[0];
+    expect([value?.props['x'], value?.props['y'], value?.props['font-size']]).toEqual([
+      QNH_REF.valueRight,
+      QNH_REF.baseline,
+      QNH_REF.valueSize,
+    ]);
+    expect([unit?.props['x'], unit?.props['y'], unit?.props['font-size']]).toEqual([
+      QNH_REF.unitX,
+      QNH_REF.baseline,
+      QNH_REF.unitSize,
+    ]);
+    // Below the unit label FT and the tape, inside the altitude block's columns.
+    expect(QNH_REF.baseline - QNH_REF.valueSize).toBeGreaterThan(LABELS_REF.FT.y);
+    expect(QNH_BOX_REF.y).toBeGreaterThan(ALTITUDE_TAPE_REF.y + ALTITUDE_TAPE_REF.h);
+    expect(QNH_BOX_REF.x).toBeGreaterThanOrEqual(ALTITUDE_TAPE_REF.x);
+    // Clear of the CAS column to its right.
+    expect(QNH_BOX_REF.x + QNH_BOX_REF.w).toBeLessThan(CAS_REF.x);
+  });
+});
+
 describe('the CAS column data', () => {
   it('equals the reference: x, width, row height, bottom edge and the maximum rows', () => {
     expect(CAS_COLUMN.x).toBe(CAS_REF.x);
@@ -371,7 +399,7 @@ describe('a full column against the rest of the PFD', () => {
     'speed tape': SPEED_TAPE_REF,
     'altitude tape': ALTITUDE_TAPE_REF,
     'altitude readout': ALTITUDE_READOUT_REF,
-    'baro box': BARO_BOX_REF,
+    'qnh text': QNH_BOX_REF,
     'vs strip': VS_STRIP_REF,
     'vs travel': VS_TRAVEL_REF,
     compass: COMPASS_BOX_REF,
@@ -408,7 +436,7 @@ describe('a full column against the rest of the PFD', () => {
       'altitude tape': ALTITUDE_TAPE_REF,
       'compass backing': BACKING_BOX_REF,
       'inset map': INSET_MAP_REF,
-      'baro box': BARO_BOX_REF,
+      'qnh text': QNH_BOX_REF,
       'vs travel': VS_TRAVEL_REF,
       'cas column': full,
     };

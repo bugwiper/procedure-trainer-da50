@@ -90,6 +90,19 @@ export const KT_LABEL = { x: 50, y: 276 } as const;
 export const FT_LABEL = { x: ALTITUDE_BLOCK.x + 40, y: 276 } as const;
 
 /**
+ * The barometer setting (D-12): the value in whole hPa, right-aligned, and the small static unit
+ * HPA beside it, under the FT label of the altitude tape. Anchors are text positions (the value ends
+ * at `valueRight`, the unit starts at `unitX`, both on `baseline`).
+ */
+export const QNH_READOUT = {
+  valueRight: 398,
+  unitX: 400,
+  baseline: 290,
+  valueSize: 8,
+  unitSize: 6,
+} as const;
+
+/**
  * The compass: a half rose of radius 66 about (247.5, 338), plain, no map and no deviation bar
  * (D-02, D-10). The backing is a translucent dark half disc a little larger, so the ticks read on the
  * synthetic vision.

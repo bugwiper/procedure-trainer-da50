@@ -26,7 +26,19 @@ export const SPEED_TAPE_REF: RectRef = { x: 10, y: 34, w: 80, h: 232 };
 /** The altitude block after the move 50 units left, from x 355. */
 export const ALTITUDE_TAPE_REF: RectRef = { x: 355, y: 34, w: 80, h: 232 };
 export const ALTITUDE_READOUT_REF: RectRef = { x: 361, y: 134, w: 74, h: 32 };
-export const BARO_BOX_REF: RectRef = { x: 355, y: 280, w: 80, h: 20 };
+/**
+ * The barometer setting under the altitude tape: the value ends at x 398, the unit HPA starts at x 400,
+ * both on the baseline y 290. A box around the two texts (value size 8 about 22 wide, unit size 6
+ * about 13 wide): x 374 to 416, y 283 to 293.
+ */
+export const QNH_REF = {
+  valueRight: 398,
+  unitX: 400,
+  baseline: 290,
+  valueSize: 8,
+  unitSize: 6,
+} as const;
+export const QNH_BOX_REF: RectRef = { x: 374, y: 283, w: 42, h: 10 };
 
 /**
  * The vertical speed scale (D-11): a strip right of the altitude tape, plus and minus 3000 fpm over
