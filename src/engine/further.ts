@@ -36,6 +36,12 @@ export interface FurtherDefinition {
   readonly conductTitle: string;
   /** The profile parameter that puts the aircraft on the ground: a scenario with it above 0 has no conduct. */
   readonly groundParameter: string;
+  /**
+   * The conduct option that is selected when a run starts, without any press (owner decision
+   * 2026-11-02: "Continue normally" is preselected, the pilot deviates by pressing another one). It
+   * counts like a pick. Must name an option of kind `conduct`.
+   */
+  readonly defaultConduct: string;
 }
 
 export interface FurtherSet extends FurtherDefinition {
@@ -67,10 +73,16 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
   if (!FURTHER_ID_PATTERN.test(definition.groundParameter)) {
     throw new FurtherError(`the ground parameter "${definition.groundParameter}" is not an id`);
   }
+  if (byId.get(definition.defaultConduct)?.kind !== 'conduct') {
+    throw new FurtherError(
+      `the default conduct "${definition.defaultConduct}" is not a conduct option`,
+    );
+  }
   return Object.freeze({
     options: Object.freeze([...definition.options]),
     conductTitle: definition.conductTitle,
     groundParameter: definition.groundParameter,
+    defaultConduct: definition.defaultConduct,
     has: (id: string) => byId.has(id),
     option: (id: string) => byId.get(id),
     ids: (kind: FurtherKind) =>
@@ -93,23 +105,36 @@ export interface RecordedDecision {
 export interface FurtherSelection {
   /** The action ids whose last entry is on. */
   readonly actions: ReadonlySet<string>;
-  /** The selected conduct id, null when none or cleared. */
+  /**
+   * The selected conduct id: the aircraft's default while no press changed it, null when the
+   * scenario offers no conduct and nothing was picked.
+   */
   readonly conduct: string | null;
+  /**
+   * Every conduct selection in the order made, starting with the preselected default when a conduct
+   * is offered (R-08); an entry that names the selected option again is no change and adds nothing.
+   */
+  readonly picks: readonly string[];
 }
 
 /**
  * The state the presses leave (R-08), one helper for the grade, the session and the buttons so the
  * highlight and the verdict can never disagree. An action is selected when its last entry is on. The
- * conduct is replayed in order: an on entry selects that option (another one switches), an off entry
- * clears the selection only when it names the selected option. An unknown id is skipped here (the
- * grader throws for it before it gets this far).
+ * conduct is a radio group that always has one selection where a conduct is offered: it starts at
+ * the default of the aircraft (no log entry), an on entry selects that option (another one
+ * switches, the selected one again is no change), and an off entry (recordings made while a conduct
+ * could still be cleared) falls back to the default. Where no conduct is offered nothing is
+ * preselected. An unknown id is skipped here (the grader throws for it before it gets this far).
  */
 export function effectiveSelection(
   decisions: readonly RecordedDecision[],
   set: FurtherSet,
+  conductOffered: boolean,
 ): FurtherSelection {
   const actions = new Set<string>();
-  let conduct: string | null = null;
+  const start = conductOffered ? set.defaultConduct : null;
+  let conduct: string | null = start;
+  const picks: string[] = start === null ? [] : [start];
   for (const decision of decisions) {
     const option = set.option(decision.id);
     if (option === undefined) continue;
@@ -118,12 +143,14 @@ export function effectiveSelection(
       if (on) actions.add(decision.id);
       else actions.delete(decision.id);
     } else if (on) {
+      if (conduct !== decision.id) picks.push(decision.id);
       conduct = decision.id;
-    } else if (conduct === decision.id) {
-      conduct = null;
+    } else if (conduct === decision.id && start !== conduct) {
+      conduct = start;
+      if (start !== null) picks.push(start);
     }
   }
-  return { actions, conduct };
+  return { actions, conduct, picks };
 }
 
 /** The accepted conduct ids of a section, or null when the section says none or does not exist. */
@@ -144,14 +171,21 @@ export interface FurtherActionVerdict {
   readonly failsRun: boolean;
 }
 
-export type ConductStatus = 'not_declared' | 'ok' | 'missing' | 'wrong';
+/**
+ * `missing` no longer exists: where a conduct is offered it always has a selection (the default
+ * counts like a pick), so a run is either right or wrong.
+ */
+export type ConductStatus = 'not_declared' | 'ok' | 'wrong';
 
 export interface FurtherConductVerdict {
   /** What the scenario declares: `none`, `accept`, or null when it has no section. */
   readonly declared: 'none' | 'accept' | null;
-  /** Every conduct option switched on, in the order made (the history the debrief shows). */
+  /**
+   * Every conduct selection in the order made (the history the debrief shows); where a conduct is
+   * offered it starts with the preselected default.
+   */
   readonly picks: readonly string[];
-  /** The selection at the end, which is the one that counts; null without one or when cleared. */
+  /** The selection at the end, which is the one that counts; null only where no conduct is offered and none was picked. */
   readonly last: string | null;
   readonly status: ConductStatus;
 }
@@ -165,7 +199,7 @@ export interface FurtherResult {
 /** The reasons further actions add to a verdict, split at the place D-11 puts them. */
 export type FurtherReason =
   | { readonly kind: 'further_missed'; readonly count: number }
-  | { readonly kind: 'conduct'; readonly status: 'missing' | 'wrong' }
+  | { readonly kind: 'conduct'; readonly status: 'wrong' }
   | { readonly kind: 'further_harmful'; readonly id: string };
 
 export interface FurtherGrade {
@@ -181,7 +215,8 @@ export interface FurtherGrade {
  * R16 to R18: the decisions of a recording against the section of the scenario. A decision after the
  * outcome time is not graded (like an event, R10); an id the aircraft does not have throws (like an
  * unknown control). The state the presses leave counts (R-08): an action is done when its last entry
- * is on; the conduct is graded by the selection at the end.
+ * is on; the conduct is graded by the selection at the end, and the preselected default counts like a
+ * pick (a scenario that does not accept it fails with the reason `wrong` when the pilot never switches).
  */
 export function gradeFurther(
   section: FurtherSection | undefined,
@@ -200,7 +235,8 @@ export function gradeFurther(
     return { result: undefined, early: [], late: [] };
   }
 
-  const selection = effectiveSelection(counted, set);
+  const accept = conductAccept(section);
+  const selection = effectiveSelection(counted, set, accept !== null);
   const picked = selection.actions;
   const declared = new Map((section?.actions ?? []).map((entry) => [entry.id, entry]));
   const actions: FurtherActionVerdict[] = [];
@@ -216,18 +252,14 @@ export function gradeFurther(
     });
   }
 
-  const picks = counted
-    .filter((d) => set.option(d.id)?.kind === 'conduct' && d.on !== false)
-    .map((d) => d.id);
   const last = selection.conduct;
-  const accept = conductAccept(section);
   let status: ConductStatus = 'not_declared';
   if (accept !== null) {
-    status = last === null ? 'missing' : accept.includes(last) ? 'ok' : 'wrong';
+    status = last !== null && accept.includes(last) ? 'ok' : 'wrong';
   }
   const conduct: FurtherConductVerdict = {
     declared: section === undefined ? null : accept === null ? 'none' : 'accept',
-    picks,
+    picks: selection.picks,
     last,
     status,
   };
@@ -235,7 +267,7 @@ export function gradeFurther(
   const early: FurtherReason[] = [];
   const missed = actions.filter((a) => a.role === 'required' && !a.done).length;
   if (missed > 0) early.push({ kind: 'further_missed', count: missed });
-  if (status === 'missing' || status === 'wrong') early.push({ kind: 'conduct', status });
+  if (status === 'wrong') early.push({ kind: 'conduct', status });
   const late: FurtherReason[] = actions
     .filter((a) => a.done && a.failsRun)
     .map((a) => ({ kind: 'further_harmful', id: a.id }));

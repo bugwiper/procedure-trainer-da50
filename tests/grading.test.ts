@@ -193,24 +193,29 @@ function withFurther(name: string, expected: GradeResult): GradeResult {
   if (declared === undefined) return expected;
   // The state the presses leave (plan 07-05, R-08), replayed here independently of the engine: an
   // entry without the flag is on; an action is selected when its last entry is on; the conduct is a
-  // radio group (an on entry selects, an off entry clears only the selected option); a press after the
-  // outcome time is not graded.
+  // radio group that starts at the preselected Continue normally (no entry, it counts like a pick and
+  // heads the picks), an on entry selects (the selected one again is no change) and an off entry of
+  // the selected option falls back to the default; a press after the outcome time is not graded.
   const cut = expected.outcome?.t ?? Number.POSITIVE_INFINITY;
   const presses = (recording(name).decisions ?? []).filter((decision) => decision.t <= cut);
   const selectedActions = new Set<string>();
-  const conductPicks: string[] = [];
-  let last: string | null = null;
+  const preselected = 'conduct_continue';
+  const conductPicks: string[] = [preselected];
+  let last: string = preselected;
   for (const press of presses) {
     const on = press.on !== false;
     if (press.id.startsWith('conduct_')) {
       if (on) {
-        conductPicks.push(press.id);
+        if (last !== press.id) conductPicks.push(press.id);
         last = press.id;
-      } else if (last === press.id) last = null;
+      } else if (last === press.id && last !== preselected) {
+        last = preselected;
+        conductPicks.push(preselected);
+      }
     } else if (on) selectedActions.add(press.id);
     else selectedActions.delete(press.id);
   }
-  const status = last === null ? 'missing' : declared.accept.includes(last) ? 'ok' : 'wrong';
+  const status = declared.accept.includes(last) ? 'ok' : 'wrong';
   const actions = declared.roles.map(([id, role]) => ({
     id,
     role,
@@ -220,7 +225,7 @@ function withFurther(name: string, expected: GradeResult): GradeResult {
   const added: GradeResult['reasons'][number][] = [];
   const missed = actions.filter((a) => a.role === 'required' && !a.done).length;
   if (missed > 0) added.push({ kind: 'further_missed', count: missed });
-  if (status !== 'ok') added.push({ kind: 'conduct', status });
+  if (status === 'wrong') added.push({ kind: 'conduct', status });
   const head = expected.reasons.filter((r) => r.kind === 'outcome' || r.kind === 'critical_missed');
   const tail = expected.reasons.filter((r) => r.kind !== 'outcome' && r.kind !== 'critical_missed');
   const reasons = [...head, ...added, ...tail];
@@ -825,15 +830,16 @@ describe('recordings made before the toggles (plan 07-05)', () => {
     const verdict = (name: string) => grade(fire, DA50RG_ENV, recording(name));
     expect(verdict('fire-mayday-on-off-on').result).toBe('pass');
     expect(verdict('fire-mayday-on-off').reasons).toEqual([{ kind: 'further_missed', count: 1 }]);
-    expect(verdict('fire-conduct-cleared').reasons).toEqual([
-      { kind: 'conduct', status: 'missing' },
-    ]);
+    // A recording made while a conduct could still be cleared: the clear falls back to the
+    // preselected Continue normally, which the fire file does not accept (was: missing, now: wrong).
+    expect(verdict('fire-conduct-cleared').reasons).toEqual([{ kind: 'conduct', status: 'wrong' }]);
     expect(verdict('fire-conduct-cleared').further?.conduct).toMatchObject({
-      last: null,
-      picks: ['conduct_emergency'],
+      last: 'conduct_continue',
+      picks: ['conduct_continue', 'conduct_emergency', 'conduct_continue'],
     });
     expect(verdict('fire-conduct-switched').result).toBe('pass');
     expect(verdict('fire-conduct-switched').further?.conduct.picks).toEqual([
+      'conduct_continue',
       'conduct_precautionary',
       'conduct_emergency',
     ]);
@@ -886,7 +892,7 @@ describe('named outcomes (R10, D-06, C-26)', () => {
     expect(early.outcome).toBeNull();
     expect(early.reasons).toEqual([
       { kind: 'critical_missed', count: 2 },
-      { kind: 'conduct', status: 'missing' },
+      { kind: 'conduct', status: 'wrong' },
     ]);
     const exact = grade(blueprint, DA50RG_ENV, {
       ...recording('do-nothing-long'),
@@ -928,8 +934,8 @@ describe('named outcomes (R10, D-06, C-26)', () => {
     return [
       { kind: 'outcome', id: declaredOutcome?.id },
       { kind: 'critical_missed', count: missed },
-      // The ignored run made no flight decision either (Phase 7).
-      { kind: 'conduct', status: 'missing' },
+      // The ignored run never switched from the preselected Continue normally (Phase 7).
+      { kind: 'conduct', status: 'wrong' },
     ];
   }
 });
@@ -1021,7 +1027,7 @@ describe('Engine Fire replays (plan 03-08, D-08, D-06, C-48)', () => {
     expect(result.reasons).toEqual([
       { kind: 'critical_missed', count: 4 },
       { kind: 'further_missed', count: 1 },
-      { kind: 'conduct', status: 'missing' },
+      { kind: 'conduct', status: 'wrong' },
     ]);
   });
 

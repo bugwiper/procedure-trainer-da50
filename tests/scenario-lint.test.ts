@@ -1947,7 +1947,18 @@ describe('L27 and L28: the further actions (Phase 7, plan 07-02)', () => {
       completedAt: 20000,
       events: [],
     });
-    expect(nothing.reasons.map((r) => r.kind)).toEqual([
+    // The block accepts the preselected Continue normally, so the untouched default is the right
+    // conduct here and only the missed call is added; a block that does not accept it adds `conduct`.
+    expect(nothing.reasons.map((r) => r.kind)).toEqual(['critical_missed', 'further_missed']);
+    const strict = parsedOf(
+      withFurther(ALTN, section(CALL, '    accept[1]: conduct_precautionary')),
+    );
+    const strictNothing = grade(strict, DA50RG_ENV, {
+      scenarioId: strict.id,
+      completedAt: 20000,
+      events: [],
+    });
+    expect(strictNothing.reasons.map((r) => r.kind)).toEqual([
       'critical_missed',
       'further_missed',
       'conduct',

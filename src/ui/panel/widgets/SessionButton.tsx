@@ -10,11 +10,16 @@ const FACE_SELECTED = '#2c5d8f';
 const RIM_PRESSED = '#8fb8e6';
 const LABEL = '#e6e9ed';
 const FOCUS = '#8fb8e6';
+/** Distance between the baselines of a two-line label (size 14). */
+const LINE_STEP = 18;
 
 export interface SessionButtonProps {
   /** Region-local rectangle (SESSION_LAYOUT). */
   readonly rect: LocalRect;
-  /** The printed caps label, size 14. */
+  /**
+   * The printed label, size 14. A line feed breaks it into centred lines (owner decision 2026-11-02:
+   * the two-line labels of the footwell cluster); the block of lines stays centred on the button.
+   */
   readonly label: string;
   readonly ariaLabel: string;
   /** Stable key of the hit element (data-session-hit). */
@@ -77,6 +82,7 @@ export function SessionButton({
   });
   const rimPressed = pending.value || held || selected === true;
   const { x, y, w, h } = rect;
+  const lines = label.split('\n');
   return (
     <g
       class="session-button"
@@ -113,7 +119,17 @@ export function SessionButton({
         fill={LABEL}
         pointer-events="none"
       >
-        {label}
+        {lines.length === 1
+          ? label
+          : lines.map((line, index) => (
+              <tspan
+                key={line}
+                x={labelAnchorX(rect)}
+                dy={index === 0 ? -((lines.length - 1) * LINE_STEP) / 2 : LINE_STEP}
+              >
+                {line}
+              </tspan>
+            ))}
       </text>
       {/* Keyboard focus outline: width 4, 4 outside the rim; shown by stage.css on :focus-visible. */}
       <rect

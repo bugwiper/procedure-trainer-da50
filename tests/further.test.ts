@@ -57,6 +57,7 @@ describe('defineFurther', () => {
     ],
     conductTitle: 'Choose',
     groundParameter: 'on_ground',
+    defaultConduct: 'c_one',
   };
 
   it('defines a set and answers has, option and ids in list order', () => {
@@ -66,6 +67,7 @@ describe('defineFurther', () => {
     expect(set.option('c_one')?.debriefNote).toBe('Note.');
     expect(set.ids('action')).toEqual(['a_one', 'a_two']);
     expect(set.ids('conduct')).toEqual(['c_one']);
+    expect(set.defaultConduct).toBe('c_one');
   });
 
   it.each([
@@ -85,6 +87,8 @@ describe('defineFurther', () => {
       { ...valid, options: [{ id: 'a', text: 'x', kind: 'action' as const, debriefNote: 'n' }] },
     ],
     ['a bad ground parameter', { ...valid, groundParameter: 'Ground' }],
+    ['a default conduct that is not an option', { ...valid, defaultConduct: 'c_two' }],
+    ['a default conduct that is an action', { ...valid, defaultConduct: 'a_one' }],
   ])('rejects %s', (_name, definition) => {
     expect(() => defineFurther(definition)).toThrow(FurtherError);
   });
@@ -135,7 +139,7 @@ describe('gradeFurther (R16 to R18)', () => {
     expect(graded.late).toEqual([]);
     expect(graded.result?.conduct).toEqual({
       declared: 'accept',
-      picks: [emergency],
+      picks: [carryOn, emergency],
       last: emergency,
       status: 'ok',
     });
@@ -182,14 +186,23 @@ describe('gradeFurther (R16 to R18)', () => {
     expect(avoided.late).toEqual([]);
   });
 
-  it('no conduct pick is missing, a wrong last pick is wrong and the last pick wins', () => {
-    expect(grading([at(1, mayday)]).early).toEqual([{ kind: 'conduct', status: 'missing' }]);
-    expect(grading([at(1, mayday), at(2, carryOn)]).early).toEqual([
+  it('no conduct press leaves the preselected default, which counts: wrong here, a wrong last pick is wrong and the last pick wins', () => {
+    const untouched = grading([at(1, mayday)]);
+    expect(untouched.early).toEqual([{ kind: 'conduct', status: 'wrong' }]);
+    expect(untouched.result?.conduct).toEqual({
+      declared: 'accept',
+      picks: [carryOn],
+      last: carryOn,
+      status: 'wrong',
+    });
+    expect(grading([at(1, mayday), at(2, precaution)]).early).toEqual([
       { kind: 'conduct', status: 'wrong' },
     ]);
-    const corrected = grading([at(1, mayday), at(2, carryOn), at(3, emergency)]);
+    // A press of the option that is already selected (the default) is no change and adds no pick.
+    expect(grading([at(1, mayday), at(2, carryOn)]).result?.conduct.picks).toEqual([carryOn]);
+    const corrected = grading([at(1, mayday), at(2, precaution), at(3, emergency)]);
     expect(corrected.early).toEqual([]);
-    expect(corrected.result?.conduct.picks).toEqual([carryOn, emergency]);
+    expect(corrected.result?.conduct.picks).toEqual([carryOn, precaution, emergency]);
     const escalatedWrong = grading([at(1, mayday), at(2, emergency), at(3, carryOn)]);
     expect(escalatedWrong.early).toEqual([{ kind: 'conduct', status: 'wrong' }]);
   });
@@ -197,7 +210,7 @@ describe('gradeFurther (R16 to R18)', () => {
   it('puts further_missed before conduct', () => {
     expect(grading([]).early).toEqual([
       { kind: 'further_missed', count: 1 },
-      { kind: 'conduct', status: 'missing' },
+      { kind: 'conduct', status: 'wrong' },
     ]);
   });
 
@@ -224,8 +237,9 @@ describe('gradeFurther (R16 to R18)', () => {
 
   it('decisions after the outcome time are not graded', () => {
     const graded = grading([at(1000, mayday), at(5000, emergency)], 2000);
-    expect(graded.early).toEqual([{ kind: 'conduct', status: 'missing' }]);
-    expect(graded.result?.conduct.picks).toEqual([]);
+    // The late press is not graded; the preselected default stands.
+    expect(graded.early).toEqual([{ kind: 'conduct', status: 'wrong' }]);
+    expect(graded.result?.conduct.picks).toEqual([carryOn]);
     const onTheDot = grading([at(1000, mayday), at(2000, emergency)], 2000);
     expect(onTheDot.early).toEqual([]);
   });
@@ -315,13 +329,16 @@ describe('grade with the section (R16 to R18)', () => {
 describe('effectiveSelection (R-08)', () => {
   const on = (t: number, id: string) => ({ t, id, on: true });
   const off = (t: number, id: string) => ({ t, id, on: false });
-  const state = (decisions: readonly { t: number; id: string; on?: boolean }[]) => {
-    const selection = effectiveSelection(decisions, SET);
+  const state = (decisions: readonly { t: number; id: string; on?: boolean }[], offered = true) => {
+    const selection = effectiveSelection(decisions, SET, offered);
     return { actions: [...selection.actions].sort(), conduct: selection.conduct };
   };
 
-  it('starts empty', () => {
-    expect(state([])).toEqual({ actions: [], conduct: null });
+  it('starts with no action and, where a conduct is offered, the preselected default', () => {
+    expect(state([])).toEqual({ actions: [], conduct: carryOn });
+    expect(state([], false)).toEqual({ actions: [], conduct: null });
+    expect(effectiveSelection([], SET, true).picks).toEqual([carryOn]);
+    expect(effectiveSelection([], SET, false).picks).toEqual([]);
   });
 
   it('switches an action on, off and on again; the last entry counts', () => {
@@ -343,24 +360,39 @@ describe('effectiveSelection (R-08)', () => {
     expect(state([off(0, mayday), odd]).actions).toEqual([mayday]);
   });
 
-  it('makes the conduct a radio group: another option switches the selection', () => {
+  it('makes the conduct a radio group: another option switches the selection, the history heads with the default', () => {
     expect(state([on(1, carryOn)]).conduct).toBe(carryOn);
     expect(state([on(1, carryOn), on(2, precaution)]).conduct).toBe(precaution);
-    expect(state([on(1, carryOn), on(2, precaution), on(3, emergency)]).conduct).toBe(emergency);
+    expect(state([on(1, precaution), on(2, emergency)]).conduct).toBe(emergency);
+    expect(
+      effectiveSelection([on(1, precaution), on(2, emergency), on(3, emergency)], SET, true).picks,
+    ).toEqual([carryOn, precaution, emergency]);
+    // Where no conduct is offered nothing is preselected, a pick is still replayed.
+    expect(state([on(1, precaution)], false).conduct).toBe(precaution);
+    expect(effectiveSelection([on(1, precaution)], SET, false).picks).toEqual([precaution]);
   });
 
-  it('clears the conduct only with an off entry of the selected option', () => {
-    expect(state([on(1, carryOn), off(2, carryOn)]).conduct).toBeNull();
-    // An off entry of an option that is not selected changes nothing.
-    expect(state([on(1, carryOn), off(2, precaution)]).conduct).toBe(carryOn);
-    expect(state([off(1, carryOn)]).conduct).toBeNull();
-    expect(state([on(1, carryOn), on(2, precaution), off(3, carryOn)]).conduct).toBe(precaution);
-    expect(state([on(1, carryOn), off(2, carryOn), on(3, carryOn)]).conduct).toBe(carryOn);
+  it('cannot clear the conduct any more: an off entry (an older recording) falls back to the default', () => {
+    expect(state([on(1, precaution), off(2, precaution)]).conduct).toBe(carryOn);
+    expect(effectiveSelection([on(1, precaution), off(2, precaution)], SET, true).picks).toEqual([
+      carryOn,
+      precaution,
+      carryOn,
+    ]);
+    // An off entry of an option that is not selected changes nothing, nor does one of the default.
+    expect(state([on(1, precaution), off(2, emergency)]).conduct).toBe(precaution);
+    expect(state([off(1, carryOn)]).conduct).toBe(carryOn);
+    expect(effectiveSelection([off(1, carryOn)], SET, true).picks).toEqual([carryOn]);
+    expect(state([on(1, precaution), on(2, emergency), off(3, precaution)]).conduct).toBe(
+      emergency,
+    );
+    // Not offered: the off entry of the selected option leaves nothing.
+    expect(state([on(1, precaution), off(2, precaution)], false).conduct).toBeNull();
   });
 
   it('turns an action that was never on off without effect and skips an unknown id', () => {
     expect(state([off(1, mayday)]).actions).toEqual([]);
-    expect(state([on(1, 'nope'), on(2, mayday)])).toEqual({ actions: [mayday], conduct: null });
+    expect(state([on(1, 'nope'), on(2, mayday)])).toEqual({ actions: [mayday], conduct: carryOn });
   });
 });
 
@@ -390,7 +422,7 @@ describe('gradeFurther with toggles (R-08)', () => {
     expect(graded.early).toEqual([]);
     expect(graded.result?.conduct).toEqual({
       declared: 'accept',
-      picks: [emergency, precaution],
+      picks: [carryOn, emergency, precaution],
       last: precaution,
       status: 'ok',
     });
@@ -398,15 +430,26 @@ describe('gradeFurther with toggles (R-08)', () => {
     expect(wrong.result?.conduct.status).toBe('wrong');
   });
 
-  it('a conduct that was cleared is missing; picks keep the on entries, last is null', () => {
+  it('an older recording that cleared the conduct ends on the default, which this section does not accept: wrong (was missing)', () => {
     const graded = grading([on(1, mayday), on(2, precaution), off(3, precaution)]);
-    expect(graded.early).toEqual([{ kind: 'conduct', status: 'missing' }]);
+    expect(graded.early).toEqual([{ kind: 'conduct', status: 'wrong' }]);
     expect(graded.result?.conduct).toEqual({
       declared: 'accept',
-      picks: [precaution],
-      last: null,
-      status: 'missing',
+      picks: [carryOn, precaution, carryOn],
+      last: carryOn,
+      status: 'wrong',
     });
+  });
+
+  it('a section that accepts the default is right without any press of the conduct', () => {
+    const lenient = gradeFurther(
+      section([[mayday, 'required']], { accept: [carryOn] }),
+      SET,
+      [on(1, mayday)],
+      null,
+    );
+    expect(lenient.early).toEqual([]);
+    expect(lenient.result?.conduct).toMatchObject({ last: carryOn, status: 'ok' });
   });
 
   it('an undeclared action that was switched on and off reads like one never selected', () => {

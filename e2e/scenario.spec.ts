@@ -762,10 +762,11 @@ test('@hooks doing nothing grades FAIL', async ({ page, hasTouch }) => {
   await activate(page.getByTestId('procedure-complete'), hasTouch);
 
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
-  // The file also asks for the flight decision (Phase 7), which a run that does nothing did not make.
+  // The file also asks for the flight decision (Phase 7): a run that does nothing never switched from
+  // the preselected Continue normally, which the file does not accept.
   await expect(page.getByTestId('debrief-reason')).toHaveText([
     '2 critical steps were missed.',
-    'The flight decision was missing.',
+    'The flight decision was not the right one.',
   ]);
   const rows = page.getByTestId('debrief-row');
   await expect(rows).toHaveCount(2);

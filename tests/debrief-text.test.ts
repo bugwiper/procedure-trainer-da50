@@ -239,9 +239,6 @@ describe('further actions (Phase 7, plan 07-02, R19)', () => {
     expect(reasonLines(failing([{ kind: 'further_missed', count: 2 }]))).toEqual([
       '2 required further actions were missed.',
     ]);
-    expect(reasonLines(failing([{ kind: 'conduct', status: 'missing' }]))).toEqual([
-      'The flight decision was missing.',
-    ]);
     expect(reasonLines(failing([{ kind: 'conduct', status: 'wrong' }]))).toEqual([
       'The flight decision was not the right one.',
     ]);
@@ -274,7 +271,8 @@ describe('further actions (Phase 7, plan 07-02, R19)', () => {
           { id: panPan, role: 'optional', done: true, failsRun: false },
           { id: passengers, role: 'recommended', done: false, failsRun: false },
         ],
-        conduct: { declared: 'accept', picks: [], last: null, status: 'missing' },
+        // Never switched: the preselected Continue normally is the pick and it is wrong here.
+        conduct: { declared: 'accept', picks: [carryOn], last: carryOn, status: 'wrong' },
       }),
       SET,
     );
@@ -282,11 +280,12 @@ describe('further actions (Phase 7, plan 07-02, R19)', () => {
       [mayday, 'Required', 'Missed'],
       [panPan, 'Optional', 'Done'],
       [passengers, 'Recommended', 'Recommended and not done'],
-      ['conduct', 'Required', 'Missing'],
+      ['conduct', 'Required', 'Wrong'],
     ]);
     expect(rows[0]?.label).toBe(SET.option(mayday)?.text);
     expect(rows[3]?.label).toBe(SET.conductTitle);
-    expect(rows[3]?.picks).toBeNull();
+    // The picked line shows Continue normally when it was the default.
+    expect(rows[3]?.picks).toBe(`Picked: ${SET.option(carryOn)?.text ?? ''}`);
   });
 
   it('words the harmful rows and the right and wrong flight decision with the earlier picks', () => {
@@ -323,21 +322,7 @@ describe('further actions (Phase 7, plan 07-02, R19)', () => {
     expect(wrong[0]?.picks).toBe(`Picked: ${SET.option(carryOn)?.text ?? ''}`);
   });
 
-  it('shows a conduct that was selected and then cleared with its picks line and the verdict Missing, and no note', () => {
-    const cleared = withFurther({
-      actions: [],
-      conduct: { declared: 'accept', picks: [emergency], last: null, status: 'missing' },
-    });
-    const rows = furtherRows(cleared, SET);
-    expect(rows.map((r) => [r.id, r.verdict, r.tone])).toEqual([
-      ['conduct', 'Missing', 'critical'],
-    ]);
-    expect(rows[0]?.picks).toBe(`Picked: ${SET.option(emergency)?.text ?? ''}`);
-    expect(reasonLines(failing([{ kind: 'conduct', status: 'missing' }]))).toEqual([
-      'The flight decision was missing.',
-    ]);
-    // The emergency-landing note follows the final selection: cleared, there is none.
-    expect(furtherNote(cleared, SET)).toBeNull();
+  it('notes the emergency landing only when it is the final selection', () => {
     const kept = withFurther({
       actions: [],
       conduct: { declared: 'accept', picks: [carryOn, emergency], last: emergency, status: 'ok' },
@@ -345,9 +330,19 @@ describe('further actions (Phase 7, plan 07-02, R19)', () => {
     expect(furtherNote(kept, SET)).toBe(SET.option(emergency)?.debriefNote ?? null);
     const switched = withFurther({
       actions: [],
-      conduct: { declared: 'accept', picks: [emergency, carryOn], last: carryOn, status: 'wrong' },
+      conduct: {
+        declared: 'accept',
+        picks: [carryOn, emergency, carryOn],
+        last: carryOn,
+        status: 'wrong',
+      },
     });
     expect(furtherNote(switched, SET)).toBeNull();
+    // The history heads with the preselected default (R-08).
+    const rows = furtherRows(switched, SET);
+    expect(rows[0]?.picks).toBe(
+      `Picks in order: ${SET.option(carryOn)?.text ?? ''}, then ${SET.option(emergency)?.text ?? ''}, then ${SET.option(carryOn)?.text ?? ''}`,
+    );
   });
 
   it('shows an action that was selected and cleared like one never selected', () => {

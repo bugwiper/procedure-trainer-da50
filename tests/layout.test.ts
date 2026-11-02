@@ -1564,10 +1564,13 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
    */
   const P7_FURTHER_REGION = 'further_area';
   const P7_FURTHER_PLATE = 'further-pad';
-  const FURTHER_PLATE: Rect = { x: 200, y: 893, w: 640, h: 210 };
+  const FURTHER_PLATE: Rect = { x: 200, y: 877, w: 640, h: 228 };
   const FURTHER_REGION: Rect = { x: 190, y: 868, w: 660, h: 260 };
-  /** The six slots of the cluster (600 x 170) in global units: the plate stands 20 units around them. */
-  const FURTHER_SLOTS: Rect = { x: 220, y: 913, w: 600, h: 170 };
+  /**
+   * The six slots of the cluster (600 x 170) in global units: the plate stands 20 units left, right
+   * and below them and 38 above (the headline FURTHER ACTIONS, owner feedback 2026-11-02).
+   */
+  const FURTHER_SLOTS: Rect = { x: 220, y: 915, w: 600, h: 170 };
 
   it('the session-pad plate has the Table Z1 rectangle (rx 18) and carries scenario_area only', () => {
     const plate = PLATES.find((p) => p.id === 'session-pad');
@@ -1654,7 +1657,7 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     expect(region?.bounds).toEqual(FURTHER_REGION);
     expect(region?.controlIds).toEqual([]);
     expect(FURTHER_SLOTS.x - FURTHER_PLATE.x).toBe(20);
-    expect(FURTHER_SLOTS.y - FURTHER_PLATE.y).toBe(20);
+    expect(FURTHER_SLOTS.y - FURTHER_PLATE.y).toBe(38);
     expect(FURTHER_PLATE.x + FURTHER_PLATE.w - (FURTHER_SLOTS.x + FURTHER_SLOTS.w)).toBe(20);
     expect(FURTHER_PLATE.y + FURTHER_PLATE.h - (FURTHER_SLOTS.y + FURTHER_SLOTS.h)).toBe(20);
     // The region holds the plate and leaves room above and below it (the Full panel corner, phones).

@@ -811,10 +811,11 @@ describe('complete', () => {
     r.session.complete();
     const result = r.session.result.value;
     expect(result?.result).toBe('fail');
-    // The shipped file also asks for the flight decision (Phase 7), which an empty run did not make.
+    // The shipped file also asks for the flight decision (Phase 7): an empty run never switched from
+    // the preselected Continue normally, which this file does not accept.
     expect(result?.reasons).toEqual([
       { kind: 'critical_missed', count: 2 },
-      { kind: 'conduct', status: 'missing' },
+      { kind: 'conduct', status: 'wrong' },
     ]);
   });
 
@@ -2498,40 +2499,53 @@ scenarios[1]:
     expect(selected(r).actions).toEqual(['atc_mayday', 'atc_pan_pan', 'brief_passengers']);
   });
 
-  it('makes the conduct a radio group: another press switches, the selected one clears', async () => {
+  it('preselects Continue normally and makes the conduct a radio group: another press switches, the selected one is no change', async () => {
     const r = await inFlight();
+    // Selected at the start without a press, and nothing in the log.
+    expect(selected(r).conduct).toBe('conduct_continue');
+    expect(r.session.decisions.value).toEqual([]);
+    // A press of the selected button changes and logs nothing.
     r.session.toggleDecision('conduct_continue');
     expect(selected(r).conduct).toBe('conduct_continue');
+    expect(r.session.decisions.value).toEqual([]);
     r.session.toggleDecision('conduct_precautionary');
     expect(selected(r).conduct).toBe('conduct_precautionary');
+    // A second press of the selected one cannot clear it.
     r.session.toggleDecision('conduct_precautionary');
-    expect(selected(r).conduct).toBeNull();
+    expect(selected(r).conduct).toBe('conduct_precautionary');
     r.session.toggleDecision('conduct_emergency');
     expect(selected(r).conduct).toBe('conduct_emergency');
+    r.session.toggleDecision('conduct_continue');
+    expect(selected(r).conduct).toBe('conduct_continue');
     expect(r.session.decisions.value.map((d) => `${d.id}:${String(d.on)}`)).toEqual([
-      'conduct_continue:true',
       'conduct_precautionary:true',
-      'conduct_precautionary:false',
       'conduct_emergency:true',
+      'conduct_continue:true',
     ]);
+    r.session.toggleDecision('conduct_emergency');
     r.session.complete();
     expect(r.session.result.value?.further?.conduct).toMatchObject({
       last: 'conduct_emergency',
       status: 'wrong',
-      picks: ['conduct_continue', 'conduct_precautionary', 'conduct_emergency'],
+      picks: [
+        'conduct_continue',
+        'conduct_precautionary',
+        'conduct_emergency',
+        'conduct_continue',
+        'conduct_emergency',
+      ],
     });
   });
 
-  it('grades a cleared conduct as missing', async () => {
+  it('grades the preselected default like a pick: a run that never switches fails with the wrong conduct', async () => {
     const r = await inFlight();
-    r.session.toggleDecision('conduct_precautionary');
-    r.session.toggleDecision('conduct_precautionary');
     r.session.complete();
     expect(r.session.result.value?.further?.conduct).toMatchObject({
-      last: null,
-      picks: ['conduct_precautionary'],
-      status: 'missing',
+      last: 'conduct_continue',
+      picks: ['conduct_continue'],
+      status: 'wrong',
     });
+    expect(r.session.result.value?.reasons).toContainEqual({ kind: 'conduct', status: 'wrong' });
   });
 
   it('offers no conduct where the scenario declares none, on the ground, or has no section', async () => {
@@ -2616,7 +2630,7 @@ scenarios[1]:
     r.session.complete();
     r.session.closeDebrief();
     expect(ids(r)).toEqual([]);
-    expect(selected(r)).toEqual({ actions: [], conduct: null });
+    expect(selected(r).actions).toEqual([]);
 
     const again = await inFlight();
     again.session.toggleDecision('atc_mayday');
@@ -2644,7 +2658,8 @@ scenarios[1]:
     r.session.toggleDecision('atc_mayday');
     r.session.toggleDecision('conduct_precautionary');
     expect(ids(r)).toEqual([]);
-    expect(selected(r)).toEqual({ actions: [], conduct: null });
+    // Drawn alike before the onset: the preselected default shows, no press changes anything.
+    expect(selected(r)).toEqual({ actions: [], conduct: 'conduct_continue' });
     r.session.clock.value?.advance(began.at);
     r.session.toggleDecision('atc_mayday');
     expect(r.session.decisions.value).toEqual([{ t: began.at, id: 'atc_mayday', on: true }]);

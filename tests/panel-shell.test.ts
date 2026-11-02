@@ -249,6 +249,7 @@ describe('PanelShell layers (UI-SPEC Panel Surface)', () => {
     'ESS BUS NOT FOR NORMAL OPERATION',
     'NO SMOKING',
     'ENVIRONMENTAL CONTROL',
+    'FURTHER ACTIONS',
   ])('carries the placard text "%s"', (text) => {
     expect(shellText).toContain(text);
   });

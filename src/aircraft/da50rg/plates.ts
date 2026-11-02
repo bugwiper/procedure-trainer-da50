@@ -104,9 +104,11 @@ export const PLATES: readonly PlateDef[] = [
   // units larger than its region on every side.
   { id: 'pedals-pad', x: 280, y: 1130, w: 400, h: 150, rx: 12, regions: ['pedals'] },
   // The further actions (Phase 7, plan 07-05, R-07): the plate of the six footwell toggle buttons,
-  // between the under-panel pulls (their regions end at y 865) and the pedals plate (from y 1130),
-  // 20 units larger than the cluster of buttons on every side (the region is larger than the plate). Trainer content, no registry control.
-  { id: 'further-pad', x: 200, y: 893, w: 640, h: 210, rx: 12, regions: ['further_area'] },
+  // between the under-panel pulls (their regions end at y 865) and the pedals plate (from y 1130).
+  // It stands 20 units left, right and below the cluster of buttons and 38 above it, where the
+  // headline FURTHER_TITLE is printed (owner feedback 2026-11-02); the region is larger than the
+  // plate. Trainer content, no registry control.
+  { id: 'further-pad', x: 200, y: 877, w: 640, h: 228, rx: 12, regions: ['further_area'] },
   // The cabin openings (Phase 5.1, P-07, P-09, owner 2026-10-27): the plate in the left strip below
   // ALTERNATE STATIC (its region ends at y 865), carrying the emergency window above the door lock
   // lever and their labels WINDOW and DOOR LOCK. 8 units of plate left and right of the regions, 12
@@ -139,6 +141,13 @@ export const ENV_BOXES: readonly GroupBoxDef[] = [
   { id: 'fan', title: 'FAN', x: 970, y: 892, w: 98, h: 90 },
   { id: 'circulating-air', title: 'CIRCULATING AIR', x: 970, y: 990, w: 186, h: 40 },
 ];
+
+/**
+ * The static headline of the footwell cluster of the further actions, printed on the plate
+ * `further-pad` above the buttons (owner feedback 2026-11-02): centred on the plate, baseline `y`,
+ * size 14 (the scale of the session buttons). Static shell art; it is there on the free panel too.
+ */
+export const FURTHER_TITLE = { text: 'FURTHER ACTIONS', x: 520, y: 902, size: 14 } as const;
 
 /** The TEMPERATURE lever the triangle beside its slot is drawn from (aircraft data, so no UI file names a control). */
 export const ENV_TEMPERATURE_CONTROL = 'lv.env_temp';

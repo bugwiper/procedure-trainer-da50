@@ -28,9 +28,7 @@ function reasonLine(reason: Reason, result: GradeResult): string {
         ? '1 required further action was missed.'
         : `${String(reason.count)} required further actions were missed.`;
     case 'conduct':
-      return reason.status === 'missing'
-        ? 'The flight decision was missing.'
-        : 'The flight decision was not the right one.';
+      return 'The flight decision was not the right one.';
     case 'order':
       return 'Steps were done in the wrong order.';
     case 'forbidden':
@@ -128,8 +126,9 @@ const ROLE_WORDS = {
  * last; empty when the result carries no `further` entry or nothing to show (a scenario that
  * declares conduct none and has no action row). The verdict words: Done, Missed (required, not
  * done), Recommended and not done, Not done (optional or harmful, not done), Harmful (a harmful
- * action that was done), Right, Wrong and Missing for the flight decision, Not graded for a pick
- * the scenario does not grade.
+ * action that was done), Right and Wrong for the flight decision (the preselected "continue
+ * normally" counts as the pick when the pilot never switched), Not graded for a pick the scenario
+ * does not grade.
  */
 export function furtherRows(result: GradeResult, set: FurtherSet): FurtherRow[] {
   const { further } = result;
@@ -163,13 +162,7 @@ export function furtherRows(result: GradeResult, set: FurtherSet): FurtherRow[] 
   const { conduct } = further;
   if (conduct.declared === 'accept' || conduct.picks.length > 0) {
     const verdict =
-      conduct.status === 'ok'
-        ? 'Right'
-        : conduct.status === 'wrong'
-          ? 'Wrong'
-          : conduct.status === 'missing'
-            ? 'Missing'
-            : 'Not graded';
+      conduct.status === 'ok' ? 'Right' : conduct.status === 'wrong' ? 'Wrong' : 'Not graded';
     rows.push({
       id: 'conduct',
       label: set.conductTitle,

@@ -6,6 +6,7 @@ import {
   ENV_BOXES,
   ENV_TEMPERATURE_CONTROL,
   ENV_TITLE,
+  FURTHER_TITLE,
   GEAR_BLOCK,
   HEADING_FRAME,
   PLATES,
@@ -489,8 +490,18 @@ function LeftStrip() {
       <Plate id="deice" />
       <Plate id="engine" />
       <Plate id="cabin-pad" />
-      {/* The plate of the six further-action buttons (plan 07-05): empty on the free panel, the buttons come with a run. */}
+      {/* The plate of the six further-action buttons (plan 07-05) with its static headline: the buttons come with a run. */}
       <Plate id="further-pad" />
+      <text
+        data-shell="further-title"
+        x={FURTHER_TITLE.x}
+        y={FURTHER_TITLE.y}
+        text-anchor="middle"
+        font-size={FURTHER_TITLE.size}
+        fill={LEGEND}
+      >
+        {FURTHER_TITLE.text}
+      </text>
       <PlateHeadings />
       <BracketGroups />
       <g data-shell="vent">

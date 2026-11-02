@@ -307,9 +307,11 @@ export interface Session {
   toggleHint(): void;
   /**
    * Running only: a press of a footwell button, logged at the run clock's time (R-08). An action
-   * appends { t, id, on: !selected }; a conduct option appends on for another option and off for
-   * the selected one (a radio group that can be cleared). Ignored before the onset of a Realistic
-   * run, for an id the aircraft does not have and for a conduct when the scenario offers none (R-09).
+   * appends { t, id, on: !selected }; a conduct option appends on for another option than the
+   * selected one (a radio group that always has one selection: the preselected default at the start,
+   * and a press of the selected one is no change and logs nothing). Ignored before the onset of a
+   * Realistic run, for an id the aircraft does not have and for a conduct when the scenario offers
+   * none (R-09).
    * A press never completes the run; the selections are graded at Procedure complete (R-10).
    */
   toggleDecision(id: string): void;
@@ -451,7 +453,10 @@ export function createSession(deps: SessionDeps): Session {
   const hintShown = signal(false);
   const runBranches = signal<readonly BranchVerdict[]>([]);
   const decisions = signal<readonly RecordedDecision[]>([]);
-  const furtherSelection = computed(() => effectiveSelection(decisions.value, env.further));
+  // The conduct starts at the preselected default where the scenario offers one (R-08, no log entry).
+  const furtherSelection = computed(() =>
+    effectiveSelection(decisions.value, env.further, offersConduct(scenario.value?.further)),
+  );
   const onset = signal<RecordedOnset | null>(null);
   const variant = signal<RecordedVariant | null>(null);
   const recording = signal<Recording | null>(null);
@@ -1032,8 +1037,10 @@ export function createSession(deps: SessionDeps): Session {
       const option = env.further.option(id);
       if (option === undefined) return;
       if (option.kind === 'conduct' && !offersConduct(current.further)) return;
-      const now = effectiveSelection(decisions.peek(), env.further);
-      const on = option.kind === 'conduct' ? now.conduct !== id : !now.actions.has(id);
+      const now = effectiveSelection(decisions.peek(), env.further, offersConduct(current.further));
+      // A conduct cannot be cleared: the press of the selected one is no change.
+      if (option.kind === 'conduct' && now.conduct === id) return;
+      const on = option.kind === 'conduct' ? true : !now.actions.has(id);
       decisions.value = [...decisions.peek(), { t: runClock.now(), id, on }];
     },
     startRun() {

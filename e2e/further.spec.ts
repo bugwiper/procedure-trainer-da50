@@ -136,19 +136,29 @@ test('a flight scenario draws all six buttons and the ground scenario only the a
   await startScenario(page, hasTouch, FIRE_ROW);
   await expect(page.locator('[data-session-hit^="further."]')).toHaveCount(SET.options.length);
   for (const option of SET.options) {
-    await expect(furtherButton(page, option.id)).toContainText(option.label ?? option.text);
+    for (const line of (option.label ?? option.text).split('\n')) {
+      await expect(furtherButton(page, option.id)).toContainText(line);
+    }
   }
 });
 
-test('the ground scenario draws only the actions and no flight conduct', async ({
+test('the ground scenario draws only the actions and no flight conduct, nothing is preselected and the second row stays in place', async ({
   page,
   hasTouch,
 }) => {
+  await page.goto('./');
+  await startScenario(page, hasTouch, FIRE_ROW);
+  const flightBox = await furtherHit(page, MAYDAY).boundingBox();
   await page.goto('./');
   await startScenario(page, hasTouch, GROUND_ROW);
   await expect(page.locator('[data-session-hit^="further."]')).toHaveCount(ACTION_IDS.length);
   for (const id of ACTION_IDS) await expect(furtherHit(page, id)).toHaveCount(1);
   for (const id of CONDUCT_IDS) await expect(furtherHit(page, id)).toHaveCount(0);
+  expect(await selectedIds(page)).toEqual([]);
+  await expect(page.locator('[data-shell="further-title"]')).toHaveText('FURTHER ACTIONS');
+  const groundBox = await furtherHit(page, MAYDAY).boundingBox();
+  expect(groundBox?.x).toBeCloseTo(flightBox?.x ?? Number.NaN, 0);
+  expect(groundBox?.y).toBeCloseTo(flightBox?.y ?? Number.NaN, 0);
 });
 
 test('MAYDAY and PAN PAN PAN can both be selected, independently of each other and of the passengers', async ({
@@ -160,14 +170,17 @@ test('MAYDAY and PAN PAN PAN can both be selected, independently of each other a
   await page.goto('./');
   await startScenario(page, hasTouch, FIRE_ROW);
   await pickFurther(page, hasTouch, [mayday, panPan, passengers]);
-  expect((await selectedIds(page)).sort()).toEqual([mayday, panPan, passengers].sort());
+  // The preselected Continue normally is selected besides the three actions.
+  expect((await selectedIds(page)).sort()).toEqual(
+    [mayday, panPan, passengers, SET.defaultConduct].sort(),
+  );
   await toggleFurther(page, hasTouch, panPan);
   await expect(furtherButton(page, panPan)).toHaveAttribute('data-selected', 'false');
   await expect(furtherButton(page, mayday)).toHaveAttribute('data-selected', 'true');
   await expect(furtherButton(page, passengers)).toHaveAttribute('data-selected', 'true');
 });
 
-test('the conduct is a radio group: another press switches, a second press of the selected one clears', async ({
+test('Continue normally is preselected without a press; the conduct is a radio group that cannot be cleared', async ({
   page,
   hasTouch,
 }) => {
@@ -175,15 +188,122 @@ test('the conduct is a radio group: another press switches, a second press of th
   if (carryOn === undefined || precaution === undefined || emergency === undefined) {
     throw new Error('short list');
   }
+  expect(SET.defaultConduct).toBe(carryOn);
   await page.goto('./');
   await startScenario(page, hasTouch, FIRE_ROW);
-  await pickFurther(page, hasTouch, [carryOn]);
-  await pickFurther(page, hasTouch, [emergency]);
+  // Highlighted from the start, with no press and no other button selected.
+  expect(await selectedIds(page)).toEqual([carryOn]);
+  await expect(furtherButton(page, carryOn)).toHaveAttribute('aria-pressed', 'true');
+  // A press of the selected one is no change.
+  await toggleFurther(page, hasTouch, carryOn);
+  expect(await selectedIds(page)).toEqual([carryOn]);
+  // Another press switches, a press of the new selection keeps it: exactly one is selected always.
+  await toggleFurther(page, hasTouch, emergency);
   expect(await selectedIds(page)).toEqual([emergency]);
   await toggleFurther(page, hasTouch, emergency);
-  expect(await selectedIds(page)).toEqual([]);
-  await pickFurther(page, hasTouch, [precaution]);
+  expect(await selectedIds(page)).toEqual([emergency]);
+  await toggleFurther(page, hasTouch, precaution);
   expect(await selectedIds(page)).toEqual([precaution]);
+  await toggleFurther(page, hasTouch, carryOn);
+  expect(await selectedIds(page)).toEqual([carryOn]);
+});
+
+test('the cluster has its headline and the rows of the owner: three conducts on top, passengers and the two ATC calls below', async ({
+  page,
+  hasTouch,
+}) => {
+  const [carryOn, precaution, emergency] = CONDUCT_IDS;
+  const [mayday, panPan, passengers] = [MAYDAY, ACTION_IDS[1], ACTION_IDS[2]];
+  if (carryOn === undefined || precaution === undefined || emergency === undefined) {
+    throw new Error('short list');
+  }
+  if (panPan === undefined || passengers === undefined) throw new Error('short list');
+  await page.goto('./');
+  // The headline is static plate art: it is there on the free panel, before any run.
+  await expect(page.locator('[data-shell="further-title"]')).toHaveText('FURTHER ACTIONS');
+  await startScenario(page, hasTouch, FIRE_ROW);
+  await expect(page.locator('[data-shell="further-title"]')).toHaveText('FURTHER ACTIONS');
+  // All boxes in one read, so a view that is still settling cannot split them.
+  const read = await page.evaluate(
+    (ids) => {
+      const rectOf = (el: Element | null) => {
+        if (el === null) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height };
+      };
+      return {
+        hits: ids.map((id) => [
+          id,
+          rectOf(document.querySelector(`[data-session-hit="further.${id}"]`)),
+        ]),
+        title: rectOf(document.querySelector('[data-shell="further-title"]')),
+        plate: rectOf(document.querySelector('[data-plate="further-pad"]')),
+      };
+    },
+    [...CONDUCT_IDS, ...ACTION_IDS],
+  );
+  const boxes = new Map<string, { x: number; y: number; w: number; h: number }>();
+  for (const [id, box] of read.hits) {
+    if (typeof id !== 'string' || box === null || box === undefined || typeof box === 'string') {
+      throw new Error('no box');
+    }
+    boxes.set(id, box);
+  }
+  const at = (id: string) => {
+    const box = boxes.get(id);
+    if (box === undefined) throw new Error(id);
+    return box;
+  };
+  const tol = 1.5;
+  // Row 1: continue normally at the top left, then alternate, then emergency, on one line.
+  expect(Math.abs(at(carryOn).y - at(precaution).y)).toBeLessThan(tol);
+  expect(Math.abs(at(carryOn).y - at(emergency).y)).toBeLessThan(tol);
+  expect(at(carryOn).x).toBeLessThan(at(precaution).x);
+  expect(at(precaution).x).toBeLessThan(at(emergency).x);
+  // Row 2: brief passengers, MAYDAY, notify (PAN PAN PAN), one line below row 1.
+  expect(Math.abs(at(passengers).y - at(mayday).y)).toBeLessThan(tol);
+  expect(Math.abs(at(passengers).y - at(panPan).y)).toBeLessThan(tol);
+  expect(at(passengers).x).toBeLessThan(at(mayday).x);
+  expect(at(mayday).x).toBeLessThan(at(panPan).x);
+  expect(at(passengers).y).toBeGreaterThan(at(carryOn).y + at(carryOn).h - tol);
+  // The columns line up, and the headline stands above row 1 inside the plate.
+  expect(Math.abs(at(carryOn).x - at(passengers).x)).toBeLessThan(tol);
+  const { title, plate } = read;
+  if (title === null || plate === null) throw new Error('no title or plate');
+  expect(title.y).toBeGreaterThanOrEqual(plate.y);
+  expect(title.y + title.h).toBeLessThanOrEqual(at(carryOn).y + tol);
+  // The labels of the two calls are the owner's words and fit their buttons.
+  await expect(furtherButton(page, mayday).locator('text')).toHaveText('ATC: MAYDAY');
+  await expect(furtherButton(page, panPan).locator('tspan')).toHaveText([
+    'ATC notify',
+    '(PAN PAN PAN)',
+  ]);
+  await expect(furtherButton(page, passengers).locator('tspan')).toHaveText([
+    'Brief passengers',
+    '(if time permits)',
+  ]);
+  // Every label, line by line, stands inside its button with 6 units of margin at least.
+  for (const option of SET.options) {
+    const hit = at(option.id);
+    const lineBoxes = await furtherButton(page, option.id)
+      .locator('text')
+      .evaluate((el) => {
+        const parts = Array.from(el.querySelectorAll('tspan'));
+        const nodes: Element[] = parts.length > 0 ? parts : [el];
+        return nodes.map((node) => {
+          const r = node.getBoundingClientRect();
+          return { x: r.x, y: r.y, w: r.width, h: r.height };
+        });
+      });
+    expect(lineBoxes.length, `${option.id} lines`).toBe((option.label ?? '').split('\n').length);
+    const margin = hit.w * (6 / 190);
+    for (const box of lineBoxes) {
+      expect(box.x, `${option.id} left`).toBeGreaterThanOrEqual(hit.x + margin);
+      expect(box.x + box.w, `${option.id} right`).toBeLessThanOrEqual(hit.x + hit.w - margin);
+      expect(box.y, `${option.id} top`).toBeGreaterThanOrEqual(hit.y);
+      expect(box.y + box.h, `${option.id} bottom`).toBeLessThanOrEqual(hit.y + hit.h);
+    }
+  }
 });
 
 test('the debrief shows the picks of the conduct in order and the final one counts, with the note of the emergency landing', async ({
@@ -206,22 +326,26 @@ test('the debrief shows the picks of the conduct in order and the final one coun
   );
 });
 
-test('a conduct that was selected and then cleared ends FAIL with the conduct reason, shown as Missing with its pick', async ({
+test('a run that never switches from the preselected Continue normally ends FAIL with the wrong conduct, shown as Wrong with its pick', async ({
   page,
   hasTouch,
 }) => {
-  const emergency = CONDUCT_IDS[2];
-  if (emergency === undefined) throw new Error('short list');
+  const [carryOn] = CONDUCT_IDS;
+  if (carryOn === undefined) throw new Error('short list');
   await page.goto('./');
   await startScenario(page, hasTouch, FIRE_ROW);
-  await pickFurther(page, hasTouch, [MAYDAY, emergency]);
-  await toggleFurther(page, hasTouch, emergency);
+  await pickFurther(page, hasTouch, [MAYDAY]);
   await finish(page, hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
-  await expect(row(page, 'conduct')).toHaveAttribute('data-verdict', 'Missing');
-  await expect(page.getByTestId('debrief-further-picks')).toContainText(textOf(emergency));
+  await expect(row(page, 'conduct')).toHaveAttribute('data-verdict', 'Wrong');
+  // The picked line shows Continue normally: it was the default, not a press.
+  await expect(page.getByTestId('debrief-further-picks')).toContainText(
+    `Picked: ${textOf(carryOn)}`,
+  );
   await expect(
-    page.getByTestId('debrief-reason').filter({ hasText: 'The flight decision was missing.' }),
+    page
+      .getByTestId('debrief-reason')
+      .filter({ hasText: 'The flight decision was not the right one.' }),
   ).toHaveCount(1);
   await expect(page.getByTestId('debrief-further-note')).toHaveCount(0);
 });
@@ -266,8 +390,10 @@ test('@hooks Realistic: a press before the onset changes nothing, after the onse
   // Buttons are drawn alike before the onset (nothing gives the failure away) and ignore the press.
   await expect(page.locator('[data-session-hit^="further."]')).toHaveCount(SET.options.length);
   await toggleFurther(page, hasTouch, MAYDAY);
+  await toggleFurther(page, hasTouch, CONDUCT_IDS[2] ?? MAYDAY);
   await page.waitForTimeout(200);
-  expect(await selectedIds(page)).toEqual([]);
+  // Drawn alike before the onset: the preselected Continue normally shows, no press changes it.
+  expect(await selectedIds(page)).toEqual([SET.defaultConduct]);
   await page.waitForFunction(() => {
     const host = globalThis as unknown as {
       __panelSession?: { now(): number | null; onset(): { at: number } | null };
@@ -277,5 +403,5 @@ test('@hooks Realistic: a press before the onset changes nothing, after the onse
     return now !== null && onset !== null && now >= onset.at;
   });
   await pickFurther(page, hasTouch, [MAYDAY]);
-  expect(await selectedIds(page)).toEqual([MAYDAY]);
+  expect((await selectedIds(page)).sort()).toEqual([MAYDAY, SET.defaultConduct].sort());
 });
