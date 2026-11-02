@@ -163,13 +163,14 @@ The session pad in the co-pilot legroom is trainer content, not an aircraft part
 
 | Id | Static label(s) | Position placards | Basis | File to edit |
 |----|-----------------|-------------------|-------|--------------|
-| `session.new` | NEW SITUATION | none | existing, phase 02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx` |
-| `session.choose` | CHOOSE SITUATION | none | existing, phase 02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx` |
+| `session.new` | NEW SITUATION (drawn on the free panel only since plan 07-04, 280 wide) | none | existing, phase 02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx` |
+| `session.choose` | CHOOSE SITUATION (drawn on the free panel only since plan 07-04, 280 wide) | none | existing, phase 02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx` |
 | `session.next` | NEXT PAGE (the choose list shows four situations per page; the button stands beside CLOSE LIST and only when there are more than four, after the last page it wraps to the first) | none | owner-visible need of Phase 5.1 (more than four situations), new trainer part | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
-| `session.reset` | RESET | none; third button under CHOOSE SITUATION, same size and press behaviour | owner request (2026-10-23), new trainer part | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
-| `session.checklist` | CHECKLIST (drawn in the run view only, and only in Training mode; the label never changes, the shown sheet is marked by the pressed rim) | none; left of HINT in the second row of the run view | Phase 7 plan 07-01 (D-03, D-05), planner default, owner may veto | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
-| `session.hint` | HINT (drawn in the run view only, and only in Training mode; the label never changes) | none; right of CHECKLIST in the second row of the run view | Phase 7 plan 07-01 (D-04, D-05), planner default, owner may veto | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
-| `session.further` | FURTHER ACTIONS (drawn in the run view only, in both modes; the label never changes, the open modal is marked by the pressed rim) | none; the first row of the run view, full width | Phase 7 plan 07-02 (D-05, D-06), planner default, owner may veto | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
+| `session.reset` | RESET (drawn on the free panel only since plan 07-04, 280 wide) | none; third button under CHOOSE SITUATION, same size and press behaviour | owner request (2026-10-23), new trainer part | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
+| `session.checklist` | CHECKLIST on Easy and Medium, CHOOSE CHECKLIST on Realistic (one row: the label is fixed by the level when the run starts and never changes with a control state; the shown sheet is marked by the pressed rim) | none; top row of the run view | Phase 7 plan 07-04 (R-02, R-03, R-06), owner decision 2026-11-02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
+| `session.hint` | HINT (drawn in the run view on Realistic only; the label never changes, the shown box is marked by the pressed rim) | none; second row of the run view | Phase 7 plan 07-04 (R-04, R-06), owner decision 2026-11-02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
+| `session.leave` | LEAVE (drawn in the run view only; it asks through the leave-run confirm and brings the free panel back) | none; small button at the bottom right of the run view, 177 x 80 | Phase 7 plan 07-04 (R-06), owner decision 2026-11-02 | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
+| `session.further` | FURTHER ACTIONS (temporary, drawn in the run view only until plan 07-05 replaces it; the label never changes, the open modal is marked by the pressed rim) | none; the third row of the run view, full width | Phase 7 plan 07-02 (D-05, D-06), planner default, owner may veto | `src/ui/panel/frames/ScenarioAreaFrame.tsx`, `src/ui/panel/session-area.ts` |
 
 ## Environmental control
 

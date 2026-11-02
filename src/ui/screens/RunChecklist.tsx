@@ -1,9 +1,11 @@
+import { useRef } from 'preact/hooks';
 import type { BranchVerdict, GradeResult } from '../../engine/grading';
 import type { ScenarioRef } from '../../scenario/packs';
 import type { Scenario } from '../../scenario/schema';
 import { buildOutline, checklistHead } from '../outline';
 import type { ChecklistList } from '../session';
 import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
+import { INPUT_SHIELD_MS } from './Modal';
 
 /** What the sheet shows: one checklist (marked or plain), or the list of checklists (Realistic). */
 export type SheetBody =
@@ -32,6 +34,9 @@ export type SheetBody =
  * no modal id, so the run clock keeps running and the panel stays operable beside it. It has its own
  * hide button (the CHECKLIST button of the pad can be under the sheet), Escape inside it hides it, it
  * scrolls and never reaches the footer. All scenario text is rendered as text children.
+ * The Hide button ignores a click for the first 400 ms: on a narrow portrait phone the bottom sheet
+ * appears right under the pad button, and the click that follows the tap which opened the sheet
+ * would otherwise land on Hide and close the sheet again at once.
  */
 export function RunChecklist({
   body,
@@ -43,6 +48,7 @@ export function RunChecklist({
   /** Present on Realistic: from a shown checklist back to the list of checklists. */
   readonly onBackToList?: () => void;
 }) {
+  const shownAt = useRef(performance.now());
   return (
     <section
       class="run-checklist"
@@ -63,7 +69,9 @@ export function RunChecklist({
           type="button"
           class="secondary-button run-checklist-hide"
           data-testid="run-checklist-hide"
-          onClick={onHide}
+          onClick={() => {
+            if (performance.now() - shownAt.current >= INPUT_SHIELD_MS) onHide();
+          }}
         >
           Hide
         </button>

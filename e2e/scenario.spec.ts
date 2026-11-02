@@ -38,6 +38,7 @@ type HookHost = { __panel?: PanelHook; __panelSession?: SessionHook };
 
 const NEW_SITUATION = '[data-session-hit="session.new"]';
 const CHOOSE_SITUATION = '[data-session-hit="session.choose"]';
+const LEAVE = '[data-session-hit="session.leave"]';
 const MIN_BUTTON_PX = 44;
 const MIN_FOOTER_PX = 52;
 /** The CHOOSE SITUATION row of ENG OIL TEMP: "pack.scenario". */
@@ -197,7 +198,7 @@ test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its br
   expect(await events(page)).toEqual([]);
 });
 
-test('@hooks NEW SITUATION during a run asks first; Keep going and Escape keep the run, Leave run drops it', async ({
+test('@hooks LEAVE during a run asks first; Keep going and Escape keep the run, Leave run drops it', async ({
   page,
   hasTouch,
 }) => {
@@ -206,8 +207,11 @@ test('@hooks NEW SITUATION during a run asks first; Keep going and Escape keep t
   await expect(chips(page)).toHaveCount(1);
   const logged = await events(page);
 
-  // NEW SITUATION during a run opens the confirm with Keep going focused; the run is untouched.
-  await activate(page.locator(NEW_SITUATION), hasTouch);
+  // LEAVE during a run opens the confirm with Keep going focused; the run is untouched. NEW
+  // SITUATION and CHOOSE SITUATION are not drawn during a run.
+  await expect(page.locator(NEW_SITUATION)).toHaveCount(0);
+  await expect(page.locator(CHOOSE_SITUATION)).toHaveCount(0);
+  await activate(page.locator(LEAVE), hasTouch);
   const confirm = page.getByRole('dialog', { name: 'Leave this run?' });
   await expect(confirm).toBeVisible();
   await expect(confirm).toContainText('The current run ends without a result.');
@@ -223,17 +227,23 @@ test('@hooks NEW SITUATION during a run asks first; Keep going and Escape keep t
   await expect(chips(page)).toHaveCount(1);
 
   // Keep going by button, after the shield of the dialog.
-  await activate(page.locator(CHOOSE_SITUATION), hasTouch);
+  await activate(page.locator(LEAVE), hasTouch);
   await expect(confirm).toBeVisible();
   await activate(page.getByTestId('leave-keep'), hasTouch);
   await expect(confirm).toBeHidden();
   expect(await screenOf(page)).toBe('running');
   expect(await events(page)).toEqual(logged);
 
-  // Leave run: no result, the panel at its defaults, no chip, then the briefing of a new situation.
-  await activate(page.locator(NEW_SITUATION), hasTouch);
+  // Leave run: no result, the panel at its defaults, no chip; the free panel is back with its three
+  // buttons, and NEW SITUATION opens the briefing of a new situation.
+  await activate(page.locator(LEAVE), hasTouch);
   await expect(confirm).toBeVisible();
   await activate(page.getByTestId('leave-leave'), hasTouch);
+  await expect(confirm).toBeHidden();
+  expect(await screenOf(page)).toBe('free');
+  await expect(page.locator(NEW_SITUATION)).toBeVisible();
+  await expect(page.locator(CHOOSE_SITUATION)).toBeVisible();
+  await activate(page.locator(NEW_SITUATION), hasTouch);
   await expect(page.getByTestId('level-pick')).toBeVisible();
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);

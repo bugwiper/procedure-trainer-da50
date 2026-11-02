@@ -12,7 +12,7 @@ import {
 } from './support/zoom';
 import type { Point } from './support/zoom';
 import { SESSION_LAYOUT, pageCount } from '../src/ui/panel/session-area';
-import { startScenario, shippedScenarios } from './support/session';
+import { startRealistic, startScenario, shippedScenarios } from './support/session';
 
 // SES-01 (phase 02, plan 10): the session area in the co-pilot legroom is as safe to use as every
 // other region. Zoomed into it, the Full panel button covers no session button (U-07); a double
@@ -68,6 +68,63 @@ test('zoomed into the session area, the Full panel button covers no session butt
   const box = await page.locator(NEW_SITUATION).boundingBox();
   expect(box?.width ?? 0).toBeGreaterThan(0);
 });
+
+const MIN_HIT_PX = 44;
+
+/** The size on screen of every session hit box that is drawn now, by id. */
+function hitSizes(page: Page): Promise<[string, number, number][]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll('[data-session-hit]')).map(
+      (el): [string, number, number] => {
+        const r = el.getBoundingClientRect();
+        return [el.getAttribute('data-session-hit') ?? '', r.width, r.height];
+      },
+    ),
+  );
+}
+
+test('zoomed into the session area on the free panel, the three buttons are at least 44 px high and wide', async ({
+  page,
+  hasTouch,
+}) => {
+  await zoomIntoRegion(page, hasTouch, AREA);
+  const sizes = await hitSizes(page);
+  expect(sizes.map(([id]) => id).sort()).toEqual([
+    'session.choose',
+    'session.new',
+    'session.reset',
+  ]);
+  for (const [id, w, h] of sizes) {
+    expect(w, `${id} wide`).toBeGreaterThanOrEqual(MIN_HIT_PX);
+    expect(h, `${id} high`).toBeGreaterThanOrEqual(MIN_HIT_PX);
+  }
+});
+
+for (const level of ['easy', 'realistic'] as const) {
+  test(`zoomed into the session area during a ${level} run, the run view is at least 44 px, the Full panel button covers none of it and no free-panel button is drawn`, async ({
+    page,
+    hasTouch,
+  }) => {
+    if (level === 'easy') await startScenario(page, hasTouch, ENGINE_ROW, 'easy');
+    else await startRealistic(page, hasTouch, ENGINE_ROW);
+    await zoomIntoRegion(page, hasTouch, AREA);
+    await expect(page.getByTestId('zoom-out')).toBeVisible();
+    expect(await sessionButtonCoverage(page), 'run view under Full panel').toEqual([]);
+    const sizes = await hitSizes(page);
+    expect(sizes.map(([id]) => id).sort()).toEqual(
+      [
+        'session.checklist',
+        ...(level === 'realistic' ? ['session.hint'] : []),
+        'session.further',
+        'session.leave',
+      ].sort(),
+    );
+    for (const [id, w, h] of sizes) {
+      expect(w, `${id} wide`).toBeGreaterThanOrEqual(MIN_HIT_PX);
+      expect(h, `${id} high`).toBeGreaterThanOrEqual(MIN_HIT_PX);
+    }
+  });
+}
 
 test('a double tap on the background of the area zooms in as on any region', async ({
   page,
@@ -172,6 +229,7 @@ test('the list pages when there are more situations than rows, and shows NEXT PA
 // RESET returns the panel to its original state: registry defaults, base quantities, no run, no
 // log. On the free panel it acts at once; during a run it goes through the leave-run confirm.
 const RESET = '[data-session-hit="session.reset"]';
+const LEAVE = '[data-session-hit="session.leave"]';
 const ENGINE_ROW = 'engine.eng-oil-temp-green';
 
 function panelState(page: Page) {
@@ -207,7 +265,7 @@ test('@hooks RESET on the free panel puts the changed controls back at once', as
   expect(await panelState(page)).toEqual(original);
 });
 
-test('@hooks RESET during a run asks first, then the panel equals its defaults and no run is left', async ({
+test('@hooks LEAVE during a run asks first, then the panel equals its defaults and no run is left; RESET is not drawn during a run', async ({
   page,
   hasTouch,
 }) => {
@@ -216,16 +274,21 @@ test('@hooks RESET during a run asks first, then the panel equals its defaults a
   await activate(page.locator('[data-detent="lv.power:p50"]'), hasTouch);
   await expect(page.locator('[data-control-id="lv.power"]')).toHaveAttribute('data-state', 'p50');
 
-  await activate(page.locator(RESET), hasTouch);
+  await expect(page.locator(RESET)).toHaveCount(0);
+  await activate(page.locator(LEAVE), hasTouch);
   await expect(page.getByTestId('leave-run-modal')).toBeVisible();
   // Keep going leaves the run alone.
   await activate(page.getByTestId('leave-keep'), hasTouch);
   await expect(page.getByTestId('leave-run-modal')).toHaveCount(0);
   expect((await panelState(page)).screen).toBe('running');
 
-  await activate(page.locator(RESET), hasTouch);
+  await activate(page.locator(LEAVE), hasTouch);
   await activate(page.getByTestId('leave-leave'), hasTouch);
   await expect(page.getByTestId('leave-run-modal')).toHaveCount(0);
   await expect(page.getByTestId('procedure-complete')).toHaveCount(0);
   expect(await panelState(page)).toEqual(original);
+  // The free panel has its three buttons again.
+  for (const hit of [NEW_SITUATION, '[data-session-hit="session.choose"]', RESET]) {
+    await expect(page.locator(hit)).toHaveCount(1);
+  }
 });

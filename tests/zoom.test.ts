@@ -964,15 +964,16 @@ describe('HTML chrome type scale (UI-SPEC Typography)', () => {
 describe('session area zoom (plan 02-10)', () => {
   const REGION: Rect = { x: 1300, y: 780, w: 440, h: 480 };
   /**
-   * New, choose, reset, close, next and the four choose rows, then the six buttons of the run view
-   * (further, checklist, hint, new, choose, reset), as global rectangles (Phase 5.1: the region is
-   * 440 wide, the buttons 370, CLOSE LIST and NEXT PAGE 177 each with 16 between them; Phase 7: the
-   * run view has rows of 80 at 20, 116, 212 and 308 from the top of the region).
+   * New, choose, reset, close, next and the four choose rows, then the four buttons of the run view
+   * (checklist, hint, further, leave), as global rectangles (Phase 5.1: the region is 440 wide, the
+   * choose buttons 370, CLOSE LIST and NEXT PAGE 177 each with 16 between them; Phase 7 plan 07-04: the
+   * three free-panel buttons are 280 wide at local x 80; the run view has rows of 80 at 20, 116 and
+   * 212 and LEAVE, 177 x 80, at local x 228, y 392).
    */
   const SESSION_TARGETS: readonly Rect[] = [
-    { x: 1335, y: 800, w: 370, h: 120 },
-    { x: 1335, y: 940, w: 370, h: 120 },
-    { x: 1335, y: 1080, w: 370, h: 120 },
+    { x: 1380, y: 800, w: 280, h: 120 },
+    { x: 1380, y: 940, w: 280, h: 120 },
+    { x: 1380, y: 1080, w: 280, h: 120 },
     { x: 1335, y: 800, w: 177, h: 80 },
     { x: 1528, y: 800, w: 177, h: 80 },
     { x: 1335, y: 890, w: 370, h: 80 },
@@ -980,11 +981,9 @@ describe('session area zoom (plan 02-10)', () => {
     { x: 1335, y: 1070, w: 370, h: 80 },
     { x: 1335, y: 1160, w: 370, h: 80 },
     { x: 1335, y: 800, w: 370, h: 80 },
-    { x: 1335, y: 896, w: 177, h: 80 },
-    { x: 1528, y: 896, w: 177, h: 80 },
-    { x: 1335, y: 992, w: 177, h: 80 },
-    { x: 1528, y: 992, w: 177, h: 80 },
-    { x: 1335, y: 1088, w: 370, h: 80 },
+    { x: 1335, y: 896, w: 370, h: 80 },
+    { x: 1335, y: 992, w: 370, h: 80 },
+    { x: 1528, y: 1172, w: 177, h: 80 },
   ];
   const profiles = [
     ['phone', VIEW_PROFILES.phone],

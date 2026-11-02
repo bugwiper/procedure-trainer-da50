@@ -186,7 +186,7 @@ describe('the README section "Writing a scenario" (D-15)', () => {
       'cues',
       'flight profile',
       'further',
-      'training hints',
+      'checklist sheet',
       'Retry',
     ];
     for (const needle of needles) {

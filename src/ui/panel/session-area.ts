@@ -25,8 +25,12 @@ const BUTTON_W = 370;
 const HALF_GAP = 16;
 const HALF_W = (BUTTON_W - HALF_GAP) / 2;
 
-/** Row tops of the run view (Phase 7, H-03): four rows of 80 units, 16 apart. */
-const RUN_ROW_TOPS = [20, 116, 212, 308] as const;
+/**
+ * The main view (free panel) is narrower than the choose view since Phase 7 (07-04, R-06): 280 wide,
+ * centred at local x 220, so the three buttons leave room beside them and stay at least 44 px on screen.
+ */
+const MAIN_X = 80;
+const MAIN_W = 280;
 
 /** Row tops of the choose view; at most four situations are listed on a page. */
 const CHOOSE_ROW_TOPS = [110, 200, 290, 380] as const;
@@ -34,11 +38,14 @@ const CHOOSE_ROW_TOPS = [110, 200, 290, 380] as const;
 export const SESSION_LAYOUT = {
   /** Size of the region in panel units. */
   region: { w: 440, h: 480 },
-  /** Main view: NEW SITUATION, CHOOSE SITUATION and RESET (the former free slot, y 300 to 440). */
+  /**
+   * Main view (the free panel only, Phase 7 R-06): NEW SITUATION, CHOOSE SITUATION and RESET, 280
+   * wide at x 80 (the former free slot, y 300 to 440).
+   */
   main: {
-    new: { x: BUTTON_X, y: 20, w: BUTTON_W, h: 120 },
-    choose: { x: BUTTON_X, y: 160, w: BUTTON_W, h: 120 },
-    reset: { x: BUTTON_X, y: 300, w: BUTTON_W, h: 120 },
+    new: { x: MAIN_X, y: 20, w: MAIN_W, h: 120 },
+    choose: { x: MAIN_X, y: 160, w: MAIN_W, h: 120 },
+    reset: { x: MAIN_X, y: 300, w: MAIN_W, h: 120 },
   },
   /**
    * Choose view: CLOSE LIST and NEXT PAGE side by side on top (NEXT PAGE only when there are more
@@ -51,18 +58,16 @@ export const SESSION_LAYOUT = {
     maxRows: CHOOSE_ROW_TOPS.length,
   },
   /**
-   * Run view (Phase 7, D-05, H-03), drawn while a run is live: FURTHER ACTIONS on top (plan 07-02,
-   * reserved here), CHECKLIST and HINT side by side (Training only), NEW SITUATION and CHOOSE
-   * SITUATION side by side and RESET. The ids and the leave-run confirm of the three session
-   * buttons are those of the main view; only the rectangles change.
+   * Run view (Phase 7, R-06), drawn while a run is live: CHECKLIST (CHOOSE CHECKLIST on Realistic) on
+   * top, HINT below it (Realistic only), the temporary FURTHER ACTIONS (plan 07-05 replaces it) and a
+   * small LEAVE at the bottom right, the way out of the run through the leave-run confirm. NEW
+   * SITUATION, CHOOSE SITUATION and RESET are not drawn during a run.
    */
   run: {
-    further: { x: BUTTON_X, y: RUN_ROW_TOPS[0], w: BUTTON_W, h: 80 },
-    checklist: { x: BUTTON_X, y: RUN_ROW_TOPS[1], w: HALF_W, h: 80 },
-    hint: { x: BUTTON_X + HALF_W + HALF_GAP, y: RUN_ROW_TOPS[1], w: HALF_W, h: 80 },
-    new: { x: BUTTON_X, y: RUN_ROW_TOPS[2], w: HALF_W, h: 80 },
-    choose: { x: BUTTON_X + HALF_W + HALF_GAP, y: RUN_ROW_TOPS[2], w: HALF_W, h: 80 },
-    reset: { x: BUTTON_X, y: RUN_ROW_TOPS[3], w: BUTTON_W, h: 80 },
+    checklist: { x: BUTTON_X, y: 20, w: BUTTON_W, h: 80 },
+    hint: { x: BUTTON_X, y: 116, w: BUTTON_W, h: 80 },
+    further: { x: BUTTON_X, y: 212, w: BUTTON_W, h: 80 },
+    leave: { x: 228, y: 392, w: 177, h: 80 },
   },
   /** Button labels: size 14, weight 700, centred on their button, baseline top + h / 2 + 5. */
   label: { size: 14, weight: 700, baselineOffset: 5 },
@@ -92,7 +97,7 @@ export function labelBaseline(r: LocalRect): number {
 }
 
 /**
- * Global rectangles of every session button of the three views (new, choose, reset, close, next, the choose rows and the run view),
+ * Global rectangles of every session button of the three views (new, choose, reset, close, next, the choose rows and the run view: checklist, hint, further, leave),
  * moved by the origin of the region scenario_area. A conservative superset like controlFootprints:
  * the Full panel corner chooser avoids all of them in every view.
  */

@@ -5,15 +5,18 @@ import { SessionButton } from '../widgets/SessionButton';
 import type { FrameProps } from './MfdFrame';
 
 /**
- * The session area in the co-pilot legroom (D-14, region scenario_area). Main view: NEW SITUATION,
- * CHOOSE SITUATION and RESET at their SESSION_LAYOUT rectangles. Run view (state running, Phase 7,
- * D-05): the same three buttons at the SESSION_LAYOUT.run rectangles with the same ids and the same
- * leave-run confirm, FURTHER ACTIONS on top (Phase 7), CHECKLIST (CHOOSE CHECKLIST on Realistic; the pressed rim while the sheet is shown) and HINT (Realistic only; the pressed rim while the box is shown). Choose view (state choosing): CLOSE LIST
- * and one page of up to four rows, one per scenario of an allowed pack, titled from the pack
- * manifest; NEXT PAGE beside CLOSE LIST only when there are more rows than one page holds, and it
- * wraps to the first page (Phase 5.1). Trainer
- * content, not an aircraft control: it is drawn only when a session is passed, and nothing here
- * touches the store. The text follows the session state, never a control state (U-06).
+ * The session area in the co-pilot legroom (D-14, region scenario_area). Main view (the free panel,
+ * 07-04 R-06): NEW SITUATION, CHOOSE SITUATION and RESET at their SESSION_LAYOUT rectangles. Run view
+ * (state running): only what the run needs, at the SESSION_LAYOUT.run rectangles: CHECKLIST (CHOOSE
+ * CHECKLIST on Realistic, fixed by the level when the run starts; the pressed rim while the sheet is
+ * shown), HINT (Realistic only; the pressed rim while the box is shown), the temporary FURTHER
+ * ACTIONS (plan 07-05 replaces it) and LEAVE, which asks through the leave-run confirm. NEW
+ * SITUATION, CHOOSE SITUATION and RESET are not drawn during a run. Choose view (state choosing):
+ * CLOSE LIST and one page of up to four rows, one per scenario of an allowed pack, titled from the
+ * pack manifest; NEXT PAGE beside CLOSE LIST only when there are more rows than one page holds, and
+ * it wraps to the first page (Phase 5.1). Trainer content, not an aircraft control: it is drawn only
+ * when a session is passed, and nothing here touches the store. The text follows the session state,
+ * never a control state (U-06).
  *
  * While a load runs, the button that started it keeps its pressed rim and every other press on the
  * area is ignored. The rows and CLOSE LIST ignore presses for the first 400 ms after the view
@@ -136,33 +139,11 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
           />
         ) : null}
         <SessionButton
-          key="session.new"
-          id="session.new"
-          rect={run.new}
-          label="NEW SITUATION"
-          ariaLabel="New situation, random"
-          held={busyKey === 'session.new'}
-          onActivate={idle(() => {
-            void session.newSituation();
-          })}
-        />
-        <SessionButton
-          key="session.choose"
-          id="session.choose"
-          rect={run.choose}
-          label="CHOOSE SITUATION"
-          ariaLabel="Choose situation"
-          held={busyKey === 'session.choose'}
-          onActivate={idle(() => {
-            void session.openChooser();
-          })}
-        />
-        <SessionButton
-          key="session.reset"
-          id="session.reset"
-          rect={run.reset}
-          label="RESET"
-          ariaLabel="Reset the panel to its original state"
+          key="session.leave"
+          id="session.leave"
+          rect={run.leave}
+          label="LEAVE"
+          ariaLabel="Leave the run"
           onActivate={idle(() => {
             session.resetPanel();
           })}

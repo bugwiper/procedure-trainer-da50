@@ -163,6 +163,8 @@ for (const level of ['easy', 'medium'] as const) {
       // Shown again, the sheet is up to date at once.
       await expect(sheet.locator('[data-testid="sheet-step"][data-verdict="Done"]')).toHaveCount(1);
     }
+    // The hide button ignores a click for the first 400 ms after the sheet appeared.
+    await page.waitForTimeout(450);
     await activate(page.getByTestId('run-checklist-hide'), hasTouch);
     await expect(sheet).toHaveCount(0);
   });
@@ -357,3 +359,33 @@ test('the sheet is gone when the run ends', async ({ page, hasTouch, browserName
   await expect(page.getByTestId('debrief-result')).toBeVisible();
   await expect(page.getByTestId('run-checklist')).toHaveCount(0);
 });
+
+for (const level of ['easy', 'medium', 'realistic'] as const) {
+  test(`${level}: LEAVE is drawn during a run, NEW, CHOOSE and RESET are not, and all three are back after leaving`, async ({
+    page,
+    hasTouch,
+  }) => {
+    await page.goto('./');
+    await expect(page.getByTestId('panel')).toBeVisible();
+    if (level === 'realistic') await startRealistic(page, hasTouch, ENGINE_ROW);
+    else await startScenario(page, hasTouch, ENGINE_ROW, level);
+    const free = ['session.new', 'session.choose', 'session.reset'];
+    await expect(page.locator('[data-session-hit="session.leave"]')).toHaveCount(1);
+    await expect(page.locator('[data-session-button="session.leave"]')).toContainText('LEAVE');
+    for (const id of free) await expect(page.locator(`[data-session-hit="${id}"]`)).toHaveCount(0);
+    // The hint button exists on Realistic only.
+    await expect(page.locator(HINT)).toHaveCount(level === 'realistic' ? 1 : 0);
+
+    // LEAVE asks through the leave-run confirm; Keep going leaves the run alone, Leave run goes.
+    await activate(page.locator('[data-session-hit="session.leave"]'), hasTouch);
+    await expect(page.getByTestId('leave-run-modal')).toBeVisible();
+    await activate(page.getByTestId('leave-keep'), hasTouch);
+    await expect(page.getByTestId('leave-run-modal')).toHaveCount(0);
+    await expect(page.getByTestId('procedure-complete')).toBeVisible();
+    await activate(page.locator('[data-session-hit="session.leave"]'), hasTouch);
+    await activate(page.getByTestId('leave-leave'), hasTouch);
+    await expect(page.getByTestId('procedure-complete')).toHaveCount(0);
+    for (const id of free) await expect(page.locator(`[data-session-hit="${id}"]`)).toHaveCount(1);
+    await expect(page.locator('[data-session-hit="session.leave"]')).toHaveCount(0);
+  });
+}
