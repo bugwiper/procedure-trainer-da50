@@ -6,7 +6,6 @@ import { parseScenario } from '../src/scenario/parse';
 import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
 import {
   chooseScenario,
-  pickMode,
   quantityOf,
   shippedScenarios,
   startRealistic,
@@ -73,7 +72,6 @@ async function afterShield(page: Page): Promise<void> {
 /** Opens ENG OIL TEMP through CHOOSE SITUATION, picks Easy and waits until the briefing is open. */
 async function openBriefing(page: Page, hasTouch: boolean): Promise<void> {
   await chooseScenario(page, hasTouch, ENGINE_ROW);
-  await pickMode(page, hasTouch, 'exam');
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -109,8 +107,7 @@ test('@hooks NEW SITUATION opens one of the shipped scenarios in its initial sta
 
   // NEW SITUATION picks at random among the shipped scenarios; Easy, then Start run.
   await activate(page.locator(NEW_SITUATION), hasTouch);
-  await expect(page.getByTestId('mode-pick')).toBeVisible();
-  await pickMode(page, hasTouch, 'exam');
+  await expect(page.getByTestId('level-pick')).toBeVisible();
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -184,8 +181,7 @@ test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its br
   await activate(page.locator(CHOOSE_SITUATION), hasTouch);
   await afterShield(page);
   await activate(page.locator(`[data-session-hit="session.row.${ENGINE_ROW}"]`), hasTouch);
-  await expect(page.getByTestId('mode-pick')).toBeVisible();
-  await pickMode(page, hasTouch, 'exam');
+  await expect(page.getByTestId('level-pick')).toBeVisible();
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -238,8 +234,7 @@ test('@hooks NEW SITUATION during a run asks first; Keep going and Escape keep t
   await activate(page.locator(NEW_SITUATION), hasTouch);
   await expect(confirm).toBeVisible();
   await activate(page.getByTestId('leave-leave'), hasTouch);
-  await expect(page.getByTestId('mode-pick')).toBeVisible();
-  await pickMode(page, hasTouch, 'exam');
+  await expect(page.getByTestId('level-pick')).toBeVisible();
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -290,8 +285,7 @@ test('@hooks a pack that cannot be loaded shows the error; Try again retries the
   await expect(error).toBeVisible();
   await page.unroute('**/pack-*', abort);
   await activate(page.getByTestId('load-error-retry'), hasTouch);
-  await expect(page.getByTestId('mode-pick')).toBeVisible();
-  await pickMode(page, hasTouch, 'exam');
+  await expect(page.getByTestId('level-pick')).toBeVisible();
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
@@ -327,8 +321,8 @@ test('@hooks the Easy briefing shows the checklist with the panel steps and the 
     'Training aid only. Not a replacement for the AFM or for instruction.',
   );
   await expect(briefing.getByRole('heading', { name: 'Checklist' })).toBeVisible();
-  await expect(page.getByTestId('briefing-exam')).toHaveText(
-    'Exam mode: no hints. When you are done, press Procedure complete.',
+  await expect(page.getByTestId('briefing-note')).toHaveText(
+    'When you are done, press Procedure complete.',
   );
 
   // The decision card, whole: the panel steps of the branch that applies are listed as plain lines,
@@ -358,7 +352,7 @@ test('@hooks the Easy briefing shows the checklist with the panel steps and the 
     };
     const sourceEl = card.querySelector('[data-testid="briefing-source"]');
     const lastInside = sourceEl === null ? -1 : all.indexOf(sourceEl);
-    const body = ['briefing-situation', 'briefing-disclaimer', 'briefing-outline', 'briefing-exam'];
+    const body = ['briefing-situation', 'briefing-disclaimer', 'briefing-outline', 'briefing-note'];
     return {
       ids: [...body, 'briefing-source'].map(at),
       bodyBeforeSource: body.every((id) => at(id) < lastInside),
@@ -381,7 +375,6 @@ test('@hooks Level question: Easy, Medium and Realistic come before any briefing
   hasTouch,
 }) => {
   await chooseScenario(page, hasTouch, ENGINE_ROW);
-  await pickMode(page, hasTouch, 'exam');
   await expect(page.getByTestId('briefing')).toHaveCount(0);
   const easy = page.getByTestId('level-pick-easy');
   const medium = page.getByTestId('level-pick-medium');

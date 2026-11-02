@@ -1,12 +1,14 @@
-import type { BranchVerdict } from '../../engine/grading';
+import type { BranchVerdict, GradeResult } from '../../engine/grading';
 import type { Scenario } from '../../scenario/schema';
 import { buildOutline, checklistHead } from '../outline';
 import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
 
 /**
- * The checklist sheet of a Training run (Phase 7, SES-02, D-03, H-04): the printed heading and
- * message tag and the outline in its briefing form (the rows the Easy briefing shows, with the
- * branches decided at the start), docked to the side of the panel area. It is not a modal: it holds
+ * The checklist sheet of a run (Phase 7, SES-02, R-02): the printed heading and message tag and the
+ * outline in its briefing form (the rows the Easy briefing shows, with the branches decided at the
+ * start), docked to the side of the panel area. With `marks` (the grade of the partial recording)
+ * the steps already done carry the word Done in green (the live outline form); steps not done carry
+ * nothing. It is not a modal: it holds
  * no modal id, so the run clock keeps running and the panel stays operable beside it. It has its own
  * hide button (the CHECKLIST button of the pad can be under the sheet), Escape inside it hides it, it
  * scrolls and never reaches the footer. All scenario text is rendered as text children.
@@ -14,13 +16,19 @@ import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
 export function RunChecklist({
   scenario,
   branches,
+  marks,
   onHide,
 }: {
   readonly scenario: Scenario;
   readonly branches: readonly BranchVerdict[];
+  /** The grade of the partial recording; null shows the plain briefing form. */
+  readonly marks: GradeResult | null;
   readonly onHide: () => void;
 }) {
-  const outline = buildOutline(scenario, branches, 'briefing');
+  const outline =
+    marks === null
+      ? buildOutline(scenario, branches, 'briefing')
+      : buildOutline(scenario, branches, 'live', marks);
   const head = checklistHead(scenario);
   return (
     <section

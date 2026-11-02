@@ -6,7 +6,7 @@ import type {
   PrintedItem,
   PrintedOutlineItem,
 } from '../tests/checklist-reference';
-import { chooseScenario, forceVariant, pickMode, startScenario } from './support/session';
+import { chooseScenario, forceVariant, startScenario } from './support/session';
 import { activate } from './support/zoom';
 
 // The checklists as printed (plan 03-14, owner decision 2026-10-23) on the built app: the Easy
@@ -44,7 +44,6 @@ function printedTable(id: string): Extract<PrintedChecklist, { form: 'table' }> 
 /** Opens the Easy briefing of one scenario through CHOOSE SITUATION. */
 async function openBriefing(page: Page, hasTouch: boolean, row: string): Promise<Locator> {
   await chooseScenario(page, hasTouch, row);
-  await pickMode(page, hasTouch, 'exam');
   await page.waitForTimeout(450);
   await activate(page.getByTestId('level-pick-easy'), hasTouch);
   const briefing = page.getByTestId('briefing');

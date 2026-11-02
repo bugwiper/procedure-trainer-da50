@@ -15,10 +15,10 @@
 // A scenario with variants (phase 3.1) draws one cause on every level with a second seed, taken
 // after the onset seed; the engine resolves it into the scenario the run uses (resolveVariant), the
 // draw is recorded (the signal `variant`, then Recording.variant) and only the debrief names it.
-// Phase 7 adds the mode (Training or Exam), asked on its own card before the level: display state
-// like the level and never an input of grade. In Training a run can ask for a hint (askHint: the
-// grade of the partial recording read for its first open step, src/engine/hint.ts) and show the
-// checklist sheet (toggleChecklist); in Exam both do nothing. Neither is a modal.
+// Phase 7 adds the checklist sheet (toggleChecklist), a non-modal sheet that exists in every run:
+// it shows the scenario's own checklist and marks the steps already done from the grade of the
+// partial recording (checklistMarks, the same credit the debrief shows; grade never receives the
+// sheet or the level).
 // The further actions (Phase 7, plan 02): during a run the pilot can pick the decisions that are not
 // panel actions (inform ATC, brief passengers, the flight conduct) in a modal; each pick is logged by
 // decide() as { t, id } with the run clock's time and goes into the recording beside the store log.
@@ -37,8 +37,6 @@ import type {
 } from '../engine/grading';
 import { offersConduct } from '../engine/further';
 import type { RecordedDecision } from '../engine/further';
-import { nextOpenStep, openFurtherItems } from '../engine/hint';
-import type { OpenFurther, OpenStep } from '../engine/hint';
 import { initialQuantities, realisticQuantities } from '../engine/predicates';
 import { Run } from '../engine/run';
 import { MAX_RUN_MS, onsetFromSeed, simSetup } from '../engine/sim';
@@ -74,55 +72,11 @@ export const LEVEL_HINTS: Readonly<Record<Level, string>> = {
   realistic: 'No briefing. The failure starts by itself.',
 };
 
-/**
- * The mode of a run (Phase 7, D-02): Training offers a hint and the checklist during the run, Exam is
- * silent. Display state like the level: it has its own card and grade never receives it.
- */
-export type Mode = 'training' | 'exam';
+/** A refresh of the sheet marks slower than this (ms) makes the following ones trailing. */
+const SLOW_MARKS_MS = 30;
 
-/** The modes in display order. */
-export const MODES: readonly Mode[] = ['training', 'exam'];
-
-/** The display name of each mode, as the mode buttons and the debrief print it. */
-export const MODE_NAMES: Readonly<Record<Mode, string>> = {
-  training: 'Training',
-  exam: 'Exam',
-};
-
-/** The one line under each mode button on the mode card: what the mode changes. */
-export const MODE_HINTS: Readonly<Record<Mode, string>> = {
-  training: 'Checklist and hints on demand during the run.',
-  exam: 'Silent. No checklist, no hints.',
-};
-
-/** The note of the briefing in Training mode (own wording, H-05); the Exam note is the briefing's own. */
-export const TRAINING_NOTE =
-  'Training mode: show the checklist and ask for a hint during the run. When you are done, press Procedure complete.';
-
-/** What the hint line shows after HINT: the next open step, or the fixed sentence when none is open. */
-export type HintState =
-  | { readonly kind: 'step'; readonly step: OpenStep }
-  | { readonly kind: 'none'; readonly further?: OpenFurther };
-
-/** The hint line when no required step is open (own wording, H-05). */
-export const HINT_NONE_TEXT =
-  'All required steps are done. Press Procedure complete when you are ready.';
-
-/** The hint line when the steps are done but the verdict still waits for a further item (IN-02). */
-export const HINT_FURTHER_TEXTS = {
-  actions:
-    'All checklist steps are done. A required further action is still open: see FURTHER ACTIONS.',
-  conduct: 'All checklist steps are done. The flight conduct is still open: see FURTHER ACTIONS.',
-  both: 'All checklist steps are done. A required further action and the flight conduct are still open: see FURTHER ACTIONS.',
-} as const;
-
-/** The sentence of a "nothing open" hint: it never claims completion while the verdict waits. */
-export function hintNoneText(hint: { readonly further?: OpenFurther }): string {
-  const further = hint.further;
-  if (further === undefined || (further.actions === 0 && !further.conduct)) return HINT_NONE_TEXT;
-  if (further.actions > 0 && further.conduct) return HINT_FURTHER_TEXTS.both;
-  return further.conduct ? HINT_FURTHER_TEXTS.conduct : HINT_FURTHER_TEXTS.actions;
-}
+/** The wait (ms) of a trailing refresh: events in between are coalesced into one. */
+const TRAILING_MARKS_MS = 150;
 
 /** The seeds the session draws are unsigned 32-bit integers. */
 const SEED_RANGE = 4_294_967_296;
@@ -218,22 +172,17 @@ export interface Session {
   /** True once the level of the opened scenario was chosen; the level question comes before the briefing. */
   readonly levelPicked: ReadonlySignal<boolean>;
   /**
-   * The mode of the briefing and of the current or last run: exam at creation (the behaviour before
-   * Phase 7), kept for the page lifetime. Display state; grade never receives it.
-   */
-  readonly mode: ReadonlySignal<Mode>;
-  /** True once the mode of the opened scenario was chosen; the mode question comes before the level. */
-  readonly modePicked: ReadonlySignal<boolean>;
-  /**
-   * The hint last asked for in a Training run (D-04): the open step, or the "nothing open" marker;
-   * null before the first press and outside a run. Not a modal: the run clock keeps running.
-   */
-  readonly hint: ReadonlySignal<HintState | null>;
-  /**
-   * True while the checklist sheet of a Training run is shown (D-03). A non-modal sheet: the run
-   * clock keeps running and the panel stays operable. Cleared whenever the run ends.
+   * True while the checklist sheet is shown (R-02). A non-modal sheet: the run clock keeps running
+   * and the panel stays operable. Cleared whenever the run ends.
    */
   readonly checklistShown: ReadonlySignal<boolean>;
+  /**
+   * The grade of the partial recording while the sheet shows the scenario's own checklist (R-02):
+   * the sheet marks the steps with `steps[].credited`. Refreshed on each logged panel event or
+   * retract while the sheet is shown; null when the sheet is hidden, before the onset of a Realistic
+   * run, and outside a run. Display state: nothing here is ever recorded or graded.
+   */
+  readonly checklistMarks: ReadonlySignal<GradeResult | null>;
   /**
    * The branch statuses of the current run's scenario as the briefing showed them (decided at the
    * start), for the checklist sheet; empty outside a run.
@@ -302,19 +251,7 @@ export interface Session {
    */
   setLevel(level: Level): void;
   /**
-   * Briefing only, before the level is picked: sets the mode and marks it picked. On any other
-   * screen it does nothing, so the mode of a run cannot change between Start run and its debrief.
-   */
-  setMode(mode: Mode): void;
-  /**
-   * Training run only: names the next open checklist step (the grade of the partial recording, D-04)
-   * in the hint signal. Does nothing in Exam mode, outside a run, or before the onset of a Realistic
-   * run. It records nothing and changes no grade.
-   */
-  askHint(): void;
-  /**
-   * Training run only: shows or hides the checklist sheet, on every level. Does nothing in Exam mode
-   * or outside a run. It records nothing and changes no grade.
+   * Running only: shows or hides the checklist sheet. It records nothing and changes no grade.
    */
   toggleChecklist(): void;
   /**
@@ -338,13 +275,13 @@ export interface Session {
   closeDebrief(): void;
   /**
    * Debrief only, not while a load runs: starts the same scenario again from a clean initial state
-   * at the same level and mode, with the same cause and, on Realistic, the same onset (D-14,
+   * at the same level, with the same cause and, on Realistic, the same onset (D-14,
    * `retrySeeds`). Nothing carries over from the graded run.
    */
   retry(): void;
   /**
    * Debrief only, not while a load runs: opens the scenario after the current one in listing order
-   * (all allowed packs, manifest order, wrapping) at the same mode and level, as its briefing on
+   * (all allowed packs, manifest order, wrapping) at the same level, as its briefing on
    * Easy and Medium and as a started run on Realistic; the level card when the next scenario has no
    * onset (D-14).
    */
@@ -446,9 +383,7 @@ export function createSession(deps: SessionDeps): Session {
     onset.value = null;
     variant.value = null;
     clock.value = null;
-    hint.value = null;
-    checklistShown.value = false;
-    runBranches.value = [];
+    clearRunHelp();
     decisions.value = [];
     furtherOpen.value = false;
     confirm.value = null;
@@ -461,10 +396,8 @@ export function createSession(deps: SessionDeps): Session {
   };
   const level = signal<Level>('easy');
   const levelPicked = signal(false);
-  const mode = signal<Mode>('exam');
-  const modePicked = signal(false);
-  const hint = signal<HintState | null>(null);
   const checklistShown = signal(false);
+  const checklistMarks = signal<GradeResult | null>(null);
   const runBranches = signal<readonly BranchVerdict[]>([]);
   const decisions = signal<readonly RecordedDecision[]>([]);
   const furtherOpen = signal(false);
@@ -473,11 +406,14 @@ export function createSession(deps: SessionDeps): Session {
   const recording = signal<Recording | null>(null);
   /** The entry the opened scenario came from: Next situation moves on from it. */
   let openedRef: ScenarioRef | null = null;
+  /** True when the last refresh of the sheet marks took longer than SLOW_MARKS_MS. */
+  let slowMarks = false;
+  let trailingMarks: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * The recording of the run so far, stamped with the run clock's time now: the pilot's events only
    * (the changes of the simulation are regenerated by the replay), the onset and the variant. The
-   * debrief grades it and a hint reads it; null outside a run.
+   * debrief grades it and the checklist sheet marks from it; null outside a run.
    */
   const currentRecording = (): Recording | null => {
     const current = scenario.peek();
@@ -495,6 +431,64 @@ export function createSession(deps: SessionDeps): Session {
       ...(decisions.peek().length === 0 ? {} : { decisions: decisions.peek() }),
     };
   };
+
+  /** True before the failure of a Realistic run has begun: nothing may be decided about it yet. */
+  const beforeOnset = (): boolean => {
+    const began = onset.peek();
+    const runClock = clock.peek();
+    return began !== null && runClock !== null && runClock.now() < began.at;
+  };
+
+  /**
+   * Refreshes the marks of the sheet (R-02, S-02): the grade of the partial recording, only while
+   * the sheet is shown and, on Realistic, once the onset has passed; otherwise nothing is marked.
+   * Called by each logged panel event or retract and when the sheet is opened; never per tick.
+   */
+  const computeMarks = (): void => {
+    const current = scenario.peek();
+    const graded = currentRecording();
+    if (!checklistShown.peek() || current === null || graded === null || beforeOnset()) {
+      checklistMarks.value = null;
+      return;
+    }
+    const began = performance.now();
+    checklistMarks.value = grade(current, env, graded);
+    // The cost of a grade grows with the run time (a replay of the whole log, about 9 ms a minute
+    // on the slowest shipped scenario): a slow call makes the next refreshes trailing (S-02).
+    slowMarks = performance.now() - began > SLOW_MARKS_MS;
+  };
+
+  /** A panel event or a retract refreshes the marks at once, or trailing when the last call was slow. */
+  const refreshMarks = (): void => {
+    if (!slowMarks) {
+      computeMarks();
+      return;
+    }
+    if (trailingMarks !== null) return;
+    trailingMarks = setTimeout(() => {
+      trailingMarks = null;
+      computeMarks();
+    }, TRAILING_MARKS_MS);
+  };
+
+  /** The sheet and everything the run help holds: cleared wherever a run starts or ends. */
+  const clearRunHelp = (): void => {
+    checklistShown.value = false;
+    checklistMarks.value = null;
+    runBranches.value = [];
+    slowMarks = false;
+    if (trailingMarks !== null) clearTimeout(trailingMarks);
+    trailingMarks = null;
+  };
+
+  // One subscription to the log: a panel event or a retract of the user refreshes the marks, but
+  // only while the sheet is shown. The changes the simulation makes (source sim) credit nothing.
+  bridge.store.subscribe((event) => {
+    if (event.source === 'user' && checklistShown.peek()) refreshMarks();
+  });
+  bridge.store.onRetract((event) => {
+    if (event.source === 'user' && checklistShown.peek()) refreshMarks();
+  });
 
   /** Debrief only, not busy: the next scenario of the list opens its briefing (D-14). */
   const runNext = async (): Promise<void> => {
@@ -524,13 +518,6 @@ export function createSession(deps: SessionDeps): Session {
     });
   };
 
-  /** True before the failure of a Realistic run has begun: nothing may be decided about it yet. */
-  const beforeOnset = (): boolean => {
-    const began = onset.peek();
-    const runClock = clock.peek();
-    return began !== null && runClock !== null && runClock.now() < began.at;
-  };
-
   /** Running only: grades the recorded log at the run clock's time and shows the debrief. */
   const completeRun = (): void => {
     const current = scenario.peek();
@@ -539,9 +526,7 @@ export function createSession(deps: SessionDeps): Session {
     if (graded === null || current === null || runClock === null) return;
     recording.value = graded;
     result.value = grade(current, env, graded);
-    hint.value = null;
-    checklistShown.value = false;
-    runBranches.value = [];
+    clearRunHelp();
     furtherOpen.value = false;
     runClock.pause();
     bridge.setTimeSource(null);
@@ -600,8 +585,7 @@ export function createSession(deps: SessionDeps): Session {
     briefing.value = null;
     result.value = null;
     recording.value = null;
-    hint.value = null;
-    checklistShown.value = false;
+    clearRunHelp();
     runBranches.value = branchStatuses(opened, env);
     decisions.value = [];
     furtherOpen.value = false;
@@ -648,8 +632,8 @@ export function createSession(deps: SessionDeps): Session {
 
   /**
    * Opens a scenario through the seam and shows its briefing; a failure is kept for the screens.
-   * `keepPicks` (Next situation, D-14) leaves the debrief like RESET does and keeps the mode and
-   * the level, so their cards are skipped: a Realistic level starts the run at once when the
+   * `keepPicks` (Next situation, D-14) leaves the debrief like RESET does and keeps the level, so
+   * its card is skipped: a Realistic level starts the run at once when the
    * scenario has an onset and shows the level card when it has none.
    */
   const openBriefing = async (ref: ScenarioRef, keepPicks = false): Promise<void> => {
@@ -669,11 +653,9 @@ export function createSession(deps: SessionDeps): Session {
     choices.value = [];
     screen.value = 'briefing';
     if (!keepPicks) {
-      modePicked.value = false;
       levelPicked.value = false;
       return;
     }
-    modePicked.value = true;
     const realistic = level.peek() === 'realistic';
     if (realistic && opened.scenario.onset === undefined) {
       levelPicked.value = false;
@@ -766,10 +748,8 @@ export function createSession(deps: SessionDeps): Session {
     run,
     level,
     levelPicked,
-    mode,
-    modePicked,
-    hint,
     checklistShown,
+    checklistMarks,
     runBranches,
     decisions,
     furtherOpen,
@@ -848,9 +828,7 @@ export function createSession(deps: SessionDeps): Session {
       onset.value = null;
       variant.value = null;
       clock.value = null;
-      hint.value = null;
-      checklistShown.value = false;
-      runBranches.value = [];
+      clearRunHelp();
       decisions.value = [];
       furtherOpen.value = false;
       confirm.value = null;
@@ -891,33 +869,12 @@ export function createSession(deps: SessionDeps): Session {
       levelPicked.value = true;
       if (next === 'realistic') begin(briefed, true);
     },
-    setMode(next) {
-      if (screen.peek() !== 'briefing' || briefing.peek() === null || levelPicked.peek()) return;
-      mode.value = next;
-      modePicked.value = true;
-    },
-    askHint() {
-      if (mode.peek() !== 'training') return;
-      const current = scenario.peek();
-      const graded = currentRecording();
-      if (current === null || graded === null) return;
-      // The failure of a Realistic run has not begun: a hint would give it away (T-07-02).
-      const began = onset.peek();
-      if (began !== null && graded.completedAt < began.at) return;
-      const open = nextOpenStep(current, env, graded);
-      if (open !== null) {
-        hint.value = { kind: 'step', step: open };
-        return;
-      }
-      const further = openFurtherItems(current, env, graded);
-      hint.value =
-        further.actions > 0 || further.conduct ? { kind: 'none', further } : { kind: 'none' };
-    },
     toggleChecklist() {
-      if (mode.peek() !== 'training' || screen.peek() !== 'running') return;
-      // The sheet names the situation: on Realistic it stays shut until the onset (WR-01, D-04).
+      if (screen.peek() !== 'running') return;
+      // The sheet names the situation: on Realistic it stays shut until the onset (WR-01).
       if (beforeOnset()) return;
       checklistShown.value = !checklistShown.peek();
+      computeMarks();
     },
     decide(id) {
       const current = scenario.peek();
@@ -956,9 +913,7 @@ export function createSession(deps: SessionDeps): Session {
       // A next-situation load in flight would open a briefing the pilot had left (IN-04).
       if (screen.peek() !== 'debrief' || busy.peek()) return;
       endRun();
-      hint.value = null;
-      checklistShown.value = false;
-      runBranches.value = [];
+      clearRunHelp();
       decisions.value = [];
       furtherOpen.value = false;
       // A run timer cannot outlive its run (C-23): the lamps go dark, the quantities stay as left.
@@ -975,9 +930,7 @@ export function createSession(deps: SessionDeps): Session {
         variant.peek() ?? recording.peek()?.variant ?? null,
       );
       endRun();
-      hint.value = null;
-      checklistShown.value = false;
-      runBranches.value = [];
+      clearRunHelp();
       decisions.value = [];
       furtherOpen.value = false;
       bridge.setFlags({});

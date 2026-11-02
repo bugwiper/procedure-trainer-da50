@@ -93,7 +93,6 @@ describe('Debrief on the shell', () => {
       scenario,
       result,
       level: 'easy',
-      mode: 'exam',
       completedAt: 0,
       onClose,
       onRetry,

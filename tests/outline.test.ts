@@ -362,6 +362,101 @@ describe('buildOutline, debrief form', () => {
   });
 });
 
+const liveOf = (scenario: Scenario, result: GradeResult) =>
+  buildOutline(scenario, result.branches, 'live', result);
+
+describe('buildOutline, live form (the checklist sheet of a run, 07-04 R-02)', () => {
+  const stepsOf = (items: readonly OutlineItem[]) =>
+    everyItem(items).filter((i): i is OutlineStep => i.kind === 'step');
+
+  it('marks the credited steps Done in tone done and gives the others nothing', () => {
+    const partial = run(pocket, [GOLDEN[0] ?? { id: '', value: '' }]);
+    const steps = stepsOf(liveOf(pocket, partial));
+    const credited = new Set(partial.steps.filter((s) => s.credited).map((s) => s.id));
+    expect(credited.size).toBeGreaterThan(0);
+    expect(credited.size).toBeLessThan(steps.length);
+    for (const step of steps) {
+      expect(step.live).toBe(true);
+      expect(step.tag).toBeNull();
+      expect(step.muted).toBe(false);
+      expect(step.verdict).toEqual(credited.has(step.id) ? { word: 'Done', tone: 'done' } : null);
+    }
+  });
+
+  it('marks nothing for a recording without events and everything for the golden one', () => {
+    expect(stepsOf(liveOf(pocket, run(pocket, []))).every((s) => s.verdict === null)).toBe(true);
+    const all = stepsOf(liveOf(pocket, run(pocket, GOLDEN)));
+    expect(all.length).toBeGreaterThan(0);
+    expect(all.every((s) => s.verdict?.word === 'Done')).toBe(true);
+  });
+
+  it('never prints Missed or Not done, a tag, an order line or a Not graded note', () => {
+    for (const result of [run(ordered, []), run(ordered, GOLDEN), run(pocket, [])]) {
+      const scenario = result.scenarioId === ordered.id ? ordered : pocket;
+      const items = everyItem(liveOf(scenario, result));
+      expect(items.filter((i) => i.kind === 'order')).toEqual([]);
+      for (const item of items) {
+        if (item.kind === 'step') {
+          expect(item.tag).toBeNull();
+          expect(item.verdict?.word ?? 'Done').toBe('Done');
+        }
+        if (item.kind === 'line' || item.kind === 'decision') {
+          expect(item.notGraded).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('has the same rows as the briefing form: a branch that does not apply keeps its label and no children', () => {
+    const result = run(pocket, GOLDEN);
+    const strip = (items: readonly OutlineItem[]): unknown =>
+      JSON.parse(
+        JSON.stringify(items, (key, value: unknown) =>
+          key === 'verdict' || key === 'live' ? undefined : value,
+        ),
+      );
+    expect(strip(liveOf(pocket, result))).toEqual(strip(briefingOf(pocket)));
+    const closed = branchByLabel(liveOf(pocket, result), 'If too low:');
+    expect(closed.status).toBe('not_applicable');
+    expect(closed.children).toEqual([]);
+  });
+
+  it('leaves a step unmarked that the grade does not credit, whatever the panel shows (R12)', () => {
+    // The blueprint with the onset: power is already reduced before the failure begins.
+    const early = grade(blueprint, DA50RG_ENV, {
+      scenarioId: blueprint.id,
+      completedAt: 60000,
+      onset: { at: 20000, seed: 1 },
+      events: [{ t: 1000, id: 'lv.power', value: 'p50' }],
+    });
+    const steps = stepsOf(liveOf(blueprint, early));
+    const credited = new Set(early.steps.filter((s) => s.credited).map((s) => s.id));
+    expect(steps.length).toBeGreaterThan(0);
+    for (const step of steps) {
+      expect(step.verdict === null, step.id).toBe(!credited.has(step.id));
+    }
+  });
+
+  it('needs the grade result', () => {
+    expect(() => buildOutline(pocket, branchStatuses(pocket, DA50RG_ENV), 'live')).toThrow(
+      'grade result',
+    );
+  });
+
+  it('renders a sheet row with its own test id, never the debrief row, and the word Done only when credited', () => {
+    const tree = expand(
+      ChecklistOutline({
+        items: liveOf(pocket, run(pocket, [GOLDEN[0] ?? { id: '', value: '' }])),
+      }),
+    );
+    expect(findElements(tree, (el) => el.props['data-testid'] === 'debrief-row')).toHaveLength(0);
+    const rows = findElements(tree, (el) => el.props['data-testid'] === 'sheet-step');
+    expect(rows.map((r) => r.props['data-verdict'])).toEqual(['Done', undefined]);
+    expect(textOf(rows[0] ?? tree)).toContain('Done');
+    expect(textOf(rows[1] ?? tree)).not.toContain('Done');
+  });
+});
+
 describe('buildOutline, order lines of an ordered group (D-16, SCN-04)', () => {
   const orderLines = (items: readonly OutlineItem[]) =>
     everyItem(items).filter((i): i is OutlineOrder => i.kind === 'order');

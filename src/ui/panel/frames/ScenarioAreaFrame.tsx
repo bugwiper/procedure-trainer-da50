@@ -8,7 +8,7 @@ import type { FrameProps } from './MfdFrame';
  * The session area in the co-pilot legroom (D-14, region scenario_area). Main view: NEW SITUATION,
  * CHOOSE SITUATION and RESET at their SESSION_LAYOUT rectangles. Run view (state running, Phase 7,
  * D-05): the same three buttons at the SESSION_LAYOUT.run rectangles with the same ids and the same
- * leave-run confirm, FURTHER ACTIONS on top (Phase 7, both modes) and, in Training mode only, CHECKLIST (the pressed rim while the sheet is shown) and HINT. Choose view (state choosing): CLOSE LIST
+ * leave-run confirm, FURTHER ACTIONS on top (Phase 7) and CHECKLIST (the pressed rim while the sheet is shown). Choose view (state choosing): CLOSE LIST
  * and one page of up to four rows, one per scenario of an allowed pack, titled from the pack
  * manifest; NEXT PAGE beside CLOSE LIST only when there are more rows than one page holds, and it
  * wraps to the first page (Phase 5.1). Trainer
@@ -94,7 +94,6 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
 
   if (running) {
     const { run } = SESSION_LAYOUT;
-    const training = session.mode.value === 'training';
     return (
       <g data-session-area data-session-view="run">
         <SessionButton
@@ -108,31 +107,17 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
             session.openFurther();
           }}
         />
-        {training ? (
-          <SessionButton
-            key="session.checklist"
-            id="session.checklist"
-            rect={run.checklist}
-            label="CHECKLIST"
-            ariaLabel="Show or hide the checklist"
-            held={session.checklistShown.value}
-            onActivate={() => {
-              session.toggleChecklist();
-            }}
-          />
-        ) : null}
-        {training ? (
-          <SessionButton
-            key="session.hint"
-            id="session.hint"
-            rect={run.hint}
-            label="HINT"
-            ariaLabel="Hint: show the next open checklist step"
-            onActivate={() => {
-              session.askHint();
-            }}
-          />
-        ) : null}
+        <SessionButton
+          key="session.checklist"
+          id="session.checklist"
+          rect={run.checklist}
+          label="CHECKLIST"
+          ariaLabel="Show or hide the checklist"
+          held={session.checklistShown.value}
+          onActivate={() => {
+            session.toggleChecklist();
+          }}
+        />
         <SessionButton
           key="session.new"
           id="session.new"

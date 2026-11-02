@@ -10,7 +10,8 @@ import type { OutlineItem, OutlineMarker, OutlineVerdict, VerdictTone } from '..
 // reference at the right of the same row). Outline form: the printed marker in front of an item,
 // drawn as a small SVG shape so it looks the same on every device.
 // A step row carries the debrief-row test id and its aria-label only when it has a verdict, so a
-// briefing step is its text alone. All text is rendered as text children, never as markup.
+// briefing step is its text alone. A step of the live form (the sheet of a run) carries the test id
+// sheet-step instead, with the verdict Done once it is credited. All text is rendered as text children, never as markup.
 
 /** How the items are laid out: numbered rows with actions at the right, or the marked outline. */
 export type ChecklistForm = 'table' | 'outline';
@@ -232,7 +233,9 @@ function Item({
         <li
           class={classes.join(' ')}
           data-kind="step"
-          data-testid={item.verdict === null ? undefined : 'debrief-row'}
+          data-testid={
+            item.live === true ? 'sheet-step' : item.verdict === null ? undefined : 'debrief-row'
+          }
           data-step-id={item.id}
           data-verdict={item.verdict?.word}
           data-muted={item.muted ? 'true' : undefined}

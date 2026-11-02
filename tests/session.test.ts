@@ -14,20 +14,15 @@ import { variantFromSeed } from '../src/engine/variants';
 import { parseScenario } from '../src/scenario/parse';
 import { OPEN_ACCESS, createPackProvider } from '../src/scenario/packs';
 import type { AccessPolicy } from '../src/scenario/packs';
+import type { Scenario } from '../src/scenario/schema';
 import { createPanelBridge } from '../src/ui/bridge';
 import { anyModalOpen } from '../src/ui/modals';
 import { SESSION_LAYOUT, pageCount, pageSlice } from '../src/ui/panel/session-area';
 import { reasonLines } from '../src/ui/debrief-text';
 import { attachClockDriver } from '../src/ui/clock-driver';
 import {
-  HINT_FURTHER_TEXTS,
-  HINT_NONE_TEXT,
-  hintNoneText,
   LEVELS,
   LEVEL_HINTS,
-  MODES,
-  MODE_HINTS,
-  MODE_NAMES,
   RUN_ERROR_PATH,
   createSession,
   pickRandom,
@@ -1709,391 +1704,305 @@ describe('scene (phase 05, W-07 to W-09)', () => {
   });
 });
 
-describe('mode and hint (phase 07, SES-02, D-02 to D-04)', () => {
+describe('the checklist sheet and its live marks (phase 07, plan 04, R-02)', () => {
   const parsed = parseScenario(BLUEPRINT);
   if (!parsed.ok) throw new Error('the blueprint does not parse');
   const blueprint = parsed.value;
-  const window = blueprint.onset?.window_s;
-  if (window === undefined) throw new Error('the blueprint declares no onset');
   const [first, second] = blueprint.procedure
     .flatMap((node) => (node.kind === 'decision' ? node.branches.flatMap((b) => b.nodes) : []))
     .flatMap((node) => (node.kind === 'group' ? node.steps : []));
   if (first === undefined || second === undefined)
     throw new Error('the blueprint has no two steps');
 
-  /** A started Training run on Easy (the default level of the helper). */
-  async function training(options: Parameters<typeof rig>[0] = {}): Promise<Rig> {
+  /** A started run on the blueprint at the given level (Realistic starts at once). */
+  async function running(
+    level: 'easy' | 'medium',
+    options: Parameters<typeof rig>[0] = {},
+  ): Promise<Rig> {
     const r = rig(options);
     await r.session.newSituation();
-    r.session.setMode('training');
-    r.session.setLevel('easy');
+    r.session.setLevel(level);
     r.session.startRun();
     expect(r.session.screen.value).toBe('running');
     return r;
   }
 
-  it('has the two modes in display order with their names and their one line each', () => {
-    expect(MODES).toEqual(['training', 'exam']);
-    expect(MODES.map((mode) => MODE_NAMES[mode])).toEqual(['Training', 'Exam']);
-    expect(MODES.map((mode) => MODE_HINTS[mode])).toEqual([
-      'Checklist and hints on demand during the run.',
-      'Silent. No checklist, no hints.',
-    ]);
-  });
-
-  it('is exam at creation and unpicked on every opened briefing', async () => {
-    const r = rig();
-    expect(r.session.mode.value).toBe('exam');
-    expect(r.session.modePicked.value).toBe(false);
-    await r.session.newSituation();
-    expect(r.session.modePicked.value).toBe(false);
-    r.session.setMode('training');
-    expect(r.session.mode.value).toBe('training');
-    expect(r.session.modePicked.value).toBe(true);
-    r.session.backToPanel();
-    await r.session.newSituation();
-    // The question is asked again; the last answer stays as the default of the display state.
-    expect(r.session.modePicked.value).toBe(false);
-    expect(r.session.mode.value).toBe('training');
-  });
-
-  it('is set in the briefing before the level is picked, and nowhere else', async () => {
-    const r = rig();
-    r.session.setMode('training');
-    expect(r.session.mode.value).toBe('exam');
-    expect(r.session.modePicked.value).toBe(false);
-
-    await r.session.newSituation();
-    r.session.setLevel('easy');
-    r.session.setMode('training');
-    expect(r.session.mode.value).toBe('exam');
-    expect(r.session.modePicked.value).toBe(false);
-
-    r.session.startRun();
-    r.session.setMode('training');
-    expect(r.session.mode.value).toBe('exam');
-    r.session.complete();
-    r.session.setMode('training');
-    expect(r.session.mode.value).toBe('exam');
-    expect(r.session.screen.value).toBe('debrief');
-  });
-
-  it('leaves setLevel working without a picked mode, so a path that never picks one is unchanged', async () => {
-    const r = rig();
-    await r.session.newSituation();
-    r.session.setLevel('medium');
-    expect(r.session.levelPicked.value).toBe(true);
-    expect(r.session.modePicked.value).toBe(false);
-    r.session.startRun();
-    expect(r.session.screen.value).toBe('running');
-    expect(r.session.mode.value).toBe('exam');
-  });
-
-  it('keeps the mode through the run and the debrief', async () => {
-    const r = await training();
-    expect(r.session.mode.value).toBe('training');
-    r.session.complete();
-    expect(r.session.mode.value).toBe('training');
-    r.session.closeDebrief();
-    expect(r.session.mode.value).toBe('training');
-  });
-
-  it('askHint does nothing in exam mode', async () => {
-    const r = await started();
-    expect(r.session.mode.value).toBe('exam');
-    r.session.askHint();
-    expect(r.session.hint.value).toBeNull();
-  });
-
-  it('askHint does nothing outside a run', async () => {
-    const r = rig();
-    r.session.setMode('training');
-    r.session.askHint();
-    expect(r.session.hint.value).toBeNull();
-    await r.session.newSituation();
-    r.session.setMode('training');
-    r.session.askHint();
-    expect(r.session.hint.value).toBeNull();
-    r.session.setLevel('easy');
-    r.session.startRun();
-    r.session.complete();
-    expect(r.session.screen.value).toBe('debrief');
-    r.session.askHint();
-    expect(r.session.hint.value).toBeNull();
-  });
-
-  it('names the first open step with its stored wording, then the next one after the control is operated', async () => {
-    const r = await training();
-    expect(r.session.hint.value).toBeNull();
-    r.session.askHint();
-    expect(r.session.hint.value).toEqual({
-      kind: 'step',
-      step: { id: first.id, text: first.text },
-    });
-
-    r.bridge.actuate('lv.power', 'p50');
-    // The hint line keeps what it showed until the next press.
-    expect(r.session.hint.value).toMatchObject({ kind: 'step', step: { id: first.id } });
-    r.session.askHint();
-    expect(r.session.hint.value).toMatchObject({ kind: 'step', step: { id: second.id } });
-
-    r.bridge.actuate('lv.cowl_flap', 'open');
-    r.session.askHint();
-    // The shipped blueprint also asks for the flight conduct; the plain sentence is IN-02's case below.
-    expect(r.session.hint.value).toEqual({ kind: 'none', further: { actions: 0, conduct: true } });
-    expect(HINT_NONE_TEXT).toBe(
-      'All required steps are done. Press Procedure complete when you are ready.',
-    );
-  });
-
-  it('records nothing: the store log, the panel and the run clock are as before', async () => {
-    const r = await training();
+  /** The ids the grade of the recording so far credits: the expectation, derived and never typed. */
+  function creditedNow(r: Rig): string[] {
     const clock = r.session.clock.value;
     if (clock === null) throw new Error('no clock');
-    clock.advance(1500);
-    const log = JSON.stringify(r.bridge.store.events());
-    const quantities = JSON.stringify(r.bridge.quantities.value);
-    r.session.askHint();
-    r.session.askHint();
-    expect(JSON.stringify(r.bridge.store.events())).toBe(log);
-    expect(JSON.stringify(r.bridge.quantities.value)).toBe(quantities);
-    expect(clock.now()).toBe(1500);
-  });
+    const recording: Recording = {
+      scenarioId: blueprint.id,
+      completedAt: clock.now(),
+      events: r.bridge.store
+        .events()
+        .filter((e) => e.source === 'user')
+        .map((e) => ({ t: e.t, id: e.id, value: e.value })),
+    };
+    return grade(blueprint, DA50RG_ENV, recording)
+      .steps.filter((step) => step.credited)
+      .map((step) => step.id);
+  }
 
-  it('gives a Realistic run no hint before its onset and one after it (T-07-02)', async () => {
-    const SEED_DRAW = 0.75;
-    let next = 0;
-    const draws = [0.5, SEED_DRAW];
-    const r = rig({ rng: () => draws[next++] ?? 0 });
-    await r.session.newSituation();
-    r.session.setMode('training');
-    r.session.setLevel('realistic');
-    expect(r.session.screen.value).toBe('running');
-    const onset = r.session.onset.value;
-    if (onset === null) throw new Error('no onset');
-    expect(onset.at).toBe(onsetFromSeed(Math.floor(SEED_DRAW * 4_294_967_296), window));
-    const clock = r.session.clock.value;
-    if (clock === null) throw new Error('no clock');
+  /** The ids the sheet marks Done, or null while it computes nothing. */
+  const marked = (r: Rig): string[] | null =>
+    r.session.checklistMarks.value?.steps.filter((step) => step.credited).map((step) => step.id) ??
+    null;
 
-    clock.advance(onset.at - 1);
-    r.session.askHint();
-    expect(r.session.hint.value).toBeNull();
-
-    clock.advance(1);
-    r.session.askHint();
-    expect(r.session.hint.value).toMatchObject({ kind: 'step', step: { id: first.id } });
-  });
-
-  it('completes with the same result with and without hints', async () => {
-    const results: string[] = [];
-    for (const asking of [false, true]) {
-      const r = await training();
-      if (asking) r.session.askHint();
-      r.bridge.actuate('lv.power', 'p50');
-      if (asking) r.session.askHint();
-      r.bridge.actuate('lv.cowl_flap', 'open');
-      if (asking) r.session.askHint();
-      r.session.decide('conduct_precautionary');
+  it('toggles on Easy and Medium, is hidden at the start and clears when the run ends', async () => {
+    for (const level of ['easy', 'medium'] as const) {
+      const r = await running(level);
+      expect(r.session.checklistShown.value).toBe(false);
+      expect(r.session.checklistMarks.value).toBeNull();
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(true);
+      expect(r.session.checklistMarks.value).not.toBeNull();
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(false);
+      expect(r.session.checklistMarks.value).toBeNull();
+      r.session.toggleChecklist();
       r.session.complete();
-      results.push(JSON.stringify(r.session.result.value));
-      results.push(JSON.stringify(r.session.recording.value));
+      expect(r.session.checklistShown.value).toBe(false);
+      expect(r.session.checklistMarks.value).toBeNull();
     }
-    expect(results[0]).toBe(results[2]);
-    expect(results[1]).toBe(results[3]);
-    expect(results[0]).toContain('"result":"pass"');
   });
 
-  it('clears the hint when the run is completed, left, reset or the debrief closes', async () => {
-    const r = await training();
-    r.session.askHint();
-    expect(r.session.hint.value).not.toBeNull();
+  it('does nothing outside a run', async () => {
+    const r = rig();
+    r.session.toggleChecklist();
+    expect(r.session.checklistShown.value).toBe(false);
+    await r.session.newSituation();
+    r.session.toggleChecklist();
+    expect(r.session.checklistShown.value).toBe(false);
+    r.session.setLevel('easy');
+    r.session.startRun();
     r.session.complete();
-    expect(r.session.hint.value).toBeNull();
+    r.session.toggleChecklist();
+    expect(r.session.checklistShown.value).toBe(false);
+    expect(r.session.checklistMarks.value).toBeNull();
+  });
 
-    const left = await training();
-    left.session.askHint();
-    void left.session.resetPanel();
-    expect(left.session.confirm.value).toBe('reset');
+  it('marks exactly the ids the grade of the same recording credits, on Easy and on Medium', async () => {
+    for (const level of ['easy', 'medium'] as const) {
+      const r = await running(level);
+      r.session.toggleChecklist();
+      expect(marked(r)).toEqual(creditedNow(r));
+      expect(marked(r)).toEqual([]);
+
+      r.bridge.actuate('lv.power', 'p50');
+      expect(marked(r)).toEqual(creditedNow(r));
+      expect(marked(r)).toContain(first.id);
+      expect(marked(r)).not.toContain(second.id);
+
+      r.bridge.actuate('lv.cowl_flap', 'open');
+      expect(marked(r)).toEqual(creditedNow(r));
+      expect(marked(r)).toEqual(expect.arrayContaining([first.id, second.id]));
+    }
+  });
+
+  it('takes a mark away when the event is retracted', async () => {
+    const r = await running('easy');
+    r.session.toggleChecklist();
+    r.bridge.actuate('lv.power', 'p50');
+    expect(marked(r)).toContain(first.id);
+    const retracted = r.bridge.store.retract(r.bridge.store.events().length - 1);
+    expect(retracted.ok).toBe(true);
+    expect(marked(r)).toEqual(creditedNow(r));
+    expect(marked(r)).not.toContain(first.id);
+  });
+
+  it('computes nothing while the sheet is hidden and catches up when it is shown', async () => {
+    const r = await running('easy');
+    r.bridge.actuate('lv.power', 'p50');
+    expect(r.session.checklistMarks.value).toBeNull();
+    r.session.toggleChecklist();
+    expect(marked(r)).toContain(first.id);
+    r.session.toggleChecklist();
+    r.bridge.actuate('lv.cowl_flap', 'open');
+    expect(r.session.checklistMarks.value).toBeNull();
+    r.session.toggleChecklist();
+    expect(marked(r)).toEqual(creditedNow(r));
+    expect(marked(r)).toContain(second.id);
+  });
+
+  it('is cleared by leaving the run, a failed step, completing, Retry and closing the debrief', async () => {
+    const shown = async (): Promise<Rig> => {
+      const r = await running('easy');
+      r.session.toggleChecklist();
+      r.bridge.actuate('lv.power', 'p50');
+      expect(marked(r)).toContain(first.id);
+      return r;
+    };
+
+    const left = await shown();
+    left.session.resetPanel();
     await left.session.leaveRun();
-    expect(left.session.screen.value).toBe('free');
-    expect(left.session.hint.value).toBeNull();
+    expect(left.session.checklistShown.value).toBe(false);
+    expect(left.session.checklistMarks.value).toBeNull();
+    expect(left.session.runBranches.value).toEqual([]);
 
-    const closed = await training();
-    closed.session.askHint();
+    const failed = await shown();
+    failed.session.failRun(new Error('boom'));
+    expect(failed.session.checklistShown.value).toBe(false);
+    expect(failed.session.checklistMarks.value).toBeNull();
+
+    const done = await shown();
+    done.session.complete();
+    expect(done.session.checklistMarks.value).toBeNull();
+    done.session.retry();
+    expect(done.session.screen.value).toBe('running');
+    expect(done.session.checklistShown.value).toBe(false);
+    expect(done.session.checklistMarks.value).toBeNull();
+
+    const closed = await shown();
     closed.session.complete();
     closed.session.closeDebrief();
-    expect(closed.session.hint.value).toBeNull();
-
-    const next = await training();
-    next.session.askHint();
-    next.session.complete();
-    next.session.closeDebrief();
-    await next.session.newSituation();
-    next.session.setLevel('easy');
-    next.session.startRun();
-    expect(next.session.hint.value).toBeNull();
+    expect(closed.session.checklistShown.value).toBe(false);
+    expect(closed.session.checklistMarks.value).toBeNull();
   });
 
-  it('clears the hint when a failed step ends the run', async () => {
-    const r = await training();
-    r.session.askHint();
-    r.session.failRun(new Error('boom'));
-    expect(r.session.hint.value).toBeNull();
+  it('holds the branch statuses the briefing showed, from the file of the run', async () => {
+    const r = rig();
+    await r.session.newSituation();
+    const briefed = r.session.briefing.value?.branches;
+    r.session.setLevel('easy');
+    r.session.startRun();
+    expect(briefed?.length).toBeGreaterThan(0);
+    expect(r.session.runBranches.value).toEqual(briefed);
   });
 
-  describe('the checklist sheet (07-01 task 2, D-03)', () => {
-    it('toggles in a Training run on every level and clears when the run ends', async () => {
-      for (const level of ['easy', 'medium'] as const) {
-        const r = rig();
-        await r.session.newSituation();
-        r.session.setMode('training');
-        r.session.setLevel(level);
-        r.session.startRun();
-        expect(r.session.checklistShown.value).toBe(false);
-        r.session.toggleChecklist();
-        expect(r.session.checklistShown.value).toBe(true);
-        r.session.toggleChecklist();
-        expect(r.session.checklistShown.value).toBe(false);
-        r.session.toggleChecklist();
-        r.session.complete();
-        expect(r.session.checklistShown.value).toBe(false);
-      }
-    });
+  it('stays shut on Realistic until the onset, then toggles and marks (WR-01)', async () => {
+    let next = 0;
+    const draws = [0.5, 0.75];
+    const r = rig({ rng: () => draws[next++] ?? 0 });
+    await r.session.newSituation();
+    r.session.setLevel('realistic');
+    expect(r.session.screen.value).toBe('running');
+    const began = r.session.onset.value;
+    const clock = r.session.clock.value;
+    if (began === null || clock === null) throw new Error('no onset or clock');
+    expect(began.at).toBeGreaterThan(0);
+    r.session.toggleChecklist();
+    expect(r.session.checklistShown.value).toBe(false);
+    clock.advance(began.at - 1);
+    r.session.toggleChecklist();
+    expect(r.session.checklistShown.value).toBe(false);
+    clock.advance(1);
+    r.session.toggleChecklist();
+    expect(r.session.checklistShown.value).toBe(true);
+    r.bridge.actuate('lv.power', 'p50');
+    expect(marked(r)).toContain(first.id);
+    r.session.toggleChecklist();
+    expect(r.session.checklistShown.value).toBe(false);
+  });
 
-    it('stays shut on Realistic until the onset, then toggles (WR-01)', async () => {
-      let next = 0;
-      const draws = [0.5, 0.75];
-      const r = rig({ rng: () => draws[next++] ?? 0 });
-      await r.session.newSituation();
-      r.session.setMode('training');
-      r.session.setLevel('realistic');
-      expect(r.session.screen.value).toBe('running');
-      const began = r.session.onset.value;
-      const clock = r.session.clock.value;
-      if (began === null || clock === null) throw new Error('no onset or clock');
-      expect(began.at).toBeGreaterThan(0);
-      // The clean start: the sheet would name the situation, so the press does nothing.
-      r.session.toggleChecklist();
-      expect(r.session.checklistShown.value).toBe(false);
-      clock.advance(began.at - 1);
-      r.session.toggleChecklist();
-      expect(r.session.checklistShown.value).toBe(false);
-      clock.advance(1);
-      r.session.toggleChecklist();
-      expect(r.session.checklistShown.value).toBe(true);
-      r.session.toggleChecklist();
-      expect(r.session.checklistShown.value).toBe(false);
-    });
-
-    it('does nothing in Exam mode or outside a run', async () => {
-      const exam = await started();
-      exam.session.toggleChecklist();
-      expect(exam.session.checklistShown.value).toBe(false);
-
-      const r = rig();
-      r.session.setMode('training');
-      r.session.toggleChecklist();
-      expect(r.session.checklistShown.value).toBe(false);
-      await r.session.newSituation();
-      r.session.setMode('training');
-      r.session.toggleChecklist();
-      expect(r.session.checklistShown.value).toBe(false);
-      r.session.setLevel('easy');
-      r.session.startRun();
-      r.session.complete();
-      r.session.toggleChecklist();
-      expect(r.session.checklistShown.value).toBe(false);
-    });
-
-    it('is cleared by leaving the run, a failed step and closing the debrief', async () => {
-      const left = await training();
-      left.session.toggleChecklist();
-      left.session.resetPanel();
-      await left.session.leaveRun();
-      expect(left.session.checklistShown.value).toBe(false);
-      expect(left.session.runBranches.value).toEqual([]);
-
-      const failed = await training();
-      failed.session.toggleChecklist();
-      failed.session.failRun(new Error('boom'));
-      expect(failed.session.checklistShown.value).toBe(false);
-
-      const closed = await training();
-      closed.session.toggleChecklist();
-      closed.session.complete();
-      closed.session.closeDebrief();
-      expect(closed.session.checklistShown.value).toBe(false);
-
-      const again = await training();
-      expect(again.session.checklistShown.value).toBe(false);
-    });
-
-    it('holds the branch statuses the briefing showed, from the file of the run', async () => {
-      const r = rig();
-      await r.session.newSituation();
-      const briefed = r.session.briefing.value?.branches;
-      r.session.setMode('training');
-      r.session.setLevel('easy');
-      r.session.startRun();
-      expect(briefed?.length).toBeGreaterThan(0);
-      expect(r.session.runBranches.value).toEqual(briefed);
-    });
-
-    it('does not block the run clock: no modal is open with the sheet shown, and the clock keeps advancing', async () => {
-      const r = await training();
-      const clock = r.session.clock.value;
-      const run = r.session.run.value;
-      if (clock === null || run === null) throw new Error('no run');
-      r.session.toggleChecklist();
-      expect(r.session.checklistShown.value).toBe(true);
-      expect(anyModalOpen.peek()).toBe(false);
-      const before = clock.now();
-      for (let i = 0; i < 10; i++) run.step();
-      expect(clock.now()).toBeGreaterThan(before);
-      // The panel still takes a press with the sheet shown.
-      r.bridge.actuate('lv.power', 'p50');
-      expect(r.bridge.stateOf('lv.power').value).toBe('p50');
-    });
-
-    it('never touches a grade', async () => {
-      const results: string[] = [];
-      for (const showing of [false, true]) {
-        const r = await training();
-        if (showing) r.session.toggleChecklist();
-        r.bridge.actuate('lv.power', 'p50');
-        r.bridge.actuate('lv.cowl_flap', 'open');
-        r.session.complete();
-        results.push(JSON.stringify(r.session.result.value));
-      }
-      expect(results[0]).toBe(results[1]);
-    });
+  it('does not block the run clock: no modal is open with the sheet shown, and the clock keeps advancing', async () => {
+    const r = await running('easy');
+    const clock = r.session.clock.value;
+    const run = r.session.run.value;
+    if (clock === null || run === null) throw new Error('no run');
+    r.session.toggleChecklist();
+    expect(r.session.checklistShown.value).toBe(true);
+    expect(anyModalOpen.peek()).toBe(false);
+    const before = clock.now();
+    for (let i = 0; i < 10; i++) run.step();
+    expect(clock.now()).toBeGreaterThan(before);
+    // The panel still takes a press with the sheet shown.
+    r.bridge.actuate('lv.power', 'p50');
+    expect(r.bridge.stateOf('lv.power').value).toBe('p50');
   });
 });
 
-describe('grading ignores both display axes (phase 07, D-02)', () => {
-  it('gives the same JSON for every combination of mode and level, with hints and the sheet in use', async () => {
-    const results: string[] = [];
-    for (const mode of MODES) {
-      for (const level of ['easy', 'medium'] as const) {
-        const r = rig();
-        await r.session.newSituation();
-        r.session.setMode(mode);
-        r.session.setLevel(level);
-        r.session.startRun();
-        // In Training the aids are used; in Exam the calls do nothing. Neither reaches the grade.
-        r.session.askHint();
-        r.session.toggleChecklist();
-        r.bridge.actuate('lv.power', 'p100');
-        r.bridge.actuate('lv.power', 'p50');
-        r.session.askHint();
-        r.bridge.actuate('lv.cowl_flap', 'open');
-        r.session.complete();
-        results.push(JSON.stringify(r.session.result.value));
-      }
+describe('the marks of a long run are coalesced (phase 07, plan 04, S-02)', () => {
+  const SLOW = readFileSync(join(root, 'scenarios/electrical/elec-altn2-fail.toon'), 'utf8');
+  const MANIFEST_SLOW = `format: 1
+title: Engine
+free: true
+scenarios[1]:
+  - id: elec-altn2-fail
+    title: ALTN 2 FAIL
+    file: elec-altn2-fail
+`;
+
+  it('refreshes at once while a grade is cheap and trailing, once, after a slow one', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const r = rig({ manifest: MANIFEST_SLOW, files: { 'elec-altn2-fail': SLOW } });
+      await r.session.newSituation();
+      r.session.setLevel('easy');
+      r.session.startRun();
+      const clock = r.session.clock.value;
+      if (clock === null) throw new Error('no clock');
+      // 28 minutes into the run a grade replays the whole log: far above 30 ms on this scenario.
+      clock.advance(28 * 60_000);
+      r.session.toggleChecklist();
+      const shown = r.session.checklistMarks.value;
+      expect(shown).not.toBeNull();
+
+      // The first event after the slow call is not graded at once ...
+      r.bridge.actuate('lv.power', 'p50');
+      r.bridge.actuate('lv.cowl_flap', 'open');
+      expect(r.session.checklistMarks.value).toBe(shown);
+      // ... but once, after the wait, from the log as it stands then.
+      vi.advanceTimersByTime(1000);
+      const later = r.session.checklistMarks.value;
+      expect(later).not.toBe(shown);
+      expect(later).not.toBeNull();
+      expect(later?.steps).toEqual(
+        grade(r.session.scenario.value as Scenario, DA50RG_ENV, {
+          scenarioId: 'elec-altn2-fail',
+          completedAt: clock.now(),
+          events: r.bridge.store
+            .events()
+            .filter((e) => e.source === 'user')
+            .map((e) => ({ t: e.t, id: e.id, value: e.value })),
+        }).steps,
+      );
+
+      // Leaving the run drops a waiting refresh.
+      r.bridge.actuate('lv.power', 'p100');
+      r.session.complete();
+      vi.advanceTimersByTime(1000);
+      expect(r.session.checklistMarks.value).toBeNull();
+    } finally {
+      vi.useRealTimers();
     }
-    expect(results.length).toBe(MODES.length * 2);
-    expect(results[0]).toContain('"result":"fail"');
-    for (const json of results) expect(json).toBe(results[0]);
+  });
+});
+
+describe('grading ignores the level and the sheet (phase 07, plan 04, R-02)', () => {
+  /** One scripted run at a level, with the sheet shown or hidden throughout; returns the result JSON. */
+  async function scripted(
+    level: 'easy' | 'medium' | 'realistic',
+    showing: boolean,
+  ): Promise<string> {
+    let next = 0;
+    const draws = [0.5, 0.75];
+    const r = rig({ rng: () => draws[next++] ?? 0 });
+    await r.session.newSituation();
+    r.session.setLevel(level);
+    if (level !== 'realistic') r.session.startRun();
+    expect(r.session.screen.value).toBe('running');
+    const began = r.session.onset.value;
+    if (began !== null) r.session.clock.value?.advance(began.at);
+    if (showing) r.session.toggleChecklist();
+    r.bridge.actuate('lv.power', 'p100');
+    r.bridge.actuate('lv.power', 'p50');
+    r.bridge.actuate('lv.cowl_flap', 'open');
+    r.session.complete();
+    return JSON.stringify(r.session.result.value);
+  }
+
+  it('gives the same JSON with the sheet shown and hidden on every level', async () => {
+    for (const level of LEVELS) {
+      const hidden = await scripted(level, false);
+      const shown = await scripted(level, true);
+      expect(shown, level).toBe(hidden);
+    }
+  });
+
+  it('gives Easy and Medium the same JSON', async () => {
+    expect(await scripted('easy', true)).toBe(await scripted('medium', false));
   });
 });
 
@@ -2125,10 +2034,9 @@ scenarios[1]:
 `;
 
   /** A started run on the oil temperature scenario with the accept declaration. */
-  async function inFlight(mode: 'training' | 'exam' = 'exam'): Promise<Rig> {
+  async function inFlight(): Promise<Rig> {
     const r = rig({ files: { 'eng-oil-temp-green': withBlock(BLUEPRINT, ACCEPT) } });
     await r.session.newSituation();
-    r.session.setMode(mode);
     r.session.setLevel('easy');
     r.session.startRun();
     expect(r.session.screen.value).toBe('running');
@@ -2153,14 +2061,6 @@ scenarios[1]:
       { t: 2000, id: 'brief_passengers' },
       { t: 2500, id: 'conduct_precautionary' },
     ]);
-  });
-
-  it('works in Training and in Exam mode alike', async () => {
-    for (const mode of ['training', 'exam'] as const) {
-      const r = await inFlight(mode);
-      r.session.decide('atc_pan_pan');
-      expect(ids(r)).toEqual(['atc_pan_pan']);
-    }
   });
 
   it('ignores an unknown id and every call outside a running run', async () => {
@@ -2292,60 +2192,6 @@ scenarios[1]:
     expect(r.session.furtherOpen.value).toBe(false);
   });
 
-  it('the hint with every step done names an open further item instead of claiming completion (IN-02)', async () => {
-    const r = await inFlight('training');
-    r.bridge.actuate('lv.power', 'p50');
-    r.bridge.actuate('lv.cowl_flap', 'open');
-    r.session.askHint();
-    expect(r.session.hint.value).toEqual({ kind: 'none', further: { actions: 1, conduct: true } });
-    const both = hintNoneText({ further: { actions: 1, conduct: true } });
-    expect(both).toBe(HINT_FURTHER_TEXTS.both);
-    expect(both).not.toBe(HINT_NONE_TEXT);
-    expect(both).toContain('FURTHER ACTIONS');
-
-    r.session.decide('atc_mayday');
-    r.session.askHint();
-    expect(r.session.hint.value).toEqual({ kind: 'none', further: { actions: 0, conduct: true } });
-    expect(hintNoneText({ further: { actions: 0, conduct: true } })).toBe(
-      HINT_FURTHER_TEXTS.conduct,
-    );
-
-    // A wrong conduct is still open, a right one settles it.
-    r.session.decide('conduct_continue');
-    r.session.askHint();
-    expect(r.session.hint.value).toEqual({ kind: 'none', further: { actions: 0, conduct: true } });
-    r.session.decide('conduct_precautionary');
-    r.session.askHint();
-    expect(r.session.hint.value).toEqual({ kind: 'none' });
-    expect(hintNoneText({})).toBe(HINT_NONE_TEXT);
-
-    // The required action alone.
-    const only = await inFlight('training');
-    only.bridge.actuate('lv.power', 'p50');
-    only.bridge.actuate('lv.cowl_flap', 'open');
-    only.session.decide('conduct_precautionary');
-    only.session.askHint();
-    expect(only.session.hint.value).toEqual({
-      kind: 'none',
-      further: { actions: 1, conduct: false },
-    });
-    expect(hintNoneText({ further: { actions: 1, conduct: false } })).toBe(
-      HINT_FURTHER_TEXTS.actions,
-    );
-  });
-
-  it('the hint of a scenario without a further section is the plain sentence (IN-02)', async () => {
-    const r = rig({ files: { 'eng-oil-temp-green': stripFurther(BLUEPRINT) } });
-    await r.session.newSituation();
-    r.session.setMode('training');
-    r.session.setLevel('easy');
-    r.session.startRun();
-    r.bridge.actuate('lv.power', 'p50');
-    r.bridge.actuate('lv.cowl_flap', 'open');
-    r.session.askHint();
-    expect(r.session.hint.value).toEqual({ kind: 'none' });
-  });
-
   it('ignores the modal and every pick before the onset of a Realistic run', async () => {
     const r = rig({ files: { 'eng-oil-temp-green': withBlock(BLUEPRINT, ACCEPT) } });
     await r.session.newSituation();
@@ -2413,14 +2259,9 @@ scenarios[1]:
     return { next, state };
   };
 
-  /** Picks the scenario, the mode and the level through the cards, runs and completes it. */
-  async function debriefOf(
-    r: Rig,
-    mode: 'training' | 'exam',
-    level: 'easy' | 'medium' | 'realistic',
-  ): Promise<void> {
+  /** Picks the scenario and the level through the cards, runs and completes it. */
+  async function debriefOf(r: Rig, level: 'easy' | 'medium' | 'realistic'): Promise<void> {
     await r.session.newSituation();
-    r.session.setMode(mode);
     r.session.setLevel(level);
     if (level !== 'realistic') r.session.startRun();
     expect(r.session.screen.value).toBe('running');
@@ -2442,10 +2283,9 @@ scenarios[1]:
   });
 
   describe('retry', () => {
-    it('starts the same scenario at the same level and mode from a clean state', async () => {
+    it('starts the same scenario at the same level from a clean state', async () => {
       const r = rig({ files: { 'eng-oil-temp-green': BLUEPRINT } });
       await r.session.newSituation();
-      r.session.setMode('training');
       r.session.setLevel('medium');
       r.session.startRun();
       const startPanel = ['lv.power', 'lv.cowl_flap'].map((id) => r.bridge.stateOf(id).value);
@@ -2453,7 +2293,6 @@ scenarios[1]:
       r.bridge.actuate('lv.power', 'p50');
       r.bridge.actuate('lv.cowl_flap', 'open');
       r.session.clock.value?.advance(4000);
-      r.session.askHint();
       r.session.toggleChecklist();
       r.session.decide('atc_mayday');
       r.session.complete();
@@ -2466,15 +2305,14 @@ scenarios[1]:
       expect(r.session.screen.value).toBe('running');
       expect(r.session.scenario.value?.id).toBe('eng-oil-temp-green');
       expect(r.session.level.value).toBe('medium');
-      expect(r.session.mode.value).toBe('training');
       expect(r.bridge.store.events()).toEqual([]);
       expect(['lv.power', 'lv.cowl_flap'].map((id) => r.bridge.stateOf(id).value)).toEqual(
         startPanel,
       );
       expect(r.bridge.quantities.value).toEqual(startQuantities);
       expect(r.session.clock.value?.now()).toBe(0);
-      expect(r.session.hint.value).toBeNull();
       expect(r.session.checklistShown.value).toBe(false);
+      expect(r.session.checklistMarks.value).toBeNull();
       expect(r.session.decisions.value).toEqual([]);
       expect(r.session.furtherOpen.value).toBe(false);
       expect(r.session.result.value).toBeNull();
@@ -2489,7 +2327,7 @@ scenarios[1]:
         files: { [altn.id]: ALTN },
         rng: draw.next,
       });
-      await debriefOf(r, 'exam', 'easy');
+      await debriefOf(r, 'easy');
       const cause = r.session.variant.value;
       expect(cause).not.toBeNull();
       const calls = draw.state.calls;
@@ -2507,7 +2345,7 @@ scenarios[1]:
     it('keeps the onset of a Realistic run, and again at the second retry', async () => {
       const draw = counting([0, SEED_DRAW]);
       const r = rig({ files: { 'eng-oil-temp-green': BLUEPRINT }, rng: draw.next });
-      await debriefOf(r, 'exam', 'realistic');
+      await debriefOf(r, 'realistic');
       const onset = r.session.onset.value;
       if (onset === null) throw new Error('no onset');
       const calls = draw.state.calls;
@@ -2536,7 +2374,7 @@ scenarios[1]:
       expect(r.session.screen.value).toBe('running');
 
       const d = rig({ files: THREE, manifest: MANIFEST_THREE });
-      await debriefOf(d, 'exam', 'easy');
+      await debriefOf(d, 'easy');
       const pending = d.session.nextSituation();
       expect(d.session.busy.value).toBe(true);
       const starts = d.onRunStart.mock.calls.length;
@@ -2547,7 +2385,7 @@ scenarios[1]:
 
     it('Back to panel is ignored while the next situation loads (IN-04)', async () => {
       const r = rig({ files: THREE, manifest: MANIFEST_THREE });
-      await debriefOf(r, 'exam', 'easy');
+      await debriefOf(r, 'easy');
       const pending = r.session.nextSituation();
       expect(r.session.busy.value).toBe(true);
       r.session.closeDebrief();
@@ -2559,7 +2397,7 @@ scenarios[1]:
 
     it('a failed list load of Next situation keeps a request, so retry repeats it (IN-04)', async () => {
       const r = rig({ files: THREE, manifest: MANIFEST_THREE });
-      await debriefOf(r, 'exam', 'easy');
+      await debriefOf(r, 'easy');
       r.setListBroken(true);
       await r.session.nextSituation();
       expect(r.session.loadFailure.value).not.toBeNull();
@@ -2574,7 +2412,7 @@ scenarios[1]:
 
     it('keeps an illegal baseline as a load failure, like a normal start', async () => {
       const r = rig({ files: { 'eng-oil-temp-green': BLUEPRINT } });
-      await debriefOf(r, 'exam', 'easy');
+      await debriefOf(r, 'easy');
       const original = r.bridge.reset.bind(r.bridge);
       let calls = 0;
       // Only the baseline of the retry fails; the cleanup that follows resets normally.
@@ -2603,7 +2441,7 @@ scenarios[1]:
   describe('nextSituation', () => {
     it('opens the entry after the current one and wraps from the last to the first', async () => {
       const r = rig({ files: THREE, manifest: MANIFEST_THREE });
-      await debriefOf(r, 'exam', 'easy');
+      await debriefOf(r, 'easy');
       expect(r.session.scenario.value?.id).toBe('eng-oil-temp-green');
 
       await r.session.nextSituation();
@@ -2623,21 +2461,19 @@ scenarios[1]:
 
     it('a single entry gives the same one', async () => {
       const r = rig();
-      await debriefOf(r, 'exam', 'easy');
+      await debriefOf(r, 'easy');
       await r.session.nextSituation();
       expect(r.session.screen.value).toBe('briefing');
       expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-green');
     });
 
-    it('keeps mode and level and shows the briefing, not the cards, on Easy and Medium', async () => {
+    it('keeps the level and shows the briefing, not the cards, on Easy and Medium', async () => {
       for (const level of ['easy', 'medium'] as const) {
         const r = rig({ files: THREE, manifest: MANIFEST_THREE });
-        await debriefOf(r, 'training', level);
+        await debriefOf(r, level);
         await r.session.nextSituation();
         expect(r.session.screen.value).toBe('briefing');
-        expect(r.session.mode.value).toBe('training');
         expect(r.session.level.value).toBe(level);
-        expect(r.session.modePicked.value).toBe(true);
         expect(r.session.levelPicked.value).toBe(true);
         // The run of the debrief is gone: the free-panel cleanup ran.
         expect(r.session.result.value).toBeNull();
@@ -2654,18 +2490,17 @@ scenarios[1]:
     it('starts the run at once on Realistic when the next scenario has an onset', async () => {
       const draw = counting([0, SEED_DRAW, 0.25]);
       const r = rig({ files: THREE, manifest: MANIFEST_THREE, rng: draw.next });
-      await debriefOf(r, 'training', 'realistic');
+      await debriefOf(r, 'realistic');
       await r.session.nextSituation();
       expect(r.session.screen.value).toBe('running');
       expect(r.session.scenario.value?.id).toBe('eng-oil-temp-copy');
       expect(r.session.level.value).toBe('realistic');
-      expect(r.session.mode.value).toBe('training');
       expect(r.session.onset.value).not.toBeNull();
     });
 
     it('shows the level card when the next scenario has no onset on Realistic', async () => {
       const r = rig({ files: THREE, manifest: MANIFEST_THREE });
-      await debriefOf(r, 'exam', 'realistic');
+      await debriefOf(r, 'realistic');
       r.session.retry();
       r.session.complete();
       await r.session.nextSituation();
@@ -2675,14 +2510,13 @@ scenarios[1]:
       await r.session.nextSituation();
       expect(r.session.briefing.value?.scenario.id).toBe('eng-oil-temp-plain');
       expect(r.session.screen.value).toBe('briefing');
-      expect(r.session.modePicked.value).toBe(true);
       expect(r.session.levelPicked.value).toBe(false);
     });
 
     it('keeps a load failure of the next entry for the message and leaves the debrief', async () => {
       const files: Record<string, string | Error> = { ...THREE };
       const r = rig({ files, manifest: MANIFEST_THREE });
-      await debriefOf(r, 'exam', 'easy');
+      await debriefOf(r, 'easy');
       // The file is read at call time: it fails only for the request of the next entry.
       files['eng-oil-temp-copy'] = new Error('network down');
       await r.session.nextSituation();
@@ -2702,14 +2536,14 @@ scenarios[1]:
       expect(running.session.screen.value).toBe('running');
 
       const d = rig({ files: THREE, manifest: MANIFEST_THREE });
-      await debriefOf(d, 'exam', 'easy');
+      await debriefOf(d, 'easy');
       const loadsBefore = d.loads.length;
       const first = d.session.nextSituation();
       await d.session.nextSituation();
       await first;
       // The second call loaded nothing: the same count as one call alone makes.
       const single = rig({ files: THREE, manifest: MANIFEST_THREE });
-      await debriefOf(single, 'exam', 'easy');
+      await debriefOf(single, 'easy');
       const singleBefore = single.loads.length;
       await single.session.nextSituation();
       expect(d.loads.length - loadsBefore).toBe(single.loads.length - singleBefore);

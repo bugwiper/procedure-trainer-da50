@@ -16,9 +16,11 @@ import { orderLine } from './debrief-text';
 
 /**
  * The briefing lists the steps of the groups that apply as plain checklist lines; the debrief adds
- * severity tags, verdict words, muted lines and order lines.
+ * severity tags, verdict words, muted lines and order lines. The live form (the checklist sheet of
+ * a run, Phase 7) is the briefing form with the word Done on the steps the grade of the partial
+ * recording credits so far; steps not done carry nothing, and there are no tags or order lines.
  */
-export type OutlineMode = 'briefing' | 'debrief';
+export type OutlineMode = 'briefing' | 'debrief' | 'live';
 
 export type SeverityTag = 'CRITICAL' | 'STANDARD' | 'OPTIONAL';
 
@@ -85,10 +87,13 @@ export interface OutlineBranch {
 
 /**
  * A panel step. In the briefing it is a plain line (no tag, no verdict, not muted); in the debrief
- * it carries its tag and verdict, and muted steps carry neither.
+ * it carries its tag and verdict, and muted steps carry neither. In the live form (`live`) a credited
+ * step carries the verdict Done and no tag, any other step nothing.
  */
 export interface OutlineStep extends Printed {
   readonly kind: 'step';
+  /** True on every step of the live form: the sheet row is not a debrief row. */
+  readonly live?: true;
   readonly id: string;
   readonly text: string;
   readonly muted: boolean;
@@ -168,12 +173,13 @@ export function buildOutline(
   mode: OutlineMode,
   result?: GradeResult,
 ): OutlineItem[] {
-  if (mode === 'debrief' && result === undefined) {
-    throw new Error('the debrief outline needs the grade result');
+  if (mode !== 'briefing' && result === undefined) {
+    throw new Error(`the ${mode} outline needs the grade result`);
   }
   const statusAt = new Map(branches.map((b) => [b.path, b.status]));
   const verdicts = new Map((result?.steps ?? []).map((s) => [s.id, s]));
   const debrief = mode === 'debrief';
+  const live = mode === 'live';
 
   const statusOf = (path: string): BranchStatus => {
     const status = statusAt.get(path);
@@ -228,6 +234,20 @@ export function buildOutline(
           // Both forms list the steps at the group's level. The briefing prints them as plain
           // lines; the debrief adds tag and verdict and the order line of the group.
           for (const step of node.steps) {
+            if (live) {
+              const credited = verdicts.get(step.id)?.credited === true;
+              items.push({
+                kind: 'step',
+                live: true,
+                ...printedOf(step),
+                id: step.id,
+                text: step.text,
+                muted: false,
+                tag: null,
+                verdict: credited ? { word: 'Done', tone: 'done' } : null,
+              });
+              continue;
+            }
             if (!debrief) {
               items.push({
                 kind: 'step',
@@ -251,7 +271,7 @@ export function buildOutline(
               verdict: verdict === undefined ? null : verdictOf(verdict),
             });
           }
-          if (!muted && result !== undefined) {
+          if (!muted && debrief && result !== undefined) {
             for (const text of orderLine(node, result)) {
               items.push({ kind: 'order', text, kept: text === 'Order kept' });
             }

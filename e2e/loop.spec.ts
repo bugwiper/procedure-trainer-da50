@@ -71,18 +71,14 @@ const entryAt = (index: number): ShippedScenario => {
   return entry;
 };
 
-test('Retry puts the panel back at the start at the same level and mode', async ({
-  page,
-  hasTouch,
-}) => {
-  await startScenario(page, hasTouch, ENGINE_ROW, 'medium', 'training');
+test('Retry puts the panel back at the start at the same level', async ({ page, hasTouch }) => {
+  await startScenario(page, hasTouch, ENGINE_ROW, 'medium');
   // Operate the panel and pick a further action, so there is something to clean up.
   await activate(page.locator('[data-detent="lv.power:p50"]'), hasTouch);
   await expect(page.locator('[data-control-id="lv.power"]')).toHaveAttribute('data-state', 'p50');
   await pickFurther(page, hasTouch, ['conduct_precautionary']);
   await completeToDebrief(page, hasTouch);
   await expect(page.getByTestId('debrief-level')).toHaveText('Level: Medium');
-  await expect(page.getByTestId('debrief-mode')).toHaveText('Mode: Training');
 
   await activate(page.getByTestId('debrief-retry'), hasTouch);
 
@@ -91,19 +87,17 @@ test('Retry puts the panel back at the start at the same level and mode', async 
   // No briefing and no card: the run is on at once.
   await expect(page.getByTestId('briefing')).toHaveCount(0);
   await expect(page.getByTestId('level-pick')).toHaveCount(0);
-  await expect(page.getByTestId('mode-pick')).toHaveCount(0);
   await expect(page.locator('[data-control-id="lv.power"]')).toHaveAttribute('data-state', 'p75');
   expect(Math.abs((await quantityOf(page, 'oil_temp_c')) - OIL_START)).toBeLessThanOrEqual(
     OIL_TOLERANCE,
   );
-  // Training is kept: the hint button of the run view is there.
-  await expect(page.locator('[data-session-hit="session.hint"]')).toBeVisible();
+  // The run view of the pad is there again.
+  await expect(page.locator('[data-session-hit="session.checklist"]')).toBeVisible();
 
   // A clean run: nothing done, so it fails with the same names in its debrief.
   await completeToDebrief(page, hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
   await expect(page.getByTestId('debrief-level')).toHaveText('Level: Medium');
-  await expect(page.getByTestId('debrief-mode')).toHaveText('Mode: Training');
 });
 
 test('Next situation opens the briefing of the next entry, the cards skipped', async ({
@@ -123,17 +117,16 @@ test('Next situation opens the briefing of the next entry, the cards skipped', a
   await expect(page.getByTestId('briefing').getByRole('heading', { level: 2 })).toHaveText(
     expected,
   );
-  await expect(page.getByTestId('mode-pick')).toHaveCount(0);
   await expect(page.getByTestId('level-pick')).toHaveCount(0);
   await expect(page.getByTestId('debrief-result')).toHaveCount(0);
-  // The mode (Exam) is kept: the briefing carries the exam note.
-  await expect(page.getByTestId('briefing-exam')).toBeVisible();
+  // The briefing carries the note how a run ends.
+  await expect(page.getByTestId('briefing-note')).toBeVisible();
 });
 
 test('Next situation wraps from the last entry to the first', async ({ page, hasTouch }) => {
   const all = shippedScenarios();
   const last = entryAt(all.length - 1);
-  await startScenario(page, hasTouch, last.row, 'medium', 'training');
+  await startScenario(page, hasTouch, last.row, 'medium');
   await completeToDebrief(page, hasTouch);
 
   await activate(page.getByTestId('debrief-next'), hasTouch);
@@ -142,7 +135,7 @@ test('Next situation wraps from the last entry to the first', async ({ page, has
   await expect(page.getByTestId('briefing').getByRole('heading', { level: 2 })).toHaveText(
     fileTitle(entryAt(0)),
   );
-  await expect(page.getByTestId('briefing-training')).toBeVisible();
+  await expect(page.getByTestId('briefing-note')).toBeVisible();
 });
 
 test('@hooks a Realistic retry has the same onset again and again', async ({ page, hasTouch }) => {
@@ -180,6 +173,5 @@ test('@hooks Next situation on Realistic starts the run, or shows the level card
     expect(await onsetOf(page)).not.toBeNull();
   } else {
     await expect(page.getByTestId('level-pick')).toBeVisible();
-    await expect(page.getByTestId('mode-pick')).toHaveCount(0);
   }
 });

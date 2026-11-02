@@ -1,14 +1,13 @@
 import { DISCLAIMERS } from '../../scenario/disclaimers';
 import { buildOutline, checklistHead } from '../outline';
-import { TRAINING_NOTE } from '../session';
-import type { Briefed, Level, Mode } from '../session';
+import type { Briefed, Level } from '../session';
 import { ChecklistHeading, ChecklistOutline } from './ChecklistOutline';
 import { Modal } from './Modal';
 
 /**
  * The briefing (SES-01, SCN-07, PLT-04, D-04, D-14, D-24; UI-SPEC "Briefing"; phase 02.1): scenario
- * title, situation, the disclaimer line, the checklist, the exam
- * or training note (the mode, Phase 7) and, last, the source (document and issue, then the section and the check date), over the
+ * title, situation, the disclaimer line, the checklist, the note
+ * how a run ends (Phase 7) and, last, the source (document and issue, then the section and the check date), over the
  * unchanged panel. On Easy the checklist lists the
  * panel steps of the branches that apply as plain lines, without tag or verdict; a branch that does
  * not apply keeps its label and no children. The checklist is laid out as printed (plan 03-14): a
@@ -20,13 +19,11 @@ import { Modal } from './Modal';
 export function Briefing({
   briefed,
   level,
-  mode,
   onStart,
   onBack,
 }: {
   readonly briefed: Briefed;
   readonly level: Level;
-  readonly mode: Mode;
   readonly onStart: () => void;
   readonly onBack: () => void;
 }) {
@@ -80,15 +77,9 @@ export function Briefing({
           <ChecklistOutline items={outline} form={head.form} />
         </section>
       )}
-      {mode === 'training' ? (
-        <p class="briefing-meta briefing-exam" data-testid="briefing-training">
-          {TRAINING_NOTE}
-        </p>
-      ) : (
-        <p class="briefing-meta briefing-exam" data-testid="briefing-exam">
-          Exam mode: no hints. When you are done, press Procedure complete.
-        </p>
-      )}
+      <p class="briefing-meta briefing-exam" data-testid="briefing-note">
+        When you are done, press Procedure complete.
+      </p>
       <div class="briefing-source" data-testid="briefing-source">
         <p class="briefing-meta">{`Source: ${source.document}, ${source.issue}`}</p>
         <p class="briefing-meta">{`${source.section}, checked ${source.verified}`}</p>
