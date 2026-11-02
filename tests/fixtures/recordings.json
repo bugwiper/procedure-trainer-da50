@@ -848,5 +848,104 @@
         "on": true
       }
     ]
+  },
+  "elec-conduct-default": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 6000,
+        "id": "sw.alternator_1",
+        "value": "off"
+      },
+      {
+        "t": 9000,
+        "id": "sw.ess_bus",
+        "value": "on"
+      }
+    ]
+  },
+  "elec-conduct-emergency": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 6000,
+        "id": "sw.alternator_1",
+        "value": "off"
+      },
+      {
+        "t": 9000,
+        "id": "sw.ess_bus",
+        "value": "on"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 9500,
+        "id": "conduct_emergency"
+      }
+    ]
+  },
+  "elec-avoid-all": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 6000,
+        "id": "sw.alternator_1",
+        "value": "off"
+      },
+      {
+        "t": 9000,
+        "id": "sw.ess_bus",
+        "value": "on"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 9500,
+        "id": "avoid_imc"
+      },
+      {
+        "t": 9600,
+        "id": "avoid_nvfr"
+      },
+      {
+        "t": 9700,
+        "id": "avoid_icing"
+      }
+    ]
+  },
+  "elec-avoid-some-then-off": {
+    "scenarioId": "elec-altn1-fail",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 6000,
+        "id": "sw.alternator_1",
+        "value": "off"
+      },
+      {
+        "t": 9000,
+        "id": "sw.ess_bus",
+        "value": "on"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 9500,
+        "id": "avoid_imc"
+      },
+      {
+        "t": 9600,
+        "id": "avoid_nvfr"
+      },
+      {
+        "t": 9700,
+        "id": "avoid_imc",
+        "on": false
+      }
+    ]
   }
 }

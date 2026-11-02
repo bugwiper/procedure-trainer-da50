@@ -110,7 +110,7 @@ onset:
   quantities:
     # Start altitude of the Realistic run, the same value as in the initial block.
     altitude_ft: 3500
-# The further actions (Phase 7). The roles and the right flight conduct are instructor-review values, listed in docs/PANEL-REVIEW.md; no call is required for this caution, a precautionary landing is the safe decision, and the passenger briefing is informative.
+# The further actions (Phase 7). The roles and the right flight conduct are instructor-review values, listed in docs/PANEL-REVIEW.md; no call is required for this caution and the passenger briefing is informative. The printed comment lines end NVFR/IFR flight and say to land at the nearest suitable airfield, so VFR flight to the destination is right as well as an alternate landing (owner decision 2026-11-02, R-20); the note explains the difference in the debrief.
 further:
   actions[3]:
     - id: atc_mayday
@@ -120,4 +120,5 @@ further:
     - id: brief_passengers
       role: optional
   conduct:
-    accept[1]: conduct_precautionary
+    accept[2]: conduct_destination,conduct_precautionary
+  conduct_note: "Continuing to the destination is fine under VFR only. In IMC, at night under NVFR or in icing conditions an alternate landing is necessary."

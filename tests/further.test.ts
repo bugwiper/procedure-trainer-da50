@@ -58,6 +58,7 @@ describe('defineFurther', () => {
     conductTitle: 'Choose',
     groundParameter: 'on_ground',
     defaultConduct: 'c_one',
+    noteConduct: 'c_one',
   };
 
   it('defines a set and answers has, option and ids in list order', () => {
@@ -68,6 +69,21 @@ describe('defineFurther', () => {
     expect(set.ids('action')).toEqual(['a_one', 'a_two']);
     expect(set.ids('conduct')).toEqual(['c_one']);
     expect(set.defaultConduct).toBe('c_one');
+    expect(set.noteConduct).toBe('c_one');
+    expect(set.avoidIds()).toEqual([]);
+  });
+
+  it('lists the Avoid actions in list order', () => {
+    const set = defineFurther({
+      ...valid,
+      options: [
+        { id: 'a_one', text: 'One', kind: 'action' },
+        { id: 'v_one', text: 'Avoid', kind: 'action', unrated: true, avoid: true },
+        { id: 'c_one', text: 'Conduct', kind: 'conduct' },
+        { id: 'v_two', text: 'Avoid 2', kind: 'action', unrated: true, avoid: true },
+      ],
+    });
+    expect(set.avoidIds()).toEqual(['v_one', 'v_two']);
   });
 
   it.each([
@@ -89,6 +105,28 @@ describe('defineFurther', () => {
     ['a bad ground parameter', { ...valid, groundParameter: 'Ground' }],
     ['a default conduct that is not an option', { ...valid, defaultConduct: 'c_two' }],
     ['a default conduct that is an action', { ...valid, defaultConduct: 'a_one' }],
+    ['a note conduct that is not an option', { ...valid, noteConduct: 'c_two' }],
+    ['a note conduct that is an action', { ...valid, noteConduct: 'a_one' }],
+    [
+      'an avoid action that is rated',
+      {
+        ...valid,
+        options: [
+          ...valid.options,
+          { id: 'v_one', text: 'x', kind: 'action' as const, avoid: true as const },
+        ],
+      },
+    ],
+    [
+      'an avoid option that is a conduct',
+      {
+        ...valid,
+        options: [
+          ...valid.options,
+          { id: 'v_two', text: 'x', kind: 'conduct' as const, avoid: true as const },
+        ],
+      },
+    ],
   ])('rejects %s', (_name, definition) => {
     expect(() => defineFurther(definition)).toThrow(FurtherError);
   });
@@ -98,13 +136,23 @@ describe('defineFurther', () => {
       'action:atc_mayday',
       'action:atc_pan_pan',
       'action:brief_passengers',
-      'conduct:conduct_continue',
+      'action:avoid_imc',
+      'action:avoid_nvfr',
+      'action:avoid_icing',
+      'conduct:conduct_destination',
       'conduct:conduct_precautionary',
       'conduct:conduct_emergency',
     ]);
     expect(SET.option(emergency)?.debriefNote).toBe(
       'The emergency landing itself is not trained yet.',
     );
+    // The Avoid actions are unrated actions marked avoid, and the note speaks of continuing to the destination.
+    expect(SET.avoidIds()).toEqual(['avoid_imc', 'avoid_nvfr', 'avoid_icing']);
+    for (const id of SET.avoidIds()) {
+      expect(SET.option(id)).toMatchObject({ kind: 'action', unrated: true, avoid: true });
+    }
+    expect(SET.noteConduct).toBe(carryOn);
+    expect(SET.option(SET.noteConduct)?.text).toBe('Continue to destination');
   });
 });
 

@@ -7,7 +7,7 @@
 import type { FurtherSet } from '../engine/further';
 import type { GradeResult, HarmfulEntry, Reason } from '../engine/grading';
 import { MAX_RUN_MS } from '../engine/sim';
-import type { Group, Scenario } from '../scenario/schema';
+import type { FurtherSection, Group, Scenario } from '../scenario/schema';
 
 function reasonLine(reason: Reason, result: GradeResult): string {
   switch (reason.kind) {
@@ -205,4 +205,51 @@ export function checklistNote(
   if (choice === null || ownRef === null) return null;
   if (choice.ref.pack === ownRef.pack && choice.ref.scenario === ownRef.scenario) return null;
   return `The situation was ${title}. The checklist you used belongs to another situation; the harmful actions below still list what was wrong for the real one.`;
+}
+
+/**
+ * The conduct note of the debrief (plan 07-06, R-22): a hint outside the verdict, never changing PASS
+ * or FAIL. Present only when the scenario carries a `conduct_note` and the conduct selected at the end
+ * is the one the aircraft names (`noteConduct`, continue to destination). Tone `standard` (yellow): the
+ * note and, when not every Avoid action was selected at the end, one line "Not chosen: ..." with the
+ * texts of the missing ones. Tone `done` (green): when all of them were selected, one positive line
+ * instead. Null for any other final conduct, a scenario without a note, or a result without a
+ * further part.
+ */
+export interface ConductNote {
+  readonly tone: 'standard' | 'done';
+  readonly lines: readonly string[];
+}
+
+/** "A", "A and B", "A, B and C". */
+const joinWords = (items: readonly string[]): string =>
+  items.length < 2
+    ? items.join('')
+    : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1] ?? ''}`;
+
+export function conductNote(
+  result: GradeResult,
+  section: FurtherSection | undefined,
+  set: FurtherSet,
+): ConductNote | null {
+  const note = section?.conduct_note;
+  if (note === undefined || result.further === undefined) return null;
+  if (result.further.conduct.last !== set.noteConduct) return null;
+  const avoid = set.avoidIds();
+  const done = new Set(result.further.actions.filter((a) => a.done).map((a) => a.id));
+  const textOf = (id: string): string => set.option(id)?.text ?? id;
+  const missing = avoid.filter((id) => !done.has(id));
+  if (avoid.length > 0 && missing.length === 0) {
+    return {
+      tone: 'done',
+      lines: [`You also chose ${joinWords(avoid.map(textOf))}, which fits continuing under VFR.`],
+    };
+  }
+  return {
+    tone: 'standard',
+    lines: [
+      note,
+      ...(missing.length === 0 ? [] : [`Not chosen: ${missing.map(textOf).join(', ')}.`]),
+    ],
+  };
 }

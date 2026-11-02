@@ -306,6 +306,12 @@ export const FurtherAction = z.strictObject({
 export const Further = z.strictObject({
   actions: z.array(FurtherAction).default([]),
   conduct: z.union([z.literal('none'), z.strictObject({ accept: z.array(nodeId).min(1) })]),
+  /**
+   * The conduct note (plan 07-06, R-22): own words, at most 50 words, shown in the debrief as a hint
+   * when the conduct selected at the end is the one the aircraft names (continue to destination).
+   * Lint L31 allows it only where `accept` lists that conduct. It never changes PASS or FAIL.
+   */
+  conduct_note: wordsBetween(1, 50).optional(),
 });
 
 /** The printed form of a checklist and its heading and message tag (all optional, plan 03-13). */

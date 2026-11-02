@@ -15,7 +15,7 @@ import {
 } from './support/session';
 import { activate, sessionButtonCoverage, zoomIntoRegion } from './support/zoom';
 
-// SES-05 (phase 07, plans 07-02 and 07-05): six toggle buttons in the pilot footwell; every press is
+// SES-05 (phase 07, plans 07-02, 07-05 and 07-06): nine toggle buttons in the pilot footwell; every press is
 // recorded with the run time and the on flag, the state at the end is graded with the panel actions
 // when Procedure complete is pressed and shown in the debrief with the role and verdict words. Texts
 // come from the aircraft data in node.
@@ -43,6 +43,9 @@ function conductOffered(row: string): boolean {
 
 const ACTION_IDS = SET.ids('action');
 const CONDUCT_IDS = SET.ids('conduct');
+const AVOID_IDS = SET.avoidIds();
+/** The actions that are drawn in every run: the calls and the passengers, no Avoid action. */
+const CALL_IDS = ACTION_IDS.filter((id) => !AVOID_IDS.includes(id));
 const selectedIds = async (page: Page): Promise<string[]> =>
   page.evaluate(() =>
     Array.from(
@@ -123,7 +126,7 @@ test('zoomed into the footwell area during a run, every button is at least 44 px
   }
 });
 
-test('a flight scenario draws all six buttons and the ground scenario only the actions', async ({
+test('a flight scenario draws all nine buttons and the ground scenario only the calls and the passengers', async ({
   page,
   hasTouch,
 }) => {
@@ -142,7 +145,7 @@ test('a flight scenario draws all six buttons and the ground scenario only the a
   }
 });
 
-test('the ground scenario draws only the actions and no flight conduct, nothing is preselected and the second row stays in place', async ({
+test('the ground scenario draws only the calls and the passengers, no flight conduct and no Avoid action, nothing is preselected and the middle row stays in place', async ({
   page,
   hasTouch,
 }) => {
@@ -151,14 +154,48 @@ test('the ground scenario draws only the actions and no flight conduct, nothing 
   const flightBox = await furtherHit(page, MAYDAY).boundingBox();
   await page.goto('./');
   await startScenario(page, hasTouch, GROUND_ROW);
-  await expect(page.locator('[data-session-hit^="further."]')).toHaveCount(ACTION_IDS.length);
-  for (const id of ACTION_IDS) await expect(furtherHit(page, id)).toHaveCount(1);
-  for (const id of CONDUCT_IDS) await expect(furtherHit(page, id)).toHaveCount(0);
+  await expect(page.locator('[data-session-hit^="further."]')).toHaveCount(CALL_IDS.length);
+  for (const id of CALL_IDS) await expect(furtherHit(page, id)).toHaveCount(1);
+  for (const id of [...CONDUCT_IDS, ...AVOID_IDS])
+    await expect(furtherHit(page, id)).toHaveCount(0);
   expect(await selectedIds(page)).toEqual([]);
   await expect(page.locator('[data-shell="further-title"]')).toHaveText('FURTHER ACTIONS');
   const groundBox = await furtherHit(page, MAYDAY).boundingBox();
   expect(groundBox?.x).toBeCloseTo(flightBox?.x ?? Number.NaN, 0);
   expect(groundBox?.y).toBeCloseTo(flightBox?.y ?? Number.NaN, 0);
+});
+
+test('the three Avoid buttons toggle independently, start unselected and are recorded like every toggle', async ({
+  page,
+  hasTouch,
+}) => {
+  const [avoidImc, avoidNvfr, avoidIcing] = AVOID_IDS;
+  if (avoidImc === undefined || avoidNvfr === undefined || avoidIcing === undefined) {
+    throw new Error('no avoid actions');
+  }
+  await page.goto('./');
+  await startScenario(page, hasTouch, FIRE_ROW);
+  // Unselected at the start, labelled by aircraft data.
+  for (const id of AVOID_IDS) {
+    await expect(furtherButton(page, id)).toHaveAttribute('data-selected', 'false');
+    await expect(furtherButton(page, id)).toContainText(SET.option(id)?.label ?? '');
+  }
+  await pickFurther(page, hasTouch, [avoidNvfr]);
+  expect((await selectedIds(page)).sort()).toEqual([avoidNvfr, SET.defaultConduct].sort());
+  await pickFurther(page, hasTouch, [avoidImc, avoidIcing]);
+  await toggleFurther(page, hasTouch, avoidNvfr);
+  await expect(furtherButton(page, avoidNvfr)).toHaveAttribute('data-selected', 'false');
+  expect((await selectedIds(page)).sort()).toEqual(
+    [avoidIcing, avoidImc, SET.defaultConduct].sort(),
+  );
+  // They neither end the run nor change the conduct.
+  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+  await expect(furtherButton(page, SET.defaultConduct)).toHaveAttribute('aria-pressed', 'true');
+  // Listed in the debrief only when picked (the two that stayed on), never as a reason.
+  await finish(page, hasTouch);
+  await expect(row(page, avoidImc)).toHaveAttribute('data-verdict', 'Done');
+  await expect(row(page, avoidIcing)).toHaveAttribute('data-verdict', 'Done');
+  await expect(row(page, avoidNvfr)).toHaveCount(0);
 });
 
 test('MAYDAY and PAN PAN PAN can both be selected, independently of each other and of the passengers', async ({
@@ -170,7 +207,7 @@ test('MAYDAY and PAN PAN PAN can both be selected, independently of each other a
   await page.goto('./');
   await startScenario(page, hasTouch, FIRE_ROW);
   await pickFurther(page, hasTouch, [mayday, panPan, passengers]);
-  // The preselected Continue normally is selected besides the three actions.
+  // The preselected Continue to destination is selected besides the three actions.
   expect((await selectedIds(page)).sort()).toEqual(
     [mayday, panPan, passengers, SET.defaultConduct].sort(),
   );
@@ -180,7 +217,7 @@ test('MAYDAY and PAN PAN PAN can both be selected, independently of each other a
   await expect(furtherButton(page, passengers)).toHaveAttribute('data-selected', 'true');
 });
 
-test('Continue normally is preselected without a press; the conduct is a radio group that cannot be cleared', async ({
+test('Continue to destination is preselected without a press; the conduct is a radio group that cannot be cleared', async ({
   page,
   hasTouch,
 }) => {
@@ -208,16 +245,20 @@ test('Continue normally is preselected without a press; the conduct is a radio g
   expect(await selectedIds(page)).toEqual([carryOn]);
 });
 
-test('the cluster has its headline and the rows of the owner: three conducts on top, passengers and the two ATC calls below', async ({
+test('the cluster has its headline and the rows of the owner: three conducts on top, passengers and the two ATC calls, then the Avoid actions', async ({
   page,
   hasTouch,
 }) => {
   const [carryOn, precaution, emergency] = CONDUCT_IDS;
   const [mayday, panPan, passengers] = [MAYDAY, ACTION_IDS[1], ACTION_IDS[2]];
+  const [avoidImc, avoidNvfr, avoidIcing] = AVOID_IDS;
   if (carryOn === undefined || precaution === undefined || emergency === undefined) {
     throw new Error('short list');
   }
   if (panPan === undefined || passengers === undefined) throw new Error('short list');
+  if (avoidImc === undefined || avoidNvfr === undefined || avoidIcing === undefined) {
+    throw new Error('no avoid actions');
+  }
   await page.goto('./');
   // The headline is static plate art: it is there on the free panel, before any run.
   await expect(page.locator('[data-shell="further-title"]')).toHaveText('FURTHER ACTIONS');
@@ -255,7 +296,7 @@ test('the cluster has its headline and the rows of the owner: three conducts on 
     return box;
   };
   const tol = 1.5;
-  // Row 1: continue normally at the top left, then alternate, then emergency, on one line.
+  // Row 1: continue to destination at the top left, then alternate, then emergency, on one line.
   expect(Math.abs(at(carryOn).y - at(precaution).y)).toBeLessThan(tol);
   expect(Math.abs(at(carryOn).y - at(emergency).y)).toBeLessThan(tol);
   expect(at(carryOn).x).toBeLessThan(at(precaution).x);
@@ -266,6 +307,13 @@ test('the cluster has its headline and the rows of the owner: three conducts on 
   expect(at(passengers).x).toBeLessThan(at(mayday).x);
   expect(at(mayday).x).toBeLessThan(at(panPan).x);
   expect(at(passengers).y).toBeGreaterThan(at(carryOn).y + at(carryOn).h - tol);
+  // Row 3: the three Avoid actions, one line below row 2.
+  expect(Math.abs(at(avoidImc).y - at(avoidNvfr).y)).toBeLessThan(tol);
+  expect(Math.abs(at(avoidImc).y - at(avoidIcing).y)).toBeLessThan(tol);
+  expect(at(avoidImc).x).toBeLessThan(at(avoidNvfr).x);
+  expect(at(avoidNvfr).x).toBeLessThan(at(avoidIcing).x);
+  expect(at(avoidImc).y).toBeGreaterThan(at(passengers).y + at(passengers).h - tol);
+  expect(Math.abs(at(avoidImc).x - at(carryOn).x)).toBeLessThan(tol);
   // The columns line up, and the headline stands above row 1 inside the plate.
   expect(Math.abs(at(carryOn).x - at(passengers).x)).toBeLessThan(tol);
   const { title, plate } = read;
@@ -296,7 +344,7 @@ test('the cluster has its headline and the rows of the owner: three conducts on 
         });
       });
     expect(lineBoxes.length, `${option.id} lines`).toBe((option.label ?? '').split('\n').length);
-    const margin = hit.w * (6 / 190);
+    const margin = hit.w * (6 / 150);
     for (const box of lineBoxes) {
       expect(box.x, `${option.id} left`).toBeGreaterThanOrEqual(hit.x + margin);
       expect(box.x + box.w, `${option.id} right`).toBeLessThanOrEqual(hit.x + hit.w - margin);
@@ -326,7 +374,7 @@ test('the debrief shows the picks of the conduct in order and the final one coun
   );
 });
 
-test('a run that never switches from the preselected Continue normally ends FAIL with the wrong conduct, shown as Wrong with its pick', async ({
+test('a run that never switches from the preselected Continue to destination ends FAIL with the wrong conduct, shown as Wrong with its pick', async ({
   page,
   hasTouch,
 }) => {
@@ -338,7 +386,7 @@ test('a run that never switches from the preselected Continue normally ends FAIL
   await finish(page, hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
   await expect(row(page, 'conduct')).toHaveAttribute('data-verdict', 'Wrong');
-  // The picked line shows Continue normally: it was the default, not a press.
+  // The picked line shows Continue to destination: it was the default, not a press.
   await expect(page.getByTestId('debrief-further-picks')).toContainText(
     `Picked: ${textOf(carryOn)}`,
   );
@@ -392,7 +440,7 @@ test('@hooks Realistic: a press before the onset changes nothing, after the onse
   await toggleFurther(page, hasTouch, MAYDAY);
   await toggleFurther(page, hasTouch, CONDUCT_IDS[2] ?? MAYDAY);
   await page.waitForTimeout(200);
-  // Drawn alike before the onset: the preselected Continue normally shows, no press changes it.
+  // Drawn alike before the onset: the preselected Continue to destination shows, no press changes it.
   expect(await selectedIds(page)).toEqual([SET.defaultConduct]);
   await page.waitForFunction(() => {
     const host = globalThis as unknown as {

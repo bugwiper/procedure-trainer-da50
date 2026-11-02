@@ -20,7 +20,7 @@
 // partial recording (checklistMarks, the same credit the debrief shows; grade never receives the
 // sheet or the level).
 // The further actions (Phase 7, plans 02 and 05): during a run the pilot switches the decisions that
-// are not panel actions (inform ATC, brief passengers, the flight conduct) with six toggle buttons in
+// are not panel actions (inform ATC, brief passengers, the flight conduct) with nine toggle buttons in
 // the footwell; each press is logged by toggleDecision() as { t, id, on } with the run clock's time
 // and goes into the recording beside the store log. The state the presses leave
 // (effectiveSelection) is what the buttons show and what grade counts; no modal, the clock runs on.
@@ -345,7 +345,7 @@ export interface Session {
    * appends { t, id, on: !selected }; a conduct option appends on for another option than the
    * selected one (a radio group that always has one selection: the preselected default at the start,
    * and a press of the selected one is no change and logs nothing). Ignored before the onset of a
-   * Realistic run, for an id the aircraft does not have and for a conduct when the scenario offers
+   * Realistic run, for an id the aircraft does not have and for a conduct or an Avoid action when the scenario offers
    * none (R-09).
    * A press never completes the run; the selections are graded at Procedure complete (R-10).
    */
@@ -1199,7 +1199,9 @@ export function createSession(deps: SessionDeps): Session {
       if (beforeOnset()) return;
       const option = env.further.option(id);
       if (option === undefined) return;
-      if (option.kind === 'conduct' && !offersConduct(current.further)) return;
+      // The conduct and the Avoid actions that qualify it exist only where a conduct is offered (R-09, R-21).
+      if ((option.kind === 'conduct' || option.avoid === true) && !offersConduct(current.further))
+        return;
       const now = effectiveSelection(decisions.peek(), env.further, offersConduct(current.further));
       // A conduct cannot be cleared: the press of the selected one is no change.
       if (option.kind === 'conduct' && now.conduct === id) return;

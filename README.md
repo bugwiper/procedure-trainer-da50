@@ -317,7 +317,7 @@ further:
     accept[1]: conduct_emergency
 ```
 
-- **Further options:** `atc_mayday`, `atc_pan_pan`, `brief_passengers`, `conduct_continue`, `conduct_precautionary`, `conduct_emergency`.
+- **Further options:** `atc_mayday`, `atc_pan_pan`, `brief_passengers`, `avoid_imc`, `avoid_nvfr`, `avoid_icing`, `conduct_destination`, `conduct_precautionary`, `conduct_emergency`.
 
 The conduct rule: a scenario with a `further` section writes `conduct` with `accept` (the right options; at least one, never all three, and the option selected at the end of the run must be one of them), except a scenario on the ground, which writes `conduct: none` and is never graded on it. The ground rule is checked: `none` exactly when the profile puts the aircraft on the ground. A scenario without a `further` section grades no further action, and every shipped scenario has one. In a run the pilot sees these as six toggle buttons in the footwell; the three landing buttons are a group and are not drawn where the scenario has no flight decision, and the grade counts the state the buttons are in when Procedure complete is pressed.
 

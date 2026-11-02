@@ -26,6 +26,12 @@ export interface FurtherOption {
    * `required` and `harmful` for it, so it can neither be missed nor fail a run. Actions only.
    */
   readonly unrated?: boolean;
+  /**
+   * True for an Avoid action (plan 07-06, R-21): it qualifies
+   * the decision to continue, so it is drawn only where a flight conduct is offered, never required
+   * and never failing (it must be `unrated`), and the debrief lists it only when it was picked.
+   */
+  readonly avoid?: true;
   /** A line the debrief adds when this option is the last conduct pick. */
   readonly debriefNote?: string;
 }
@@ -38,10 +44,16 @@ export interface FurtherDefinition {
   readonly groundParameter: string;
   /**
    * The conduct option that is selected when a run starts, without any press (owner decision
-   * 2026-11-02: "Continue normally" is preselected, the pilot deviates by pressing another one). It
+   * 2026-11-02: "Continue to destination" is preselected, the pilot deviates by pressing another one). It
    * counts like a pick. Must name an option of kind `conduct`.
    */
   readonly defaultConduct: string;
+  /**
+   * The conduct option the conduct note of a scenario speaks of (plan 07-06, R-22): "Continue to
+   * destination". Must name an option of kind `conduct`. Lint L31 rejects a `conduct_note` in a
+   * scenario whose `accept` list lacks it.
+   */
+  readonly noteConduct: string;
 }
 
 export interface FurtherSet extends FurtherDefinition {
@@ -49,6 +61,8 @@ export interface FurtherSet extends FurtherDefinition {
   option(id: string): FurtherOption | undefined;
   /** The ids of the options of one kind, in list order. */
   ids(kind: FurtherKind): readonly string[];
+  /** The ids of the Avoid actions, in list order. */
+  avoidIds(): readonly string[];
 }
 
 export class FurtherError extends Error {}
@@ -65,6 +79,11 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
     if (option.unrated === true && option.kind !== 'action') {
       throw new FurtherError(`option "${option.id}" is a conduct and cannot be unrated`);
     }
+    if (option.avoid === true && (option.kind !== 'action' || option.unrated !== true)) {
+      throw new FurtherError(
+        `option "${option.id}" is an avoid action and must be an unrated action`,
+      );
+    }
     if (option.debriefNote !== undefined && option.kind !== 'conduct') {
       throw new FurtherError(`option "${option.id}" is an action and cannot carry a debrief note`);
     }
@@ -78,15 +97,20 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
       `the default conduct "${definition.defaultConduct}" is not a conduct option`,
     );
   }
+  if (byId.get(definition.noteConduct)?.kind !== 'conduct') {
+    throw new FurtherError(`the note conduct "${definition.noteConduct}" is not a conduct option`);
+  }
   return Object.freeze({
     options: Object.freeze([...definition.options]),
     conductTitle: definition.conductTitle,
     groundParameter: definition.groundParameter,
     defaultConduct: definition.defaultConduct,
+    noteConduct: definition.noteConduct,
     has: (id: string) => byId.has(id),
     option: (id: string) => byId.get(id),
     ids: (kind: FurtherKind) =>
       definition.options.filter((option) => option.kind === kind).map((option) => option.id),
+    avoidIds: () => definition.options.filter((option) => option.avoid === true).map((o) => o.id),
   });
 }
 

@@ -1564,13 +1564,14 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
    */
   const P7_FURTHER_REGION = 'further_area';
   const P7_FURTHER_PLATE = 'further-pad';
-  const FURTHER_PLATE: Rect = { x: 200, y: 877, w: 640, h: 228 };
-  const FURTHER_REGION: Rect = { x: 190, y: 868, w: 660, h: 260 };
+  const FURTHER_PLATE: Rect = { x: 268, y: 873, w: 504, h: 228 };
+  const FURTHER_REGION: Rect = { x: 263, y: 866, w: 514, h: 264 };
   /**
-   * The six slots of the cluster (600 x 170) in global units: the plate stands 20 units left, right
-   * and below them and 38 above (the headline FURTHER ACTIONS, owner feedback 2026-11-02).
+   * The nine slots of the cluster (3 x 3 of 150 x 60, 7 units between the columns and 5 between the rows: 464 x 190) in global units
+   * (plan 07-06, R-21): the plate stands 20 units left and right of them, 10 below and 28 above (the
+   * headline FURTHER ACTIONS, owner feedback 2026-11-02).
    */
-  const FURTHER_SLOTS: Rect = { x: 220, y: 915, w: 600, h: 170 };
+  const FURTHER_SLOTS: Rect = { x: 288, y: 901, w: 464, h: 190 };
 
   it('the session-pad plate has the Table Z1 rectangle (rx 18) and carries scenario_area only', () => {
     const plate = PLATES.find((p) => p.id === 'session-pad');
@@ -1657,9 +1658,9 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     expect(region?.bounds).toEqual(FURTHER_REGION);
     expect(region?.controlIds).toEqual([]);
     expect(FURTHER_SLOTS.x - FURTHER_PLATE.x).toBe(20);
-    expect(FURTHER_SLOTS.y - FURTHER_PLATE.y).toBe(38);
+    expect(FURTHER_SLOTS.y - FURTHER_PLATE.y).toBe(28);
     expect(FURTHER_PLATE.x + FURTHER_PLATE.w - (FURTHER_SLOTS.x + FURTHER_SLOTS.w)).toBe(20);
-    expect(FURTHER_PLATE.y + FURTHER_PLATE.h - (FURTHER_SLOTS.y + FURTHER_SLOTS.h)).toBe(20);
+    expect(FURTHER_PLATE.y + FURTHER_PLATE.h - (FURTHER_SLOTS.y + FURTHER_SLOTS.h)).toBe(10);
     // The region holds the plate and leaves room above and below it (the Full panel corner, phones).
     expect(inside(FURTHER_PLATE, FURTHER_REGION)).toBe(true);
     for (const r of DA50RG.regions) {
@@ -1680,6 +1681,9 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     // Below the under-panel pulls (their regions end at y 865) and above the pedals plate (y 1130).
     expect(FURTHER_REGION.y).toBeGreaterThanOrEqual(865);
     expect(FURTHER_REGION.y + FURTHER_REGION.h).toBeLessThanOrEqual(1130);
+    // The plate keeps 8 units of air under the pulls (R-21) and clears the pedals plate.
+    expect(FURTHER_PLATE.y - 865).toBeGreaterThanOrEqual(8);
+    expect(1130 - (FURTHER_PLATE.y + FURTHER_PLATE.h)).toBeGreaterThanOrEqual(8);
   });
 
   it('the cabin plate has the typed rectangle, carries the window and the door regions and keeps clear of the pull above and the pedals', () => {

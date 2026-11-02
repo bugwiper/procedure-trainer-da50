@@ -4,11 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { grade } from '../src/engine/grading';
 import type { GradeResult, OrderViolation, Reason } from '../src/engine/grading';
 import { parseScenario } from '../src/scenario/parse';
-import type { Group } from '../src/scenario/schema';
+import type { FurtherSection, Group } from '../src/scenario/schema';
 import { MAX_RUN_MS } from '../src/engine/sim';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import {
   checklistNote,
+  conductNote,
   furtherNote,
   furtherRows,
   harmfulLine,
@@ -272,7 +273,7 @@ describe('further actions (Phase 7, plan 07-02, R19)', () => {
           { id: panPan, role: 'optional', done: true, failsRun: false },
           { id: passengers, role: 'recommended', done: false, failsRun: false },
         ],
-        // Never switched: the preselected Continue normally is the pick and it is wrong here.
+        // Never switched: the preselected Continue to destination is the pick and it is wrong here.
         conduct: { declared: 'accept', picks: [carryOn], last: carryOn, status: 'wrong' },
       }),
       SET,
@@ -285,7 +286,7 @@ describe('further actions (Phase 7, plan 07-02, R19)', () => {
     ]);
     expect(rows[0]?.label).toBe(SET.option(mayday)?.text);
     expect(rows[3]?.label).toBe(SET.conductTitle);
-    // The picked line shows Continue normally when it was the default.
+    // The picked line shows Continue to destination when it was the default.
     expect(rows[3]?.picks).toBe(`Picked: ${SET.option(carryOn)?.text ?? ''}`);
   });
 
@@ -429,5 +430,91 @@ describe('checklistNote (plan 07-06, R-24)', () => {
     expect(
       checklistNote({ ref: { pack: 'locked', scenario: own.scenario } }, own, 'T'),
     ).not.toBeNull();
+  });
+});
+
+// Plan 07-06 (R-22): the conduct note, outside the verdict, every branch of it.
+describe('conductNote (plan 07-06, R-22)', () => {
+  const SET = DA50RG_ENV.further;
+  const NOTE = 'Continuing is fine under VFR only.';
+  const AVOID = SET.avoidIds();
+  const section = (note: string | undefined): FurtherSection => ({
+    actions: [],
+    conduct: { accept: [SET.noteConduct] },
+    ...(note === undefined ? {} : { conduct_note: note }),
+  });
+  const withChoice = (last: string | null, chosen: readonly string[]): GradeResult =>
+    result({
+      further: {
+        actions: chosen.map((id) => ({
+          id,
+          role: 'optional' as const,
+          done: true,
+          failsRun: false,
+        })),
+        conduct: { declared: 'accept', picks: last === null ? [] : [last], last, status: 'ok' },
+      },
+    });
+  const text = (id: string): string => SET.option(id)?.text ?? id;
+
+  it('shows the note and names every Avoid action not chosen when none was chosen', () => {
+    const hint = conductNote(withChoice(SET.noteConduct, []), section(NOTE), SET);
+    expect(hint).toEqual({
+      tone: 'standard',
+      lines: [NOTE, `Not chosen: ${AVOID.map(text).join(', ')}.`],
+    });
+    // The labels are the texts of the Avoid options.
+    for (const id of AVOID) expect(hint?.lines.join(' ')).toContain(text(id));
+  });
+
+  it('names only the Avoid actions that are missing when some were chosen', () => {
+    const [first, ...rest] = AVOID;
+    const hint = conductNote(
+      withChoice(SET.noteConduct, first === undefined ? [] : [first]),
+      section(NOTE),
+      SET,
+    );
+    expect(hint?.tone).toBe('standard');
+    expect(hint?.lines).toEqual([NOTE, `Not chosen: ${rest.map(text).join(', ')}.`]);
+  });
+
+  it('shows a green line instead when all of them were chosen', () => {
+    const hint = conductNote(withChoice(SET.noteConduct, AVOID), section(NOTE), SET);
+    expect(hint?.tone).toBe('done');
+    expect(hint?.lines).toEqual([
+      `You also chose ${AVOID.slice(0, -1).map(text).join(', ')} and ${text(AVOID[AVOID.length - 1] ?? '')}, which fits continuing under VFR.`,
+    ]);
+  });
+
+  it('shows nothing for another final conduct, no note, a result without a further part or no conduct', () => {
+    const other = SET.ids('conduct').find((id) => id !== SET.noteConduct) ?? '';
+    expect(conductNote(withChoice(other, []), section(NOTE), SET)).toBeNull();
+    expect(conductNote(withChoice(SET.noteConduct, []), section(undefined), SET)).toBeNull();
+    expect(conductNote(withChoice(SET.noteConduct, []), undefined, SET)).toBeNull();
+    expect(conductNote(result({}), section(NOTE), SET)).toBeNull();
+    expect(conductNote(withChoice(null, []), section(NOTE), SET)).toBeNull();
+  });
+
+  it('uses the final selection: an Avoid action chosen and then switched off is missing', () => {
+    // The result lists an action with done false when it was declared or picked and then cleared.
+    const result2 = result({
+      further: {
+        actions: AVOID.map((id, i) => ({
+          id,
+          role: 'optional' as const,
+          done: i !== 0,
+          failsRun: false,
+        })),
+        conduct: {
+          declared: 'accept',
+          picks: [SET.noteConduct],
+          last: SET.noteConduct,
+          status: 'ok',
+        },
+      },
+    });
+    expect(conductNote(result2, section(NOTE), SET)?.lines[1]).toBe(
+      `Not chosen: ${text(AVOID[0] ?? '')}.`,
+    );
   });
 });

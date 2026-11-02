@@ -765,7 +765,7 @@ test('@hooks doing nothing grades FAIL', async ({ page, hasTouch }) => {
 
   await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
   // The file also asks for the flight decision (Phase 7): a run that does nothing never switched from
-  // the preselected Continue normally, which the file does not accept.
+  // the preselected Continue to destination, which the file does not accept.
   await expect(page.getByTestId('debrief-reason')).toHaveText([
     '2 critical steps were missed.',
     'The flight decision was not the right one.',

@@ -11,7 +11,10 @@ import {
 
 // The footwell cluster of the further actions (Phase 7, plan 07-05, R-07): the slots against the
 // independent hand-written table, the options of the aircraft, the region and the plate.
-const MIN_HEIGHT = 64;
+// The gate that counts is 44 px after the region zoom on every profile (tests/zoom.test.ts); this is
+// the unit floor of the plan's starting slot height (58 units, R-21). The 64 units of plan 07-05
+// belonged to the six slots of 78.
+const MIN_HEIGHT = 58;
 const SET = DA50RG_ENV.further;
 
 describe('the footwell cluster of the further actions', () => {
@@ -43,7 +46,7 @@ describe('the footwell cluster of the further actions', () => {
     expect(new Set(labels).size).toBe(labels.length);
   });
 
-  it('keeps every slot inside the region, no two overlapping, each at least 64 units high', () => {
+  it('keeps every slot inside the region, no two overlapping, each at least 58 units high', () => {
     const { w, h } = FURTHER_PAD.region;
     FURTHER_PAD.slots.forEach((a, i) => {
       expect(a.x, a.id).toBeGreaterThanOrEqual(0);
@@ -58,23 +61,29 @@ describe('the footwell cluster of the further actions', () => {
     });
   });
 
-  it('puts the conduct options in the top row (continue normally at the top left) and the actions in the bottom row', () => {
-    const topY = Math.min(...FURTHER_PAD.slots.map((s) => s.y));
-    const rowOf = (id: string): number => FURTHER_PAD.slots.find((s) => s.id === id)?.y ?? -1;
+  it('puts the conduct options in the top row (continue to destination at the top left), the calls and the passengers in the middle row and the Avoid actions in the bottom row', () => {
+    const rows = [...new Set(FURTHER_PAD.slots.map((s) => s.y))].sort((a, b) => a - b);
+    expect(rows).toHaveLength(3);
+    const rowOf = (id: string): number =>
+      rows.indexOf(FURTHER_PAD.slots.find((s) => s.id === id)?.y ?? -1);
     for (const option of SET.options) {
-      expect(rowOf(option.id) === topY, option.id).toBe(option.kind === 'conduct');
+      const expected = option.kind === 'conduct' ? 0 : option.avoid === true ? 2 : 1;
+      expect(rowOf(option.id), option.id).toBe(expected);
     }
     const first = FURTHER_PAD.slots[0];
     expect(first?.id).toBe(SET.defaultConduct);
-    expect([first?.x, first?.y]).toEqual([30, 47]);
+    expect([first?.x, first?.y]).toEqual([25, 35]);
+    // Every row holds three buttons; the grid has as many cells as the aircraft has options.
+    for (const y of rows) expect(FURTHER_PAD.slots.filter((s) => s.y === y)).toHaveLength(3);
+    expect(FURTHER_PAD.slots).toHaveLength(SET.options.length);
   });
 
-  it('preselects Continue normally: the default conduct is the top left option', () => {
-    expect(SET.defaultConduct).toBe('conduct_continue');
+  it('preselects Continue to destination: the default conduct is the top left option', () => {
+    expect(SET.defaultConduct).toBe('conduct_destination');
     expect(SET.option(SET.defaultConduct)?.kind).toBe('conduct');
   });
 
-  it('is as large as the registry region, keeps the slots 30 units from the sides and 47 units below the top, and puts the plate 20 units around the slots except 38 above them for the headline', () => {
+  it('is as large as the registry region, keeps the slots 25 units from the sides, 35 below the top and 39 above the bottom, and puts the plate 20 units left and right, 10 below the slots and 28 above them for the headline', () => {
     const region = DA50RG.regions.find((r) => r.id === 'further_area');
     expect(region).toBeDefined();
     if (region === undefined) return;
@@ -84,17 +93,17 @@ describe('the footwell cluster of the further actions', () => {
     const right = Math.max(...FURTHER_PAD.slots.map((s) => s.x + s.w));
     const top = Math.min(...FURTHER_PAD.slots.map((s) => s.y));
     const bottom = Math.max(...FURTHER_PAD.slots.map((s) => s.y + s.h));
-    expect(left).toBe(30);
-    expect(FURTHER_PAD.region.w - right).toBe(30);
-    expect(top).toBe(47);
-    expect(FURTHER_PAD.region.h - bottom).toBe(43);
+    expect(left).toBe(25);
+    expect(FURTHER_PAD.region.w - right).toBe(25);
+    expect(top).toBe(35);
+    expect(FURTHER_PAD.region.h - bottom).toBe(39);
     const plate = PLATES.find((p) => p.id === 'further-pad');
     expect(plate).toBeDefined();
     if (plate === undefined) return;
     expect(region.bounds.x + left - plate.x).toBe(20);
-    expect(region.bounds.y + top - plate.y).toBe(38);
+    expect(region.bounds.y + top - plate.y).toBe(28);
     expect(plate.x + plate.w - (region.bounds.x + right)).toBe(20);
-    expect(plate.y + plate.h - (region.bounds.y + bottom)).toBe(20);
+    expect(plate.y + plate.h - (region.bounds.y + bottom)).toBe(10);
   });
 
   it('prints the headline FURTHER ACTIONS centred on the plate, between the plate top and the top row', () => {
@@ -106,7 +115,7 @@ describe('the footwell cluster of the further actions', () => {
     // Cap height about 0.72 of the size: the glyphs stand inside the plate and clear of the buttons.
     const capTop = FURTHER_PAD_TITLE.y - 0.72 * FURTHER_PAD_TITLE.size;
     expect(capTop).toBeGreaterThanOrEqual(plate.y + 8);
-    expect(FURTHER_PAD_TITLE.y).toBeLessThanOrEqual(region.bounds.y + 47 - 8);
+    expect(FURTHER_PAD_TITLE.y).toBeLessThanOrEqual(region.bounds.y + 35 - 8);
     // The glyph rule of the panel (0.62 of the size per character) fits the plate with room to spare.
     expect(FURTHER_PAD_TITLE.text.length * FURTHER_PAD_TITLE.size * 0.62).toBeLessThan(plate.w / 2);
   });

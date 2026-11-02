@@ -363,6 +363,20 @@ body,
   overflow-wrap: anywhere;
 }
 
+/* The conduct note of the debrief (plan 07-06, R-22): a hint outside the verdict, the tone colour (yellow hint,
+   green when all Avoid actions were chosen) comes from the container. */
+.debrief-conduct-note {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-left: 4px solid currentColor;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.debrief-conduct-note .briefing-meta {
+  color: inherit;
+}
+
 .briefing-source {
   margin: 16px 0 0;
 }

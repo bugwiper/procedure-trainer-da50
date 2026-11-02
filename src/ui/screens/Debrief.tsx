@@ -3,6 +3,7 @@ import type { GradeResult } from '../../engine/grading';
 import type { Scenario } from '../../scenario/schema';
 import {
   causeLine,
+  conductNote,
   furtherNote,
   furtherRows,
   harmfulLine,
@@ -61,6 +62,7 @@ export function Debrief({
   const limit = limitLine(completedAt);
   const furtherList = furtherRows(result, further);
   const note = furtherNote(result, further);
+  const hint = conductNote(result, scenario.further, further);
 
   return (
     <Modal
@@ -180,6 +182,20 @@ export function Debrief({
             </p>
           )}
         </>
+      )}
+      {hint === null ? null : (
+        <div
+          class="debrief-conduct-note"
+          data-testid="debrief-conduct-note"
+          data-tone={hint.tone}
+          style={{ color: TONE_COLORS[hint.tone] }}
+        >
+          {hint.lines.map((line) => (
+            <p key={line} class="briefing-meta">
+              {line}
+            </p>
+          ))}
+        </div>
       )}
       <h3 class="debrief-heading" data-testid="debrief-harmful-heading">
         {`Harmful actions (${String(result.harmful.length)})`}

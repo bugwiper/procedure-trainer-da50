@@ -20,25 +20,39 @@ interface Declared {
   readonly roles: readonly [Role, Role, Role];
   /** The accepted conduct ids, or 'none'. */
   readonly conduct: readonly string[] | 'none';
+  /** True when the scenario carries a `conduct_note` (plan 07-06, R-22). */
+  readonly note: boolean;
 }
 
+// The review of plan 07-06 (R-20), row by row against the printed comment rows and branches: ENG OIL TEMP
+// and ICING CONDITIONS print a landing at the nearest suitable airfield (precautionary only); the two
+// ALTN cautions print "Terminate NVFR/IFR-flight and land at nearest suitable airfield", so VFR flight
+// to the destination is right as well, and each carries the note that says when it is not.
 const ADVISORY: Declared = {
   roles: ['optional', 'optional', 'optional'],
   conduct: ['conduct_precautionary'],
+  note: false,
+};
+const ALTERNATOR_CAUTION: Declared = {
+  roles: ['optional', 'optional', 'optional'],
+  conduct: ['conduct_destination', 'conduct_precautionary'],
+  note: true,
 };
 const FIRE_IN_FLIGHT: Declared = {
   roles: ['required', 'optional', 'recommended'],
   conduct: ['conduct_emergency'],
+  note: false,
 };
 const ON_THE_GROUND: Declared = {
   roles: ['recommended', 'optional', 'optional'],
   conduct: 'none',
+  note: false,
 };
 
 const TABLE: Readonly<Record<string, Declared>> = {
   'eng-oil-temp-green': ADVISORY,
-  'elec-altn1-fail': ADVISORY,
-  'elec-altn2-fail': ADVISORY,
+  'elec-altn1-fail': ALTERNATOR_CAUTION,
+  'elec-altn2-fail': ALTERNATOR_CAUTION,
   'icing-unintentional': ADVISORY,
   'eng-fire-in-flight': FIRE_IN_FLIGHT,
   'elec-fire-flight': FIRE_IN_FLIGHT,
@@ -84,6 +98,9 @@ describe('the further declarations of the shipped scenarios (D-10, D-13)', () =>
       expect(section?.conduct === 'none' ? 'none' : section?.conduct.accept).toEqual(
         expected.conduct,
       );
+      expect(section?.conduct_note !== undefined, 'conduct_note').toBe(expected.note);
+      // L31: a note only where the conduct it speaks of is accepted.
+      if (expected.note) expect(expected.conduct).toContain(DA50RG_ENV.further.noteConduct);
     },
   );
 

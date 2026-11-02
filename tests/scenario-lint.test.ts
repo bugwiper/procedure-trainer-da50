@@ -1837,7 +1837,7 @@ describe('L27 and L28: the further actions (Phase 7, plan 07-02)', () => {
   it('L27: rejects a conduct id used as an action', () => {
     const text = withFurther(
       FIRE,
-      section('    - id: conduct_continue\n      role: optional', ACCEPT),
+      section('    - id: conduct_destination\n      role: optional', ACCEPT),
     );
     const [hit] = found(text, 'is a flight conduct, not an action');
     expect(hit?.path).toBe('further.actions.0.id');
@@ -1933,10 +1933,65 @@ describe('L27 and L28: the further actions (Phase 7, plan 07-02)', () => {
     expect(hit?.path).toBe('further.conduct.accept');
   });
 
+  // Plan 07-06 (R-21, R-22): the Avoid actions and the conduct note.
+  const NOTE = 'Continuing is fine under VFR only; in IMC an alternate landing is necessary.';
+  const ACCEPT_BOTH = '    accept[2]: conduct_destination,conduct_precautionary';
+  const noted = (block: string): string => `${block}  conduct_note: "${NOTE}"\n`;
+
+  it('L27: an Avoid action is never required or harmful, and is taken as recommended or optional', () => {
+    for (const id of DA50RG_ENV.further.avoidIds()) {
+      for (const role of ['required', 'harmful'] as const) {
+        const text = withFurther(FIRE, section(`    - id: ${id}\n      role: ${role}`, ACCEPT));
+        const [hit] = found(text, `the further action "${id}" is never graded`);
+        expect(hit?.path).toBe('further.actions.0.role');
+      }
+      for (const role of ['recommended', 'optional'] as const) {
+        const text = withFurther(FIRE, section(`    - id: ${id}\n      role: ${role}`, ACCEPT));
+        expect(checkScenario(text, DA50RG_ENV).ok, `${id} ${role}`).toBe(true);
+      }
+    }
+  });
+
+  it('L31: takes a conduct note where accept lists the conduct it speaks of', () => {
+    const text = withFurther(FIRE, noted(section(CALL, ACCEPT_BOTH)));
+    expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
+    expect(parsedOf(text).further?.conduct_note).toBe(NOTE);
+  });
+
+  it('L31: rejects a conduct note where accept lacks the note conduct, at the note', () => {
+    const text = withFurther(FIRE, noted(section(CALL, ACCEPT)));
+    const [hit] = found(text, 'L31');
+    expect(hit?.path).toBe('further.conduct_note');
+    expect(hit?.message).toContain(DA50RG_ENV.further.noteConduct);
+    expect(hit?.line).toBe(lastLineOf(text, 'conduct_note:'));
+  });
+
+  it('L31: rejects a conduct note with conduct none', () => {
+    const text = withFurther(GROUND, noted(section(CALL, 'none')));
+    const [hit] = found(text, 'L31');
+    expect(hit?.path).toBe('further.conduct_note');
+  });
+
+  it('L31: rejects a conduct note longer than 50 words, and an empty one', () => {
+    const long = Array.from({ length: 51 }, () => 'word').join(' ');
+    const tooLong = withFurther(FIRE, `${section(CALL, ACCEPT_BOTH)}  conduct_note: "${long}"\n`);
+    const result = checkScenario(tooLong, DA50RG_ENV);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.some((i) => i.path === 'further.conduct_note')).toBe(true);
+    }
+    const empty = withFurther(FIRE, `${section(CALL, ACCEPT_BOTH)}  conduct_note: ""\n`);
+    expect(checkScenario(empty, DA50RG_ENV).ok).toBe(false);
+    // Exactly 50 words is allowed.
+    const fifty = Array.from({ length: 50 }, () => 'word').join(' ');
+    const edge = withFurther(FIRE, `${section(CALL, ACCEPT_BOTH)}  conduct_note: "${fifty}"\n`);
+    expect(checkScenario(edge, DA50RG_ENV).ok).toBe(true);
+  });
+
   it('L20: the solution of a variant file carries the required decisions and the first accept', () => {
     const block = section(
       `${CALL}\n    - id: brief_passengers\n      role: recommended`,
-      '    accept[2]: conduct_precautionary,conduct_continue',
+      '    accept[2]: conduct_precautionary,conduct_destination',
     );
     const text = withFurther(ALTN, block);
     // Without the decisions in the built solution this would read "the solution does not pass".
@@ -1947,7 +2002,7 @@ describe('L27 and L28: the further actions (Phase 7, plan 07-02)', () => {
       completedAt: 20000,
       events: [],
     });
-    // The block accepts the preselected Continue normally, so the untouched default is the right
+    // The block accepts the preselected Continue to destination, so the untouched default is the right
     // conduct here and only the missed call is added; a block that does not accept it adds `conduct`.
     expect(nothing.reasons.map((r) => r.kind)).toEqual(['critical_missed', 'further_missed']);
     const strict = parsedOf(

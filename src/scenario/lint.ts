@@ -42,6 +42,7 @@
 // do-nothing run, at both ends of the window. L24: an onset needs at least one annunciation or one
 // cue, so a Realistic run always shows the pilot something. Both run inside the realistic start
 // check, so the per-variant check L19 inherits them.
+// L31 (plan 07-06) allows the `conduct_note` of the further section only where `accept` lists the conduct the note speaks of.
 // L27 and L28 (Phase 7) check the optional `further` section: L27 the actions (every id is an action
 // option of the aircraft, listed once, `fails_run` only on the role harmful), L28 the flight conduct
 // (`none` exactly when the profile puts the aircraft on the ground, every accepted id is a conduct
@@ -779,6 +780,12 @@ function checkFurther(
 
   const onGround = (scenario.profile[set.groundParameter] ?? 0) > 0;
   if (section.conduct === 'none') {
+    if (section.conduct_note !== undefined) {
+      add(
+        ['further', 'conduct_note'],
+        'L31: a conduct note belongs to a scenario that accepts continuing to the destination; this one offers no conduct',
+      );
+    }
     if (!onGround) {
       add(
         ['further', 'conduct'],
@@ -808,6 +815,12 @@ function checkFurther(
   });
   if (conductIds.every((id) => accepted.has(id))) {
     add(['further', 'conduct', 'accept'], 'accept must not list every flight conduct option');
+  }
+  if (section.conduct_note !== undefined && !accepted.has(set.noteConduct)) {
+    add(
+      ['further', 'conduct_note'],
+      `L31: a conduct note speaks of "${set.noteConduct}"; accept must list it`,
+    );
   }
 }
 

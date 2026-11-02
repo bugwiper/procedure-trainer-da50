@@ -185,7 +185,11 @@ const FURTHER_DECLARED: Readonly<
     accept: ['conduct_emergency'],
   },
   'eng-oil-temp-green': { roles: ALL_OPTIONAL, accept: ['conduct_precautionary'] },
-  'elec-altn1-fail': { roles: ALL_OPTIONAL, accept: ['conduct_precautionary'] },
+  // Plan 07-06, R-20: ALTN 1 FAIL also accepts continuing to the destination (VFR flight goes on), so a run that never touches the conduct buttons has the right conduct.
+  'elec-altn1-fail': {
+    roles: ALL_OPTIONAL,
+    accept: ['conduct_destination', 'conduct_precautionary'],
+  },
 };
 
 function withFurther(name: string, expected: GradeResult): GradeResult {
@@ -193,13 +197,13 @@ function withFurther(name: string, expected: GradeResult): GradeResult {
   if (declared === undefined) return expected;
   // The state the presses leave (plan 07-05, R-08), replayed here independently of the engine: an
   // entry without the flag is on; an action is selected when its last entry is on; the conduct is a
-  // radio group that starts at the preselected Continue normally (no entry, it counts like a pick and
+  // radio group that starts at the preselected Continue to destination (no entry, it counts like a pick and
   // heads the picks), an on entry selects (the selected one again is no change) and an off entry of
   // the selected option falls back to the default; a press after the outcome time is not graded.
   const cut = expected.outcome?.t ?? Number.POSITIVE_INFINITY;
   const presses = (recording(name).decisions ?? []).filter((decision) => decision.t <= cut);
   const selectedActions = new Set<string>();
-  const preselected = 'conduct_continue';
+  const preselected = 'conduct_destination';
   const conductPicks: string[] = [preselected];
   let last: string = preselected;
   for (const press of presses) {
@@ -222,6 +226,12 @@ function withFurther(name: string, expected: GradeResult): GradeResult {
     done: selectedActions.has(id),
     failsRun: false,
   }));
+  // Plan 07-06 (R-21): an Avoid action that is switched on at the end gets an optional entry after the
+  // declared ones (the aircraft list order), a cleared one gets none (no row unless declared).
+  for (const id of ['avoid_imc', 'avoid_nvfr', 'avoid_icing']) {
+    if (selectedActions.has(id))
+      actions.push({ id, role: 'optional', done: true, failsRun: false });
+  }
   const added: GradeResult['reasons'][number][] = [];
   const missed = actions.filter((a) => a.role === 'required' && !a.done).length;
   if (missed > 0) added.push({ kind: 'further_missed', count: missed });
@@ -234,6 +244,21 @@ function withFurther(name: string, expected: GradeResult): GradeResult {
     result: reasons.length === 0 ? 'pass' : 'fail',
     reasons,
     further: { actions, conduct: { declared: 'accept', picks: conductPicks, last, status } },
+  };
+}
+
+/** The panel part of the golden ALTN 1 FAIL run: both steps done, no reason (the presses come on top). */
+function elecGoldenPanel(): GradeResult {
+  return {
+    scenarioId: 'elec-altn1-fail',
+    result: 'pass',
+    reasons: [],
+    steps: [step('alt1_off', true, 0, ELEC_GROUP), step('ess_bus_on', true, 1, ELEC_GROUP)],
+    branches: [],
+    orderViolations: [],
+    harmful: [],
+    outcome: null,
+    timing: { onsetAt: 0, firstActionMs: 6000 },
   };
 }
 
@@ -730,6 +755,14 @@ describe('golden recordings (Table R1)', () => {
       'fire-conduct-switched',
       'fire-both-calls',
     ].map((name) => ({ name, scenario: fire, expected: fireGoldenPanel() })),
+    // Plan 07-06 (R-20, R-21): the conduct of ALTN 1 FAIL (the untouched default and the alternate
+    // landing are right, the emergency landing is wrong) and the Avoid actions (unrated, no verdict).
+    ...[
+      'elec-conduct-default',
+      'elec-conduct-emergency',
+      'elec-avoid-all',
+      'elec-avoid-some-then-off',
+    ].map((name) => ({ name, scenario: electrical, expected: elecGoldenPanel() })),
     {
       name: 'fire-decisions-after-outcome',
       scenario: fire,
@@ -831,15 +864,15 @@ describe('recordings made before the toggles (plan 07-05)', () => {
     expect(verdict('fire-mayday-on-off-on').result).toBe('pass');
     expect(verdict('fire-mayday-on-off').reasons).toEqual([{ kind: 'further_missed', count: 1 }]);
     // A recording made while a conduct could still be cleared: the clear falls back to the
-    // preselected Continue normally, which the fire file does not accept (was: missing, now: wrong).
+    // preselected Continue to destination, which the fire file does not accept (was: missing, now: wrong).
     expect(verdict('fire-conduct-cleared').reasons).toEqual([{ kind: 'conduct', status: 'wrong' }]);
     expect(verdict('fire-conduct-cleared').further?.conduct).toMatchObject({
-      last: 'conduct_continue',
-      picks: ['conduct_continue', 'conduct_emergency', 'conduct_continue'],
+      last: 'conduct_destination',
+      picks: ['conduct_destination', 'conduct_emergency', 'conduct_destination'],
     });
     expect(verdict('fire-conduct-switched').result).toBe('pass');
     expect(verdict('fire-conduct-switched').further?.conduct.picks).toEqual([
-      'conduct_continue',
+      'conduct_destination',
       'conduct_precautionary',
       'conduct_emergency',
     ]);
@@ -854,6 +887,65 @@ describe('recordings made before the toggles (plan 07-05)', () => {
       'critical_missed',
       'conduct',
     ]);
+  });
+});
+
+// Plan 07-06 (R-20, R-21, T-07-17): ALTN 1 FAIL accepts continuing to the destination and the alternate
+// landing; the Avoid actions are listed when picked and change no verdict.
+describe('the conduct of ALTN 1 FAIL and the Avoid actions (plan 07-06)', () => {
+  const verdict = (name: string) => grade(electrical, DA50RG_ENV, recording(name));
+
+  it('passes with the untouched default and with the alternate landing, fails with the emergency landing', () => {
+    expect(verdict('elec-conduct-default').result).toBe('pass');
+    expect(verdict('elec-conduct-default').further?.conduct).toMatchObject({
+      last: 'conduct_destination',
+      picks: ['conduct_destination'],
+      status: 'ok',
+    });
+    expect(verdict('elec-golden').result).toBe('pass');
+    expect(verdict('elec-golden').further?.conduct.last).toBe('conduct_precautionary');
+    expect(verdict('elec-conduct-emergency').result).toBe('fail');
+    expect(verdict('elec-conduct-emergency').reasons).toEqual([
+      { kind: 'conduct', status: 'wrong' },
+    ]);
+  });
+
+  it('an Avoid pick changes nothing but its own entry: verdict, reasons and steps are the same', () => {
+    const plain = verdict('elec-conduct-default');
+    for (const name of ['elec-avoid-all', 'elec-avoid-some-then-off']) {
+      const picked = verdict(name);
+      expect(picked.result, name).toBe(plain.result);
+      expect({ ...picked, further: undefined }).toEqual({ ...plain, further: undefined });
+      // Without the Avoid entries the whole further part is the plain one.
+      expect(
+        picked.further?.actions.filter((a) => !a.id.startsWith('avoid_')),
+        name,
+      ).toEqual(plain.further?.actions);
+      expect(JSON.stringify(picked.further?.conduct), name).toBe(
+        JSON.stringify(plain.further?.conduct),
+      );
+    }
+    expect(
+      verdict('elec-avoid-all')
+        .further?.actions.filter((a) => a.id.startsWith('avoid_'))
+        .map((a) => [a.id, a.role, a.done, a.failsRun]),
+    ).toEqual([
+      ['avoid_imc', 'optional', true, false],
+      ['avoid_nvfr', 'optional', true, false],
+      ['avoid_icing', 'optional', true, false],
+    ]);
+    // A cleared one has no entry (no row unless declared).
+    expect(
+      verdict('elec-avoid-some-then-off')
+        .further?.actions.filter((a) => a.id.startsWith('avoid_'))
+        .map((a) => a.id),
+    ).toEqual(['avoid_nvfr']);
+  });
+
+  it('an Avoid action can never be required or harmful: the grader cannot fail a run for it', () => {
+    for (const id of DA50RG_ENV.further.avoidIds()) {
+      expect(DA50RG_ENV.further.option(id)).toMatchObject({ unrated: true, avoid: true });
+    }
   });
 });
 
@@ -934,7 +1026,7 @@ describe('named outcomes (R10, D-06, C-26)', () => {
     return [
       { kind: 'outcome', id: declaredOutcome?.id },
       { kind: 'critical_missed', count: missed },
-      // The ignored run never switched from the preselected Continue normally (Phase 7).
+      // The ignored run never switched from the preselected Continue to destination (Phase 7).
       { kind: 'conduct', status: 'wrong' },
     ];
   }

@@ -40,7 +40,7 @@ const FRAMES: Readonly<Record<string, (props: FrameProps) => JSX.Element>> = {
   autopilot_panel: AutopilotPanelFrame,
   // Trainer content, not aircraft: the session buttons of the co-pilot legroom (plan 02-06, D-14).
   scenario_area: ScenarioAreaFrame,
-  // The six toggle buttons of the further actions in the pilot footwell (plan 07-05, R-07).
+  // The nine toggle buttons of the further actions in the pilot footwell (plan 07-05, R-07).
   further_area: FurtherAreaFrame,
 };
 

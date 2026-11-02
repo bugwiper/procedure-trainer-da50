@@ -140,8 +140,8 @@ export function sessionFootprints(regionBounds: {
 }
 
 /**
- * Global rectangles of the six footwell buttons (plan 07-05): the slots of FURTHER_PAD moved by the
- * origin of the region further_area, all six whether or not the scenario offers the conduct (a
+ * Global rectangles of the nine footwell buttons (plans 07-05, 07-06): the slots of FURTHER_PAD moved by the
+ * origin of the region further_area, all nine whether or not the scenario offers the conduct (a
  * conservative superset, like the session footprints) so the Full panel corner avoids them.
  */
 export function furtherFootprints(regionBounds: {

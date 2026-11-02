@@ -959,7 +959,7 @@ describe('complete', () => {
     const result = r.session.result.value;
     expect(result?.result).toBe('fail');
     // The shipped file also asks for the flight decision (Phase 7): an empty run never switched from
-    // the preselected Continue normally, which this file does not accept.
+    // the preselected Continue to destination, which this file does not accept.
     expect(result?.reasons).toEqual([
       { kind: 'critical_missed', count: 2 },
       { kind: 'conduct', status: 'wrong' },
@@ -2884,14 +2884,14 @@ scenarios[1]:
     expect(selected(r).actions).toEqual(['atc_mayday', 'atc_pan_pan', 'brief_passengers']);
   });
 
-  it('preselects Continue normally and makes the conduct a radio group: another press switches, the selected one is no change', async () => {
+  it('preselects Continue to destination and makes the conduct a radio group: another press switches, the selected one is no change', async () => {
     const r = await inFlight();
     // Selected at the start without a press, and nothing in the log.
-    expect(selected(r).conduct).toBe('conduct_continue');
+    expect(selected(r).conduct).toBe('conduct_destination');
     expect(r.session.decisions.value).toEqual([]);
     // A press of the selected button changes and logs nothing.
-    r.session.toggleDecision('conduct_continue');
-    expect(selected(r).conduct).toBe('conduct_continue');
+    r.session.toggleDecision('conduct_destination');
+    expect(selected(r).conduct).toBe('conduct_destination');
     expect(r.session.decisions.value).toEqual([]);
     r.session.toggleDecision('conduct_precautionary');
     expect(selected(r).conduct).toBe('conduct_precautionary');
@@ -2900,12 +2900,12 @@ scenarios[1]:
     expect(selected(r).conduct).toBe('conduct_precautionary');
     r.session.toggleDecision('conduct_emergency');
     expect(selected(r).conduct).toBe('conduct_emergency');
-    r.session.toggleDecision('conduct_continue');
-    expect(selected(r).conduct).toBe('conduct_continue');
+    r.session.toggleDecision('conduct_destination');
+    expect(selected(r).conduct).toBe('conduct_destination');
     expect(r.session.decisions.value.map((d) => `${d.id}:${String(d.on)}`)).toEqual([
       'conduct_precautionary:true',
       'conduct_emergency:true',
-      'conduct_continue:true',
+      'conduct_destination:true',
     ]);
     r.session.toggleDecision('conduct_emergency');
     r.session.complete();
@@ -2913,10 +2913,10 @@ scenarios[1]:
       last: 'conduct_emergency',
       status: 'wrong',
       picks: [
-        'conduct_continue',
+        'conduct_destination',
         'conduct_precautionary',
         'conduct_emergency',
-        'conduct_continue',
+        'conduct_destination',
         'conduct_emergency',
       ],
     });
@@ -2926,8 +2926,8 @@ scenarios[1]:
     const r = await inFlight();
     r.session.complete();
     expect(r.session.result.value?.further?.conduct).toMatchObject({
-      last: 'conduct_continue',
-      picks: ['conduct_continue'],
+      last: 'conduct_destination',
+      picks: ['conduct_destination'],
       status: 'wrong',
     });
     expect(r.session.result.value?.reasons).toContainEqual({ kind: 'conduct', status: 'wrong' });
@@ -2945,14 +2945,42 @@ scenarios[1]:
     ground.session.toggleDecision('conduct_emergency');
     ground.session.toggleDecision('atc_mayday');
     expect(ids(ground)).toEqual(['atc_mayday']);
+    // The Avoid actions qualify the conduct: no conduct offered, no Avoid press either (R-21).
+    for (const avoid of DA50RG_ENV.further.avoidIds()) ground.session.toggleDecision(avoid);
+    expect(ids(ground)).toEqual(['atc_mayday']);
 
     const bare = rig({ files: { 'eng-oil-temp-green': stripFurther(BLUEPRINT) } });
     await bare.session.newSituation();
     bare.session.setLevel('easy');
     bare.session.startRun();
-    bare.session.toggleDecision('conduct_continue');
+    bare.session.toggleDecision('conduct_destination');
     bare.session.toggleDecision('brief_passengers');
     expect(ids(bare)).toEqual(['brief_passengers']);
+  });
+
+  it('toggles the three Avoid actions independently where a conduct is offered, and they never end the run (R-21)', async () => {
+    const r = await inFlight();
+    const [imc, nvfr, icing] = DA50RG_ENV.further.avoidIds();
+    if (imc === undefined || nvfr === undefined || icing === undefined) throw new Error('no avoid');
+    r.session.toggleDecision(nvfr);
+    r.session.toggleDecision(imc);
+    expect(selected(r).actions).toEqual([imc, nvfr].sort());
+    r.session.toggleDecision(nvfr);
+    r.session.toggleDecision(icing);
+    expect(selected(r).actions).toEqual([icing, imc].sort());
+    r.session.toggleDecision(imc);
+    r.session.toggleDecision(icing);
+    expect(selected(r).actions).toEqual([]);
+    expect(r.session.screen.value).toBe('running');
+    // The grade of the run is the same with and without the presses, apart from the entries of the Avoid actions.
+    const plain = await inFlight();
+    for (const avoid of [imc, nvfr, icing]) r.session.toggleDecision(avoid);
+    r.session.complete();
+    plain.session.complete();
+    const [a, b] = [r.session.result.value, plain.session.result.value];
+    expect(a?.result).toBe(b?.result);
+    expect(a?.reasons).toEqual(b?.reasons);
+    expect(a?.steps).toEqual(b?.steps);
   });
 
   it('puts the presses into the recording and leaves the key out without one', async () => {
@@ -3044,7 +3072,7 @@ scenarios[1]:
     r.session.toggleDecision('conduct_precautionary');
     expect(ids(r)).toEqual([]);
     // Drawn alike before the onset: the preselected default shows, no press changes anything.
-    expect(selected(r)).toEqual({ actions: [], conduct: 'conduct_continue' });
+    expect(selected(r)).toEqual({ actions: [], conduct: 'conduct_destination' });
     r.session.clock.value?.advance(began.at);
     r.session.toggleDecision('atc_mayday');
     expect(r.session.decisions.value).toEqual([{ t: began.at, id: 'atc_mayday', on: true }]);

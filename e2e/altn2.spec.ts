@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { parseScenario } from '../src/scenario/parse';
 import { forceVariant, startRealistic, startScenario, pickFurther } from './support/session';
@@ -144,4 +145,90 @@ test('@hooks ALTN 2 FAIL on Realistic, cause breaker_popped: the breaker pops af
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   await expect(page.getByTestId('debrief-variant')).toHaveText(`Cause: ${popped.debrief}`);
+});
+
+// Plan 07-06 (R-20, R-21, R-22): the file accepts continuing to the destination and the alternate
+// landing, and carries a conduct note that the debrief shows as a hint outside the verdict.
+const SET = DA50RG_ENV.further;
+const NOTE = parsed.value.further?.conduct_note;
+const AVOID = SET.avoidIds();
+const NOTE_BOX = '[data-testid="debrief-conduct-note"]';
+
+/** A PASS run on the first variant: the alternator switch, then the given decisions, then Procedure complete. */
+async function passingRun(page: Page, hasTouch: boolean, picks: readonly string[]): Promise<void> {
+  const first = VARIANTS[0];
+  if (first === undefined) throw new Error('no variant');
+  const solution = SOLUTIONS[first.id] ?? [];
+  if (solution.join() !== 'switch')
+    throw new Error('the first variant is not solved by the switch alone');
+  await forceVariant(page, FILE, first.id);
+  await startScenario(page, hasTouch, ROW, 'easy');
+  await tapSwitch(page, hasTouch);
+  await pickFurther(page, hasTouch, picks);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+}
+
+test('@hooks ALTN 2 FAIL: the untouched default conduct passes and the debrief shows the yellow hint with the Avoid actions not chosen', async ({
+  page,
+  hasTouch,
+}) => {
+  expect(NOTE).toBeDefined();
+  await passingRun(page, hasTouch, []);
+  const box = page.locator(NOTE_BOX);
+  await expect(box).toHaveAttribute('data-tone', 'standard');
+  await expect(box).toContainText(NOTE ?? '');
+  await expect(box).toContainText(
+    `Not chosen: ${AVOID.map((id) => SET.option(id)?.text ?? id).join(', ')}.`,
+  );
+  // Yellow, the standard tone of the outline.
+  await expect(box).toHaveCSS('color', 'rgb(242, 194, 48)');
+  // The default is listed as the pick and is right; the hint is no reason.
+  await expect(page.getByTestId('debrief-further-picks')).toContainText(
+    `Picked: ${SET.option(SET.defaultConduct)?.text ?? ''}`,
+  );
+  await expect(page.getByTestId('debrief-reason')).toHaveText('All critical steps done.');
+});
+
+test('@hooks ALTN 2 FAIL: with all three Avoid actions chosen the debrief shows the green line instead, and the verdict is the same', async ({
+  page,
+  hasTouch,
+}) => {
+  await passingRun(page, hasTouch, AVOID);
+  const box = page.locator(NOTE_BOX);
+  await expect(box).toHaveAttribute('data-tone', 'done');
+  await expect(box).toContainText('You also chose');
+  for (const id of AVOID) await expect(box).toContainText(SET.option(id)?.text ?? id);
+  await expect(box).not.toContainText('Not chosen');
+  await expect(box).toHaveCSS('color', 'rgb(47, 211, 111)');
+  // Listed as optional actions that were done, outside the verdict.
+  for (const id of AVOID) {
+    await expect(page.locator(`[data-further-id="${id}"]`)).toHaveAttribute('data-verdict', 'Done');
+  }
+  await expect(page.getByTestId('debrief-reason')).toHaveText('All critical steps done.');
+});
+
+test('@hooks ALTN 2 FAIL: the alternate landing passes as well and shows no note, the emergency landing fails', async ({
+  page,
+  hasTouch,
+}) => {
+  await passingRun(page, hasTouch, ['conduct_precautionary']);
+  await expect(page.locator(NOTE_BOX)).toHaveCount(0);
+  await activate(page.getByTestId('debrief-back'), hasTouch);
+
+  // The emergency landing is not needed here: FAIL with the wrong flight decision, and no note either.
+  const first = VARIANTS[0];
+  if (first === undefined) throw new Error('no variant');
+  await forceVariant(page, FILE, first.id);
+  await startScenario(page, hasTouch, ROW, 'easy');
+  await tapSwitch(page, hasTouch);
+  await pickFurther(page, hasTouch, ['conduct_emergency']);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+  await expect(
+    page
+      .getByTestId('debrief-reason')
+      .filter({ hasText: 'The flight decision was not the right one.' }),
+  ).toHaveCount(1);
+  await expect(page.locator(NOTE_BOX)).toHaveCount(0);
 });

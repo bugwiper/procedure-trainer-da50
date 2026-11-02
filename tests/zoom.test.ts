@@ -1030,9 +1030,9 @@ describe('session area zoom (plan 02-10)', () => {
   }
 });
 
-// Phase 7 plan 07-05 (R-07): the six footwell buttons of the region further_area at every zoom level.
+// Phase 7 plans 07-05 and 07-06 (R-07, R-21): the nine footwell buttons of the region further_area at every zoom level.
 // The region origin and the global slot rectangles are typed in by hand, not read from the data.
-describe('further actions area zoom (plan 07-05)', () => {
+describe('further actions area zoom (plans 07-05, 07-06)', () => {
   /**
    * The panel area of the landscape phones of the e2e projects while a run is live (the footer with
    * Procedure complete takes 32 px more than on the free panel): Pixel 7 863 x 300, iPhone 15 734 x 283.
@@ -1041,15 +1041,18 @@ describe('further actions area zoom (plan 07-05)', () => {
     { w: 863, h: 300 },
     { w: 734, h: 283 },
   ];
-  const REGION: Rect = { x: 190, y: 868, w: 660, h: 260 };
-  /** The region stands 30 units wider than the slots on each side, 47 above and 43 below them (room for the Full panel corner on the phone). Three columns x 220, 425, 630 (190 wide), two rows y 915 and 1007 (78 high). */
+  const REGION: Rect = { x: 263, y: 866, w: 514, h: 264 };
+  /** The region stands 25 units wider than the slots on each side, 35 above and 39 below them (room for the Full panel corner on the phone). Three columns x 288, 445, 602 (150 wide), three rows y 901, 966, 1031 (60 high). */
   const FURTHER_TARGETS: readonly Rect[] = [
-    { x: 220, y: 915, w: 190, h: 78 },
-    { x: 425, y: 915, w: 190, h: 78 },
-    { x: 630, y: 915, w: 190, h: 78 },
-    { x: 220, y: 1007, w: 190, h: 78 },
-    { x: 425, y: 1007, w: 190, h: 78 },
-    { x: 630, y: 1007, w: 190, h: 78 },
+    { x: 288, y: 901, w: 150, h: 60 },
+    { x: 445, y: 901, w: 150, h: 60 },
+    { x: 602, y: 901, w: 150, h: 60 },
+    { x: 288, y: 966, w: 150, h: 60 },
+    { x: 445, y: 966, w: 150, h: 60 },
+    { x: 602, y: 966, w: 150, h: 60 },
+    { x: 288, y: 1031, w: 150, h: 60 },
+    { x: 445, y: 1031, w: 150, h: 60 },
+    { x: 602, y: 1031, w: 150, h: 60 },
   ];
   const profiles = [
     ['phone', VIEW_PROFILES.phone],
@@ -1057,7 +1060,7 @@ describe('further actions area zoom (plan 07-05)', () => {
     ['desktop', VIEW_PROFILES.desktop],
   ] as const;
 
-  it('furtherFootprints returns the six global slot rectangles', () => {
+  it('furtherFootprints returns the nine global slot rectangles', () => {
     expect(furtherFootprints(REGION)).toEqual(FURTHER_TARGETS);
   });
 
