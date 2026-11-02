@@ -1124,9 +1124,33 @@ body,
   padding: 8px 12px 12px;
 }
 
-.run-checklist .outline-step[data-verdict='Done'] > .outline-row {
+.run-checklist .outline-step[data-verdict='Done'] > .outline-row,
+.run-checklist .outline-tap[data-ticked='true'] {
   border-radius: 4px;
   background: rgba(47, 211, 111, 0.14);
+}
+
+/* A row of the sheet the user can tick (plan 07-06, R-23): a button that looks like the row, at least
+   44 px high, the text never changes; the tick shows by the same green tint as a Done step. */
+.run-checklist .outline-tap {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  align-items: center;
+  touch-action: manipulation;
+}
+
+.run-checklist .outline-tap:focus-visible {
+  outline: 2px solid #8fb8e6;
+  outline-offset: 1px;
 }
 
 @media (orientation: portrait) and (max-width: 700px) {
@@ -1157,6 +1181,41 @@ body,
   min-height: 44px;
   text-align: left;
   overflow-wrap: anywhere;
+}
+
+/* The tabs of the Realistic list (plan 07-06, R-17): the full printed headings, wrapping on a narrow sheet. */
+.run-checklist-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.run-checklist-tab {
+  flex: 1 1 auto;
+  min-height: 44px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.run-checklist-tab[aria-selected='true'] {
+  background: #2c5d8f;
+  border-color: #8fb8e6;
+  color: #fff;
+}
+
+.run-checklist-entry-greyed {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.run-checklist-detail {
+  display: block;
+  font-size: 14px;
+  color: #aab3bd;
 }
 
 .run-checklist-back {

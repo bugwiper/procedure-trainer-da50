@@ -218,3 +218,23 @@ export function realisticQuantities(
   }
   return values;
 }
+
+/**
+ * True when panel state alone decides the predicate (plan 07-06, R-24): the checks state, state_in,
+ * travel and travel_rel read only the controls (and, for travel_rel, the scenario baseline), so a
+ * recording of one scenario can be graded against the step of another file. The checks quantity and
+ * band read simulated quantities, which belong to the simulation of the scenario that was run, so
+ * they are not panel-only.
+ */
+export function panelOnly(predicate: Predicate): boolean {
+  switch (predicate.check) {
+    case 'state':
+    case 'state_in':
+    case 'travel':
+    case 'travel_rel':
+      return true;
+    case 'quantity':
+    case 'band':
+      return false;
+  }
+}

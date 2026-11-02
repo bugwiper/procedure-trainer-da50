@@ -30,6 +30,7 @@ export function Debrief({
   result,
   level,
   checklistUsed,
+  checklistNote,
   completedAt,
   onClose,
   onRetry,
@@ -42,6 +43,8 @@ export function Debrief({
   readonly level: Level;
   /** Realistic only: the heading of the checklist chosen last during the run, null when none was. */
   readonly checklistUsed: string | null;
+  /** Realistic only: the neutral line when that checklist is not the situation's own, else null (R-24). */
+  readonly checklistNote: string | null;
   /** The run clock at the end of the run (the recording's completedAt). */
   readonly completedAt: number;
   readonly onClose: () => void;
@@ -119,6 +122,11 @@ export function Debrief({
       {level === 'realistic' ? (
         <p class="briefing-meta" data-testid="debrief-checklist">
           {`Checklist used: ${checklistUsed ?? 'none'}`}
+        </p>
+      ) : null}
+      {level === 'realistic' && checklistNote !== null ? (
+        <p class="briefing-meta" data-testid="debrief-checklist-note">
+          {checklistNote}
         </p>
       ) : null}
       {limit === null ? null : (

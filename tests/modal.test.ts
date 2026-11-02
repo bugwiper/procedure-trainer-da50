@@ -96,6 +96,7 @@ describe('Debrief on the shell', () => {
       result,
       level: 'easy',
       checklistUsed: null,
+      checklistNote: null,
       completedAt: 0,
       onClose,
       onRetry,
@@ -126,20 +127,26 @@ describe('Debrief on the shell', () => {
   });
 
   /** The text of the line "Checklist used: ..." the debrief prints, or null when it prints none. */
-  function checklistLine(level: 'easy' | 'medium' | 'realistic', used: string | null) {
+  function checklistLine(
+    level: 'easy' | 'medium' | 'realistic',
+    used: string | null,
+    note: string | null = null,
+    testId = 'debrief-checklist',
+  ) {
     const vnode = Debrief({
       further: DA50RG_ENV.further,
       scenario,
       result,
       level,
       checklistUsed: used,
+      checklistNote: note,
       completedAt: 0,
       onClose: vi.fn(),
       onRetry: vi.fn(),
       onNext: vi.fn(),
     });
     const tree = expand(h('div', null, (vnode.props as { children: never }).children));
-    const lines = findElements(tree, (el) => el.props['data-testid'] === 'debrief-checklist');
+    const lines = findElements(tree, (el) => el.props['data-testid'] === testId);
     return lines.length === 0 ? null : textOf(lines[0] ?? tree);
   }
 
@@ -148,5 +155,15 @@ describe('Debrief on the shell', () => {
     expect(checklistLine('realistic', null)).toBe('Checklist used: none');
     expect(checklistLine('easy', 'ALTN 1 FAIL')).toBeNull();
     expect(checklistLine('medium', null)).toBeNull();
+  });
+
+  it('prints the neutral checklist note on Realistic only, under the line, and nothing without a note (R-24)', () => {
+    const NOTE = 'The situation was X. The checklist you used belongs to another situation.';
+    const note = (level: 'easy' | 'medium' | 'realistic', text: string | null) =>
+      checklistLine(level, 'ALTN 1 FAIL', text, 'debrief-checklist-note');
+    expect(note('realistic', NOTE)).toBe(NOTE);
+    expect(note('realistic', null)).toBeNull();
+    expect(note('easy', NOTE)).toBeNull();
+    expect(note('medium', NOTE)).toBeNull();
   });
 });

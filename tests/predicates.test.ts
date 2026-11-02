@@ -7,12 +7,13 @@ import {
   baselineOf,
   evaluatePredicate,
   initialQuantities,
+  panelOnly,
   PredicateError,
   travelPercent,
 } from '../src/engine/predicates';
 import type { PredicateContext } from '../src/engine/predicates';
 import { parseScenario } from '../src/scenario/parse';
-import type { Predicate } from '../src/scenario/schema';
+import type { Predicate, Step } from '../src/scenario/schema';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const text = readFileSync(join(root, 'scenarios/engine/eng-oil-temp-green.toon'), 'utf8');
@@ -134,6 +135,36 @@ describe('every Table F3 check has a true and a false case', () => {
     expect(holds(p)).toBe(true);
     expect(holds(p, ctx({}, { oil_temp_c: 100 }))).toBe(false);
     expect(holds({ ...p, in: ['green', 'high_red'] }, ctx({}, { oil_temp_c: 100 }))).toBe(true);
+  });
+});
+
+describe('panelOnly (plan 07-06, R-24)', () => {
+  it('is true for the four checks that panel state decides', () => {
+    expect(panelOnly({ check: 'state', control: 'lv.cowl_flap', is: 'closed' })).toBe(true);
+    expect(panelOnly({ check: 'state_in', control: 'lv.cowl_flap', in: ['open'] })).toBe(true);
+    expect(panelOnly({ check: 'travel', control: 'lv.power', op: 'lt', value: 50 })).toBe(true);
+    expect(panelOnly({ check: 'travel_rel', control: 'lv.power', op: 'lt', delta: -5 })).toBe(true);
+  });
+
+  it('is false for the quantity and the band check', () => {
+    expect(panelOnly({ check: 'quantity', quantity: 'oil_temp', op: 'lt', value: 100 })).toBe(
+      false,
+    );
+    expect(panelOnly({ check: 'band', quantity: 'oil_temp', in: ['green'] })).toBe(false);
+  });
+
+  it('agrees with the checks of every shipped step: a panel-only step reads no quantity', () => {
+    // The same decision from the data side: the predicates of the shipped step of this scenario.
+    for (const step of scenario.procedure.flatMap(function steps(node): Step[] {
+      if (node.kind === 'group') return [...node.steps];
+      if (node.kind === 'branch') return node.nodes.flatMap(steps);
+      if (node.kind === 'decision') return node.branches.flatMap((b) => b.nodes.flatMap(steps));
+      return [];
+    })) {
+      expect(panelOnly(step.done), step.id).toBe(
+        step.done.check !== 'quantity' && step.done.check !== 'band',
+      );
+    }
   });
 });
 

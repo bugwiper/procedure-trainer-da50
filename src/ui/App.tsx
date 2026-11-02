@@ -12,6 +12,7 @@ import { createSoundPref } from './audio/sound-pref';
 import { browserAudioContext, createSoundPlayer } from './audio/web-audio';
 import { createPanelBridge } from './bridge';
 import { attachClockDriver } from './clock-driver';
+import { checklistNote } from './debrief-text';
 import { anyModalOpen, holdModal, releaseModal } from './modals';
 import { Panel } from './panel/Panel';
 import { isStrayFullPanelClick } from './panel/tap-intent';
@@ -216,14 +217,20 @@ const backToPanel = () => {
   session.backToPanel();
 };
 
-/** What the checklist sheet shows now (R-02, R-03): the list, a chosen checklist or the scenario's own. */
+/** What the checklist sheet shows now (R-02, R-03, R-17, R-24): the list, a chosen checklist or the scenario's own. */
 function sheetBody(scenario: Scenario): SheetBody {
-  const own: SheetBody = {
+  const shown = (shownScenario: Scenario, branches: SheetBodyBranches): SheetBody => ({
     kind: 'checklist',
-    scenario,
-    branches: session.runBranches.value,
+    scenario: shownScenario,
+    branches,
     marks: session.checklistMarks.value,
-  };
+    autoSteps: session.checklistAuto.value,
+    ticks: session.checklistTicks.value,
+    onTick: (rowKey) => {
+      session.toggleManualMark(rowKey);
+    },
+  });
+  const own = shown(scenario, session.runBranches.value);
   if (session.level.value !== 'realistic') return own;
   const list = session.checklistList.value;
   const choice = session.checklistChoice.value;
@@ -231,6 +238,11 @@ function sheetBody(scenario: Scenario): SheetBody {
     return {
       kind: 'list',
       list,
+      catalog: session.catalog,
+      tab: session.checklistTab.value,
+      onTab: (id) => {
+        session.setChecklistTab(id);
+      },
       onChoose: (ref) => {
         session.chooseChecklist(ref);
       },
@@ -242,15 +254,18 @@ function sheetBody(scenario: Scenario): SheetBody {
   const entry = list.entries.find(
     (e) => e.ref.pack === choice.ref.pack && e.ref.scenario === choice.ref.scenario,
   );
-  // A checklist of another scenario is shown plain: its branches as its own start state decides.
-  if (entry === undefined || entry.scenario.id === scenario.id) return own;
-  return {
-    kind: 'checklist',
-    scenario: entry.scenario,
-    branches: branchStatuses(entry.scenario, DA50RG_ENV),
-    marks: null,
-  };
+  // A checklist of another scenario: its branches as its own start state decides.
+  const opened = session.openedRef.value;
+  if (
+    entry === undefined ||
+    (opened !== null && opened.pack === entry.ref.pack && opened.scenario === entry.ref.scenario)
+  ) {
+    return own;
+  }
+  return shown(entry.scenario, branchStatuses(entry.scenario, DA50RG_ENV));
 }
+
+type SheetBodyBranches = Extract<SheetBody, { kind: 'checklist' }>['branches'];
 
 export function App() {
   const screen = session.screen.value;
@@ -386,6 +401,11 @@ export function App() {
           result={result}
           level={session.level.value}
           checklistUsed={session.checklistChoice.value?.heading ?? null}
+          checklistNote={checklistNote(
+            session.checklistChoice.value,
+            session.openedRef.value,
+            scenario.title,
+          )}
           completedAt={session.recording.value?.completedAt ?? 0}
           onClose={closeDebrief}
           onRetry={() => {

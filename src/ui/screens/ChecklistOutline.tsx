@@ -1,5 +1,12 @@
+import type { ComponentChildren } from 'preact';
 import type { CommentStyle, RowMark } from '../../scenario/schema';
-import type { OutlineItem, OutlineMarker, OutlineVerdict, VerdictTone } from '../outline';
+import type {
+  OutlineItem,
+  OutlineMarker,
+  OutlineTap,
+  OutlineVerdict,
+  VerdictTone,
+} from '../outline';
 
 // The recursive checklist outline of the briefing and the debrief (UI-SPEC "Checklist outline",
 // Table O1), in the two printed forms of plan 03-14 (owner decision 2026-10-23). Hook-free on
@@ -11,7 +18,9 @@ import type { OutlineItem, OutlineMarker, OutlineVerdict, VerdictTone } from '..
 // drawn as a small SVG shape so it looks the same on every device.
 // A step row carries the debrief-row test id and its aria-label only when it has a verdict, so a
 // briefing step is its text alone. A step of the live form (the sheet of a run) carries the test id
-// sheet-step instead, with the verdict Done once it is credited. All text is rendered as text children, never as markup.
+// sheet-step instead, with the verdict Done once it is credited. A row of the live sheet the program
+// does not check (plan 07-06, R-23) is a button (sheet-tap, aria-pressed, data-ticked) that the user
+// can tick; its text never changes. All text is rendered as text children, never as markup.
 
 /** How the items are laid out: numbered rows with actions at the right, or the marked outline. */
 export type ChecklistForm = 'table' | 'outline';
@@ -134,6 +143,38 @@ function rowClass(
   return aligned && marker === undefined ? 'outline-row outline-nomarker' : 'outline-row';
 }
 
+/**
+ * The box of a row: a plain div, or, for a row the user can tick, a button that keeps the row's
+ * layout and classes (the green tint of a Done step comes from data-ticked in the stylesheet).
+ */
+function Row({
+  className,
+  tap,
+  onTap,
+  children,
+}: {
+  readonly className: string;
+  readonly tap: OutlineTap | undefined;
+  readonly onTap: ((key: string) => void) | undefined;
+  readonly children: ComponentChildren;
+}) {
+  if (tap === undefined) return <div class={className}>{children}</div>;
+  return (
+    <button
+      type="button"
+      class={`${className} outline-tap`}
+      data-testid="sheet-tap"
+      aria-pressed={tap.on}
+      data-ticked={tap.on ? 'true' : undefined}
+      onClick={() => {
+        onTap?.(tap.key);
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 /** The cells of a table row: number, item text, dotted leader and desired action. */
 function TableCells({
   number,
@@ -164,10 +205,12 @@ function Item({
   item,
   form,
   aligned,
+  onTap,
 }: {
   readonly item: OutlineItem;
   readonly form: ChecklistForm;
   readonly aligned: boolean;
+  readonly onTap: ((key: string) => void) | undefined;
 }) {
   switch (item.kind) {
     case 'line': {
@@ -178,7 +221,7 @@ function Item({
           data-kind="line"
           data-muted={item.muted ? 'true' : undefined}
         >
-          <div class={rowClass(form, aligned, item.marker)}>
+          <Row className={rowClass(form, aligned, item.marker)} tap={item.tap} onTap={onTap}>
             <MarkerOf marker={item.marker} form={form} />
             {table ? (
               <TableCells
@@ -193,7 +236,7 @@ function Item({
               </span>
             )}
             {item.notGraded ? <span class="outline-meta">Not graded</span> : null}
-          </div>
+          </Row>
         </li>
       );
     }
@@ -241,7 +284,7 @@ function Item({
           data-muted={item.muted ? 'true' : undefined}
           aria-label={item.verdict === null ? undefined : label.join(', ')}
         >
-          <div class={rowClass(form, aligned, item.marker)}>
+          <Row className={rowClass(form, aligned, item.marker)} tap={item.tap} onTap={onTap}>
             <MarkerOf marker={item.marker} form={form} />
             {item.tag === null ? null : <span class="outline-tag">{item.tag}</span>}
             {table ? (
@@ -257,7 +300,7 @@ function Item({
               </span>
             )}
             {item.verdict === null ? null : <Verdict verdict={item.verdict} />}
-          </div>
+          </Row>
         </li>
       );
     }
@@ -279,7 +322,7 @@ function Item({
             </span>
             {item.notGraded ? <span class="outline-meta">Not graded</span> : null}
           </div>
-          <List items={item.branches} form={form} />
+          <List items={item.branches} form={form} onTap={onTap} />
         </li>
       );
     case 'branch': {
@@ -293,7 +336,9 @@ function Item({
             </span>
             {notApplicable ? <span class="outline-meta">Not applicable</span> : null}
           </div>
-          {item.children.length > 0 ? <List items={item.children} form={form} /> : null}
+          {item.children.length > 0 ? (
+            <List items={item.children} form={form} onTap={onTap} />
+          ) : null}
         </li>
       );
     }
@@ -313,16 +358,18 @@ function hasMarker(item: OutlineItem): boolean {
 function List({
   items,
   form,
+  onTap,
 }: {
   readonly items: readonly OutlineItem[];
   readonly form: ChecklistForm;
+  readonly onTap: ((key: string) => void) | undefined;
 }) {
   // Siblings that carry no marker keep their text in line with the marked ones.
   const aligned = items.some(hasMarker);
   return (
     <ul class={form === 'table' ? 'outline-list outline-table' : 'outline-list'}>
       {items.map((item, i) => (
-        <Item key={i} item={item} form={form} aligned={aligned} />
+        <Item key={i} item={item} form={form} aligned={aligned} onTap={onTap} />
       ))}
     </ul>
   );
@@ -332,9 +379,12 @@ function List({
 export function ChecklistOutline({
   items,
   form = 'outline',
+  onTap,
 }: {
   readonly items: readonly OutlineItem[];
   readonly form?: ChecklistForm;
+  /** The live sheet: a row with a tap was pressed (its row key). */
+  readonly onTap?: (key: string) => void;
 }) {
-  return <List items={items} form={form} />;
+  return <List items={items} form={form} onTap={onTap} />;
 }

@@ -11,6 +11,7 @@
 // Pure TypeScript, no DOM, no framework, no clock.
 
 import type { BranchStatus, BranchVerdict, GradeResult, StepVerdict } from '../engine/grading';
+import { panelOnly } from '../engine/predicates';
 import type { CommentStyle, MARKERS, ProcedureNode, RowMark, Scenario } from '../scenario/schema';
 import { orderLine } from './debrief-text';
 
@@ -44,6 +45,16 @@ interface Printed {
   readonly marker?: OutlineMarker;
 }
 
+/**
+ * A row of the live sheet the user can tick (plan 07-06, R-23): `key` names the row inside its
+ * checklist (`line:<path>` or `step:<id>`), `on` is the tick. Display state of the sheet; the
+ * recording and the grade never see it.
+ */
+export interface OutlineTap {
+  readonly key: string;
+  readonly on: boolean;
+}
+
 /** A non-graded checklist line. `muted` lines sit under a branch that does not apply. */
 export interface OutlineLine extends Printed {
   readonly kind: 'line';
@@ -51,6 +62,8 @@ export interface OutlineLine extends Printed {
   readonly muted: boolean;
   /** True where the debrief prints "Not graded"; never on a muted line. */
   readonly notGraded: boolean;
+  /** The live sheet only: the row can be ticked. */
+  readonly tap?: OutlineTap;
 }
 
 /**
@@ -99,6 +112,8 @@ export interface OutlineStep extends Printed {
   readonly muted: boolean;
   readonly tag: SeverityTag | null;
   readonly verdict: OutlineVerdict | null;
+  /** The live sheet only, on a step the program does not check: the row can be ticked. */
+  readonly tap?: OutlineTap;
 }
 
 /**
@@ -163,23 +178,46 @@ export function verdictOf(step: StepVerdict): OutlineVerdict {
 }
 
 /**
- * The outline of a scenario in the briefing or the debrief form (Table O1).
+ * What the live sheet needs to offer ticks (plan 07-06, R-23, R-24). `keys` are the ticked row keys of
+ * the shown checklist; `autoSteps` says which steps the program checks: `all` (the own checklist
+ * with marks: every step comes from the grade), `panel` (a foreign checklist with marks: a step is
+ * program-checked when panel state alone decides its predicate) or `none` (no marks: no step is
+ * program-checked, every step can be ticked). Every line row of the live form can be ticked.
+ */
+export interface ManualMarks {
+  readonly keys: ReadonlySet<string>;
+  readonly autoSteps: 'all' | 'panel' | 'none';
+}
+
+/**
+ * The outline of a scenario in the briefing, debrief or live form (Table O1).
  * `branches` are the statuses from branchStatuses (or GradeResult.branches); `result` is required
- * for the debrief form and ignored by the briefing.
+ * for the debrief form and ignored by the briefing. The live form needs it too, except when
+ * `manual.autoSteps` is `none` (nothing is marked yet); `manual` adds the ticks to the live form and
+ * is ignored by the other two.
  */
 export function buildOutline(
   scenario: Scenario,
   branches: readonly BranchVerdict[],
   mode: OutlineMode,
   result?: GradeResult,
+  manual?: ManualMarks,
 ): OutlineItem[] {
-  if (mode !== 'briefing' && result === undefined) {
+  if (
+    mode !== 'briefing' &&
+    result === undefined &&
+    !(mode === 'live' && manual?.autoSteps === 'none')
+  ) {
     throw new Error(`the ${mode} outline needs the grade result`);
   }
   const statusAt = new Map(branches.map((b) => [b.path, b.status]));
   const verdicts = new Map((result?.steps ?? []).map((s) => [s.id, s]));
   const debrief = mode === 'debrief';
   const live = mode === 'live';
+  const ticks = live ? manual : undefined;
+  const tapOf = (key: string): { readonly tap: OutlineTap } => ({
+    tap: { key, on: ticks?.keys.has(key) === true },
+  });
 
   const statusOf = (path: string): BranchStatus => {
     const status = statusAt.get(path);
@@ -218,6 +256,7 @@ export function buildOutline(
             text: node.text,
             muted,
             notGraded: debrief && !muted,
+            ...(ticks === undefined ? {} : tapOf(`line:${here}`)),
           });
           return;
         case 'comment':
@@ -236,6 +275,11 @@ export function buildOutline(
           for (const step of node.steps) {
             if (live) {
               const credited = verdicts.get(step.id)?.credited === true;
+              // A step the program does not check can be ticked by the user (R-23, R-24).
+              const checked =
+                ticks === undefined ||
+                ticks.autoSteps === 'all' ||
+                (ticks.autoSteps === 'panel' && panelOnly(step.done));
               items.push({
                 kind: 'step',
                 live: true,
@@ -244,7 +288,8 @@ export function buildOutline(
                 text: step.text,
                 muted: false,
                 tag: null,
-                verdict: credited ? { word: 'Done', tone: 'done' } : null,
+                verdict: credited && checked ? { word: 'Done', tone: 'done' } : null,
+                ...(ticks === undefined || checked ? {} : tapOf(`step:${step.id}`)),
               });
               continue;
             }

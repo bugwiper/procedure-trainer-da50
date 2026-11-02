@@ -227,6 +227,25 @@ export interface Session {
   readonly checklistChoice: ReadonlySignal<ChecklistChoice | null>;
   /** Realistic only: the checklists of every allowed scenario, loaded on the first press (R-03). */
   readonly checklistList: ReadonlySignal<ChecklistList>;
+  /**
+   * Which steps of the shown checklist the program checks, and so which rows the user can tick
+   * (plan 07-06, R-23, R-24): `all` (the own checklist with marks), `panel` (a foreign checklist
+   * with marks: only the steps panel state decides) or `none` (no marks: before the Realistic onset,
+   * or when a foreign checklist could not be graded). Follows `checklistMarks`.
+   */
+  readonly checklistAuto: ReadonlySignal<'all' | 'panel' | 'none'>;
+  /**
+   * The catalog group (tab) of the Realistic list of checklists (R-17): the first group at every run
+   * start, kept until the run ends.
+   */
+  readonly checklistTab: ReadonlySignal<string>;
+  /** The ref of the scenario the opened scenario came from; null outside a briefing and a run. */
+  readonly openedRef: ReadonlySignal<ScenarioRef | null>;
+  /**
+   * The row keys ticked on the shown checklist (R-23): `line:<path>` and `step:<id>`. UI state of the
+   * run: never recorded, never graded; cleared where a run starts or ends.
+   */
+  readonly checklistTicks: ReadonlySignal<ReadonlySet<string>>;
   /** True while the Realistic hint box is shown (R-04); cleared whenever the run ends. */
   readonly hintShown: ReadonlySignal<boolean>;
   /**
@@ -303,6 +322,13 @@ export interface Session {
    * checklists, or at the chosen one). It records nothing and changes no grade.
    */
   toggleChecklist(): void;
+  /** Realistic run with the list shown: selects the catalog group of the list; an unknown id does nothing. */
+  setChecklistTab(id: string): void;
+  /**
+   * Running with the sheet shown, a checklist on it: ticks the row with this key of the shown
+   * checklist, or clears it when it was ticked (R-23). Display state only.
+   */
+  toggleManualMark(rowKey: string): void;
   /** Realistic run with the sheet shown: back to the list of checklists. */
   showChecklistList(): void;
   /** Realistic run with the sheet shown: shows the chosen checklist; the last choice is kept. */
@@ -465,6 +491,9 @@ export function createSession(deps: SessionDeps): Session {
   const checklistView = signal<'list' | 'sheet'>('sheet');
   const checklistChoice = signal<ChecklistChoice | null>(null);
   const checklistList = signal<ChecklistList>({ status: 'idle', entries: [] });
+  const checklistAuto = signal<'all' | 'panel' | 'none'>('none');
+  const checklistTab = signal(firstGroup);
+  const manualMarks = signal<ReadonlySet<string>>(new Set());
   const hintShown = signal(false);
   const runBranches = signal<readonly BranchVerdict[]>([]);
   const decisions = signal<readonly RecordedDecision[]>([]);
@@ -476,7 +505,34 @@ export function createSession(deps: SessionDeps): Session {
   const variant = signal<RecordedVariant | null>(null);
   const recording = signal<Recording | null>(null);
   /** The entry the opened scenario came from: Next situation moves on from it. */
-  let openedRef: ScenarioRef | null = null;
+  const openedRef = signal<ScenarioRef | null>(null);
+  /** The ref of the checklist the sheet shows: the opened scenario's own, or the one chosen on Realistic. */
+  const shownRef = computed<ScenarioRef | null>(() => {
+    const opened = openedRef.value;
+    if (scenario.value === null || opened === null) return null;
+    if (level.value !== 'realistic') return opened;
+    const choice = checklistChoice.value;
+    return checklistView.value === 'sheet' && choice !== null ? choice.ref : null;
+  });
+  const refKey = (ref: ScenarioRef): string => `${ref.pack}/${ref.scenario}`;
+  const checklistTicks = computed<ReadonlySet<string>>(() => {
+    const ref = shownRef.value;
+    if (ref === null) return new Set<string>();
+    const prefix = `${refKey(ref)}|`;
+    return new Set(
+      [...manualMarks.value]
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => key.slice(prefix.length)),
+    );
+  });
+  /** The last grade of the marks: one entry, keyed by the shown checklist and the state of the user log. */
+  let marksCache: {
+    readonly ref: ScenarioRef;
+    readonly length: number;
+    readonly last: unknown;
+    readonly marks: GradeResult | null;
+    readonly auto: 'all' | 'panel';
+  } | null = null;
   /** True when the last refresh of the sheet marks took longer than SLOW_MARKS_MS. */
   let slowMarks = false;
   let trailingMarks: ReturnType<typeof setTimeout> | null = null;
@@ -513,38 +569,84 @@ export function createSession(deps: SessionDeps): Session {
   };
 
   /**
-   * True when the sheet shows the scenario's own checklist: always on Easy and Medium, on Realistic
-   * once the chosen checklist has the ref of the opened scenario (R-03).
+   * The checklist the sheet shows, with its scenario: the opened scenario's own (always on Easy and
+   * Medium, on Realistic when the chosen checklist has its ref) or the loaded file of the chosen
+   * one; null while the list is shown or no checklist is chosen.
    */
-  const showsOwnChecklist = (): boolean => {
-    if (level.peek() !== 'realistic') return true;
-    const choice = checklistChoice.peek();
-    return checklistView.peek() === 'sheet' && choice !== null && sameRef(choice.ref, openedRef);
+  const shownChecklist = (): {
+    readonly ref: ScenarioRef;
+    readonly scenario: Scenario;
+    readonly own: boolean;
+  } | null => {
+    const ref = shownRef.peek();
+    const current = scenario.peek();
+    const opened = openedRef.peek();
+    if (ref === null || current === null) return null;
+    if (sameRef(ref, opened)) return { ref, scenario: current, own: true };
+    const entry = checklistList.peek().entries.find((e) => sameRef(e.ref, ref));
+    return entry === undefined ? null : { ref, scenario: entry.scenario, own: false };
   };
 
   /**
-   * Refreshes the marks of the sheet (R-02, S-02): the grade of the partial recording, only while
-   * the sheet is shown and, on Realistic, once the onset has passed; otherwise nothing is marked.
-   * Called by each logged panel event or retract and when the sheet is opened; never per tick.
+   * The pilot's panel events graded against another file (R-24): the real events, the id of the
+   * chosen file, no cause and no decisions; the onset only when the chosen file declares one.
+   */
+  const foreignRecording = (real: Recording, chosen: Scenario): Recording => ({
+    scenarioId: chosen.id,
+    completedAt: real.completedAt,
+    events: real.events,
+    ...(chosen.onset !== undefined && real.onset != null ? { onset: real.onset } : {}),
+  });
+
+  const setMarks = (marks: GradeResult | null, auto: 'all' | 'panel'): void => {
+    checklistMarks.value = marks;
+    checklistAuto.value = marks === null ? 'none' : auto;
+  };
+
+  /**
+   * Refreshes the marks of the sheet (R-02, R-24): the grade of the partial recording against the
+   * shown checklist (the real file, or the chosen foreign file, green only and never a verdict),
+   * only while the sheet shows a checklist and, on Realistic, once the onset has passed; otherwise
+   * nothing is marked. Called by each logged panel event or retract and when the sheet is opened or
+   * switched; never per tick. A log that did not change since the last call for the same checklist
+   * is not graded again; a foreign file that throws marks nothing.
    */
   const computeMarks = (): void => {
-    const current = scenario.peek();
+    const shown = shownChecklist();
     const graded = currentRecording();
+    if (!checklistShown.peek() || shown === null || graded === null || beforeOnset()) {
+      setMarks(null, 'all');
+      return;
+    }
+    const userEvents = bridge.store.events().filter((e) => e.source === 'user');
+    const last = userEvents[userEvents.length - 1];
+    const cached = marksCache;
     if (
-      !checklistShown.peek() ||
-      current === null ||
-      graded === null ||
-      beforeOnset() ||
-      !showsOwnChecklist()
+      cached !== null &&
+      sameRef(cached.ref, shown.ref) &&
+      cached.length === userEvents.length &&
+      cached.last === last
     ) {
-      checklistMarks.value = null;
+      setMarks(cached.marks, cached.auto);
       return;
     }
     const began = performance.now();
-    checklistMarks.value = grade(current, env, graded);
+    let marks: GradeResult | null;
+    if (shown.own) {
+      marks = grade(shown.scenario, env, graded);
+    } else {
+      try {
+        marks = grade(shown.scenario, env, foreignRecording(graded, shown.scenario));
+      } catch {
+        marks = null;
+      }
+    }
     // The cost of a grade grows with the run time (a replay of the whole log, about 9 ms a minute
     // on the slowest shipped scenario): a slow call makes the next refreshes trailing (S-02).
     slowMarks = performance.now() - began > SLOW_MARKS_MS;
+    const auto = shown.own ? 'all' : 'panel';
+    marksCache = { ref: shown.ref, length: userEvents.length, last, marks, auto };
+    setMarks(marks, auto);
   };
 
   /** A panel event or a retract refreshes the marks at once, or trailing when the last call was slow. */
@@ -567,6 +669,10 @@ export function createSession(deps: SessionDeps): Session {
     checklistView.value = 'sheet';
     checklistChoice.value = null;
     checklistList.value = { status: 'idle', entries: [] };
+    checklistAuto.value = 'none';
+    checklistTab.value = firstGroup;
+    manualMarks.value = new Set();
+    marksCache = null;
     hintShown.value = false;
     listGeneration += 1;
     runBranches.value = [];
@@ -628,7 +734,7 @@ export function createSession(deps: SessionDeps): Session {
   /** Debrief only, not busy: the next scenario of the list opens its briefing (D-14). */
   const runNext = async (): Promise<void> => {
     if (screen.peek() !== 'debrief' || busy.peek()) return;
-    const here = openedRef;
+    const here = openedRef.peek();
     await loading('session.next', async () => {
       const listed = await listChoices();
       if (!listed.ok) {
@@ -785,7 +891,7 @@ export function createSession(deps: SessionDeps): Session {
       loadFailure.value = opened;
       return;
     }
-    openedRef = { pack: ref.pack, scenario: ref.scenario };
+    openedRef.value = { pack: ref.pack, scenario: ref.scenario };
     // The briefing leaves the panel, the log and the last run untouched (D-14).
     const briefed: Briefed = {
       scenario: opened.scenario,
@@ -907,6 +1013,10 @@ export function createSession(deps: SessionDeps): Session {
     checklistView,
     checklistChoice,
     checklistList,
+    checklistAuto,
+    checklistTab,
+    openedRef,
+    checklistTicks,
     hintShown,
     runBranches,
     decisions,
@@ -1044,6 +1154,19 @@ export function createSession(deps: SessionDeps): Session {
       }
       checklistShown.value = opening;
       computeMarks();
+    },
+    setChecklistTab(id) {
+      if (screen.peek() !== 'running' || level.peek() !== 'realistic') return;
+      if (!env.catalog.groups.some((group) => group.id === id)) return;
+      checklistTab.value = id;
+    },
+    toggleManualMark(rowKey) {
+      const ref = shownRef.peek();
+      if (screen.peek() !== 'running' || !checklistShown.peek() || ref === null) return;
+      const key = `${refKey(ref)}|${rowKey}`;
+      const next = new Set(manualMarks.peek());
+      if (!next.delete(key)) next.add(key);
+      manualMarks.value = next;
     },
     showChecklistList() {
       if (screen.peek() !== 'running' || level.peek() !== 'realistic') return;

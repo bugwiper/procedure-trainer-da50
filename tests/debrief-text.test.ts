@@ -8,6 +8,7 @@ import type { Group } from '../src/scenario/schema';
 import { MAX_RUN_MS } from '../src/engine/sim';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import {
+  checklistNote,
   furtherNote,
   furtherRows,
   harmfulLine,
@@ -402,5 +403,31 @@ describe('further actions (Phase 7, plan 07-02, R19)', () => {
     expect(furtherNote(last(emergency), SET)).not.toBeNull();
     expect(furtherNote(last(carryOn), SET)).toBeNull();
     expect(furtherNote(last(null), SET)).toBeNull();
+  });
+});
+
+describe('checklistNote (plan 07-06, R-24)', () => {
+  const own = { pack: 'engine', scenario: 'eng-oil-temp-green' };
+  it('names the situation for a checklist that is not the situation own', () => {
+    const line = checklistNote(
+      { ref: { pack: 'electrical', scenario: 'elec-altn1-fail' } },
+      own,
+      'ENG OIL TEMP',
+    );
+    expect(line).toBe(
+      'The situation was ENG OIL TEMP. The checklist you used belongs to another situation; the harmful actions below still list what was wrong for the real one.',
+    );
+  });
+
+  it('is null for the own checklist, no choice and no opened scenario', () => {
+    expect(checklistNote({ ref: { ...own } }, own, 'ENG OIL TEMP')).toBeNull();
+    expect(checklistNote(null, own, 'ENG OIL TEMP')).toBeNull();
+    expect(checklistNote({ ref: { pack: 'a', scenario: 'b' } }, null, 'X')).toBeNull();
+  });
+
+  it('treats the same scenario id in another pack as another checklist', () => {
+    expect(
+      checklistNote({ ref: { pack: 'locked', scenario: own.scenario } }, own, 'T'),
+    ).not.toBeNull();
   });
 });

@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { parseScenario } from '../src/scenario/parse';
 import type { ProcedureNode, Scenario, Step } from '../src/scenario/schema';
+import { CATALOG_REFERENCE } from '../tests/checklist-catalog-reference';
 import { chooseScenario, shippedScenarios, startRealistic, startScenario } from './support/session';
 import { activate } from './support/zoom';
 
@@ -141,7 +143,7 @@ for (const level of ['easy', 'medium'] as const) {
     if (box === null) throw new Error('the sheet has no box');
     const target = page.locator('[data-detent="lv.power:p50"]');
     const covered = overlaps(await target.boundingBox(), box);
-    if (covered) await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+    if (covered) await hideSheet(page, hasTouch);
     await activate(target, hasTouch);
     await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p50');
     if (covered) await activate(page.locator(CHECKLIST), hasTouch);
@@ -168,21 +170,9 @@ for (const level of ['easy', 'medium'] as const) {
     }
     // The hide button ignores a click for the first 400 ms after the sheet appeared.
     await page.waitForTimeout(450);
-    await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+    await hideSheet(page, hasTouch);
     await expect(sheet).toHaveCount(0);
   });
-}
-
-/** The heading the list shows for a shipped scenario: the printed heading, else the title. */
-function headingOfShipped(file: string, title: string): string {
-  return scenarioFile(file).checklist?.heading ?? title;
-}
-
-/** The headings of all shipped checklists in listing order, derived in node from the files. */
-function expectedHeadings(): string[] {
-  return shippedScenarios().map((entry) =>
-    headingOfShipped(`${entry.pack}/${entry.file}`, entry.title),
-  );
 }
 
 /** Waits until the run clock stands at or past the onset of a Realistic run. */
@@ -197,11 +187,33 @@ async function afterOnset(page: Page): Promise<void> {
   });
 }
 
+/** The hide button ignores a click for the first 400 ms after the sheet appeared: wait it out, then press it. */
+async function hideSheet(page: Page, hasTouch: boolean): Promise<void> {
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+}
+
 const ENTRIES = '[data-testid="run-checklist-entry"]';
+const GREYED = '[data-testid="run-checklist-entry-greyed"]';
+const TAP = '[data-testid="sheet-tap"]';
 const entryOf = (page: Page, heading: string) =>
   page.locator(ENTRIES).filter({ hasText: heading }).first();
 
-test('@hooks Realistic: SHOW CHECKLIST lists the headings of all checklists before the onset, none marked as the right one', async ({
+/** The catalog group of a shipped scenario: id of the tab that holds its entry (independent reference). */
+function groupOfShipped(pack: string, id: string): string {
+  const group = CATALOG_REFERENCE.find((g) => g.rows.some((row) => row[2] === `${pack}/${id}`));
+  if (group === undefined) throw new Error(`${pack}/${id} is in no catalog group`);
+  return group.id;
+}
+
+/** Presses the tab of a group in the open Realistic list. */
+async function pressListTab(page: Page, hasTouch: boolean, group: string): Promise<void> {
+  const tab = page.getByTestId(`run-checklist-tab-${group}`);
+  await activate(tab, hasTouch);
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
+
+test('@hooks Realistic: SHOW CHECKLIST lists the three printed groups as tabs before the onset, unlinked entries greyed, none marked as the right one', async ({
   page,
   hasTouch,
   browserName,
@@ -220,21 +232,42 @@ test('@hooks Realistic: SHOW CHECKLIST lists the headings of all checklists befo
   await expect(page.getByText('CHOOSE CHECKLIST')).toHaveCount(0);
 
   await activate(page.locator(CHECKLIST), hasTouch);
-  await expect(page.getByTestId('run-checklist-list')).toBeVisible();
-  await expect(page.locator(ENTRIES)).toHaveText(expectedHeadings());
-  // Alike: no entry carries a mark, a state or a title of its own.
-  const attrs = await page
-    .locator(ENTRIES)
-    .evaluateAll((nodes) => nodes.map((node) => node.getAttributeNames().sort().join(',')));
-  expect(new Set(attrs).size).toBe(1);
+  await expect(page.getByTestId('run-checklist-tabs')).toBeVisible();
+  // One tab per printed group with its full heading; the first is selected in every run.
+  await expect(page.getByRole('tab')).toHaveText(CATALOG_REFERENCE.map((g) => g.heading));
+  const first = CATALOG_REFERENCE[0];
+  await expect(page.getByTestId(`run-checklist-tab-${first?.id ?? ''}`)).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  for (const group of CATALOG_REFERENCE) {
+    await pressListTab(page, hasTouch, group.id);
+    const linked = group.rows.filter((row) => row[2] !== null);
+    const unlinked = group.rows.filter((row) => row[2] === null);
+    await expect(page.locator(ENTRIES)).toHaveCount(linked.length);
+    await expect(page.locator(GREYED)).toHaveCount(unlinked.length);
+    // The rows stand in the printed order, a qualifier as a second line of its entry.
+    await expect(page.locator(`${ENTRIES}, ${GREYED}`)).toHaveText(
+      group.rows.map(([tag, detail]) => (detail === null ? tag : `${tag}${detail}`)),
+    );
+    for (const greyed of await page.locator(GREYED).all()) {
+      await expect(greyed).toBeDisabled();
+      await expect(greyed).toHaveAttribute('aria-disabled', 'true');
+    }
+    // Alike: no linked entry carries a mark, a state or a title of its own.
+    const attrs = await page
+      .locator(ENTRIES)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttributeNames().sort().join(',')));
+    expect(new Set(attrs).size).toBeLessThanOrEqual(1);
+  }
   // Not a modal: no dialog.
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  // A second press hides the sheet where it leaves the button free; the hide button anywhere.
-  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  // The hide button hides the sheet anywhere.
+  await hideSheet(page, hasTouch);
   await expect(page.getByTestId('run-checklist')).toHaveCount(0);
 });
 
-test('@hooks Realistic: the own checklist is marked after the onset, a foreign one never, the debrief names the last choice', async ({
+test('@hooks Realistic: the own checklist is marked after the onset, a foreign one from the real actions, the debrief names the last choice and the real situation', async ({
   page,
   hasTouch,
   browserName,
@@ -249,10 +282,20 @@ test('@hooks Realistic: the own checklist is marked after the onset, a foreign o
   const ownHeading = own.checklist?.heading ?? own.title;
   const foreign = shippedScenarios().find((entry) => entry.row !== ENGINE_ROW);
   if (foreign === undefined) throw new Error('only one scenario is shipped');
-  const foreignHeading = headingOfShipped(`${foreign.pack}/${foreign.file}`, foreign.title);
+  const foreignFile = scenarioFile(`${foreign.pack}/${foreign.file}`);
+  const foreignHeading = foreignFile.checklist?.heading ?? foreign.title;
   expect(foreignHeading).not.toBe(ownHeading);
   const first = stepsOf(own.procedure)[0];
-  if (first === undefined) throw new Error('the file has no step');
+  // The first step of the foreign file that one press of a toggle satisfies (the asked state is not
+  // the panel default), and the control it asks for.
+  const foreignStep = stepsOf(foreignFile.procedure).find((st) => {
+    if (st.done.check !== 'state') return false;
+    const def = DA50RG.get(st.done.control);
+    return def?.kind === 'toggle' && def.default !== st.done.is;
+  });
+  if (first === undefined || foreignStep === undefined) throw new Error('the files have no step');
+  if (foreignStep.done.check !== 'state') throw new Error('not a state step');
+  const askedControl = foreignStep.done.control;
 
   await startRealistic(page, hasTouch, ENGINE_ROW);
   await activate(page.locator(CHECKLIST), hasTouch);
@@ -260,11 +303,12 @@ test('@hooks Realistic: the own checklist is marked after the onset, a foreign o
 
   // The own checklist, chosen after the onset and then the step done: exactly that row is green.
   await afterOnset(page);
+  await pressListTab(page, hasTouch, groupOfShipped('engine', 'eng-oil-temp-green'));
   await activate(entryOf(page, ownHeading), hasTouch);
   await expect(page.getByTestId('run-checklist')).toContainText(own.checklist?.message ?? '');
   await expect(page.getByTestId('run-checklist-back')).toBeVisible();
   await expect(page.locator('[data-testid="sheet-step"][data-verdict]')).toHaveCount(0);
-  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  await hideSheet(page, hasTouch);
   await activate(page.locator('[data-detent="lv.power:p50"]'), hasTouch);
   await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p50');
   // The press reopens the chosen checklist, not the list, and the label has not changed.
@@ -276,20 +320,111 @@ test('@hooks Realistic: the own checklist is marked after the onset, a foreign o
   await expect(done).toHaveCount(1);
   await expect(done).toHaveAttribute('data-step-id', first.id);
 
-  // A foreign checklist: its rows, nothing marked.
+  // A foreign checklist: the real power action satisfies none of its steps, so nothing is marked ...
   await activate(page.getByTestId('run-checklist-back'), hasTouch);
+  await pressListTab(page, hasTouch, groupOfShipped(foreign.pack, foreign.id));
   await activate(entryOf(page, foreignHeading), hasTouch);
   await expect(page.getByTestId('run-checklist')).toContainText(foreignHeading);
   await expect(page.locator('[data-testid="sheet-step"][data-verdict]')).toHaveCount(0);
   await expect(page.getByTestId('debrief-row')).toHaveCount(0);
 
-  // The last choice is named in the debrief and the verdict is the grade of the panel alone.
-  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  // ... until the pilot really does what one of its panel steps asks: that row turns green (it is
+  // wrong for this situation, the marks come from the panel alone).
+  await hideSheet(page, hasTouch);
+  await activate(page.locator(`[data-hit="${askedControl}"]`), hasTouch);
+  await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(
+    page.locator(`[data-testid="sheet-step"][data-step-id="${foreignStep.id}"]`),
+  ).toHaveAttribute('data-verdict', 'Done');
+
+  // The last choice is named in the debrief with the neutral line; the verdict is the grade of the panel alone.
+  await hideSheet(page, hasTouch);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toBeVisible();
   await expect(page.getByTestId('debrief-checklist')).toHaveText(
     `Checklist used: ${foreignHeading}`,
   );
+  await expect(page.getByTestId('debrief-checklist-note')).toContainText(
+    `The situation was ${own.title}.`,
+  );
+});
+
+test('@hooks Realistic: the own checklist as the choice gets no debrief note', async ({
+  page,
+  hasTouch,
+  browserName,
+}) => {
+  test.skip(
+    browserName === 'webkit' && hasTouch && process.platform === 'linux',
+    WEBKIT_LINUX_TOUCH,
+  );
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  const own = scenarioFile('engine/eng-oil-temp-green');
+  await startRealistic(page, hasTouch, ENGINE_ROW);
+  await activate(page.locator(CHECKLIST), hasTouch);
+  await pressListTab(page, hasTouch, groupOfShipped('engine', 'eng-oil-temp-green'));
+  await activate(entryOf(page, own.checklist?.heading ?? own.title), hasTouch);
+  await hideSheet(page, hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-checklist')).toHaveText(
+    `Checklist used: ${own.checklist?.heading ?? own.title}`,
+  );
+  await expect(page.getByTestId('debrief-checklist-note')).toHaveCount(0);
+});
+
+test('a line row of the sheet can be ticked and cleared, is a 44 px button, keeps its text, and the tick is gone after Retry', async ({
+  page,
+  hasTouch,
+  browserName,
+}) => {
+  test.skip(
+    browserName === 'webkit' && hasTouch && process.platform === 'linux',
+    WEBKIT_LINUX_TOUCH,
+  );
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await startScenario(page, hasTouch, ENGINE_ROW, 'easy');
+  await activate(page.locator(CHECKLIST), hasTouch);
+  const sheet = page.getByTestId('run-checklist');
+  await expect(sheet).toBeVisible();
+  const taps = sheet.locator(TAP);
+  // On Easy the steps come from the grade, so only the plain action lines can be ticked.
+  const lines = sheet.locator('[data-kind="line"]');
+  expect(await lines.count()).toBeGreaterThan(0);
+  await expect(taps).toHaveCount(await lines.count());
+  await expect(sheet.locator('[data-testid="sheet-step"] [data-testid="sheet-tap"]')).toHaveCount(
+    0,
+  );
+
+  const row = taps.first();
+  const text = await row.innerText();
+  const box = await row.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await expect(row).toHaveAttribute('aria-pressed', 'false');
+  await activate(row, hasTouch);
+  await expect(row).toHaveAttribute('aria-pressed', 'true');
+  await expect(row).toHaveAttribute('data-ticked', 'true');
+  await expect(row).toHaveCSS('background-color', 'rgba(47, 211, 111, 0.14)');
+  expect(await row.innerText()).toBe(text);
+  await page.waitForTimeout(450);
+  await activate(row, hasTouch);
+  await expect(row).toHaveAttribute('aria-pressed', 'false');
+  await expect(row).not.toHaveAttribute('data-ticked', 'true');
+
+  // A tick again, then the run ends: Retry starts clean.
+  await page.waitForTimeout(450);
+  await activate(row, hasTouch);
+  await expect(row).toHaveAttribute('data-ticked', 'true');
+  await hideSheet(page, hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toBeVisible();
+  await expect(page.getByTestId('debrief-modal')).not.toHaveAttribute('data-shield', 'on');
+  await activate(page.getByTestId('debrief-retry'), hasTouch);
+  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+  await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(sheet.locator(TAP).first()).toHaveAttribute('aria-pressed', 'false');
+  await expect(sheet.locator('[data-ticked="true"]')).toHaveCount(0);
 });
 
 test('@hooks Realistic: a run without a choice prints "Checklist used: none"; Easy prints no such line', async ({

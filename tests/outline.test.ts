@@ -8,7 +8,13 @@ import type { GradeResult, StepVerdict } from '../src/engine/grading';
 import { MAX_BRANCH_LEVELS, checkScenario } from '../src/scenario/lint';
 import type { Scenario } from '../src/scenario/schema';
 import { buildOutline, checklistHead, verdictOf } from '../src/ui/outline';
-import type { OutlineBranch, OutlineItem, OutlineOrder, OutlineStep } from '../src/ui/outline';
+import type {
+  OutlineBranch,
+  OutlineItem,
+  OutlineLine,
+  OutlineOrder,
+  OutlineStep,
+} from '../src/ui/outline';
 import { PRINTED } from './checklist-reference';
 import type { PrintedOutline, PrintedOutlineItem, PrintedTable } from './checklist-reference';
 import { ChecklistHeading, ChecklistOutline } from '../src/ui/screens/ChecklistOutline';
@@ -441,6 +447,22 @@ describe('buildOutline, live form (the checklist sheet of a run, 07-04 R-02)', (
     expect(() => buildOutline(pocket, branchStatuses(pocket, DA50RG_ENV), 'live')).toThrow(
       'grade result',
     );
+    // Also with ticks, unless nothing is program-checked yet (autoSteps none).
+    const keys = new Set<string>();
+    for (const autoSteps of ['all', 'panel'] as const) {
+      expect(() =>
+        buildOutline(pocket, branchStatuses(pocket, DA50RG_ENV), 'live', undefined, {
+          keys,
+          autoSteps,
+        }),
+      ).toThrow('grade result');
+    }
+    expect(() =>
+      buildOutline(pocket, branchStatuses(pocket, DA50RG_ENV), 'live', undefined, {
+        keys,
+        autoSteps: 'none',
+      }),
+    ).not.toThrow();
   });
 
   it('renders a sheet row with its own test id, never the debrief row, and the word Done only when credited', () => {
@@ -454,6 +476,141 @@ describe('buildOutline, live form (the checklist sheet of a run, 07-04 R-02)', (
     expect(rows.map((r) => r.props['data-verdict'])).toEqual(['Done', undefined]);
     expect(textOf(rows[0] ?? tree)).toContain('Done');
     expect(textOf(rows[1] ?? tree)).not.toContain('Done');
+  });
+});
+
+// Plan 07-06 (R-23, R-24): the rows of the live sheet the user can tick.
+describe('buildOutline, live form with ticks (07-06, R-23, R-24)', () => {
+  const stepsOf = (items: readonly OutlineItem[]) =>
+    everyItem(items).filter((i): i is OutlineStep => i.kind === 'step');
+  const linesOf = (items: readonly OutlineItem[]) =>
+    everyItem(items).filter((i): i is OutlineLine => i.kind === 'line');
+  const statuses = branchStatuses(pocket, DA50RG_ENV);
+  const none = (keys: ReadonlySet<string> = new Set()) =>
+    buildOutline(pocket, statuses, 'live', undefined, { keys, autoSteps: 'none' });
+
+  // The pocket-card step of the green branch, with the cowl flap row asking for a quantity instead.
+  const quantityStep = load(
+    swap(
+      POCKET,
+      `                text: Open cowl flap
+                done:
+                  check: state
+                  control: lv.cowl_flap
+                  is: open`,
+      `                text: Open cowl flap
+                done:
+                  check: quantity
+                  quantity: oil_temp_c
+                  op: lt
+                  value: 100`,
+    ),
+  );
+
+  it('autoSteps none: every step and every line can be ticked, nothing is marked, and a tick shows', () => {
+    const items = none();
+    const steps = stepsOf(items);
+    expect(steps.length).toBeGreaterThan(0);
+    for (const step of steps) {
+      expect(step.verdict, step.id).toBeNull();
+      expect(step.tap, step.id).toEqual({ key: `step:${step.id}`, on: false });
+    }
+    const lines = linesOf(items);
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      expect(line.tap?.key).toMatch(/^line:procedure\./);
+      expect(line.tap?.on).toBe(false);
+    }
+    const first = steps[0];
+    const ticked = stepsOf(none(new Set([`step:${first?.id ?? ''}`])));
+    expect(ticked.map((s) => s.tap?.on)).toEqual(steps.map((s) => s.id === first?.id));
+  });
+
+  it('autoSteps all: a step never carries a tap, a line always does', () => {
+    const result = run(pocket, [GOLDEN[0] ?? { id: '', value: '' }]);
+    const items = buildOutline(pocket, result.branches, 'live', result, {
+      keys: new Set(),
+      autoSteps: 'all',
+    });
+    expect(stepsOf(items).every((s) => s.tap === undefined)).toBe(true);
+    expect(linesOf(items).every((l) => l.tap !== undefined)).toBe(true);
+  });
+
+  it('autoSteps panel: a panel-only step is program-checked, a quantity step is tappable and never marked', () => {
+    // The grade credits the quantity step here if the quantity happens to hold; it is never shown.
+    const result = grade(quantityStep, DA50RG_ENV, {
+      scenarioId: quantityStep.id,
+      completedAt: 60000,
+      events: [
+        { t: 0, id: 'lv.power', value: 'p60' },
+        { t: 1000, id: 'lv.cowl_flap', value: 'open' },
+      ],
+    });
+    const items = buildOutline(quantityStep, result.branches, 'live', result, {
+      keys: new Set(),
+      autoSteps: 'panel',
+    });
+    const steps = stepsOf(items);
+    const quantity = steps.find((s) => s.id === 'open_cowl_flap');
+    const panel = steps.find((s) => s.id === 'reduce_power');
+    expect(quantity?.tap).toEqual({ key: 'step:open_cowl_flap', on: false });
+    expect(quantity?.verdict).toBeNull();
+    expect(panel?.tap).toBeUndefined();
+    expect(panel?.verdict).toEqual({ word: 'Done', tone: 'done' });
+    expect(linesOf(items).every((l) => l.tap !== undefined)).toBe(true);
+  });
+
+  it('never ticks a comment, a decision or a branch label, nor an order line', () => {
+    const forms = [
+      none(),
+      ...[ordered].map((sc) => {
+        const result = run(sc, GOLDEN);
+        return buildOutline(sc, result.branches, 'live', result, {
+          keys: new Set(),
+          autoSteps: 'all',
+        });
+      }),
+    ];
+    for (const items of forms) {
+      for (const item of everyItem(items)) {
+        if (item.kind === 'comment' || item.kind === 'decision' || item.kind === 'branch') {
+          expect('tap' in item).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('gives the other forms no tap at all, and the live form without manual none', () => {
+    const result = run(pocket, GOLDEN);
+    for (const mode of ['briefing', 'debrief'] as const) {
+      const items = buildOutline(pocket, result.branches, mode, result, {
+        keys: new Set(['step:reduce_power']),
+        autoSteps: 'none',
+      });
+      expect(everyItem(items).some((i) => 'tap' in i)).toBe(false);
+    }
+    expect(everyItem(liveOf(pocket, result)).some((i) => 'tap' in i)).toBe(false);
+  });
+
+  it('renders a tap row as a button with aria-pressed, the tick as data-ticked and no change of text', () => {
+    const firstLine = linesOf(none())[0];
+    const key = firstLine?.tap?.key ?? '';
+    const plain = expand(ChecklistOutline({ items: none(), onTap: () => undefined }));
+    const ticked = expand(
+      ChecklistOutline({ items: none(new Set([key])), onTap: () => undefined }),
+    );
+    const buttons = (tree: Tree) =>
+      findElements(tree, (el) => el.props['data-testid'] === 'sheet-tap');
+    expect(buttons(plain).length).toBe(linesOf(none()).length + stepsOf(none()).length);
+    for (const button of buttons(plain)) {
+      expect(button.tag).toBe('button');
+      expect(button.props['aria-pressed']).toBe(false);
+    }
+    const on = buttons(ticked).filter((b) => b.props['aria-pressed'] === true);
+    expect(on).toHaveLength(1);
+    expect(on[0]?.props['data-ticked']).toBe('true');
+    const at = buttons(ticked).findIndex((b) => b.props['aria-pressed'] === true);
+    expect(textOf(buttons(ticked)[at] ?? ticked)).toBe(textOf(buttons(plain)[at] ?? plain));
   });
 });
 

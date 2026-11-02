@@ -191,3 +191,18 @@ export function furtherNote(result: GradeResult, set: FurtherSet): string | null
   if (last === null) return null;
   return set.option(last)?.debriefNote ?? null;
 }
+
+/**
+ * The neutral line a Realistic debrief adds under "Checklist used" when the checklist the pilot
+ * chose is not the one of the situation (plan 07-06, R-24), or null (no choice, or the own checklist).
+ * Display only: it never touches PASS or FAIL.
+ */
+export function checklistNote(
+  choice: { readonly ref: { readonly pack: string; readonly scenario: string } } | null,
+  ownRef: { readonly pack: string; readonly scenario: string } | null,
+  title: string,
+): string | null {
+  if (choice === null || ownRef === null) return null;
+  if (choice.ref.pack === ownRef.pack && choice.ref.scenario === ownRef.scenario) return null;
+  return `The situation was ${title}. The checklist you used belongs to another situation; the harmful actions below still list what was wrong for the real one.`;
+}
