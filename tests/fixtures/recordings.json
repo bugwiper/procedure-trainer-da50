@@ -556,5 +556,297 @@
         "value": "fresh"
       }
     ]
+  },
+  "fire-mayday-on-off-on": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 2000,
+        "id": "kp.squawk",
+        "value": "7700"
+      },
+      {
+        "t": 4000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      },
+      {
+        "t": 5500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 10000,
+        "id": "sw.elect_master",
+        "value": "off"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_mayday",
+        "on": true
+      },
+      {
+        "t": 11500,
+        "id": "atc_mayday",
+        "on": false
+      },
+      {
+        "t": 12000,
+        "id": "atc_mayday",
+        "on": true
+      },
+      {
+        "t": 12500,
+        "id": "conduct_emergency",
+        "on": true
+      }
+    ]
+  },
+  "fire-mayday-on-off": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 2000,
+        "id": "kp.squawk",
+        "value": "7700"
+      },
+      {
+        "t": 4000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      },
+      {
+        "t": 5500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 10000,
+        "id": "sw.elect_master",
+        "value": "off"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_mayday",
+        "on": true
+      },
+      {
+        "t": 11500,
+        "id": "atc_mayday",
+        "on": false
+      },
+      {
+        "t": 12000,
+        "id": "conduct_emergency",
+        "on": true
+      }
+    ]
+  },
+  "fire-conduct-cleared": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 2000,
+        "id": "kp.squawk",
+        "value": "7700"
+      },
+      {
+        "t": 4000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      },
+      {
+        "t": 5500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 10000,
+        "id": "sw.elect_master",
+        "value": "off"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_mayday",
+        "on": true
+      },
+      {
+        "t": 12000,
+        "id": "conduct_emergency",
+        "on": true
+      },
+      {
+        "t": 13000,
+        "id": "conduct_emergency",
+        "on": false
+      }
+    ]
+  },
+  "fire-conduct-switched": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 2000,
+        "id": "kp.squawk",
+        "value": "7700"
+      },
+      {
+        "t": 4000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      },
+      {
+        "t": 5500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 10000,
+        "id": "sw.elect_master",
+        "value": "off"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_mayday",
+        "on": true
+      },
+      {
+        "t": 12000,
+        "id": "conduct_precautionary",
+        "on": true
+      },
+      {
+        "t": 13000,
+        "id": "conduct_emergency",
+        "on": true
+      }
+    ]
+  },
+  "fire-both-calls": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 20000,
+    "events": [
+      {
+        "t": 2000,
+        "id": "kp.squawk",
+        "value": "7700"
+      },
+      {
+        "t": 4000,
+        "id": "lv.env_circ",
+        "value": "fresh"
+      },
+      {
+        "t": 5500,
+        "id": "lv.ecs_shutoff",
+        "value": "pulled"
+      },
+      {
+        "t": 7000,
+        "id": "sw.engine_master",
+        "value": "off"
+      },
+      {
+        "t": 8500,
+        "id": "sw.fuel_valve",
+        "value": "off"
+      },
+      {
+        "t": 10000,
+        "id": "sw.elect_master",
+        "value": "off"
+      }
+    ],
+    "decisions": [
+      {
+        "t": 11000,
+        "id": "atc_pan_pan",
+        "on": true
+      },
+      {
+        "t": 11500,
+        "id": "atc_mayday",
+        "on": true
+      },
+      {
+        "t": 12000,
+        "id": "conduct_emergency",
+        "on": true
+      }
+    ]
+  },
+  "fire-decisions-after-outcome": {
+    "scenarioId": "eng-fire-in-flight",
+    "completedAt": 600000,
+    "events": [],
+    "decisions": [
+      {
+        "t": 1000,
+        "id": "atc_mayday",
+        "on": true
+      },
+      {
+        "t": 590000,
+        "id": "atc_mayday",
+        "on": false
+      },
+      {
+        "t": 590500,
+        "id": "conduct_emergency",
+        "on": true
+      }
+    ]
   }
 }

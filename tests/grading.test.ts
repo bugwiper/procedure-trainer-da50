@@ -191,14 +191,30 @@ const FURTHER_DECLARED: Readonly<
 function withFurther(name: string, expected: GradeResult): GradeResult {
   const declared = FURTHER_DECLARED[expected.scenarioId];
   if (declared === undefined) return expected;
-  const picks = (recording(name).decisions ?? []).map((decision) => decision.id);
-  const conductPicks = picks.filter((id) => id.startsWith('conduct_'));
-  const last = conductPicks.at(-1) ?? null;
+  // The state the presses leave (plan 07-05, R-08), replayed here independently of the engine: an
+  // entry without the flag is on; an action is selected when its last entry is on; the conduct is a
+  // radio group (an on entry selects, an off entry clears only the selected option); a press after the
+  // outcome time is not graded.
+  const cut = expected.outcome?.t ?? Number.POSITIVE_INFINITY;
+  const presses = (recording(name).decisions ?? []).filter((decision) => decision.t <= cut);
+  const selectedActions = new Set<string>();
+  const conductPicks: string[] = [];
+  let last: string | null = null;
+  for (const press of presses) {
+    const on = press.on !== false;
+    if (press.id.startsWith('conduct_')) {
+      if (on) {
+        conductPicks.push(press.id);
+        last = press.id;
+      } else if (last === press.id) last = null;
+    } else if (on) selectedActions.add(press.id);
+    else selectedActions.delete(press.id);
+  }
   const status = last === null ? 'missing' : declared.accept.includes(last) ? 'ok' : 'wrong';
   const actions = declared.roles.map(([id, role]) => ({
     id,
     role,
-    done: picks.includes(id),
+    done: selectedActions.has(id),
     failsRun: false,
   }));
   const added: GradeResult['reasons'][number][] = [];
@@ -213,6 +229,28 @@ function withFurther(name: string, expected: GradeResult): GradeResult {
     result: reasons.length === 0 ? 'pass' : 'fail',
     reasons,
     further: { actions, conduct: { declared: 'accept', picks: conductPicks, last, status } },
+  };
+}
+
+/** The panel part of the golden ENGINE FIRE run: every step done, no reason (the presses come on top). */
+function fireGoldenPanel(): GradeResult {
+  return {
+    scenarioId: 'eng-fire-in-flight',
+    result: 'pass',
+    reasons: [],
+    steps: fireSteps({
+      squawk_7700: 0,
+      circ_air_fresh: 1,
+      ecs_pulled: 2,
+      engine_master_off: 3,
+      fuel_valve_off: 4,
+      elect_master_off: 5,
+    }),
+    branches: [],
+    orderViolations: [],
+    harmful: [],
+    outcome: null,
+    timing: { onsetAt: 0, firstActionMs: 2000 },
   };
 }
 
@@ -677,6 +715,38 @@ describe('golden recordings (Table R1)', () => {
         timing: { onsetAt: 0, firstActionMs: 4000 },
       },
     },
+    // Plan 07-05 (R-08): recordings with toggled presses (the on flag), all on the real ENGINE FIRE
+    // file and graded through the toggle-aware expectation helper above. The panel part is the one of
+    // fire-golden (or of fire-do-nothing-long); only the presses differ.
+    ...[
+      'fire-mayday-on-off-on',
+      'fire-mayday-on-off',
+      'fire-conduct-cleared',
+      'fire-conduct-switched',
+      'fire-both-calls',
+    ].map((name) => ({ name, scenario: fire, expected: fireGoldenPanel() })),
+    {
+      name: 'fire-decisions-after-outcome',
+      scenario: fire,
+      expected: {
+        scenarioId: 'eng-fire-in-flight',
+        result: 'fail',
+        reasons: [
+          { kind: 'outcome', id: fireOutcome.id },
+          { kind: 'critical_missed', count: 5 },
+        ],
+        steps: fireSteps({}),
+        branches: [],
+        orderViolations: [],
+        harmful: [],
+        outcome: {
+          id: fireOutcome.id,
+          text: fireOutcome.text,
+          t: simulatedOutcome(fire, 'fire-decisions-after-outcome')?.t ?? Number.NaN,
+        },
+        timing: { onsetAt: 0, firstActionMs: null },
+      },
+    },
   ];
 
   it('covers every recording of the fixture file', () => {
@@ -689,6 +759,96 @@ describe('golden recordings (Table R1)', () => {
       expect(grade(scenario, DA50RG_ENV, recording(name))).toEqual(want);
     });
   }
+});
+
+// Plan 07-05 (R-08, T-07-12): the recordings made before the toggles are untouched and grade as they did.
+describe('recordings made before the toggles (plan 07-05)', () => {
+  const LEGACY = [
+    'golden',
+    'do-nothing',
+    'forbidden',
+    'forbidden-reverted',
+    'toggle-back',
+    'wrong-order',
+    'do-nothing-long',
+    'golden-long',
+    'elec-golden',
+    'elec-golden-long',
+    'elec-do-nothing',
+    'elec-do-nothing-long',
+    'elec-forbidden',
+    'elec-wrong-order',
+    'elec-wrong-order-ordered',
+    'fire-golden',
+    'fire-golden-long',
+    'fire-no-squawk',
+    'fire-do-nothing',
+    'fire-do-nothing-long',
+    'fire-forbidden',
+    'fire-wrong-order',
+    'fire-wrong-order-ordered',
+  ];
+  const scenarioOf = (name: string): Scenario => {
+    const id = recording(name).scenarioId;
+    const found = [blueprint, ordered, electrical, elecOrdered, fire, fireOrdered].find(
+      (s) => s.id === id,
+    );
+    if (found === undefined) throw new Error(`no scenario for ${name}`);
+    return found;
+  };
+
+  it('are still in the fixture file, none of them carries the on flag, and the new ones only add', () => {
+    expect(Object.keys(RECORDINGS).slice(0, LEGACY.length)).toEqual(LEGACY);
+    for (const name of LEGACY) {
+      for (const decision of recording(name).decisions ?? []) {
+        expect('on' in decision, `${name} ${decision.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('grade JSON-identically with the flag written out as on true (an absent flag means on)', () => {
+    for (const name of LEGACY) {
+      const old = recording(name);
+      const flagged: Recording = {
+        ...old,
+        ...(old.decisions === undefined
+          ? {}
+          : { decisions: old.decisions.map((decision) => ({ ...decision, on: true })) }),
+      };
+      expect(JSON.stringify(grade(scenarioOf(name), DA50RG_ENV, flagged)), name).toBe(
+        JSON.stringify(grade(scenarioOf(name), DA50RG_ENV, old)),
+      );
+    }
+  });
+
+  it('the toggled recordings give the verdicts their names say', () => {
+    const verdict = (name: string) => grade(fire, DA50RG_ENV, recording(name));
+    expect(verdict('fire-mayday-on-off-on').result).toBe('pass');
+    expect(verdict('fire-mayday-on-off').reasons).toEqual([{ kind: 'further_missed', count: 1 }]);
+    expect(verdict('fire-conduct-cleared').reasons).toEqual([
+      { kind: 'conduct', status: 'missing' },
+    ]);
+    expect(verdict('fire-conduct-cleared').further?.conduct).toMatchObject({
+      last: null,
+      picks: ['conduct_emergency'],
+    });
+    expect(verdict('fire-conduct-switched').result).toBe('pass');
+    expect(verdict('fire-conduct-switched').further?.conduct.picks).toEqual([
+      'conduct_precautionary',
+      'conduct_emergency',
+    ]);
+    expect(verdict('fire-both-calls').result).toBe('pass');
+    expect(
+      verdict('fire-both-calls')
+        .further?.actions.filter((a) => a.done)
+        .map((a) => a.id),
+    ).toEqual(['atc_mayday', 'atc_pan_pan']);
+    expect(verdict('fire-decisions-after-outcome').reasons.map((r) => r.kind)).toEqual([
+      'outcome',
+      'critical_missed',
+      'conduct',
+    ]);
+  });
 });
 
 describe('named outcomes (R10, D-06, C-26)', () => {

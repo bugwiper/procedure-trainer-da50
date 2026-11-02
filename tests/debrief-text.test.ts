@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { grade } from '../src/engine/grading';
 import type { GradeResult, OrderViolation, Reason } from '../src/engine/grading';
+import { parseScenario } from '../src/scenario/parse';
 import type { Group } from '../src/scenario/schema';
 import { MAX_RUN_MS } from '../src/engine/sim';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
@@ -317,6 +321,57 @@ describe('further actions (Phase 7, plan 07-02, R19)', () => {
     );
     expect(wrong.map((r) => r.verdict)).toEqual(['Wrong']);
     expect(wrong[0]?.picks).toBe(`Picked: ${SET.option(carryOn)?.text ?? ''}`);
+  });
+
+  it('shows a conduct that was selected and then cleared with its picks line and the verdict Missing, and no note', () => {
+    const cleared = withFurther({
+      actions: [],
+      conduct: { declared: 'accept', picks: [emergency], last: null, status: 'missing' },
+    });
+    const rows = furtherRows(cleared, SET);
+    expect(rows.map((r) => [r.id, r.verdict, r.tone])).toEqual([
+      ['conduct', 'Missing', 'critical'],
+    ]);
+    expect(rows[0]?.picks).toBe(`Picked: ${SET.option(emergency)?.text ?? ''}`);
+    expect(reasonLines(failing([{ kind: 'conduct', status: 'missing' }]))).toEqual([
+      'The flight decision was missing.',
+    ]);
+    // The emergency-landing note follows the final selection: cleared, there is none.
+    expect(furtherNote(cleared, SET)).toBeNull();
+    const kept = withFurther({
+      actions: [],
+      conduct: { declared: 'accept', picks: [carryOn, emergency], last: emergency, status: 'ok' },
+    });
+    expect(furtherNote(kept, SET)).toBe(SET.option(emergency)?.debriefNote ?? null);
+    const switched = withFurther({
+      actions: [],
+      conduct: { declared: 'accept', picks: [emergency, carryOn], last: carryOn, status: 'wrong' },
+    });
+    expect(furtherNote(switched, SET)).toBeNull();
+  });
+
+  it('shows an action that was selected and cleared like one never selected', () => {
+    const scenario = parseScenario(
+      readFileSync(join(process.cwd(), 'scenarios/engine/eng-fire-in-flight.toon'), 'utf8'),
+    );
+    if (!scenario.ok) throw new Error('no scenario');
+    const graded = (decisions: { t: number; id: string; on?: boolean }[]) =>
+      furtherRows(
+        grade(scenario.value, DA50RG_ENV, {
+          scenarioId: scenario.value.id,
+          completedAt: 20000,
+          events: [],
+          decisions,
+        }),
+        SET,
+      ).find((r) => r.id === passengers);
+    const never = graded([]);
+    const cleared = graded([
+      { t: 1000, id: passengers, on: true },
+      { t: 2000, id: passengers, on: false },
+    ]);
+    expect(cleared).toEqual(never);
+    expect(graded([{ t: 1000, id: passengers, on: true }])?.verdict).toBe('Done');
   });
 
   it('shows no conduct row for none without a pick, and a row marked Not graded with one', () => {
