@@ -876,20 +876,22 @@ describe('phase 7 owner review (plan 07-03)', () => {
   });
 
   it('names the conduct, the hint and the retry rules', () => {
-    for (const word of ['conduct', 'hint', 'Retry', 'Next situation', 'last pick']) {
+    for (const word of ['conduct', 'hint', 'Retry', 'Next situation', 'final-state rule']) {
       expect(section, word).toContain(word);
     }
   });
 
-  it('lists the open points of plans 07-01 and 07-02 and the missing either-call role', () => {
+  it('lists the open points of plans 07-01 to 07-05 and the missing either-call role', () => {
     const lower = section.toLowerCase();
     for (const point of [
-      'card order',
+      'level card',
       'run view',
       'bottom sheet',
-      'pauses the run clock',
+      'no clock pause',
       'either call',
       'verdict words',
+      'empty plate',
+      'covering the instruments',
     ]) {
       expect(lower, point).toContain(point);
     }

@@ -573,12 +573,12 @@ Plans:
 **Requirements**: SES-02, SES-05, SES-06, CNT-02
 **Success Criteria** (what must be TRUE):
 
-1. In Training mode the user can show or hide the scenario checklist and ask for a hint during the scenario, while Exam mode stays silent.
-2. A "Further actions" modal lets the user pick, in any combination, from a fixed list of non-panel actions (inform ATC with MAYDAY or PAN PAN PAN, brief passengers) and choose the further flight conduct (continue normally, precautionary landing, emergency landing); a scenario declares which are required, recommended, optional or harmful and which conduct is right (none on the ground), and the picks are graded and shown in the debrief.
+1. During a run the user can show the scenario checklist, with the steps already done marked in green; on Realistic the user chooses the checklist from all available ones and a HINT box shows the situation; no run says anything about the solution.
+2. Six toggle buttons in the pilot footwell (BRIEF PASSENGERS, MAYDAY, PAN PAN PAN and the three landings as a group) let the user make the non-panel decisions in any combination; a scenario declares which are required, recommended, optional or harmful and which conduct is right (the conduct buttons are absent on the ground), and the state of the buttons is graded with the panel actions at Procedure complete and shown in the debrief.
 3. From the debrief the user can retry the same scenario from a clean initial state or move straight to the next situation.
 4. Following only the authoring guide (a README section for developers), a developer can add a new scenario TOON file, validate it and play it in the app without any code change; its worked example is parsed and linted by a test.
 
-**Plans:** 3 plans (lean form, see WORKFLOW.md); decisions in 07-CONTEXT.md
+**Plans:** 5 plans (lean form, see WORKFLOW.md); decisions in 07-CONTEXT.md (the rework decisions R-01 to R-14 after the owner walkthrough of 2026-11-02 are at its end)
 **UI hint**: yes
 
 Plans:
@@ -594,6 +594,11 @@ Plans:
 **Wave 3** _(blocked on Wave 2 completion)_
 
 - [x] 07-03 — Tracer: Retry and Next situation from the debrief, the README section "Writing a scenario" with a tested example, the phase-end documents, requirements and the final gates
+
+**Wave 4** _(rework after the owner walkthrough)_
+
+- [x] 07-04 — No mode (the level card is the first card), the CHECKLIST sheet with live green marks, the Realistic CHOOSE CHECKLIST and HINT box, the slim run view of the pad with LEAVE
+- [x] 07-05 — The further actions as six toggle buttons in the pilot footwell with an on flag and `effectiveSelection`, graded at Procedure complete; the modal and the clock pause removed; documents and final gates incl. the Linux image
 
 ### Phase 8: Offline PWA and Real-Device Hardening
 
@@ -626,5 +631,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 5.1 Ground and takeoff emergencies                    | 4/3 | Complete    | 2026-10-28 |
 | 6. Fuel, tank and engine fidelity and the engine page | 4/4            | Executed, awaiting UAT | 2026-10-29 |
 | 6.1. PFD fidelity                                     | 3/3            | Complete    | 2026-11-01 |
-| 7. Training Mode, Further Actions and Repeat Loop     | 3/3            | Executed, awaiting UAT | 2026-11-01 |
+| 7. Training Mode, Further Actions and Repeat Loop     | 5/5            | Executed, awaiting UAT | 2026-11-02 |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |

@@ -59,10 +59,10 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Session & Debrief
 
 - [x] **SES-01**: User can start a "new situation" (random or selected) with a short briefing
-- [x] **SES-02**: Training mode lets the user show/hide the checklist and get hints
-- [x] **SES-03**: Exam mode is silent and the user ends it with "Procedure complete"
+- [x] **SES-02**: During a run the user can show the scenario checklist, with the steps done so far marked; on Realistic the user chooses the checklist from all available ones and a hint shows the situation
+- [x] **SES-03**: A run says nothing about the solution and the user ends it with "Procedure complete"
 - [x] **SES-04**: Debrief shows PASS/FAIL (a missed critical step fails), per-step verdicts, order violations and harmful actions
-- [x] **SES-05**: A "Further actions" modal offers a fixed list of non-panel actions (inform ATC with MAYDAY or PAN PAN PAN, brief passengers, further flight conduct), any combination in one run; a scenario declares which are required, recommended, optional or harmful and which flight conduct is correct (or none, on the ground); the picks are recorded and graded and shown in the debrief
+- [x] **SES-05**: The optional further actions (inform ATC with MAYDAY or PAN PAN PAN, brief passengers, flight conduct) are toggle buttons in the pilot footwell, any combination; a scenario declares which are required, recommended, optional or harmful and which flight conduct is correct (or none, on the ground), and the selections are graded with the panel actions at Procedure complete and shown in the debrief (reworked after the owner walkthrough 2026-11-02, pending the phase UAT)
 - [x] **SES-06**: User can retry the scenario or move to the next situation
 - [x] **SES-07**: A running scenario survives a failing step listener (the error is shown and the run ends cleanly) and a run that reaches the 30-minute cap ends exactly as its replay does
 - [x] **SES-08**: CHOOSE SITUATION lists any number of situations in pages of four with a NEXT PAGE button
@@ -179,17 +179,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |
-| SES-02 | Phase 7 | Complete (as built, pending the phase UAT) |
-| SES-05 | Phase 7 | Complete (as built, pending the phase UAT) |
+| SES-02 | Phase 7 | Complete (as built, reworked after the owner walkthrough 2026-11-02, pending the phase UAT) |
+| SES-05 | Phase 7 | Complete (as built, reworked after the owner walkthrough 2026-11-02, pending the phase UAT) |
 | SES-06 | Phase 7 | Complete (as built, pending the phase UAT) |
 | CNT-02 | Phase 7 | Complete (as built, pending the phase UAT) |
 | PLT-02 | Phase 8 | Pending |
 
 **Coverage:**
 - v1 requirements: 60 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1; SCN-11, PNL-16, CNT-04 added 2026-10-23 for phase 4; PNL-17, PNL-18, PNL-19, SCN-12 added 2026-10-27 for phase 5; PNL-20, SCN-13, SES-08, CNT-05 added 2026-10-27 for phase 5.1; PNL-21, PNL-22, PNL-23, PNL-24, SCN-14, SCN-15, SCN-16 added 2026-10-28 for phase 6; PNL-25, PNL-26, PNL-27 added 2026-11-01 for the inserted phase 6.1, PFD fidelity)
-- Mapped to phases: 60 (PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27; the seven requirements of phase 6 are complete as built by plans 06-01 to 06-04, 2026-10-29, pending the phase UAT; PNL-25 to PNL-27 complete as built by plans 06.1-01 to 06.1-03, 2026-11-01, pending the phase UAT; SES-02, SES-05, SES-06 and CNT-02 complete as built by plans 07-01 to 07-03, 2026-11-01, pending the phase UAT; only PLT-02 is still pending, in phase 8)
+- Mapped to phases: 60 (PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27; the seven requirements of phase 6 are complete as built by plans 06-01 to 06-04, 2026-10-29, pending the phase UAT; PNL-25 to PNL-27 complete as built by plans 06.1-01 to 06.1-03, 2026-11-01, pending the phase UAT; SES-02, SES-05, SES-06 and CNT-02 complete as built by plans 07-01 to 07-05 (07-04 and 07-05 rework SES-02, SES-03 and SES-05 after the owner walkthrough), 2026-11-02, pending the phase UAT; only PLT-02 is still pending, in phase 8)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-19*
-*Last updated: 2026-11-01 after phase 7 (SES-02, SES-05, SES-06 and CNT-02 as built, SES-05 reworded to the Further actions modal)*
+*Last updated: 2026-11-02 after the phase 7 rework (SES-02, SES-03 and SES-05 reworded: checklist sheet with marks, no mode, footwell toggle buttons)*
