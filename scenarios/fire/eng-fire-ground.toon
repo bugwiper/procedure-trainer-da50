@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: parked
 briefing:
-  situation: "You are on the apron with the engine idling when you see smoke and flames coming from the engine compartment. Only the yellow STALL HEAT message is showing. The fire is growing and the engine temperatures are rising."
+  situation: "You are on the apron with the engine idling when you see smoke and flames coming from the engine compartment. Only the yellow STALL HT OFF message is showing. The fire is growing and the engine temperatures are rising."
 initial:
   controls:
     lv.power: p0
@@ -109,7 +109,7 @@ outcomes[1]:
       op: gte
       value: 85
 # The fire of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
-# The fire shows by its flames and smoke over the cowl, since the scenario lists no failure message (only the ambient STALL HEAT of the ground); the lint checks that they show within seconds of the onset.
+# The fire shows by its flames and smoke over the cowl, since the scenario lists no failure message (only the ambient STALL HT OFF of the ground); the lint checks that they show within seconds of the onset.
 onset:
   window_s[2]: 2,6
   quantities:

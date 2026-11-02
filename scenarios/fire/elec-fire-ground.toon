@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: parked
 briefing:
-  situation: "You are on the apron with the engine running when you smell burning plastic and smoke fills the cabin. Only the yellow STALL HEAT message is showing. The smoke is getting thicker and its source seems to be electrical."
+  situation: "You are on the apron with the engine running when you smell burning plastic and smoke fills the cabin. Only the yellow STALL HT OFF message is showing. The smoke is getting thicker and its source seems to be electrical."
 initial:
   controls:
     lv.power: p25
@@ -110,7 +110,7 @@ outcomes[1]:
       op: gte
       value: 95
 # The smoke of the level Realistic begins at a random second inside this short window; the window is an instructor-review value.
-# The smoke shows over the panel, since the scenario lists no failure message (only the ambient STALL HEAT of the ground); the lint checks that it shows within seconds of the onset.
+# The smoke shows over the panel, since the scenario lists no failure message (only the ambient STALL HT OFF of the ground); the lint checks that it shows within seconds of the onset.
 onset:
   window_s[2]: 2,6
   quantities:

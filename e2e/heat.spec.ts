@@ -5,7 +5,7 @@ import { DA50RG_QUANTITIES, STALL_HEAT_CUTOUT_S } from '../src/aircraft/da50rg/q
 import { quantityOf, startRealistic, startScenario } from './support/session';
 import { activate, afterPairWindow } from './support/zoom';
 
-// PITOT HEAT and STALL HEAT on the built panel (Phase 6, plan 04; H-01, H-02): the PITOT/STALL HEAT
+// PITOT HT OFF and STALL HT OFF on the built panel (Phase 6, plan 04; H-01, H-02): the PITOT/STALL HEAT
 // rocker turned off shows two yellow cautions on the PFD, turned on removes them, and the free-panel
 // flag q=stall_heat_timer_s shows the single ground message. The specs read drawn chips only, so they
 // also run against the live site (the specs that read a quantity carry @hooks). The texts and the cut-out time come from the aircraft data in node.
@@ -36,7 +36,7 @@ test('the free panel starts with the heat on and shows no chip', async ({ page }
   await expect(chips(page)).toHaveCount(0);
 });
 
-test('PITOT/STALL HEAT off shows the cautions PITOT HEAT and STALL HEAT, on removes them', async ({
+test('PITOT/STALL HEAT off shows the cautions PITOT HT OFF and STALL HT OFF, on removes them', async ({
   page,
   hasTouch,
 }) => {
@@ -55,7 +55,7 @@ test('PITOT/STALL HEAT off shows the cautions PITOT HEAT and STALL HEAT, on remo
   await expect(chips(page)).toHaveCount(0);
 });
 
-test('?q=stall_heat_timer_s past the cut-out shows the single ground STALL HEAT chip', async ({
+test('?q=stall_heat_timer_s past the cut-out shows the single ground STALL HT OFF chip', async ({
   page,
 }) => {
   await page.goto(`./?q=${TIMER}:${PAST_CUTOUT}`);
@@ -75,14 +75,14 @@ test('?q=stall_heat_timer_s at the cut-out time itself shows no chip', async ({ 
 });
 
 // H-03 (owner, D-12; changed 2026-10-29): a situation begins after the take-off checklist, which has
-// set the stall heat ON, so a ground situation shows the STALL HEAT chip from the first step at every
+// set the stall heat ON, so a ground situation shows the STALL HT OFF chip from the first step at every
 // level and it does not pop up seconds in. Real time.
 const GROUND_ROWS = ['fire.eng-fire-ground', 'fire.elec-fire-ground', 'fire.takeoff-fire-abort'];
 const LEVELS = ['easy', 'medium', 'realistic'] as const;
 
 for (const row of GROUND_ROWS) {
   for (const level of LEVELS) {
-    test(`@hooks ${row} (${level}): the STALL HEAT chip is there from the start, the timer already past the cut-out`, async ({
+    test(`@hooks ${row} (${level}): the STALL HT OFF chip is there from the start, the timer already past the cut-out`, async ({
       page,
       hasTouch,
     }) => {
@@ -126,7 +126,10 @@ test('a ground situation: off swaps the chip for the two cautions, on again brin
   });
 });
 
-test('@hooks in the air with the heat on no STALL HEAT chip shows', async ({ page, hasTouch }) => {
+test('@hooks in the air with the heat on no STALL HT OFF chip shows', async ({
+  page,
+  hasTouch,
+}) => {
   await startScenario(page, hasTouch, 'fire.elec-fire-flight', 'easy');
   await expect(page.locator(`[data-control-id="${HEAT}"]`)).toHaveAttribute('data-state', 'on');
   await page.waitForTimeout((STALL_HEAT_CUTOUT_S + 2) * 1000);

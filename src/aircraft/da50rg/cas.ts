@@ -41,24 +41,24 @@ export const DA50RG_CAS = defineCasRules(
     },
     {
       id: 'pitot_heat',
-      text: 'PITOT HEAT',
+      text: 'PITOT HT OFF',
       // Whenever the PITOT/STALL HEAT switch is off (Phase 6, plan 04, H-01; owner 2026-10-28): a
-      // yellow caution, independent of the STALL HEAT one. A state check, no number.
+      // yellow caution, independent of the STALL HT OFF one. A state check, no number.
       level: 'caution',
       when: { check: 'state', control: 'sw.pitot_stall_heat', is: 'off' },
     },
     {
       id: 'stall_heat',
-      text: 'STALL HEAT',
+      text: 'STALL HT OFF',
       // The second message of the switch off. Never a second chip next to stall_heat_ground: a text
       // shows once (RuleSet.active takes the first rule in table order), so the instant after the
-      // switch goes off, while the timer still sits in the cut band, still shows one STALL HEAT.
+      // switch goes off, while the timer still sits in the cut band, still shows one STALL HT OFF.
       level: 'caution',
       when: { check: 'state', control: 'sw.pitot_stall_heat', is: 'off' },
     },
     {
       id: 'stall_heat_ground',
-      text: 'STALL HEAT',
+      text: 'STALL HT OFF',
       // On the ground the stall heat cuts out a few seconds after it is on (physics.ts, H-02): the
       // same message returns with the switch on. Band check on the hidden timer, no number. It
       // shares its text with stall_heat, so the two never show together (one chip, one tone). A

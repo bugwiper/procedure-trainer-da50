@@ -313,7 +313,7 @@ describe('FUEL TRANS advisory (Phase 6, D-04b)', () => {
   });
 });
 
-describe('PITOT HEAT and STALL HEAT cautions (Phase 6, plan 04, H-01)', () => {
+describe('PITOT HT OFF and STALL HT OFF cautions (Phase 6, plan 04, H-01)', () => {
   const OFF = 'off';
   /** The timer values inside the warm and cut bands, from the quantity data. */
   const timer = DA50RG_ENV.quantities.get('stall_heat_timer_s');
@@ -334,10 +334,10 @@ describe('PITOT HEAT and STALL HEAT cautions (Phase 6, plan 04, H-01)', () => {
       'stall_heat',
       'stall_heat_ground',
     ]);
-    expect(DA50RG_CAS.get('pitot_heat')).toMatchObject({ text: 'PITOT HEAT', level: 'caution' });
-    expect(DA50RG_CAS.get('stall_heat')).toMatchObject({ text: 'STALL HEAT', level: 'caution' });
+    expect(DA50RG_CAS.get('pitot_heat')).toMatchObject({ text: 'PITOT HT OFF', level: 'caution' });
+    expect(DA50RG_CAS.get('stall_heat')).toMatchObject({ text: 'STALL HT OFF', level: 'caution' });
     expect(DA50RG_CAS.get('stall_heat_ground')).toMatchObject({
-      text: 'STALL HEAT',
+      text: 'STALL HT OFF',
       level: 'caution',
     });
   });
@@ -377,12 +377,12 @@ describe('PITOT HEAT and STALL HEAT cautions (Phase 6, plan 04, H-01)', () => {
     expect(ids(loaded)).toEqual(['eng_oil_temp', 'pitot_heat', 'stall_heat', 'fuel_trans']);
   });
 
-  it('the rocker off while the timer still sits in the cut band shows one STALL HEAT (WR-04)', () => {
+  it('the rocker off while the timer still sits in the cut band shows one STALL HT OFF (WR-04)', () => {
     // The bridge mixes the live rocker with the quantities of the last step: for one step the rocker
-    // reads off and the timer is still cut. Both STALL HEAT rules hold, one chip shows.
+    // reads off and the timer is still cut. Both STALL HT OFF rules hold, one chip shows.
     const stale = withHeat(OFF, cutTop);
     const messages = DA50RG_CAS.active(stale, DA50RG_ENV);
-    expect(messages.filter((m) => m.text === 'STALL HEAT')).toHaveLength(1);
+    expect(messages.filter((m) => m.text === 'STALL HT OFF')).toHaveLength(1);
     expect(messages.map((m) => m.id)).toEqual(['pitot_heat', 'stall_heat']);
   });
 

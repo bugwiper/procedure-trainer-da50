@@ -13,7 +13,7 @@ import type { SimEvent, SimState } from '../src/engine/sim';
 import { PanelStore } from '../src/engine/store';
 import { checkScenario } from '../src/scenario/lint';
 
-// PITOT HEAT and STALL HEAT (Phase 6, plan 06-04; H-01 to H-03, D-12): the two cautions whenever the
+// PITOT HT OFF and STALL HT OFF (Phase 6, plan 06-04; H-01 to H-03, D-12): the two cautions whenever the
 // PITOT/STALL HEAT rocker is off, and the ground cut-out of the stall heat. Expected times come from
 // STALL_HEAT_CUTOUT_S and the band table of the quantity data.
 
@@ -63,14 +63,14 @@ function runTo(
 const timerOf = (state: SimState): number => state.quantities[TIMER] ?? Number.NaN;
 
 describe('the rocker off (H-01)', () => {
-  it('shows exactly PITOT HEAT and STALL HEAT at the base quantities, as cautions', () => {
+  it('shows exactly PITOT HT OFF and STALL HT OFF at the base quantities, as cautions', () => {
     const { setup, state } = runTo({ [HEAT]: 'off' }, {}, STEP_MS);
     expect(activeIds(setup, state)).toEqual(['pitot_heat', 'stall_heat']);
     const levels = DA50RG_CAS.active(
       { controls: state.controls, baseline: setup.baseline, quantities: state.quantities },
       DA50RG_ENV,
     ).map((m) => `${m.level}:${m.text}`);
-    expect(levels).toEqual(['caution:PITOT HEAT', 'caution:STALL HEAT']);
+    expect(levels).toEqual(['caution:PITOT HT OFF', 'caution:STALL HT OFF']);
   });
 
   it('the rocker on shows none in the air', () => {
@@ -99,13 +99,13 @@ describe('the ground cut-out (H-02)', () => {
     expect(activeIds(after.setup, after.state)).toEqual(['stall_heat_ground']);
   });
 
-  it('shows STALL HEAT alone, as a caution, never two STALL HEAT chips', () => {
+  it('shows STALL HT OFF alone, as a caution, never two STALL HT OFF chips', () => {
     const { setup, state } = runTo({}, GROUND, 30 * SECOND);
     const messages = DA50RG_CAS.active(
       { controls: state.controls, baseline: setup.baseline, quantities: state.quantities },
       DA50RG_ENV,
     );
-    expect(messages).toEqual([{ id: 'stall_heat_ground', text: 'STALL HEAT', level: 'caution' }]);
+    expect(messages).toEqual([{ id: 'stall_heat_ground', text: 'STALL HT OFF', level: 'caution' }]);
   });
 
   it('switching the heat off removes the ground chip and shows the two off chips at once', () => {
@@ -180,7 +180,7 @@ describe('a live run equals its replay', () => {
 
 // H-03 (owner, 2026-10-28, D-12; changed 2026-10-29): a situation begins after the take-off
 // checklist, which has set the stall heat ON. A shipped ground situation therefore starts with the
-// heat on and the cut-out timer past the cut band: the STALL HEAT chip is part of the start state
+// heat on and the cut-out timer past the cut band: the STALL HT OFF chip is part of the start state
 // at every level (Easy, Medium, Realistic), never popping up seconds in. The ground is a property of
 // the situation (the profile parameter ground_roll, in force from the first second). The chip is an
 // ambient message (CasRule.ambient): the Realistic start carries it, but no failure message.
@@ -220,7 +220,7 @@ describe('the shipped ground situations (H-03)', () => {
       return null;
     };
 
-    it(`${file}: starts with the heat on and the STALL HEAT chip showing at t 0, on every level`, () => {
+    it(`${file}: starts with the heat on and the STALL HT OFF chip showing at t 0, on every level`, () => {
       expect(ground.initial.controls[HEAT]).not.toBe('off');
       expect(ground.variants).toEqual([]);
       const easy = simSetup(DA50RG_ENV, ground);
@@ -238,7 +238,7 @@ describe('the shipped ground situations (H-03)', () => {
       expect(ground.annunciations).toContain('stall_heat_ground');
       expect(ground.late_annunciations).not.toContain('stall_heat_ground');
       expect(ground.briefing.situation).not.toMatch(/no message is shown|appears after/i);
-      expect(ground.briefing.situation).toContain('STALL HEAT');
+      expect(ground.briefing.situation).toContain('STALL HT OFF');
     });
 
     it(`${file}: the chip stays for as long as the run lasts, on every level`, () => {

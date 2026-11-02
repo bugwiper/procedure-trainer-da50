@@ -711,7 +711,7 @@ describe('L26: the messages of a run that does nothing (Phase 6 review, WR-01)',
   });
 
   it('does not flag what shows at the start: that is L10', () => {
-    // The heat off at the start fires PITOT HEAT and STALL HEAT at t 0; L10 asks for them, L26 is silent.
+    // The heat off at the start fires PITOT HT OFF and STALL HT OFF at t 0; L10 asks for them, L26 is silent.
     const text = swap(
       MINIMAL,
       '    lv.cowl_flap: closed',

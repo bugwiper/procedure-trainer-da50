@@ -87,10 +87,10 @@ describe('auralStep: the tone a change of the annunciations asks for', () => {
   });
 
   it('gives no second tone when a message passes to another rule with the same text (WR-04)', () => {
-    // STALL HEAT of the ground cut-out turns into STALL HEAT of the switch off: the pilot sees the
+    // STALL HT OFF of the ground cut-out turns into STALL HT OFF of the switch off: the pilot sees the
     // same chip, so only the first appearance sounds.
-    const ground: ActiveCas = { id: 'stall_heat_ground', text: 'STALL HEAT', level: 'caution' };
-    const off: ActiveCas = { id: 'stall_heat', text: 'STALL HEAT', level: 'caution' };
+    const ground: ActiveCas = { id: 'stall_heat_ground', text: 'STALL HT OFF', level: 'caution' };
+    const off: ActiveCas = { id: 'stall_heat', text: 'STALL HT OFF', level: 'caution' };
     expect(
       run([
         [0, []],

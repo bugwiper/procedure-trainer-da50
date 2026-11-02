@@ -801,7 +801,7 @@ export const DA50RG_PHYSICS = definePhysics(
       },
       { quantity: 'ground_speed_kt', mode: 'rate', perMinute: groundSpeedPerMinute },
       // The ground cut-out of the stall heat (H-02): counts while the heat is on and the aircraft rolls
-      // or stands on the ground; the message STALL HEAT reads its `cut` band (cas.ts).
+      // or stands on the ground; the message STALL HT OFF reads its `cut` band (cas.ts).
       { quantity: 'stall_heat_timer_s', mode: 'rate', perMinute: stallHeatTimerPerMinute },
       // The de-ice fluid of the engine page: the mode flow, the MAX run and the WIND SHIELD spray (E-08).
       { quantity: 'deice_qty_gal', mode: 'rate', perMinute: deiceFluidPerMinute },

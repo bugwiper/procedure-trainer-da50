@@ -34,7 +34,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('rotate-hint')).toBeHidden();
 });
 
-test('two cautions stack as thin touching rows, PITOT HEAT above STALL HEAT', async ({
+test('two cautions stack as thin touching rows, PITOT HT OFF above STALL HT OFF', async ({
   page,
   hasTouch,
 }) => {

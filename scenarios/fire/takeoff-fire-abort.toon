@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: takeoff_roll
 briefing:
-  situation: "You are on the take-off roll at full power, about 40 knots, with flaps in take-off position. Smoke and flames come from the engine compartment. The yellow STALL HEAT message is already showing, and a red ENG OIL TEMP message follows if the fire burns on. There is plenty of runway ahead to stop."
+  situation: "You are on the take-off roll at full power, about 40 knots, with flaps in take-off position. Smoke and flames come from the engine compartment. The yellow STALL HT OFF message is already showing, and a red ENG OIL TEMP message follows if the fire burns on. There is plenty of runway ahead to stop."
 initial:
   controls:
     lv.power: p100
@@ -149,7 +149,7 @@ outcomes[1]:
       op: gte
       value: 85
 # The fire of the level Realistic begins at a random second inside this short window; the aircraft rolls at 40 knots from the start (the PFD airspeed starts at the same speed). The window is an instructor-review value.
-# The fire shows by its flames and smoke over the cowl, since the scenario lists no failure message (only the ambient STALL HEAT of the ground); the lint checks that they show within seconds of the onset.
+# The fire shows by its flames and smoke over the cowl, since the scenario lists no failure message (only the ambient STALL HT OFF of the ground); the lint checks that they show within seconds of the onset.
 onset:
   window_s[2]: 2,6
   quantities:

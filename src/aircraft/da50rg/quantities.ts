@@ -346,7 +346,7 @@ export const DA50RG_QUANTITIES = defineQuantities([
   },
   {
     // Hidden: no gauge. The seconds the stall heat has run on the ground with the PITOT/STALL HEAT
-    // switch on (Phase 6, plan 04, H-02); held at 0 in the air and with the switch off. The STALL HEAT
+    // switch on (Phase 6, plan 04, H-02); held at 0 in the air and with the switch off. The STALL HT OFF
     // message of the ground cut-out reads the `cut` band, so no number enters the CAS table.
     id: 'stall_heat_timer_s',
     unit: 's',

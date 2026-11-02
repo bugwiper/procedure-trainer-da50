@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: cloud
 briefing:
-  situation: "You are flying in cloud when ice begins to form on the windscreen. The primary flight display shows the two yellow messages PITOT HEAT and STALL HEAT. The ice builds up on both halves of the windscreen, and the ice protection, the pitot heating, the cabin heat and the alternate air source are not in use."
+  situation: "You are flying in cloud when ice begins to form on the windscreen. The primary flight display shows the two yellow messages PITOT HT OFF and STALL HT OFF. The ice builds up on both halves of the windscreen, and the ice protection, the pitot heating, the cabin heat and the alternate air source are not in use."
 initial:
   controls:
     sw.deice_mode: "off"

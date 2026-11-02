@@ -4,7 +4,7 @@ import type { Predicate } from '../../src/scenario/schema';
 
 // Free-panel preview values that fire CAS messages, taken from the aircraft data in node and never
 // typed in (Phase 6.1, plan 01): a value inside a named band of a quantity, and the value just
-// above the threshold of the ENG OIL TEMP rule. The PITOT HEAT and STALL HEAT messages come from the
+// above the threshold of the ENG OIL TEMP rule. The PITOT HT OFF and STALL HT OFF messages come from the
 // PITOT/STALL HEAT rocker, so they have no preview value.
 
 /** A value in the middle of the named band of a quantity. */
@@ -43,7 +43,7 @@ export function advisoryQuery(): string {
 
 /**
  * Preview query of the free panel that fires ENG OIL TEMP and OIL PRES (warnings), ALTN 1 FAIL
- * (caution) and FUEL TRANS (advisory). With the heat rocker turned off the PITOT HEAT and STALL
+ * (caution) and FUEL TRANS (advisory). With the heat rocker turned off the PITOT HT OFF and STALL
  * HEAT cautions make six messages (never ALTN 2 FAIL: a seventh would not be drawn).
  */
 export function messagesQuery(): string {
