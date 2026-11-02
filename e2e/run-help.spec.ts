@@ -112,6 +112,9 @@ for (const level of ['easy', 'medium'] as const) {
     await expect(page.locator(HINT)).toHaveCount(0);
     await expect(page.getByTestId('run-checklist')).toHaveCount(0);
 
+    await expect(page.locator('[data-session-button="session.checklist"]')).toContainText(
+      'SHOW CHECKLIST',
+    );
     await activate(page.locator(CHECKLIST), hasTouch);
     const sheet = page.getByTestId('run-checklist');
     await expect(sheet).toBeVisible();
@@ -198,7 +201,7 @@ const ENTRIES = '[data-testid="run-checklist-entry"]';
 const entryOf = (page: Page, heading: string) =>
   page.locator(ENTRIES).filter({ hasText: heading }).first();
 
-test('@hooks Realistic: CHOOSE CHECKLIST lists the headings of all checklists before the onset, none marked as the right one', async ({
+test('@hooks Realistic: SHOW CHECKLIST lists the headings of all checklists before the onset, none marked as the right one', async ({
   page,
   hasTouch,
   browserName,
@@ -210,9 +213,11 @@ test('@hooks Realistic: CHOOSE CHECKLIST lists the headings of all checklists be
   await page.goto('./');
   await expect(page.getByTestId('panel')).toBeVisible();
   await startRealistic(page, hasTouch, ENGINE_ROW);
+  // The same static label on every level (owner decision 2026-11-02); there is no CHOOSE CHECKLIST button.
   await expect(page.locator('[data-session-button="session.checklist"]')).toContainText(
-    'CHOOSE CHECKLIST',
+    'SHOW CHECKLIST',
   );
+  await expect(page.getByText('CHOOSE CHECKLIST')).toHaveCount(0);
 
   await activate(page.locator(CHECKLIST), hasTouch);
   await expect(page.getByTestId('run-checklist-list')).toBeVisible();
@@ -262,8 +267,11 @@ test('@hooks Realistic: the own checklist is marked after the onset, a foreign o
   await activate(page.getByTestId('run-checklist-hide'), hasTouch);
   await activate(page.locator('[data-detent="lv.power:p50"]'), hasTouch);
   await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p50');
-  // The press reopens the chosen checklist, not the list.
+  // The press reopens the chosen checklist, not the list, and the label has not changed.
   await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(page.locator('[data-session-button="session.checklist"]')).toContainText(
+    'SHOW CHECKLIST',
+  );
   const done = page.locator('[data-testid="sheet-step"][data-verdict="Done"]');
   await expect(done).toHaveCount(1);
   await expect(done).toHaveAttribute('data-step-id', first.id);

@@ -59,7 +59,7 @@ export const SESSION_LAYOUT = {
     maxRows: CHOOSE_ROW_TOPS.length,
   },
   /**
-   * Run view (Phase 7, R-06), drawn while a run is live: CHECKLIST (CHOOSE CHECKLIST on Realistic) on
+   * Run view (Phase 7, R-06), drawn while a run is live: SHOW CHECKLIST (the same label on every level) on
    * top, HINT below it (Realistic only) and a small LEAVE at the bottom right, the way out of the run through the leave-run confirm. NEW
    * SITUATION, CHOOSE SITUATION and RESET are not drawn during a run.
    */

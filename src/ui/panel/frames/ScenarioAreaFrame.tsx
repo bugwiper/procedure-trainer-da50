@@ -7,8 +7,9 @@ import type { FrameProps } from './MfdFrame';
 /**
  * The session area in the co-pilot legroom (D-14, region scenario_area). Main view (the free panel,
  * 07-04 R-06): NEW SITUATION, CHOOSE SITUATION and RESET at their SESSION_LAYOUT rectangles. Run view
- * (state running): only what the run needs, at the SESSION_LAYOUT.run rectangles: CHECKLIST (CHOOSE
- * CHECKLIST on Realistic, fixed by the level when the run starts; the pressed rim while the sheet is
+ * (state running): only what the run needs, at the SESSION_LAYOUT.run rectangles: SHOW CHECKLIST (the
+ * same static label on every level; on Realistic the first press opens the list of checklists to
+ * choose from, afterwards the button shows or hides the chosen one; the pressed rim while the sheet is
  * shown), HINT (Realistic only; the pressed rim while the box is shown) and LEAVE, which asks through
  * the leave-run confirm. NEW
  * SITUATION, CHOOSE SITUATION and RESET are not drawn during a run. Choose view (state choosing):
@@ -97,7 +98,6 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
 
   if (running) {
     const { run } = SESSION_LAYOUT;
-    // The label is fixed by the level when the run starts (G-0): it never follows a control state.
     const realistic = session.level.value === 'realistic';
     return (
       <g data-session-area data-session-view="run">
@@ -105,9 +105,11 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
           key="session.checklist"
           id="session.checklist"
           rect={run.checklist}
-          label={realistic ? 'CHOOSE CHECKLIST' : 'CHECKLIST'}
+          label="SHOW CHECKLIST"
           ariaLabel={
-            realistic ? 'Choose a checklist: show or hide the list' : 'Show or hide the checklist'
+            realistic
+              ? 'Show or hide the checklist; the first press lists the checklists to choose from'
+              : 'Show or hide the checklist'
           }
           held={session.checklistShown.value}
           onActivate={() => {
