@@ -7,6 +7,8 @@ import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
 import {
   chooseScenario,
   quantityOf,
+  firstShownGroup,
+  scenariosOfGroup,
   shippedScenarios,
   startRealistic,
   startScenario,
@@ -153,8 +155,8 @@ test('@hooks CHOOSE SITUATION lists the allowed scenarios and a row opens its br
   await expect(page.locator(CHOOSE_SITUATION)).toHaveCount(0);
   await expect(page.locator(NEW_SITUATION)).toHaveCount(0);
   const rows = page.locator('[data-session-hit^="session.row."]');
-  // The list holds one page of situations (plan 05.1-01); the pages are checked in pack.spec.ts.
-  const shipped = shippedScenarios().slice(0, SESSION_LAYOUT.choose.maxRows);
+  // The list holds one page of the first tab that has a situation (plan 07-06); the tabs and pages are checked in pack.spec.ts.
+  const shipped = scenariosOfGroup(firstShownGroup()).slice(0, SESSION_LAYOUT.choose.maxRows);
   await expect(rows).toHaveCount(shipped.length);
   for (const entry of shipped) {
     const row = page.getByRole('button', { name: `Open briefing: ${entry.title}` });

@@ -8,6 +8,8 @@
 
 import { DA50RG_ENV } from '../aircraft/da50rg/aircraft';
 import type { AircraftEnv } from '../engine/env';
+import { checkCatalog } from './catalog-check';
+import type { ShippedScenario } from './catalog-check';
 import { checkScenario } from './lint';
 import { parseManifest } from './parse';
 import type { ScenarioIssue } from './parse';
@@ -41,8 +43,15 @@ export const formatIssue = (issue: ValidationIssue): string =>
 const display = (issue: ScenarioIssue): string =>
   issue.path === '(root)' ? issue.message : `${issue.path}: ${issue.message}`;
 
-function validatePack(pack: PackInput, env: AircraftEnv): ValidationIssue[] {
+interface PackResult {
+  readonly issues: ValidationIssue[];
+  /** The manifest entries whose file exists, for the catalog cross-check (L29, L30). */
+  readonly shipped: ShippedScenario[];
+}
+
+function validatePack(pack: PackInput, env: AircraftEnv): PackResult {
   const out: ValidationIssue[] = [];
+  const shipped: ShippedScenario[] = [];
   const manifestFile = `${pack.dir}/pack.toon`;
   const fileOf = (name: string): string => `${pack.dir}/${name}.toon`;
   const push = (file: string, line: number, col: number, message: string): void => {
@@ -66,7 +75,16 @@ function validatePack(pack: PackInput, env: AircraftEnv): ValidationIssue[] {
     manifestIndex === undefined ? { line: 1, col: 1 } : locate(manifestIndex, segments);
 
   // Each scenario file: schema, registry and lint; keep the ones that pass.
-  const checked = new Map<string, { id: string; title: string; idAt: ReturnType<typeof locate> }>();
+  const checked = new Map<
+    string,
+    {
+      id: string;
+      title: string;
+      idAt: ReturnType<typeof locate>;
+      heading: string;
+      headingAt: ReturnType<typeof locate>;
+    }
+  >();
   for (const file of pack.files) {
     const result = checkScenario(file.text, env);
     if (!result.ok) {
@@ -74,14 +92,18 @@ function validatePack(pack: PackInput, env: AircraftEnv): ValidationIssue[] {
         push(fileOf(file.name), issue.line, issue.col, display(issue));
       continue;
     }
+    const index = indexToon(file.text);
+    const heading = result.scenario.checklist?.heading;
     checked.set(file.name, {
       id: result.scenario.id,
       title: result.scenario.title,
-      idAt: locate(indexToon(file.text), ['id']),
+      idAt: locate(index, ['id']),
+      heading: heading ?? result.scenario.title,
+      headingAt: locate(index, heading === undefined ? ['title'] : ['checklist', 'heading']),
     });
   }
 
-  if (manifest === undefined) return out;
+  if (manifest === undefined) return { issues: out, shipped };
 
   // L9: the manifest and the folder describe the same scenarios.
   const listed = new Set<string>();
@@ -104,6 +126,14 @@ function validatePack(pack: PackInput, env: AircraftEnv): ValidationIssue[] {
       return;
     }
     const scenario = checked.get(entry.file);
+    shipped.push({
+      pack: pack.id,
+      id: entry.id,
+      heading: scenario?.heading ?? null,
+      file: fileOf(entry.file),
+      line: scenario?.headingAt.line ?? 1,
+      col: scenario?.headingAt.col ?? 1,
+    });
     if (scenario === undefined) return; // its own problems are reported above
     if (scenario.id !== entry.id) {
       push(
@@ -127,20 +157,25 @@ function validatePack(pack: PackInput, env: AircraftEnv): ValidationIssue[] {
       push(fileOf(file.name), 1, 1, `scenario file is not listed in ${manifestFile}`);
     }
   }
-  return out;
+  return { issues: out, shipped };
 }
 
 export function validateAll(
   packs: readonly PackInput[],
   env: AircraftEnv = DA50RG_ENV,
 ): ValidationIssue[] {
-  return packs
-    .flatMap((pack) => validatePack(pack, env))
-    .sort(
-      (a, b) =>
-        a.file.localeCompare(b.file) ||
-        a.line - b.line ||
-        a.col - b.col ||
-        a.message.localeCompare(b.message),
-    );
+  const results = packs.map((pack) => validatePack(pack, env));
+  // L29 and L30: the checklist catalog against the scenarios of every pack that was checked.
+  const catalog = checkCatalog(
+    env,
+    results.flatMap((r) => r.shipped),
+    new Set(packs.map((p) => p.id)),
+  );
+  return [...results.flatMap((r) => r.issues), ...catalog].sort(
+    (a, b) =>
+      a.file.localeCompare(b.file) ||
+      a.line - b.line ||
+      a.col - b.col ||
+      a.message.localeCompare(b.message),
+  );
 }

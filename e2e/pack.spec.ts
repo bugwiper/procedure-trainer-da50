@@ -1,7 +1,15 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { SESSION_LAYOUT, pageCount } from '../src/ui/panel/session-area';
-import { forceVariant, pickFurther, shippedScenarios, startScenario } from './support/session';
+import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
+import { CATALOG_REFERENCE } from '../tests/checklist-catalog-reference';
+import {
+  forceVariant,
+  pickFurther,
+  scenariosOfGroup,
+  shippedScenarios,
+  startScenario,
+  walkGroupPages,
+} from './support/session';
 import { activate, activateAt, afterPairWindow, leaveZoom, zoomIntoRegion } from './support/zoom';
 
 // CNT-01 (phase 03): the shipped pack as the pilot meets it on the built panel. CHOOSE SITUATION
@@ -19,32 +27,38 @@ test.beforeEach(async ({ page }) => {
 
 const control = (page: Page, id: string) => page.locator(`[data-control-id="${id}"]`);
 
-test('@hooks CHOOSE SITUATION lists every shipped scenario, page by page', async ({
+test('@hooks CHOOSE SITUATION lists every shipped scenario, tab by tab and page by page', async ({
   page,
   hasTouch,
 }) => {
   const shipped = shippedScenarios();
   expect(shipped.length).toBeGreaterThan(1);
-  const pages = pageCount(shipped.length);
 
   await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
   await page.waitForTimeout(SHIELD_WAIT_MS);
-  const rows = page.locator('[data-session-hit^="session.row."]');
-  for (let turned = 0; turned < pages; turned++) {
-    const first = turned * SESSION_LAYOUT.choose.maxRows;
-    const onPage = shipped.slice(first, first + SESSION_LAYOUT.choose.maxRows);
-    await expect(rows).toHaveCount(onPage.length);
-    for (const [i, scenario] of onPage.entries()) {
-      await expect(rows.nth(i)).toHaveAttribute('data-session-hit', `session.row.${scenario.row}`);
-      await expect(
-        page.getByRole('button', { name: `Open briefing: ${scenario.title}` }),
-      ).toHaveText(scenario.title);
-    }
-    if (pages > 1) {
-      await afterPairWindow(page);
-      await activate(page.locator('[data-session-hit="session.next"]'), hasTouch);
-    }
+  // One tab per catalog group of the independent reference, each with its static label.
+  for (const group of CATALOG_REFERENCE) {
+    await expect(page.locator(`[data-session-button="session.tab.${group.id}"]`)).toContainText(
+      group.tab,
+    );
+    await expect(page.getByRole('button', { name: group.heading, exact: true })).toHaveCount(1);
   }
+  const seen: string[] = [];
+  for (const group of CATALOG_REFERENCE) {
+    const expected = scenariosOfGroup(group.id);
+    const pages = await walkGroupPages(page, hasTouch, group.id);
+    for (const [turned, onScreen] of pages.entries()) {
+      const first = turned * SESSION_LAYOUT.choose.maxRows;
+      const onPage = expected.slice(first, first + SESSION_LAYOUT.choose.maxRows);
+      expect(onScreen.rows, `${group.id} page ${String(turned + 1)}`).toEqual(
+        onPage.map((e) => e.row),
+      );
+      expect(onScreen.titles).toEqual(onPage.map((e) => e.title));
+    }
+    seen.push(...pages.flatMap((onScreen) => onScreen.rows));
+  }
+  // Every shipped scenario stands on exactly one page of exactly one tab, in the listing order.
+  expect(seen).toEqual(shipped.map((entry) => entry.row));
 });
 
 test('@hooks ALTN 1 FAIL: the golden run grades PASS', async ({ page, hasTouch }) => {

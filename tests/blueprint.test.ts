@@ -82,6 +82,10 @@ const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {
   'further debrief note': DA50RG_ENV.further.options.flatMap((option) =>
     option.debriefNote === undefined ? [] : [option.debriefNote],
   ),
+  // Plan 07-06: the checklist catalog (printed headings, tab labels and tags) is aircraft data too.
+  'catalog heading': DA50RG_ENV.catalog.groups.map((group) => group.heading),
+  'catalog tab label': DA50RG_ENV.catalog.groups.map((group) => group.tab),
+  'catalog tag': unique(DA50RG_ENV.catalog.groups.flatMap((g) => g.entries.map((e) => e.tag))),
   'CAS id': CAS_IDS,
   'CAS message': CAS_IDS.flatMap((id) => {
     const text = DA50RG_CAS.get(id)?.text;

@@ -13,9 +13,10 @@ import type { FrameProps } from './MfdFrame';
  * shown), HINT (Realistic only; the pressed rim while the box is shown) and LEAVE, which asks through
  * the leave-run confirm. NEW
  * SITUATION, CHOOSE SITUATION and RESET are not drawn during a run. Choose view (state choosing):
- * CLOSE LIST and one page of up to four rows, one per scenario of an allowed pack, titled from the
- * pack manifest; NEXT PAGE beside CLOSE LIST only when there are more rows than one page holds, and
- * it wraps to the first page (Phase 5.1). Trainer content, not an aircraft control: it is drawn only
+ * CLOSE LIST, one tab per catalog group (plan 07-06, R-18) and one page of up to three rows, one per
+ * scenario of an allowed pack in the selected group, titled from the pack manifest; NEXT PAGE beside
+ * CLOSE LIST only when the group has more rows than one page holds, and it wraps to the first page
+ * of the group (Phase 5.1). Trainer content, not an aircraft control: it is drawn only
  * when a session is passed, and nothing here touches the store. The text follows the session state,
  * never a control state (U-06).
  *
@@ -43,9 +44,11 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
   };
 
   if (choosing) {
-    const { close, next: nextRect, rows } = SESSION_LAYOUT.choose;
+    const { close, next: nextRect, rows, tabs } = SESSION_LAYOUT.choose;
     const ignoreUntil = shownAt.current + INPUT_SHIELD_MS;
-    const choices = session.choices.value;
+    // The rows of the selected group (tab), in catalog order (R-18).
+    const choices = session.groupChoices.value;
+    const group = session.chooseGroup.value;
     const pages = pageCount(choices.length);
     return (
       <g data-session-area data-session-view="choose">
@@ -73,6 +76,25 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
             })}
           />
         ) : null}
+        {session.catalog.groups.map((entry, index) => {
+          const rect = tabs[index];
+          if (rect === undefined) return null;
+          const id = `session.tab.${entry.id}`;
+          return (
+            <SessionButton
+              key={id}
+              id={id}
+              rect={rect}
+              label={entry.tab}
+              ariaLabel={entry.heading}
+              selected={group === entry.id}
+              ignoreUntil={ignoreUntil}
+              onActivate={idle(() => {
+                session.chooseTab(entry.id);
+              })}
+            />
+          );
+        })}
         {pageSlice(choices, session.choosePage.value).map((choice, index) => {
           const rect = rows[index];
           if (rect === undefined) return null;

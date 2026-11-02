@@ -27,6 +27,7 @@
 
 import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
+import type { CatalogSet } from '../engine/catalog';
 import type { VirtualClock } from '../engine/clock';
 import type { AircraftEnv } from '../engine/env';
 import { branchStatuses, grade } from '../engine/grading';
@@ -179,9 +180,15 @@ export interface Session {
   readonly confirm: ReadonlySignal<PendingAction | null>;
   /** True when a listing found no allowed scenario (the "No situations available" message). */
   readonly empty: ReadonlySignal<boolean>;
-  /** The entries the choose view lists, in manifest order; filled by openChooser. */
+  /** The checklist catalog of the aircraft: the groups of the choose view and of the checklist list. */
+  readonly catalog: CatalogSet;
+  /** The entries the choose view lists, in catalog order (R-16, R-18); filled by openChooser. */
   readonly choices: ReadonlySignal<readonly Choice[]>;
-  /** The page (0-based) of the choose view; 0 whenever the chooser opens or closes. */
+  /** The id of the catalog group (tab) the choose view shows; the first group that has a situation when the chooser opens. */
+  readonly chooseGroup: ReadonlySignal<string>;
+  /** The choices of the selected group, in catalog order; a scenario the catalog does not know is in the last group. */
+  readonly groupChoices: ReadonlySignal<readonly Choice[]>;
+  /** The page (0-based) of the selected group in the choose view; 0 whenever the chooser opens, closes or the tab changes. */
   readonly choosePage: ReadonlySignal<number>;
   /** The session-hit id of the button that started the current load; null otherwise. */
   readonly busyKey: ReadonlySignal<string | null>;
@@ -261,7 +268,9 @@ export interface Session {
   resetPanel(): void;
   /** Choosing only: back to the free panel. */
   closeChooser(): void;
-  /** Choosing only: the next page of the choose view; after the last page it wraps to the first. */
+  /** Choosing only: shows the group (tab) with this catalog id, from its first page; an unknown id does nothing. */
+  chooseTab(id: string): void;
+  /** Choosing only: the next page of the selected group; after the last page it wraps to the first. */
   nextPage(): void;
   /** Choosing and not busy only: opens the briefing of that entry (`key` names the pressed row). */
   chooseScenario(ref: ScenarioRef, key?: string): Promise<void>;
@@ -401,6 +410,11 @@ export function createSession(deps: SessionDeps): Session {
   const loadFailure = signal<LoadFailure | null>(null);
   const empty = signal(false);
   const choices = signal<readonly Choice[]>([]);
+  const firstGroup = env.catalog.groups[0]?.id ?? '';
+  const chooseGroup = signal(firstGroup);
+  const groupChoices = computed(() =>
+    choices.value.filter((choice) => env.catalog.groupOrLast(choice).id === chooseGroup.value),
+  );
   const choosePage = signal(0);
   const busyKey = signal<string | null>(null);
   const confirm = signal<PendingAction | null>(null);
@@ -437,6 +451,7 @@ export function createSession(deps: SessionDeps): Session {
     decisions.value = [];
     confirm.value = null;
     choices.value = [];
+    chooseGroup.value = firstGroup;
     choosePage.value = 0;
     empty.value = false;
     loadFailure.value = null;
@@ -710,6 +725,8 @@ export function createSession(deps: SessionDeps): Session {
     clearRunHelp();
     runBranches.value = branchStatuses(opened, env);
     decisions.value = [];
+    chooseGroup.value = firstGroup;
+    choosePage.value = 0;
     onset.value = drawn;
     variant.value = cause;
     run.value = current;
@@ -718,7 +735,11 @@ export function createSession(deps: SessionDeps): Session {
     screen.value = 'running';
   };
 
-  /** The scenario entries of every pack the policy allows, in manifest order (titles from the manifests). */
+  /**
+   * The scenario entries of every pack the policy allows, in the catalog order (R-16, R-18: group by
+   * group, entries in the printed order, a scenario the catalog does not know after them in manifest
+   * order), titles from the manifests.
+   */
   const listChoices = async (): Promise<
     { readonly ok: true; readonly choices: Choice[] } | LoadFailure
   > => {
@@ -731,7 +752,7 @@ export function createSession(deps: SessionDeps): Session {
           listed.push({ pack: meta.id, scenario: entry.id, title: entry.title });
         }
       }
-      return { ok: true, choices: listed };
+      return { ok: true, choices: env.catalog.order(listed) };
     } catch (error) {
       return failure('load-failed', error instanceof Error ? error.message : 'unknown error');
     }
@@ -772,6 +793,8 @@ export function createSession(deps: SessionDeps): Session {
     };
     briefing.value = briefed;
     choices.value = [];
+    chooseGroup.value = firstGroup;
+    choosePage.value = 0;
     screen.value = 'briefing';
     if (!keepPicks) {
       levelPicked.value = false;
@@ -818,6 +841,11 @@ export function createSession(deps: SessionDeps): Session {
         return;
       }
       choices.value = listed.choices;
+      // The first group that has a situation is the tab shown first (R-18).
+      chooseGroup.value =
+        env.catalog.groups.find((group) =>
+          listed.choices.some((choice) => env.catalog.groupOrLast(choice).id === group.id),
+        )?.id ?? firstGroup;
       choosePage.value = 0;
       screen.value = 'choosing';
     });
@@ -849,6 +877,8 @@ export function createSession(deps: SessionDeps): Session {
     loadFailure.value = null;
     lastRequest = null;
     choices.value = [];
+    chooseGroup.value = firstGroup;
+    choosePage.value = 0;
     if (screen.peek() === 'choosing') screen.value = 'free';
   };
 
@@ -861,7 +891,10 @@ export function createSession(deps: SessionDeps): Session {
     busy,
     loadFailure,
     empty,
+    catalog: env.catalog,
     choices,
+    chooseGroup,
+    groupChoices,
     choosePage,
     busyKey,
     confirm,
@@ -911,12 +944,19 @@ export function createSession(deps: SessionDeps): Session {
     closeChooser() {
       if (screen.peek() !== 'choosing' || busy.peek()) return;
       choices.value = [];
+      chooseGroup.value = firstGroup;
       choosePage.value = 0;
       screen.value = 'free';
     },
+    chooseTab(id) {
+      if (screen.peek() !== 'choosing' || busy.peek()) return;
+      if (!env.catalog.groups.some((group) => group.id === id)) return;
+      chooseGroup.value = id;
+      choosePage.value = 0;
+    },
     nextPage() {
       if (screen.peek() !== 'choosing' || busy.peek()) return;
-      choosePage.value = (choosePage.peek() + 1) % pageCount(choices.peek().length);
+      choosePage.value = (choosePage.peek() + 1) % pageCount(groupChoices.peek().length);
     },
     async chooseScenario(ref, key = `session.row.${ref.pack}.${ref.scenario}`) {
       if (screen.peek() !== 'choosing' || busy.peek()) return;

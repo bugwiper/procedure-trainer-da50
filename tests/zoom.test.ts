@@ -964,19 +964,24 @@ describe('HTML chrome type scale (UI-SPEC Typography)', () => {
 describe('session area zoom (plan 02-10)', () => {
   const REGION: Rect = { x: 1300, y: 780, w: 440, h: 480 };
   /**
-   * New, choose, reset, close, next and the four choose rows, then the four buttons of the run view
-   * (checklist, hint, leave), as global rectangles (Phase 5.1: the region is 440 wide, the
+   * New, choose, reset, close, next, the three tabs and the three choose rows, then the three buttons of
+   * the run view (checklist, hint, leave), as global rectangles (Phase 5.1: the region is 440 wide, the
    * choose buttons 370, CLOSE LIST and NEXT PAGE 177 each with 16 between them; Phase 7 plan 07-04: the
    * three free-panel buttons are 280 wide at local x 80; the run view has rows of 80 at 20 and 116
-   * and LEAVE, 177 x 80, at local x 228, y 392).
+   * and LEAVE, 177 x 80, at local x 228, y 392; plan 07-06 R-18: the choose view has a tab row of
+   * three tabs, (370 minus two gaps of 10) / 3 wide, 80 high at local y 110, and three rows at 200,
+   * 290 and 380).
    */
+  const TAB_W = (370 - 2 * 10) / 3;
   const SESSION_TARGETS: readonly Rect[] = [
     { x: 1380, y: 800, w: 280, h: 120 },
     { x: 1380, y: 940, w: 280, h: 120 },
     { x: 1380, y: 1080, w: 280, h: 120 },
     { x: 1335, y: 800, w: 177, h: 80 },
     { x: 1528, y: 800, w: 177, h: 80 },
-    { x: 1335, y: 890, w: 370, h: 80 },
+    { x: 1335, y: 890, w: TAB_W, h: 80 },
+    { x: 1335 + TAB_W + 10, y: 890, w: TAB_W, h: 80 },
+    { x: 1335 + 2 * (TAB_W + 10), y: 890, w: TAB_W, h: 80 },
     { x: 1335, y: 980, w: 370, h: 80 },
     { x: 1335, y: 1070, w: 370, h: 80 },
     { x: 1335, y: 1160, w: 370, h: 80 },
@@ -991,7 +996,10 @@ describe('session area zoom (plan 02-10)', () => {
   ] as const;
 
   it('sessionFootprints returns the reference rectangles of every view', () => {
-    expect(sessionFootprints(REGION)).toEqual(SESSION_TARGETS);
+    // The tab rectangles are thirds of 350: compare to a millionth of a unit.
+    const round = (rects: readonly Rect[]) =>
+      rects.map((r) => [r.x, r.y, r.w, r.h].map((n) => Math.round(n * 1e6) / 1e6));
+    expect(round(sessionFootprints(REGION))).toEqual(round(SESSION_TARGETS));
   });
 
   it('the registry region has the reference bounds', () => {

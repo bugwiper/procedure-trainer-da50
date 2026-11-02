@@ -1,7 +1,15 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { SESSION_LAYOUT, pageCount } from '../src/ui/panel/session-area';
-import { startScenario, shippedScenarios, pickFurther } from './support/session';
+import { SESSION_LAYOUT } from '../src/ui/panel/session-area';
+import {
+  firstShownGroup,
+  pickFurther,
+  pressChooseTab,
+  scenariosOfGroup,
+  shippedScenarios,
+  startScenario,
+  walkGroupPages,
+} from './support/session';
 import { activate, activateAt, afterPairWindow, leaveZoom, zoomIntoRegion } from './support/zoom';
 
 // The fire and smoke pack (Phase 5.1, plan 02) as the pilot meets it on the built panel: the
@@ -84,34 +92,24 @@ test('@hooks Engine Fire on Ground without the door lever grades FAIL', async ({
   );
 });
 
-test('the fire situations stand on the pages of CHOOSE SITUATION after the four of page 1', async ({
+test('the fire situations stand in the EMERGENCY tab of CHOOSE SITUATION, after the engine fire in flight', async ({
   page,
   hasTouch,
 }) => {
   const fire = shippedScenarios().filter((entry) => entry.pack === 'fire');
   expect(fire.length).toBeGreaterThan(0);
-  const all = shippedScenarios();
-  const rows = SESSION_LAYOUT.choose.maxRows;
+  const tab = fire[0]?.group;
+  if (tab === undefined) throw new Error('no fire scenario');
+  // The group of every fire scenario comes from the independent reference.
+  for (const entry of fire) expect(entry.group).toBe(tab);
   await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
   await page.waitForTimeout(500);
-  const listed = page.locator('[data-session-hit^="session.row."]');
-  for (let turned = 0; turned < pageCount(all.length); turned++) {
-    const onPage = all.slice(turned * rows, turned * rows + rows);
-    await expect(listed).toHaveCount(onPage.length);
-    for (const entry of onPage) {
-      await expect(page.locator(`[data-session-hit="session.row.${entry.row}"]`)).toHaveCount(1);
-    }
-    // A fire situation never shares page 1 with the four earlier situations.
-    if (turned === 0) {
-      for (const entry of fire) {
-        expect(onPage.some((e) => e.row === entry.row)).toBe(all.length <= rows);
-      }
-    }
-    if (pageCount(all.length) > 1) {
-      await afterPairWindow(page);
-      await activate(page.locator('[data-session-hit="session.next"]'), hasTouch);
-    }
-  }
+  const walked = await walkGroupPages(page, hasTouch, tab);
+  const rows = walked.flatMap((onScreen) => onScreen.rows);
+  expect(rows).toEqual(scenariosOfGroup(tab).map((entry) => entry.row));
+  // Every fire situation is listed, none of them on the first tab that has a situation.
+  for (const entry of fire) expect(rows).toContain(entry.row);
+  expect(tab).not.toBe(firstShownGroup());
 });
 
 // Electric Fire / Smoke on Ground: smoke over the panel from the start with the engine running,
@@ -370,22 +368,25 @@ test('@hooks Electrical Fire in Flight: the optional door is credited when it op
   );
 });
 
-test('the ninth situation, Electrical Fire in Flight, stands on page 3 of CHOOSE SITUATION', async ({
+test('Electrical Fire in Flight stands on a later page of the EMERGENCY tab of CHOOSE SITUATION', async ({
   page,
   hasTouch,
 }) => {
-  const all = shippedScenarios();
+  const flight = shippedScenarios().find((entry) => entry.row === FLIGHT_ROW);
+  if (flight === undefined) throw new Error('the flight situation is not shipped');
+  const group = scenariosOfGroup(flight.group);
   const rows = SESSION_LAYOUT.choose.maxRows;
-  const index = all.findIndex((entry) => entry.row === FLIGHT_ROW);
+  const index = group.findIndex((entry) => entry.row === FLIGHT_ROW);
   expect(index).toBeGreaterThanOrEqual(0);
   const pageOfRow = Math.floor(index / rows);
   await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
   await page.waitForTimeout(500);
+  await pressChooseTab(page, hasTouch, flight.group);
   for (let turned = 0; turned < pageOfRow; turned++) {
     await expect(page.locator(`[data-session-hit="session.row.${FLIGHT_ROW}"]`)).toHaveCount(0);
-    await afterPairWindow(page);
     await activate(page.locator('[data-session-hit="session.next"]'), hasTouch);
+    await afterPairWindow(page);
   }
   await expect(page.locator(`[data-session-hit="session.row.${FLIGHT_ROW}"]`)).toHaveCount(1);
-  expect(pageOfRow).toBe(2);
+  expect(pageOfRow).toBeGreaterThan(0);
 });

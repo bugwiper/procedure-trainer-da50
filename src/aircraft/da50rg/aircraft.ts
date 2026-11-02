@@ -1,5 +1,6 @@
 import type { AircraftEnv } from '../../engine/env';
 import { DA50RG_CAS } from './cas';
+import { DA50RG_CATALOG } from './checklist-catalog';
 import { DA50RG_CUES } from './cues';
 import { DA50RG_FURTHER } from './further';
 import { DA50RG } from './panel';
@@ -7,7 +8,7 @@ import { DA50RG_PHYSICS } from './physics';
 import { DA50RG_QUANTITIES } from './quantities';
 import { DA50RG_SCENES } from './scenes';
 
-/** The DA50 RG as scenarios see it: control registry, named quantities, CAS rules, physics, cues, scenes and further actions. */
+/** The DA50 RG as scenarios see it: control registry, named quantities, CAS rules, physics, cues, scenes, further actions and the checklist catalog. */
 export const DA50RG_ENV: AircraftEnv = Object.freeze({
   registry: DA50RG,
   quantities: DA50RG_QUANTITIES,
@@ -16,4 +17,5 @@ export const DA50RG_ENV: AircraftEnv = Object.freeze({
   cues: DA50RG_CUES,
   scenes: DA50RG_SCENES,
   further: DA50RG_FURTHER,
+  catalog: DA50RG_CATALOG,
 });

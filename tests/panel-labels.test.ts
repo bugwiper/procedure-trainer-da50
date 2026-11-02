@@ -11,6 +11,7 @@ import {
   PFD_LEGENDS,
   type UnitElement,
 } from '../src/aircraft/da50rg/avionics';
+import { DA50RG_CATALOG } from '../src/aircraft/da50rg/checklist-catalog';
 import { DA50RG_INDICATORS } from '../src/aircraft/da50rg/indicators';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
 
@@ -369,5 +370,13 @@ describe('panel label table: round 2 rows (plan 31)', () => {
     expect(line).toMatch(/Default taken:/);
     expect(line).toMatch(/AUTO/);
     expect(line).toMatch(/FORCE B/);
+  });
+});
+
+describe('panel label table: the choose tabs (plan 07-06, R-16, R-18)', () => {
+  it('lists the tab label of every catalog group of the aircraft', () => {
+    for (const group of DA50RG_CATALOG.groups) {
+      expect(doc, group.tab).toContain(`| \`session.tab.${group.id}\` | ${group.tab} `);
+    }
   });
 });

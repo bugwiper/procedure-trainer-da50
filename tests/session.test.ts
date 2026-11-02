@@ -19,6 +19,7 @@ import { createPanelBridge } from '../src/ui/bridge';
 import { checklistHead } from '../src/ui/outline';
 import { anyModalOpen } from '../src/ui/modals';
 import { SESSION_LAYOUT, pageCount, pageSlice } from '../src/ui/panel/session-area';
+import { CATALOG_REFERENCE } from './checklist-catalog-reference';
 import { reasonLines } from '../src/ui/debrief-text';
 import { attachClockDriver } from '../src/ui/clock-driver';
 import {
@@ -716,8 +717,9 @@ ${NINE.map((id) => `  - id: ${id}\n    title: SITUATION ${id}\n    file: ${id}`)
       ),
     });
   const rows = SESSION_LAYOUT.choose.maxRows;
+  // A scenario the catalog does not know stands in the last group, which is the group these cases use.
   const onPage = (r: Rig): string[] =>
-    pageSlice(r.session.choices.value, r.session.choosePage.value).map((c) => c.scenario);
+    pageSlice(r.session.groupChoices.value, r.session.choosePage.value).map((c) => c.scenario);
 
   it('lists every situation on exactly one page and at most maxRows on a page', async () => {
     const r = nineRig();
@@ -764,7 +766,7 @@ ${NINE.map((id) => `  - id: ${id}\n    title: SITUATION ${id}\n    file: ${id}`)
     const r = nineRig();
     await r.session.openChooser();
     r.session.nextPage();
-    const choice = pageSlice(r.session.choices.value, r.session.choosePage.value)[0];
+    const choice = pageSlice(r.session.groupChoices.value, r.session.choosePage.value)[0];
     expect(choice?.scenario).toBe(NINE[rows]);
     if (choice !== undefined) await r.session.chooseScenario(choice);
     expect(r.session.screen.value).toBe('briefing');
@@ -775,7 +777,7 @@ ${NINE.map((id) => `  - id: ${id}\n    title: SITUATION ${id}\n    file: ${id}`)
     r.session.nextPage();
     expect(r.session.choosePage.value).toBe(0);
     await r.session.openChooser();
-    expect(pageCount(r.session.choices.value.length)).toBe(1);
+    expect(pageCount(r.session.groupChoices.value.length)).toBe(1);
     r.session.nextPage();
     expect(r.session.choosePage.value).toBe(0);
   });
@@ -786,6 +788,151 @@ ${NINE.map((id) => `  - id: ${id}\n    title: SITUATION ${id}\n    file: ${id}`)
     expect(pageCount(rows + 1)).toBe(2);
     expect(pageSlice([], 0)).toEqual([]);
     expect(pageSlice([1, 2, 3], 5)).toEqual([]);
+  });
+});
+
+describe('choose tabs (plan 07-06, R-16, R-18)', () => {
+  const textOf = (id: string): string => BLUEPRINT.replace('id: eng-oil-temp-green', `id: ${id}`);
+  const manifest = (title: string, ids: readonly string[]): string =>
+    `format: 1
+title: ${title}
+free: true
+scenarios[${String(ids.length)}]:
+${ids.map((id) => `  - id: ${id}\n    title: ${id.slice(0, 18)}\n    file: ${id}`).join('\n')}
+`;
+  // Known to the catalog: ENG OIL TEMP (warnings), ALTN 1 FAIL (cautions), ENGINE FIRE IN FLIGHT
+  // (emergency). The three stray ones are not in the catalog and stand in the last group.
+  const STRAYS = ['stray-a', 'stray-b', 'stray-c'];
+  const MANIFESTS = {
+    '/scenarios/engine/pack.toon': manifest('Engine', [
+      'eng-oil-temp-green',
+      'eng-fire-in-flight',
+      ...STRAYS,
+    ]),
+    '/scenarios/electrical/pack.toon': manifest('Electrical', ['elec-altn1-fail']),
+  };
+  const files: [string, string][] = [
+    ['engine', 'eng-oil-temp-green'],
+    ['engine', 'eng-fire-in-flight'],
+    ...STRAYS.map((id): [string, string] => ['engine', id]),
+    ['electrical', 'elec-altn1-fail'],
+  ];
+  function tabRig(policy: AccessPolicy = OPEN_ACCESS): Rig {
+    const loaders: Record<string, () => Promise<string>> = {};
+    for (const [pack, id] of files) {
+      loaders[`/scenarios/${pack}/${id}.toon`] = () => Promise.resolve(textOf(id));
+    }
+    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
+    const session = createSession({
+      bridge,
+      packs: { provider: createPackProvider({ manifests: MANIFESTS, loaders }), policy },
+      env: DA50RG_ENV,
+      rng: () => 0,
+      onRunStart: () => undefined,
+    });
+    return { session, bridge, onRunStart: vi.fn(), loads: [], setListBroken: () => undefined };
+  }
+  const groupIds = DA50RG_ENV.catalog.groups.map((g) => g.id);
+  const scenariosOf = (r: Rig): string[] => r.session.groupChoices.value.map((c) => c.scenario);
+
+  it('lists the choices in the catalog order, unknown scenarios last', async () => {
+    const r = tabRig();
+    await r.session.openChooser();
+    expect(r.session.choices.value.map((c) => c.scenario)).toEqual([
+      'eng-oil-temp-green',
+      'elec-altn1-fail',
+      'eng-fire-in-flight',
+      ...STRAYS,
+    ]);
+  });
+
+  it('opens on the first group that has a situation and shows only that group', async () => {
+    const r = tabRig();
+    await r.session.openChooser();
+    expect(r.session.chooseGroup.value).toBe(groupIds[0]);
+    expect(scenariosOf(r)).toEqual(['eng-oil-temp-green']);
+    // Without the engine pack the first group is empty, so the cautions open.
+    const cautions = tabRig({ canAccess: (pack) => pack !== 'engine' });
+    await cautions.session.openChooser();
+    expect(cautions.session.chooseGroup.value).toBe(groupIds[1]);
+    expect(scenariosOf(cautions)).toEqual(['elec-altn1-fail']);
+  });
+
+  it('puts every choice in exactly one group, a scenario the catalog does not know in the last', async () => {
+    const r = tabRig();
+    await r.session.openChooser();
+    const seen: string[] = [];
+    for (const id of groupIds) {
+      r.session.chooseTab(id);
+      expect(r.session.chooseGroup.value).toBe(id);
+      seen.push(...scenariosOf(r));
+    }
+    expect([...seen].sort()).toEqual(r.session.choices.value.map((c) => c.scenario).sort());
+    r.session.chooseTab(groupIds[groupIds.length - 1] ?? '');
+    expect(scenariosOf(r)).toEqual(['eng-fire-in-flight', ...STRAYS]);
+  });
+
+  it('a tab change shows page 1; an unknown id and a press outside the list do nothing', async () => {
+    const r = tabRig();
+    r.session.chooseTab(groupIds[1] ?? '');
+    expect(r.session.chooseGroup.value).toBe(groupIds[0]);
+    await r.session.openChooser();
+    r.session.chooseTab(groupIds[groupIds.length - 1] ?? '');
+    r.session.nextPage();
+    expect(r.session.choosePage.value).toBe(1);
+    r.session.chooseTab(groupIds[1] ?? '');
+    expect(r.session.choosePage.value).toBe(0);
+    r.session.chooseTab('no-such-group');
+    expect(r.session.chooseGroup.value).toBe(groupIds[1]);
+  });
+
+  it('NEXT PAGE wraps inside the selected group, and a group of one page stays on it', async () => {
+    const r = tabRig();
+    await r.session.openChooser();
+    const rows = SESSION_LAYOUT.choose.maxRows;
+    r.session.chooseTab(groupIds[groupIds.length - 1] ?? '');
+    const total = scenariosOf(r).length;
+    expect(total).toBeGreaterThan(rows);
+    const pages = pageCount(total);
+    const seen: string[] = [];
+    for (let page = 0; page < pages; page++) {
+      expect(r.session.choosePage.value).toBe(page);
+      seen.push(...pageSlice(r.session.groupChoices.value, page).map((c) => c.scenario));
+      r.session.nextPage();
+    }
+    expect(r.session.choosePage.value).toBe(0);
+    expect(seen).toEqual(scenariosOf(r));
+    r.session.chooseTab(groupIds[0] ?? '');
+    r.session.nextPage();
+    expect(r.session.choosePage.value).toBe(0);
+  });
+
+  it('resets the tab where the chooser closes, the panel resets and a run starts', async () => {
+    const last = groupIds[groupIds.length - 1] ?? '';
+    const r = tabRig();
+    await r.session.openChooser();
+    r.session.chooseTab(last);
+    r.session.closeChooser();
+    expect(r.session.chooseGroup.value).toBe(groupIds[0]);
+
+    await r.session.openChooser();
+    r.session.chooseTab(last);
+    r.session.resetPanel();
+    expect(r.session.chooseGroup.value).toBe(groupIds[0]);
+
+    await r.session.openChooser();
+    r.session.chooseTab(last);
+    await r.session.chooseScenario({ pack: 'engine', scenario: 'eng-fire-in-flight' });
+    expect(r.session.screen.value).toBe('briefing');
+    expect(r.session.chooseGroup.value).toBe(groupIds[0]);
+    expect(r.session.choosePage.value).toBe(0);
+  });
+
+  it('the pad has as many tab rectangles as the catalog has groups, and one tab label each', () => {
+    expect(SESSION_LAYOUT.choose.tabs).toHaveLength(CATALOG_REFERENCE.length);
+    expect(DA50RG_ENV.catalog.groups.map((g) => g.tab)).toEqual(
+      CATALOG_REFERENCE.map((g) => g.tab),
+    );
   });
 });
 
@@ -1912,10 +2059,14 @@ scenarios[1]:
     file: eng-oil-temp-locked
 `,
   };
-  /** The listing order of the three packs (pack ids by name, then the manifest), as a hand-written table. */
+  /**
+   * The listing order (plan 07-06, R-16): the catalog order of the shipped scenarios (ENG OIL TEMP in
+   * the warnings, ALTN 1 FAIL in the cautions), then the scenarios the catalog does not know, in the
+   * order of the packs by name and the manifests. A hand-written table.
+   */
   const LISTED = [
-    'electrical.elec-altn1-fail',
     'engine.eng-oil-temp-green',
+    'electrical.elec-altn1-fail',
     'engine.eng-oil-temp-copy',
     'locked.eng-oil-temp-locked',
   ];

@@ -12,7 +12,15 @@ import {
 } from './support/zoom';
 import type { Point } from './support/zoom';
 import { SESSION_LAYOUT, pageCount } from '../src/ui/panel/session-area';
-import { startRealistic, startScenario, shippedScenarios } from './support/session';
+import {
+  firstShownGroup,
+  pressChooseTab,
+  scenariosOfGroup,
+  startRealistic,
+  startScenario,
+  walkGroupPages,
+} from './support/session';
+import { CATALOG_REFERENCE } from '../tests/checklist-catalog-reference';
 
 // SES-01 (phase 02, plan 10): the session area in the co-pilot legroom is as safe to use as every
 // other region. Zoomed into it, the Full panel button covers no session button (U-07); a double
@@ -190,39 +198,62 @@ test('@hooks a double tap on CHOOSE SITUATION lists once and picks no row', asyn
   await afterPairWindow(page);
   // The second press fell on a row or CLOSE LIST of the fresh list and was shielded.
   await expect(page.locator('[data-session-hit^="session.row."]')).toHaveCount(
-    Math.min(shippedScenarios().length, SESSION_LAYOUT.choose.maxRows),
+    Math.min(scenariosOfGroup(firstShownGroup()).length, SESSION_LAYOUT.choose.maxRows),
   );
   await expect(dialogs(page)).toHaveCount(0);
   expect(await events(page)).toEqual([]);
 });
 
-test('the list pages when there are more situations than rows, and shows NEXT PAGE only then', async ({
+test('every tab pages when it has more situations than rows, and shows NEXT PAGE only then', async ({
   page,
   hasTouch,
 }) => {
-  const total = shippedScenarios().length;
   const rows = SESSION_LAYOUT.choose.maxRows;
-  const pages = pageCount(total);
   await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
-  const listed = page.locator('[data-session-hit^="session.row."]');
-  await expect(listed).toHaveCount(Math.min(total, rows));
-  const next = page.locator('[data-session-hit="session.next"]');
-  await expect(next).toHaveCount(pages > 1 ? 1 : 0);
-  if (pages === 1) return;
-  const seen: string[] = [];
-  for (let page_ = 0; page_ < pages; page_++) {
-    const ids = await listed.evaluateAll((els) =>
-      els.map((el) => el.getAttribute('data-session-hit') ?? ''),
+  await page.waitForTimeout(500);
+  const sizes = CATALOG_REFERENCE.map((group) => scenariosOfGroup(group.id).length);
+  // The shipped scenarios exercise both cases: a tab of one page and a tab of several.
+  expect(sizes.some((n) => n > rows)).toBe(true);
+  expect(sizes.some((n) => n > 0 && n <= rows)).toBe(true);
+  for (const group of CATALOG_REFERENCE) {
+    const total = scenariosOfGroup(group.id).length;
+    const walked = await walkGroupPages(page, hasTouch, group.id);
+    expect(walked).toHaveLength(pageCount(total));
+    for (const onScreen of walked) expect(onScreen.rows.length).toBeLessThanOrEqual(rows);
+    // Every situation of the tab appears on exactly one page.
+    expect(walked.flatMap((onScreen) => onScreen.rows)).toEqual(
+      scenariosOfGroup(group.id).map((entry) => entry.row),
     );
-    expect(ids.length).toBeLessThanOrEqual(rows);
-    seen.push(...ids);
-    await afterPairWindow(page);
-    await activate(next, hasTouch);
   }
-  // Every situation appears on exactly one page, and the page after the last is the first again.
-  expect(new Set(seen).size).toBe(total);
-  expect(seen).toHaveLength(total);
-  await expect(listed).toHaveCount(Math.min(total, rows));
+});
+
+test('a tab press shows the first page of that tab and marks the tab selected, the others not', async ({
+  page,
+  hasTouch,
+}) => {
+  const rows = SESSION_LAYOUT.choose.maxRows;
+  const paged = CATALOG_REFERENCE.find((group) => scenariosOfGroup(group.id).length > rows);
+  if (paged === undefined) throw new Error('no tab has more than one page');
+  const other = CATALOG_REFERENCE.find((group) => group.id !== paged.id);
+  if (other === undefined) throw new Error('only one tab');
+  await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
+  await page.waitForTimeout(500);
+  await pressChooseTab(page, hasTouch, paged.id);
+  await activate(page.locator('[data-session-hit="session.next"]'), hasTouch);
+  await afterPairWindow(page);
+  const first = scenariosOfGroup(paged.id)[rows];
+  await expect(page.locator(`[data-session-hit="session.row.${first?.row ?? ''}"]`)).toHaveCount(1);
+  // Back to the first page by changing the tab and returning.
+  await pressChooseTab(page, hasTouch, other.id);
+  await pressChooseTab(page, hasTouch, paged.id);
+  const top = scenariosOfGroup(paged.id)[0];
+  await expect(page.locator(`[data-session-hit="session.row.${top?.row ?? ''}"]`)).toHaveCount(1);
+  for (const group of CATALOG_REFERENCE) {
+    await expect(page.locator(`[data-session-button="session.tab.${group.id}"]`)).toHaveAttribute(
+      'aria-pressed',
+      group.id === paged.id ? 'true' : 'false',
+    );
+  }
 });
 
 // RESET returns the panel to its original state: registry defaults, base quantities, no run, no

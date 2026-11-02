@@ -33,8 +33,17 @@ const HALF_W = (BUTTON_W - HALF_GAP) / 2;
 const MAIN_X = 80;
 const MAIN_W = 280;
 
-/** Row tops of the choose view; at most four situations are listed on a page. */
-const CHOOSE_ROW_TOPS = [110, 200, 290, 380] as const;
+/**
+ * The tab row of the choose view (plan 07-06, R-18): one tab per catalog group, 10 units apart, the
+ * three together as wide as a full-width button; it stands below CLOSE LIST and NEXT PAGE.
+ */
+const TAB_COUNT = 3;
+const TAB_GAP = 10;
+const TAB_W = (BUTTON_W - (TAB_COUNT - 1) * TAB_GAP) / TAB_COUNT;
+const TAB_TOP = 110;
+
+/** Row tops of the choose view, below the tabs; at most three situations are listed on a page. */
+const CHOOSE_ROW_TOPS = [200, 290, 380] as const;
 
 export const SESSION_LAYOUT = {
   /** Size of the region in panel units. */
@@ -49,12 +58,19 @@ export const SESSION_LAYOUT = {
     reset: { x: MAIN_X, y: 300, w: MAIN_W, h: 120 },
   },
   /**
-   * Choose view: CLOSE LIST and NEXT PAGE side by side on top (NEXT PAGE only when there are more
-   * situations than rows) and one page of at most four situation rows below them (Phase 5.1).
+   * Choose view: CLOSE LIST and NEXT PAGE side by side on top (NEXT PAGE only when the selected group
+   * has more situations than rows), the tab row of the catalog groups below them and one page of at
+   * most three situation rows of the selected group under the tabs (Phase 5.1, plan 07-06).
    */
   choose: {
     close: { x: BUTTON_X, y: 20, w: HALF_W, h: 80 },
     next: { x: BUTTON_X + HALF_W + HALF_GAP, y: 20, w: HALF_W, h: 80 },
+    tabs: Array.from({ length: TAB_COUNT }, (_, i): LocalRect => ({
+      x: BUTTON_X + i * (TAB_W + TAB_GAP),
+      y: TAB_TOP,
+      w: TAB_W,
+      h: 80,
+    })),
     rows: CHOOSE_ROW_TOPS.map((y): LocalRect => ({ x: BUTTON_X, y, w: BUTTON_W, h: 80 })),
     maxRows: CHOOSE_ROW_TOPS.length,
   },
@@ -77,7 +93,7 @@ export function labelAnchorX(r: LocalRect): number {
   return r.x + r.w / 2;
 }
 
-/** The number of pages of the choose view for `count` situations: at least 1. */
+/** The number of pages of the choose view for `count` situations of one group: at least 1. */
 export function pageCount(count: number): number {
   const rows = SESSION_LAYOUT.choose.maxRows;
   const pages = Math.ceil(count / rows);
@@ -96,7 +112,7 @@ export function labelBaseline(r: LocalRect): number {
 }
 
 /**
- * Global rectangles of every session button of the three views (new, choose, reset, close, next, the choose rows and the run view: checklist, hint, leave),
+ * Global rectangles of every session button of the three views (new, choose, reset, close, next, the choose tabs and rows and the run view: checklist, hint, leave),
  * moved by the origin of the region scenario_area. A conservative superset like controlFootprints:
  * the Full panel corner chooser avoids all of them in every view.
  */
@@ -111,6 +127,7 @@ export function sessionFootprints(regionBounds: {
     main.reset,
     choose.close,
     choose.next,
+    ...choose.tabs,
     ...choose.rows,
     ...Object.values(run),
   ];

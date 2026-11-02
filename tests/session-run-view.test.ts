@@ -23,6 +23,27 @@ const MAIN_REFERENCE: readonly (readonly [string, number, number, number, number
   ['reset', 80, 300, 280, 120],
 ];
 
+/**
+ * The choose view since plan 07-06 (R-18), region-local: CLOSE LIST and NEXT PAGE at y 20, the tab row
+ * below them at y 110 (three tabs, 80 high, 10 apart, together 370 wide) and three situation rows at
+ * y 200, 290 and 380.
+ */
+const TAB_W = (370 - 2 * 10) / 3;
+const CHOOSE_REFERENCE = {
+  close: [35, 20, 177, 80],
+  next: [228, 20, 177, 80],
+  tabs: [
+    [35, 110, TAB_W, 80],
+    [35 + TAB_W + 10, 110, TAB_W, 80],
+    [35 + 2 * (TAB_W + 10), 110, TAB_W, 80],
+  ],
+  rows: [
+    [35, 200, 370, 80],
+    [35, 290, 370, 80],
+    [35, 380, 370, 80],
+  ],
+} as const;
+
 const named = (): readonly (readonly [string, LocalRect])[] => Object.entries(SESSION_LAYOUT.run);
 
 describe('the run view of the session area (07-04, R-06)', () => {
@@ -44,6 +65,32 @@ describe('the run view of the session area (07-04, R-06)', () => {
       expect(r.x + r.w, name).toBeLessThanOrEqual(REGION.w);
       expect(r.x + r.w / 2, `${name} stays centred`).toBe(REGION.w / 2);
     }
+  });
+
+  it('has the choose view of the reference: two buttons on top, three tabs, three rows (07-06, R-18)', () => {
+    const { close, next, tabs, rows, maxRows } = SESSION_LAYOUT.choose;
+    const flat = (r: LocalRect): number[] => [r.x, r.y, r.w, r.h];
+    expect(flat(close)).toEqual(CHOOSE_REFERENCE.close);
+    expect(flat(next)).toEqual(CHOOSE_REFERENCE.next);
+    expect(tabs.map(flat)).toEqual(CHOOSE_REFERENCE.tabs);
+    expect(rows.map(flat)).toEqual(CHOOSE_REFERENCE.rows);
+    expect(maxRows).toBe(CHOOSE_REFERENCE.rows.length);
+  });
+
+  it('keeps the choose view inside the region, apart and at least 64 units high', () => {
+    const { close, next, tabs, rows } = SESSION_LAYOUT.choose;
+    const all = [close, next, ...tabs, ...rows];
+    all.forEach((ra, i) => {
+      expect(ra.x).toBeGreaterThanOrEqual(0);
+      expect(ra.x + ra.w).toBeLessThanOrEqual(REGION.w);
+      expect(ra.y + ra.h).toBeLessThanOrEqual(REGION.h);
+      expect(ra.h).toBeGreaterThanOrEqual(MIN_HEIGHT);
+      for (const rb of all.slice(i + 1)) {
+        const apart =
+          ra.x + ra.w <= rb.x || rb.x + rb.w <= ra.x || ra.y + ra.h <= rb.y || rb.y + rb.h <= ra.y;
+        expect(apart).toBe(true);
+      }
+    });
   });
 
   it('keeps every rectangle inside the region of 440 x 480', () => {
@@ -77,7 +124,14 @@ describe('the run view of the session area (07-04, R-06)', () => {
     const region = DA50RG.regions.find((r) => r.id === 'scenario_area');
     if (region === undefined) throw new Error('no scenario_area region');
     const footprints = sessionFootprints(region.bounds);
-    for (const [name, r] of [...named(), ...Object.entries(SESSION_LAYOUT.main)]) {
+    const choose = SESSION_LAYOUT.choose;
+    const chooseNamed: (readonly [string, LocalRect])[] = [
+      ['close', choose.close],
+      ['next', choose.next],
+      ...choose.tabs.map((r, i): readonly [string, LocalRect] => [`tab ${String(i)}`, r]),
+      ...choose.rows.map((r, i): readonly [string, LocalRect] => [`row ${String(i)}`, r]),
+    ];
+    for (const [name, r] of [...named(), ...Object.entries(SESSION_LAYOUT.main), ...chooseNamed]) {
       expect(footprints, name).toContainEqual({
         x: region.bounds.x + r.x,
         y: region.bounds.y + r.y,

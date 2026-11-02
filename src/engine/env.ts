@@ -2,6 +2,7 @@
 // CAS rule table and the physics of the quantities. Pure types, no DOM, no framework, no clock.
 
 import type { CasRuleSet } from './cas';
+import type { CatalogSet } from './catalog';
 import type { CueSet } from './cues';
 import type { FurtherSet } from './further';
 import type { Physics } from './physics';
@@ -21,4 +22,6 @@ export interface AircraftEnv {
   readonly scenes: SceneSet;
   /** The fixed list of further actions and flight conduct options (Phase 7). */
   readonly further: FurtherSet;
+  /** The checklist catalog of the booklet: groups, printed tags, links to shipped scenarios (Phase 7). */
+  readonly catalog: CatalogSet;
 }
