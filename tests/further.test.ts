@@ -3,7 +3,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
-import { FurtherError, defineFurther, gradeFurther } from '../src/engine/further';
+import {
+  FurtherError,
+  defineFurther,
+  effectiveSelection,
+  gradeFurther,
+} from '../src/engine/further';
 import type { FurtherDefinition } from '../src/engine/further';
 import { grade } from '../src/engine/grading';
 import type { Recording } from '../src/engine/grading';
@@ -45,9 +50,8 @@ const at = (t: number, id: string) => ({ t, id });
 
 describe('defineFurther', () => {
   const valid: FurtherDefinition = {
-    groups: [{ id: 'g', text: 'Group' }],
     options: [
-      { id: 'a_one', text: 'One', kind: 'action', group: 'g' },
+      { id: 'a_one', text: 'One', kind: 'action' },
       { id: 'a_two', text: 'Two', kind: 'action' },
       { id: 'c_one', text: 'Conduct', kind: 'conduct', debriefNote: 'Note.' },
     ],
@@ -75,15 +79,6 @@ describe('defineFurther', () => {
           { id: 'a', text: 'y', kind: 'action' as const },
         ],
       },
-    ],
-    ['a repeated group id', { ...valid, groups: [...valid.groups, ...valid.groups] }],
-    [
-      'an unknown group',
-      { ...valid, options: [{ id: 'a', text: 'x', kind: 'action' as const, group: 'zz' }] },
-    ],
-    [
-      'a conduct in a group',
-      { ...valid, options: [{ id: 'c', text: 'x', kind: 'conduct' as const, group: 'g' }] },
     ],
     [
       'a note on an action',
@@ -312,5 +307,141 @@ describe('grade with the section (R16 to R18)', () => {
       'conduct',
       'forbidden',
     ]);
+  });
+});
+
+// Plan 07-05 (R-08): the buttons are toggles. A press is a decision with an optional on flag (absent
+// means on); the state at the end counts. Only additions: every case above stays as it was.
+describe('effectiveSelection (R-08)', () => {
+  const on = (t: number, id: string) => ({ t, id, on: true });
+  const off = (t: number, id: string) => ({ t, id, on: false });
+  const state = (decisions: readonly { t: number; id: string; on?: boolean }[]) => {
+    const selection = effectiveSelection(decisions, SET);
+    return { actions: [...selection.actions].sort(), conduct: selection.conduct };
+  };
+
+  it('starts empty', () => {
+    expect(state([])).toEqual({ actions: [], conduct: null });
+  });
+
+  it('switches an action on, off and on again; the last entry counts', () => {
+    expect(state([on(1, mayday)]).actions).toEqual([mayday]);
+    expect(state([on(1, mayday), off(2, mayday)]).actions).toEqual([]);
+    expect(state([on(1, mayday), off(2, mayday), on(3, mayday)]).actions).toEqual([mayday]);
+  });
+
+  it('keeps the actions independent of each other', () => {
+    expect(
+      state([on(1, mayday), on(2, panPan), on(3, passengers), off(4, panPan)]).actions,
+    ).toEqual([mayday, passengers].sort());
+  });
+
+  it('treats an entry without the flag as on, and only the value false as off', () => {
+    expect(state([at(1, mayday)]).actions).toEqual([mayday]);
+    expect(state([at(1, mayday), at(2, mayday)]).actions).toEqual([mayday]);
+    const odd = { t: 1, id: mayday, on: 'false' as unknown as boolean };
+    expect(state([off(0, mayday), odd]).actions).toEqual([mayday]);
+  });
+
+  it('makes the conduct a radio group: another option switches the selection', () => {
+    expect(state([on(1, carryOn)]).conduct).toBe(carryOn);
+    expect(state([on(1, carryOn), on(2, precaution)]).conduct).toBe(precaution);
+    expect(state([on(1, carryOn), on(2, precaution), on(3, emergency)]).conduct).toBe(emergency);
+  });
+
+  it('clears the conduct only with an off entry of the selected option', () => {
+    expect(state([on(1, carryOn), off(2, carryOn)]).conduct).toBeNull();
+    // An off entry of an option that is not selected changes nothing.
+    expect(state([on(1, carryOn), off(2, precaution)]).conduct).toBe(carryOn);
+    expect(state([off(1, carryOn)]).conduct).toBeNull();
+    expect(state([on(1, carryOn), on(2, precaution), off(3, carryOn)]).conduct).toBe(precaution);
+    expect(state([on(1, carryOn), off(2, carryOn), on(3, carryOn)]).conduct).toBe(carryOn);
+  });
+
+  it('turns an action that was never on off without effect and skips an unknown id', () => {
+    expect(state([off(1, mayday)]).actions).toEqual([]);
+    expect(state([on(1, 'nope'), on(2, mayday)])).toEqual({ actions: [mayday], conduct: null });
+  });
+});
+
+describe('gradeFurther with toggles (R-08)', () => {
+  const on = (t: number, id: string) => ({ t, id, on: true });
+  const off = (t: number, id: string) => ({ t, id, on: false });
+  const roles = section([[mayday, 'required']], { accept: [precaution] });
+  const grading = (
+    decisions: readonly { t: number; id: string; on?: boolean }[],
+    outcomeAt: number | null = null,
+  ) => gradeFurther(roles, SET, decisions, outcomeAt);
+
+  it('a required action switched on and off again is missed', () => {
+    const graded = grading([on(1, mayday), off(2, mayday), on(3, precaution)]);
+    expect(graded.early).toEqual([{ kind: 'further_missed', count: 1 }]);
+    expect(graded.result?.actions.find((a) => a.id === mayday)?.done).toBe(false);
+  });
+
+  it('on, off, on is done', () => {
+    const graded = grading([on(1, mayday), off(2, mayday), on(3, mayday), on(4, precaution)]);
+    expect(graded.early).toEqual([]);
+    expect(graded.result?.actions.find((a) => a.id === mayday)?.done).toBe(true);
+  });
+
+  it('a conduct switched to another option is graded by the final selection; picks keep the history', () => {
+    const graded = grading([on(1, mayday), on(2, emergency), on(3, precaution)]);
+    expect(graded.early).toEqual([]);
+    expect(graded.result?.conduct).toEqual({
+      declared: 'accept',
+      picks: [emergency, precaution],
+      last: precaution,
+      status: 'ok',
+    });
+    const wrong = grading([on(1, mayday), on(2, precaution), on(3, emergency)]);
+    expect(wrong.result?.conduct.status).toBe('wrong');
+  });
+
+  it('a conduct that was cleared is missing; picks keep the on entries, last is null', () => {
+    const graded = grading([on(1, mayday), on(2, precaution), off(3, precaution)]);
+    expect(graded.early).toEqual([{ kind: 'conduct', status: 'missing' }]);
+    expect(graded.result?.conduct).toEqual({
+      declared: 'accept',
+      picks: [precaution],
+      last: null,
+      status: 'missing',
+    });
+  });
+
+  it('an undeclared action that was switched on and off reads like one never selected', () => {
+    const graded = grading([on(1, panPan), off(2, panPan), on(3, mayday), on(4, precaution)]);
+    expect(graded.result?.actions.map((a) => a.id)).toEqual([mayday]);
+  });
+
+  it('a press after the outcome time is not graded, an off entry included', () => {
+    const graded = grading([on(1000, mayday), off(5000, mayday), on(1500, precaution)], 2000);
+    expect(graded.result?.actions.find((a) => a.id === mayday)?.done).toBe(true);
+    const lateOn = grading([on(5000, mayday), on(1500, precaution)], 2000);
+    expect(lateOn.early).toEqual([{ kind: 'further_missed', count: 1 }]);
+  });
+
+  it('an unknown id throws also when it carries the off flag', () => {
+    expect(() => grading([off(1, 'nope')])).toThrow(Error);
+  });
+
+  it('a recording without the flag grades as before: the same result as with on true', () => {
+    const plain = [at(1000, mayday), at(2000, precaution)];
+    const flagged = [on(1000, mayday), on(2000, precaution)];
+    expect(JSON.stringify(grading(plain))).toBe(JSON.stringify(grading(flagged)));
+  });
+
+  it('grade runs the chain: MAYDAY on then off fails the run with the further_missed reason', () => {
+    const base = { scenarioId: fire.id, completedAt: 20000, events: [] as Recording['events'] };
+    const done = grade(fire, DA50RG_ENV, {
+      ...base,
+      decisions: [on(1000, mayday), on(2000, emergency)],
+    });
+    const cleared = grade(fire, DA50RG_ENV, {
+      ...base,
+      decisions: [on(1000, mayday), off(1500, mayday), on(2000, emergency)],
+    });
+    expect(done.reasons.some((r) => r.kind === 'further_missed')).toBe(false);
+    expect(cleared.reasons).toContainEqual({ kind: 'further_missed', count: 1 });
   });
 });

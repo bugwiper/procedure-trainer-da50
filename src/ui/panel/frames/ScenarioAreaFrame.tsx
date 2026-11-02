@@ -9,8 +9,8 @@ import type { FrameProps } from './MfdFrame';
  * 07-04 R-06): NEW SITUATION, CHOOSE SITUATION and RESET at their SESSION_LAYOUT rectangles. Run view
  * (state running): only what the run needs, at the SESSION_LAYOUT.run rectangles: CHECKLIST (CHOOSE
  * CHECKLIST on Realistic, fixed by the level when the run starts; the pressed rim while the sheet is
- * shown), HINT (Realistic only; the pressed rim while the box is shown), the temporary FURTHER
- * ACTIONS (plan 07-05 replaces it) and LEAVE, which asks through the leave-run confirm. NEW
+ * shown), HINT (Realistic only; the pressed rim while the box is shown) and LEAVE, which asks through
+ * the leave-run confirm. NEW
  * SITUATION, CHOOSE SITUATION and RESET are not drawn during a run. Choose view (state choosing):
  * CLOSE LIST and one page of up to four rows, one per scenario of an allowed pack, titled from the
  * pack manifest; NEXT PAGE beside CLOSE LIST only when there are more rows than one page holds, and
@@ -101,17 +101,6 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
     const realistic = session.level.value === 'realistic';
     return (
       <g data-session-area data-session-view="run">
-        <SessionButton
-          key="session.further"
-          id="session.further"
-          rect={run.further}
-          label="FURTHER ACTIONS"
-          ariaLabel="Further actions: inform ATC, brief passengers, choose the flight conduct"
-          held={session.furtherOpen.value}
-          onActivate={() => {
-            session.openFurther();
-          }}
-        />
         <SessionButton
           key="session.checklist"
           id="session.checklist"

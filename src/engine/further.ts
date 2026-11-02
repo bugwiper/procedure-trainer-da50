@@ -16,11 +16,11 @@ export type FurtherKind = 'action' | 'conduct';
 
 export interface FurtherOption {
   readonly id: string;
-  /** The text of the button in the modal and of the row in the debrief. */
+  /** The text of the row in the debrief. */
   readonly text: string;
+  /** The static caps label of the button in the footwell cluster (Phase 7, R-07); the text stays for the debrief. */
+  readonly label?: string;
   readonly kind: FurtherKind;
-  /** The group an action is listed under in the modal (a second selection step). */
-  readonly group?: string;
   /**
    * True for an action the verdict never depends on (brief passengers): lint L27 rejects the roles
    * `required` and `harmful` for it, so it can neither be missed nor fail a run. Actions only.
@@ -30,15 +30,9 @@ export interface FurtherOption {
   readonly debriefNote?: string;
 }
 
-export interface FurtherGroup {
-  readonly id: string;
-  readonly text: string;
-}
-
 export interface FurtherDefinition {
   readonly options: readonly FurtherOption[];
-  readonly groups: readonly FurtherGroup[];
-  /** The title of the conduct item of the modal ("Choose further flight conduct"). */
+  /** The title of the conduct row of the debrief ("Choose further flight conduct"). */
   readonly conductTitle: string;
   /** The profile parameter that puts the aircraft on the ground: a scenario with it above 0 has no conduct. */
   readonly groundParameter: string;
@@ -55,14 +49,6 @@ export class FurtherError extends Error {}
 
 export function defineFurther(definition: FurtherDefinition): FurtherSet {
   const byId = new Map<string, FurtherOption>();
-  const groupIds = new Set<string>();
-  for (const group of definition.groups) {
-    if (!FURTHER_ID_PATTERN.test(group.id)) {
-      throw new FurtherError(`group id "${group.id}" does not match ${FURTHER_ID_PATTERN.source}`);
-    }
-    if (groupIds.has(group.id)) throw new FurtherError(`group "${group.id}" is defined twice`);
-    groupIds.add(group.id);
-  }
   for (const option of definition.options) {
     if (!FURTHER_ID_PATTERN.test(option.id)) {
       throw new FurtherError(
@@ -70,16 +56,6 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
       );
     }
     if (byId.has(option.id)) throw new FurtherError(`option "${option.id}" is defined twice`);
-    if (option.group !== undefined) {
-      if (!groupIds.has(option.group)) {
-        throw new FurtherError(
-          `option "${option.id}" names the group "${option.group}", which is not defined`,
-        );
-      }
-      if (option.kind !== 'action') {
-        throw new FurtherError(`option "${option.id}" is a conduct and cannot be in a group`);
-      }
-    }
     if (option.unrated === true && option.kind !== 'action') {
       throw new FurtherError(`option "${option.id}" is a conduct and cannot be unrated`);
     }
@@ -93,7 +69,6 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
   }
   return Object.freeze({
     options: Object.freeze([...definition.options]),
-    groups: Object.freeze([...definition.groups]),
     conductTitle: definition.conductTitle,
     groundParameter: definition.groundParameter,
     has: (id: string) => byId.has(id),
@@ -103,10 +78,52 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
   });
 }
 
-/** One decision of a run: the run time it was made at and the option id (D-07). */
+/**
+ * One press of a footwell button: the run time it was made at, the option id and whether it switched
+ * the option on. `on` is absent in every recording made before the toggles (R-08) and then means on;
+ * only the value false switches off (T-07-12).
+ */
 export interface RecordedDecision {
   readonly t: number;
   readonly id: string;
+  readonly on?: boolean;
+}
+
+/** What the recorded presses add up to: the actions switched on and the conduct selected (R-08). */
+export interface FurtherSelection {
+  /** The action ids whose last entry is on. */
+  readonly actions: ReadonlySet<string>;
+  /** The selected conduct id, null when none or cleared. */
+  readonly conduct: string | null;
+}
+
+/**
+ * The state the presses leave (R-08), one helper for the grade, the session and the buttons so the
+ * highlight and the verdict can never disagree. An action is selected when its last entry is on. The
+ * conduct is replayed in order: an on entry selects that option (another one switches), an off entry
+ * clears the selection only when it names the selected option. An unknown id is skipped here (the
+ * grader throws for it before it gets this far).
+ */
+export function effectiveSelection(
+  decisions: readonly RecordedDecision[],
+  set: FurtherSet,
+): FurtherSelection {
+  const actions = new Set<string>();
+  let conduct: string | null = null;
+  for (const decision of decisions) {
+    const option = set.option(decision.id);
+    if (option === undefined) continue;
+    const on = decision.on !== false;
+    if (option.kind === 'action') {
+      if (on) actions.add(decision.id);
+      else actions.delete(decision.id);
+    } else if (on) {
+      conduct = decision.id;
+    } else if (conduct === decision.id) {
+      conduct = null;
+    }
+  }
+  return { actions, conduct };
 }
 
 /** The accepted conduct ids of a section, or null when the section says none or does not exist. */
@@ -132,9 +149,9 @@ export type ConductStatus = 'not_declared' | 'ok' | 'missing' | 'wrong';
 export interface FurtherConductVerdict {
   /** What the scenario declares: `none`, `accept`, or null when it has no section. */
   readonly declared: 'none' | 'accept' | null;
-  /** Every conduct pick in the order made. */
+  /** Every conduct option switched on, in the order made (the history the debrief shows). */
   readonly picks: readonly string[];
-  /** The last pick, which is the one that counts; null without a pick. */
+  /** The selection at the end, which is the one that counts; null without one or when cleared. */
   readonly last: string | null;
   readonly status: ConductStatus;
 }
@@ -163,7 +180,8 @@ export interface FurtherGrade {
 /**
  * R16 to R18: the decisions of a recording against the section of the scenario. A decision after the
  * outcome time is not graded (like an event, R10); an id the aircraft does not have throws (like an
- * unknown control). An action counts once; the conduct is graded by its last pick.
+ * unknown control). The state the presses leave counts (R-08): an action is done when its last entry
+ * is on; the conduct is graded by the selection at the end.
  */
 export function gradeFurther(
   section: FurtherSection | undefined,
@@ -182,9 +200,8 @@ export function gradeFurther(
     return { result: undefined, early: [], late: [] };
   }
 
-  const picked = new Set(
-    counted.filter((d) => set.option(d.id)?.kind === 'action').map((d) => d.id),
-  );
+  const selection = effectiveSelection(counted, set);
+  const picked = selection.actions;
   const declared = new Map((section?.actions ?? []).map((entry) => [entry.id, entry]));
   const actions: FurtherActionVerdict[] = [];
   for (const id of set.ids('action')) {
@@ -199,8 +216,10 @@ export function gradeFurther(
     });
   }
 
-  const picks = counted.filter((d) => set.option(d.id)?.kind === 'conduct').map((d) => d.id);
-  const last = picks.length === 0 ? null : (picks[picks.length - 1] ?? null);
+  const picks = counted
+    .filter((d) => set.option(d.id)?.kind === 'conduct' && d.on !== false)
+    .map((d) => d.id);
+  const last = selection.conduct;
   const accept = conductAccept(section);
   let status: ConductStatus = 'not_declared';
   if (accept !== null) {

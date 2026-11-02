@@ -462,6 +462,9 @@ export const ALL_REGION_IDS: readonly string[] = [
   'transponder',
   // The toe brakes of Phase 5.1: the floor of the pilot's footwell, one control.
   'pedals',
+  // The six toggle buttons of the further actions (Phase 7, plan 07-05): trainer content in the
+  // pilot's footwell between the under-panel pulls and the toe brakes, no registry controls.
+  'further_area',
 ];
 
 export const FRONT_PANEL_REGIONS: readonly string[] = [
@@ -504,6 +507,8 @@ export const UNDER_PANEL_REGIONS: readonly string[] = [
   'transponder',
   // The toe brakes (Phase 5.1) sit below the panel, on the floor of the pilot's footwell.
   'pedals',
+  // The further actions buttons (Phase 7, plan 07-05) stand below the panel, above the toe brakes.
+  'further_area',
   // The emergency window and the door lock lever (Phase 5.1, owner 2026-10-27) stand in the left strip below the pulls.
   'side_window',
   'door_arm',

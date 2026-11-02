@@ -23,8 +23,6 @@ import { LevelPick } from './screens/LevelPick';
 import { RunChecklist } from './screens/RunChecklist';
 import type { SheetBody } from './screens/RunChecklist';
 import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
-import { FurtherActions } from './screens/FurtherActions';
-import { offersConduct } from '../engine/further';
 import { Debrief } from './screens/Debrief';
 import { parsePreviewFlags, parsePreviewQuantities } from './preview';
 import { branchStatuses } from '../engine/grading';
@@ -379,19 +377,6 @@ export function App() {
           level={session.level.value}
           onStart={startRun}
           onBack={backToPanel}
-        />
-      ) : null}
-      {screen === 'running' && scenario !== null && session.furtherOpen.value ? (
-        <FurtherActions
-          set={DA50RG_ENV.further}
-          conduct={offersConduct(scenario.further)}
-          picked={session.decisions.value.map((entry) => entry.id)}
-          onPick={(id) => {
-            session.decide(id);
-          }}
-          onClose={() => {
-            session.closeFurther();
-          }}
         />
       ) : null}
       {screen === 'debrief' && scenario !== null && result !== null ? (

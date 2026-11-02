@@ -75,6 +75,10 @@ const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {
   ),
   // Phase 7: the further actions are aircraft data; the option ids and the note live in src/aircraft only.
   'further option id': DA50RG_ENV.further.options.map((option) => option.id),
+  // Plan 07-05: the static labels of the six footwell buttons are aircraft data too.
+  'further button label': DA50RG_ENV.further.options.flatMap((option) =>
+    option.label === undefined ? [] : [option.label],
+  ),
   'further debrief note': DA50RG_ENV.further.options.flatMap((option) =>
     option.debriefNote === undefined ? [] : [option.debriefNote],
   ),

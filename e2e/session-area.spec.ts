@@ -71,10 +71,10 @@ test('zoomed into the session area, the Full panel button covers no session butt
 
 const MIN_HIT_PX = 44;
 
-/** The size on screen of every session hit box that is drawn now, by id. */
+/** The size on screen of every session-pad hit box that is drawn now, by id (the footwell buttons are `further.*`). */
 function hitSizes(page: Page): Promise<[string, number, number][]> {
   return page.evaluate(() =>
-    Array.from(document.querySelectorAll('[data-session-hit]')).map(
+    Array.from(document.querySelectorAll('[data-session-hit^="session."]')).map(
       (el): [string, number, number] => {
         const r = el.getBoundingClientRect();
         return [el.getAttribute('data-session-hit') ?? '', r.width, r.height];
@@ -115,7 +115,6 @@ for (const level of ['easy', 'realistic'] as const) {
       [
         'session.checklist',
         ...(level === 'realistic' ? ['session.hint'] : []),
-        'session.further',
         'session.leave',
       ].sort(),
     );

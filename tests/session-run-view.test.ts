@@ -9,11 +9,10 @@ import type { LocalRect } from '../src/ui/panel/session-area';
 const REGION = { w: 440, h: 480 };
 const MIN_HEIGHT = 64;
 
-/** Name, then x, y, w, h in region units: rows of 80 at y 20, 116 and 212 (370 wide), LEAVE 177 x 80 at 228, 392. */
+/** Name, then x, y, w, h in region units: rows of 80 at y 20 and 116 (370 wide), LEAVE 177 x 80 at 228, 392. */
 const RUN_REFERENCE: readonly (readonly [string, number, number, number, number])[] = [
   ['checklist', 35, 20, 370, 80],
   ['hint', 35, 116, 370, 80],
-  ['further', 35, 212, 370, 80],
   ['leave', 228, 392, 177, 80],
 ];
 

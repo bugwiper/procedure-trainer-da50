@@ -135,31 +135,32 @@ export async function forceVariant(page: Page, file: string, id: string): Promis
   await expect(page.getByTestId('panel')).toBeVisible();
 }
 
+/** The hit rectangle of the footwell button of a further option (Phase 7, plan 07-05). */
+export const furtherHit = (page: Page, id: string) =>
+  page.locator(`[data-session-hit="further.${id}"]`);
+
+/** The group of the footwell button, which carries data-selected and aria-pressed. */
+export const furtherButton = (page: Page, id: string) =>
+  page.locator(`[data-session-button="further.${id}"]`);
+
+/** Presses the footwell button of an option once, with no expectation (Phase 7, plan 07-05, S-06). */
+export async function toggleFurther(page: Page, hasTouch: boolean, id: string): Promise<void> {
+  await activate(furtherHit(page, id), hasTouch);
+}
+
 /**
- * Opens FURTHER ACTIONS during a run, picks the options `ids` in order (an action of a group through
- * its group, a conduct through the conduct item) and closes the modal (Phase 7, plan 07-02).
+ * Presses the footwell button of each option in `ids` once, in order, and expects it selected
+ * afterwards (an option that was selected before must be named once more by the caller through
+ * toggleFurther). Every spec that finishes a scenario with the right decisions uses it.
  */
 export async function pickFurther(
   page: Page,
   hasTouch: boolean,
   ids: readonly string[],
 ): Promise<void> {
-  await activate(page.locator('[data-session-hit="session.further"]'), hasTouch);
-  await expect(page.getByTestId('further')).toBeVisible();
-  await expect(page.getByTestId('further-modal')).not.toHaveAttribute('data-shield', 'on');
   for (const id of ids) {
-    const option = DA50RG_ENV.further.option(id);
-    if (option === undefined) throw new Error(`no further option "${id}"`);
-    if (option.kind === 'conduct') await activate(page.getByTestId('further-conduct'), hasTouch);
-    else if (option.group !== undefined) {
-      await activate(page.getByTestId(`further-group-${option.group}`), hasTouch);
-    }
-    await activate(page.getByTestId(`further-opt-${id}`), hasTouch);
-    await expect(page.getByTestId(`further-opt-${id}`)).toHaveAttribute('data-done', 'true');
-    if (option.kind === 'conduct' || option.group !== undefined) {
-      await activate(page.getByTestId('further-back'), hasTouch);
-    }
+    if (DA50RG_ENV.further.option(id) === undefined) throw new Error(`no further option "${id}"`);
+    await toggleFurther(page, hasTouch, id);
+    await expect(furtherButton(page, id)).toHaveAttribute('data-selected', 'true');
   }
-  await activate(page.getByTestId('further-close'), hasTouch);
-  await expect(page.getByTestId('further')).toHaveCount(0);
 }

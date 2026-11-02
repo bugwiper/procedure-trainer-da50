@@ -794,7 +794,7 @@ describe('complete', () => {
     const r = await started();
     r.bridge.actuate('lv.power', 'p50');
     r.bridge.actuate('lv.cowl_flap', 'open');
-    r.session.decide('conduct_precautionary');
+    r.session.toggleDecision('conduct_precautionary');
     r.session.complete();
 
     expect(r.session.screen.value).toBe('debrief');
@@ -886,7 +886,7 @@ describe('complete', () => {
     r.bridge.retract(raised.event.seq);
     r.bridge.actuate('lv.power', 'p50');
     r.bridge.actuate('lv.cowl_flap', 'open');
-    r.session.decide('conduct_precautionary');
+    r.session.toggleDecision('conduct_precautionary');
     r.session.complete();
     expect(r.session.result.value?.harmful).toEqual([]);
     expect(r.session.result.value?.result).toBe('pass');
@@ -1442,7 +1442,7 @@ scenarios[1]:
     expect(r.bridge.stateOf('cb.alt1').value).toBe('out');
 
     expect(r.bridge.actuate('cb.alt1', 'in').ok).toBe(true);
-    r.session.decide('conduct_precautionary');
+    r.session.toggleDecision('conduct_precautionary');
     r.session.complete();
     const recording = r.session.recording.value;
     expect(recording?.variant).toEqual({ id: 'breaker_popped', seed });
@@ -1462,7 +1462,7 @@ scenarios[1]:
     expect(r.bridge.stateOf('cb.alt1').value).toBe('in');
     r.bridge.actuate('sw.alternator_1', 'off');
     r.bridge.actuate('sw.ess_bus', 'on');
-    r.session.decide('conduct_precautionary');
+    r.session.toggleDecision('conduct_precautionary');
     r.session.complete();
     expect(r.session.result.value?.variant).toBe('alternator_dead');
     expect(r.session.result.value?.result).toBe('pass');
@@ -2403,7 +2403,7 @@ describe('grading ignores the level and the sheet (phase 07, plan 04, R-02)', ()
   });
 });
 
-describe('further actions (phase 07, plan 02, D-07)', () => {
+describe('further actions as footwell toggles (phase 07, plans 02 and 05)', () => {
   /** The shipped text without its own further section, so the cases declare theirs. */
   const stripFurther = (text: string): string => text.split(/^(?:# [^\n]*\n)?further:/m)[0] ?? text;
   const ACCEPT = `further:
@@ -2441,56 +2441,97 @@ scenarios[1]:
   }
 
   const ids = (r: Rig): string[] => r.session.decisions.value.map((d) => d.id);
+  const selected = (r: Rig): { actions: string[]; conduct: string | null } => ({
+    actions: [...r.session.furtherSelection.value.actions].sort(),
+    conduct: r.session.furtherSelection.value.conduct,
+  });
 
-  it('logs each pick once, in order, with the run clock time', async () => {
+  it('appends one entry per press, in order, with the run clock time and the on flag', async () => {
     const r = await inFlight();
     const clock = r.session.clock.value;
     if (clock === null) throw new Error('no clock');
     clock.advance(1200);
-    r.session.decide('atc_mayday');
+    r.session.toggleDecision('atc_mayday');
     clock.advance(800);
-    r.session.decide('brief_passengers');
-    r.session.decide('atc_mayday');
+    r.session.toggleDecision('brief_passengers');
+    r.session.toggleDecision('atc_mayday');
     clock.advance(500);
-    r.session.decide('conduct_precautionary');
+    r.session.toggleDecision('conduct_precautionary');
     expect(r.session.decisions.value).toEqual([
-      { t: 1200, id: 'atc_mayday' },
-      { t: 2000, id: 'brief_passengers' },
-      { t: 2500, id: 'conduct_precautionary' },
+      { t: 1200, id: 'atc_mayday', on: true },
+      { t: 2000, id: 'brief_passengers', on: true },
+      { t: 2000, id: 'atc_mayday', on: false },
+      { t: 2500, id: 'conduct_precautionary', on: true },
     ]);
+    expect(selected(r)).toEqual({
+      actions: ['brief_passengers'],
+      conduct: 'conduct_precautionary',
+    });
   });
 
   it('ignores an unknown id and every call outside a running run', async () => {
     const r = rig({ files: { 'eng-oil-temp-green': withBlock(BLUEPRINT, ACCEPT) } });
-    r.session.decide('atc_mayday');
+    r.session.toggleDecision('atc_mayday');
     expect(ids(r)).toEqual([]);
     await r.session.newSituation();
-    r.session.decide('atc_mayday');
+    r.session.toggleDecision('atc_mayday');
     expect(ids(r)).toEqual([]);
     r.session.setLevel('easy');
     r.session.startRun();
-    r.session.decide('nope');
-    r.session.decide('constructor');
+    r.session.toggleDecision('nope');
+    r.session.toggleDecision('constructor');
     expect(ids(r)).toEqual([]);
     r.session.complete();
-    r.session.decide('atc_mayday');
+    r.session.toggleDecision('atc_mayday');
     expect(ids(r)).toEqual([]);
   });
 
-  it('lets the conduct be picked again, ignores a repeat of the last pick, and counts the last', async () => {
+  it('keeps MAYDAY, PAN PAN PAN and BRIEF PASSENGERS independent toggles', async () => {
     const r = await inFlight();
-    r.session.decide('conduct_continue');
-    r.session.decide('conduct_continue');
-    r.session.decide('conduct_precautionary');
-    r.session.decide('conduct_continue');
-    r.session.decide('conduct_continue');
-    expect(ids(r)).toEqual(['conduct_continue', 'conduct_precautionary', 'conduct_continue']);
+    r.session.toggleDecision('atc_mayday');
+    r.session.toggleDecision('atc_pan_pan');
+    r.session.toggleDecision('brief_passengers');
+    expect(selected(r).actions).toEqual(['atc_mayday', 'atc_pan_pan', 'brief_passengers']);
+    r.session.toggleDecision('atc_pan_pan');
+    expect(selected(r).actions).toEqual(['atc_mayday', 'brief_passengers']);
+    r.session.toggleDecision('atc_pan_pan');
+    expect(selected(r).actions).toEqual(['atc_mayday', 'atc_pan_pan', 'brief_passengers']);
+  });
+
+  it('makes the conduct a radio group: another press switches, the selected one clears', async () => {
+    const r = await inFlight();
+    r.session.toggleDecision('conduct_continue');
+    expect(selected(r).conduct).toBe('conduct_continue');
+    r.session.toggleDecision('conduct_precautionary');
+    expect(selected(r).conduct).toBe('conduct_precautionary');
+    r.session.toggleDecision('conduct_precautionary');
+    expect(selected(r).conduct).toBeNull();
+    r.session.toggleDecision('conduct_emergency');
+    expect(selected(r).conduct).toBe('conduct_emergency');
+    expect(r.session.decisions.value.map((d) => `${d.id}:${String(d.on)}`)).toEqual([
+      'conduct_continue:true',
+      'conduct_precautionary:true',
+      'conduct_precautionary:false',
+      'conduct_emergency:true',
+    ]);
     r.session.complete();
     expect(r.session.result.value?.further?.conduct).toMatchObject({
-      last: 'conduct_continue',
+      last: 'conduct_emergency',
       status: 'wrong',
+      picks: ['conduct_continue', 'conduct_precautionary', 'conduct_emergency'],
     });
-    expect(r.session.result.value?.further?.conduct.picks).toEqual(ids(r));
+  });
+
+  it('grades a cleared conduct as missing', async () => {
+    const r = await inFlight();
+    r.session.toggleDecision('conduct_precautionary');
+    r.session.toggleDecision('conduct_precautionary');
+    r.session.complete();
+    expect(r.session.result.value?.further?.conduct).toMatchObject({
+      last: null,
+      picks: ['conduct_precautionary'],
+      status: 'missing',
+    });
   });
 
   it('offers no conduct where the scenario declares none, on the ground, or has no section', async () => {
@@ -2502,20 +2543,20 @@ scenarios[1]:
     ground.session.setLevel('easy');
     ground.session.startRun();
     expect(ground.session.screen.value).toBe('running');
-    ground.session.decide('conduct_emergency');
-    ground.session.decide('atc_mayday');
+    ground.session.toggleDecision('conduct_emergency');
+    ground.session.toggleDecision('atc_mayday');
     expect(ids(ground)).toEqual(['atc_mayday']);
 
     const bare = rig({ files: { 'eng-oil-temp-green': stripFurther(BLUEPRINT) } });
     await bare.session.newSituation();
     bare.session.setLevel('easy');
     bare.session.startRun();
-    bare.session.decide('conduct_continue');
-    bare.session.decide('brief_passengers');
+    bare.session.toggleDecision('conduct_continue');
+    bare.session.toggleDecision('brief_passengers');
     expect(ids(bare)).toEqual(['brief_passengers']);
   });
 
-  it('puts the decisions into the recording and leaves the key out without a pick', async () => {
+  it('puts the presses into the recording and leaves the key out without one', async () => {
     const quiet = await inFlight();
     quiet.session.complete();
     expect(quiet.session.recording.value).not.toBeNull();
@@ -2523,50 +2564,68 @@ scenarios[1]:
 
     const r = await inFlight();
     r.session.clock.value?.advance(700);
-    r.session.decide('atc_mayday');
+    r.session.toggleDecision('atc_mayday');
     r.session.complete();
-    expect(r.session.recording.value?.decisions).toEqual([{ t: 700, id: 'atc_mayday' }]);
+    expect(r.session.recording.value?.decisions).toEqual([{ t: 700, id: 'atc_mayday', on: true }]);
   });
 
-  it('passes with the required call and the right conduct, and fails without the call', async () => {
-    const play = async (call: boolean): Promise<Rig> => {
+  it('passes with the call selected at the end and the right conduct, and fails without it', async () => {
+    const play = async (presses: number): Promise<Rig> => {
       const r = await inFlight();
       r.bridge.actuate('lv.power', 'p50');
       r.bridge.actuate('lv.cowl_flap', 'open');
-      if (call) r.session.decide('atc_mayday');
-      r.session.decide('conduct_precautionary');
+      for (let k = 0; k < presses; k += 1) r.session.toggleDecision('atc_mayday');
+      r.session.toggleDecision('conduct_precautionary');
       r.session.complete();
       return r;
     };
-    const good = await play(true);
-    expect(good.session.result.value?.result).toBe('pass');
-    expect(reasonLines(good.session.result.value ?? ({} as never))).toEqual([
-      'All critical steps done.',
-    ]);
-    const bad = await play(false);
-    expect(bad.session.result.value?.result).toBe('fail');
-    expect(bad.session.result.value?.reasons).toEqual([{ kind: 'further_missed', count: 1 }]);
+    for (const presses of [1, 3]) {
+      const good = await play(presses);
+      expect(good.session.result.value?.result).toBe('pass');
+      expect(reasonLines(good.session.result.value ?? ({} as never))).toEqual([
+        'All critical steps done.',
+      ]);
+    }
+    for (const presses of [0, 2]) {
+      const bad = await play(presses);
+      expect(bad.session.result.value?.result).toBe('fail');
+      expect(bad.session.result.value?.reasons).toEqual([{ kind: 'further_missed', count: 1 }]);
+    }
   });
 
-  it('clears the log wherever a run is left or a new one starts', async () => {
+  it('never ends the run, never pauses the clock and holds no modal id', async () => {
     const r = await inFlight();
-    r.session.decide('atc_mayday');
-    r.session.openFurther();
-    expect(r.session.furtherOpen.value).toBe(true);
+    const clock = r.session.clock.value;
+    if (clock === null) throw new Error('no clock');
+    r.session.toggleDecision('atc_mayday');
+    r.session.toggleDecision('conduct_precautionary');
+    r.session.toggleDecision('brief_passengers');
+    expect(r.session.screen.value).toBe('running');
+    expect(r.session.result.value).toBeNull();
+    expect(anyModalOpen.value).toBe(false);
+    const before = clock.now();
+    clock.advance(500);
+    expect(clock.now()).toBe(before + 500);
+    r.session.toggleDecision('atc_mayday');
+    expect(r.session.screen.value).toBe('running');
+  });
+
+  it('clears the presses wherever a run is left or a new one starts', async () => {
+    const r = await inFlight();
+    r.session.toggleDecision('atc_mayday');
     r.session.complete();
-    expect(r.session.furtherOpen.value).toBe(false);
     r.session.closeDebrief();
     expect(ids(r)).toEqual([]);
+    expect(selected(r)).toEqual({ actions: [], conduct: null });
 
     const again = await inFlight();
-    again.session.decide('atc_mayday');
+    again.session.toggleDecision('atc_mayday');
     again.session.resetPanel();
     again.session.keepGoing();
     expect(ids(again)).toEqual(['atc_mayday']);
     again.session.resetPanel();
     await again.session.leaveRun();
     expect(ids(again)).toEqual([]);
-    expect(again.session.furtherOpen.value).toBe(false);
 
     await again.session.newSituation();
     again.session.setLevel('easy');
@@ -2574,22 +2633,7 @@ scenarios[1]:
     expect(ids(again)).toEqual([]);
   });
 
-  it('opens and closes the modal only in a running run', async () => {
-    const r = rig({ files: { 'eng-oil-temp-green': withBlock(BLUEPRINT, ACCEPT) } });
-    r.session.openFurther();
-    expect(r.session.furtherOpen.value).toBe(false);
-    await r.session.newSituation();
-    r.session.setLevel('easy');
-    r.session.openFurther();
-    expect(r.session.furtherOpen.value).toBe(false);
-    r.session.startRun();
-    r.session.openFurther();
-    expect(r.session.furtherOpen.value).toBe(true);
-    r.session.closeFurther();
-    expect(r.session.furtherOpen.value).toBe(false);
-  });
-
-  it('ignores the modal and every pick before the onset of a Realistic run', async () => {
+  it('ignores every press before the onset of a Realistic run and works from the onset on', async () => {
     const r = rig({ files: { 'eng-oil-temp-green': withBlock(BLUEPRINT, ACCEPT) } });
     await r.session.newSituation();
     r.session.setLevel('realistic');
@@ -2597,15 +2641,13 @@ scenarios[1]:
     const began = r.session.onset.value;
     if (began === null) throw new Error('no onset');
     expect(began.at).toBeGreaterThan(0);
-    r.session.openFurther();
-    r.session.decide('atc_mayday');
-    expect(r.session.furtherOpen.value).toBe(false);
+    r.session.toggleDecision('atc_mayday');
+    r.session.toggleDecision('conduct_precautionary');
     expect(ids(r)).toEqual([]);
+    expect(selected(r)).toEqual({ actions: [], conduct: null });
     r.session.clock.value?.advance(began.at);
-    r.session.openFurther();
-    r.session.decide('atc_mayday');
-    expect(r.session.furtherOpen.value).toBe(true);
-    expect(r.session.decisions.value).toEqual([{ t: began.at, id: 'atc_mayday' }]);
+    r.session.toggleDecision('atc_mayday');
+    expect(r.session.decisions.value).toEqual([{ t: began.at, id: 'atc_mayday', on: true }]);
   });
 });
 
@@ -2691,7 +2733,7 @@ scenarios[1]:
       r.bridge.actuate('lv.cowl_flap', 'open');
       r.session.clock.value?.advance(4000);
       r.session.toggleChecklist();
-      r.session.decide('atc_mayday');
+      r.session.toggleDecision('atc_mayday');
       r.session.complete();
       expect(r.session.result.value).not.toBeNull();
       expect(r.session.recording.value).not.toBeNull();
@@ -2711,7 +2753,6 @@ scenarios[1]:
       expect(r.session.checklistShown.value).toBe(false);
       expect(r.session.checklistMarks.value).toBeNull();
       expect(r.session.decisions.value).toEqual([]);
-      expect(r.session.furtherOpen.value).toBe(false);
       expect(r.session.result.value).toBeNull();
       expect(r.session.recording.value).toBeNull();
       expect(r.onRunStart.mock.calls.length).toBe(before + 1);

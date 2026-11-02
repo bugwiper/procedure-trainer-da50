@@ -157,6 +157,14 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'transponder', name: 'TRANSPONDER', bounds: { x: 1800, y: 780, w: 320, h: 200 } },
   // The toe brakes (Phase 5.1, P-02): the floor of the pilot's footwell. Holds the one control lv.toe_brakes, drawn as two pedals.
   { id: 'pedals', name: 'PEDALS', bounds: { x: 300, y: 1150, w: 360, h: 110 } },
+  // The further actions (Phase 7, plan 07-05, R-07): the six toggle buttons of the pilot footwell,
+  // on the plate `further-pad` (x 200, y 893, 640 x 210) between the under-panel row (regions end
+  // at y 865) and the toe brakes (plate from y 1130). The region is taller and wider than the plate
+  // (it stands 25 units above and below it, 10 left and right): the zoomed view then leaves room
+  // for the Full panel corner above the buttons on a landscape phone. Trainer content like the
+  // session area and no registry control; it reaches into the reserved pilot legroom (a named
+  // exception of the legroom gate, like `pedals`).
+  { id: 'further_area', name: 'FURTHER ACTIONS', bounds: { x: 190, y: 868, w: 660, h: 260 } },
   // The left strip below ALTERNATE STATIC (Phase 5.1, P-07, P-09, owner 2026-10-27), one plate
   // `cabin-pad` (x 4, y 876, 112 x 414), top to bottom: the oval emergency window with its label
   // WINDOW, then the RED door lock lever with its label DOOR LOCK. The places are assumptions for

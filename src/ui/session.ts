@@ -19,9 +19,11 @@
 // it shows the scenario's own checklist and marks the steps already done from the grade of the
 // partial recording (checklistMarks, the same credit the debrief shows; grade never receives the
 // sheet or the level).
-// The further actions (Phase 7, plan 02): during a run the pilot can pick the decisions that are not
-// panel actions (inform ATC, brief passengers, the flight conduct) in a modal; each pick is logged by
-// decide() as { t, id } with the run clock's time and goes into the recording beside the store log.
+// The further actions (Phase 7, plans 02 and 05): during a run the pilot switches the decisions that
+// are not panel actions (inform ATC, brief passengers, the flight conduct) with six toggle buttons in
+// the footwell; each press is logged by toggleDecision() as { t, id, on } with the run clock's time
+// and goes into the recording beside the store log. The state the presses leave
+// (effectiveSelection) is what the buttons show and what grade counts; no modal, the clock runs on.
 
 import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
@@ -35,8 +37,8 @@ import type {
   RecordedVariant,
   Recording,
 } from '../engine/grading';
-import { offersConduct } from '../engine/further';
-import type { RecordedDecision } from '../engine/further';
+import { effectiveSelection, offersConduct } from '../engine/further';
+import type { FurtherSelection, RecordedDecision } from '../engine/further';
 import { initialQuantities, realisticQuantities } from '../engine/predicates';
 import { Run } from '../engine/run';
 import { MAX_RUN_MS, onsetFromSeed, simSetup } from '../engine/sim';
@@ -226,12 +228,12 @@ export interface Session {
    */
   readonly runBranches: ReadonlySignal<readonly BranchVerdict[]>;
   /**
-   * The further actions picked in the current run, in the order picked, with the run time of each
-   * (D-07); empty outside a run. They go into the recording, never into the store log.
+   * Every press of a footwell button in the current run, in the order made, with the run time and the
+   * on flag of each (R-08); empty outside a run. They go into the recording, never into the store log.
    */
   readonly decisions: ReadonlySignal<readonly RecordedDecision[]>;
-  /** True while the Further actions modal is open; the run clock waits meanwhile like for every modal. */
-  readonly furtherOpen: ReadonlySignal<boolean>;
+  /** The state the presses leave (effectiveSelection): what the buttons show and what grade counts. */
+  readonly furtherSelection: ReadonlySignal<FurtherSelection>;
   /**
    * The onset of the current or last realistic run (time in run ms and the seed it was drawn
    * from); null for Easy and Medium and outside a run. Run data, kept until the next start.
@@ -304,16 +306,13 @@ export interface Session {
    */
   toggleHint(): void;
   /**
-   * Running only: logs one further action or flight conduct pick at the run clock's time. Ignored
-   * before the onset of a Realistic run, for an id the aircraft does not have, for a conduct when the
-   * scenario declares no accept, for an action already logged and for a repeat of the last conduct
-   * pick (D-07, R16).
+   * Running only: a press of a footwell button, logged at the run clock's time (R-08). An action
+   * appends { t, id, on: !selected }; a conduct option appends on for another option and off for
+   * the selected one (a radio group that can be cleared). Ignored before the onset of a Realistic
+   * run, for an id the aircraft does not have and for a conduct when the scenario offers none (R-09).
+   * A press never completes the run; the selections are graded at Procedure complete (R-10).
    */
-  decide(id: string): void;
-  /** Running only, and not before the onset of a Realistic run: opens the Further actions modal. */
-  openFurther(): void;
-  /** Closes the Further actions modal; the picks stay logged. */
-  closeFurther(): void;
+  toggleDecision(id: string): void;
   /** Briefing only: the panel takes the scenario's initial state and the run begins. */
   startRun(): void;
   /** Briefing only: back to the free panel, nothing changed. */
@@ -434,7 +433,6 @@ export function createSession(deps: SessionDeps): Session {
     clock.value = null;
     clearRunHelp();
     decisions.value = [];
-    furtherOpen.value = false;
     confirm.value = null;
     choices.value = [];
     choosePage.value = 0;
@@ -453,7 +451,7 @@ export function createSession(deps: SessionDeps): Session {
   const hintShown = signal(false);
   const runBranches = signal<readonly BranchVerdict[]>([]);
   const decisions = signal<readonly RecordedDecision[]>([]);
-  const furtherOpen = signal(false);
+  const furtherSelection = computed(() => effectiveSelection(decisions.value, env.further));
   const onset = signal<RecordedOnset | null>(null);
   const variant = signal<RecordedVariant | null>(null);
   const recording = signal<Recording | null>(null);
@@ -647,7 +645,6 @@ export function createSession(deps: SessionDeps): Session {
     const used = checklistChoice.peek();
     clearRunHelp();
     checklistChoice.value = used;
-    furtherOpen.value = false;
     runClock.pause();
     bridge.setTimeSource(null);
     screen.value = 'debrief';
@@ -708,7 +705,6 @@ export function createSession(deps: SessionDeps): Session {
     clearRunHelp();
     runBranches.value = branchStatuses(opened, env);
     decisions.value = [];
-    furtherOpen.value = false;
     onset.value = drawn;
     variant.value = cause;
     run.value = current;
@@ -876,7 +872,7 @@ export function createSession(deps: SessionDeps): Session {
     hintShown,
     runBranches,
     decisions,
-    furtherOpen,
+    furtherSelection,
     onset,
     variant,
     recording,
@@ -954,7 +950,6 @@ export function createSession(deps: SessionDeps): Session {
       clock.value = null;
       clearRunHelp();
       decisions.value = [];
-      furtherOpen.value = false;
       confirm.value = null;
       lastRequest = null;
       screen.value = 'free';
@@ -1029,27 +1024,17 @@ export function createSession(deps: SessionDeps): Session {
       if (screen.peek() !== 'running' || level.peek() !== 'realistic' || beforeOnset()) return;
       hintShown.value = !hintShown.peek();
     },
-    decide(id) {
+    toggleDecision(id) {
       const current = scenario.peek();
       const runClock = clock.peek();
       if (screen.peek() !== 'running' || current === null || runClock === null) return;
       if (beforeOnset()) return;
       const option = env.further.option(id);
       if (option === undefined) return;
-      const log = decisions.peek();
-      if (option.kind === 'conduct') {
-        if (!offersConduct(current.further)) return;
-        const lastConduct = log.filter((d) => env.further.option(d.id)?.kind === 'conduct').at(-1);
-        if (lastConduct?.id === id) return;
-      } else if (log.some((d) => d.id === id)) return;
-      decisions.value = [...log, { t: runClock.now(), id }];
-    },
-    openFurther() {
-      if (screen.peek() !== 'running' || beforeOnset()) return;
-      furtherOpen.value = true;
-    },
-    closeFurther() {
-      furtherOpen.value = false;
+      if (option.kind === 'conduct' && !offersConduct(current.further)) return;
+      const now = effectiveSelection(decisions.peek(), env.further);
+      const on = option.kind === 'conduct' ? now.conduct !== id : !now.actions.has(id);
+      decisions.value = [...decisions.peek(), { t: runClock.now(), id, on }];
     },
     startRun() {
       const briefed = briefing.peek();
@@ -1068,7 +1053,6 @@ export function createSession(deps: SessionDeps): Session {
       endRun();
       clearRunHelp();
       decisions.value = [];
-      furtherOpen.value = false;
       // A run timer cannot outlive its run (C-23): the lamps go dark, the quantities stay as left.
       bridge.setFlags({});
       clock.value = null;
@@ -1085,7 +1069,6 @@ export function createSession(deps: SessionDeps): Session {
       endRun();
       clearRunHelp();
       decisions.value = [];
-      furtherOpen.value = false;
       bridge.setFlags({});
       clock.value = null;
       result.value = null;

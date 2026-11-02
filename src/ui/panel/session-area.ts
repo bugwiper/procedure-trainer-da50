@@ -4,6 +4,7 @@
 // transponder beside it). The widgets that draw the buttons come in
 // plan 06; nothing here touches the DOM or a registry control.
 
+import { FURTHER_PAD } from '../../aircraft/da50rg/further-pad';
 import type { Rect } from '../../engine/registry';
 
 export interface LocalRect {
@@ -59,14 +60,12 @@ export const SESSION_LAYOUT = {
   },
   /**
    * Run view (Phase 7, R-06), drawn while a run is live: CHECKLIST (CHOOSE CHECKLIST on Realistic) on
-   * top, HINT below it (Realistic only), the temporary FURTHER ACTIONS (plan 07-05 replaces it) and a
-   * small LEAVE at the bottom right, the way out of the run through the leave-run confirm. NEW
+   * top, HINT below it (Realistic only) and a small LEAVE at the bottom right, the way out of the run through the leave-run confirm. NEW
    * SITUATION, CHOOSE SITUATION and RESET are not drawn during a run.
    */
   run: {
     checklist: { x: BUTTON_X, y: 20, w: BUTTON_W, h: 80 },
     hint: { x: BUTTON_X, y: 116, w: BUTTON_W, h: 80 },
-    further: { x: BUTTON_X, y: 212, w: BUTTON_W, h: 80 },
     leave: { x: 228, y: 392, w: 177, h: 80 },
   },
   /** Button labels: size 14, weight 700, centred on their button, baseline top + h / 2 + 5. */
@@ -97,7 +96,7 @@ export function labelBaseline(r: LocalRect): number {
 }
 
 /**
- * Global rectangles of every session button of the three views (new, choose, reset, close, next, the choose rows and the run view: checklist, hint, further, leave),
+ * Global rectangles of every session button of the three views (new, choose, reset, close, next, the choose rows and the run view: checklist, hint, leave),
  * moved by the origin of the region scenario_area. A conservative superset like controlFootprints:
  * the Full panel corner chooser avoids all of them in every view.
  */
@@ -120,5 +119,22 @@ export function sessionFootprints(regionBounds: {
     y: regionBounds.y + r.y,
     w: r.w,
     h: r.h,
+  }));
+}
+
+/**
+ * Global rectangles of the six footwell buttons (plan 07-05): the slots of FURTHER_PAD moved by the
+ * origin of the region further_area, all six whether or not the scenario offers the conduct (a
+ * conservative superset, like the session footprints) so the Full panel corner avoids them.
+ */
+export function furtherFootprints(regionBounds: {
+  readonly x: number;
+  readonly y: number;
+}): Rect[] {
+  return FURTHER_PAD.slots.map((slot) => ({
+    x: regionBounds.x + slot.x,
+    y: regionBounds.y + slot.y,
+    w: slot.w,
+    h: slot.h,
   }));
 }

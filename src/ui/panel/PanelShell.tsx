@@ -489,6 +489,8 @@ function LeftStrip() {
       <Plate id="deice" />
       <Plate id="engine" />
       <Plate id="cabin-pad" />
+      {/* The plate of the six further-action buttons (plan 07-05): empty on the free panel, the buttons come with a run. */}
+      <Plate id="further-pad" />
       <PlateHeadings />
       <BracketGroups />
       <g data-shell="vent">

@@ -823,7 +823,7 @@ describe('avionics unit regions and plates (plan 06)', () => {
     ]);
   });
 
-  it('the three unit plates carry exactly their region and there are 17 plates', () => {
+  it('the three unit plates carry exactly their region and there are 18 plates', () => {
     const carried = (id: string) => [...(PLATES.find((p) => p.id === id)?.regions ?? [])];
     expect(carried('ap-unit')).toEqual(['autopilot_panel']);
     expect(carried('pfd-left-unit')).toEqual(['pfd_bezel_left']);
@@ -831,8 +831,9 @@ describe('avionics unit regions and plates (plan 06)', () => {
     expect(carried('session-pad')).toEqual(['scenario_area']);
     expect(carried('transponder-pad')).toEqual(['transponder']);
     expect(carried('pedals-pad')).toEqual(['pedals']);
+    expect(carried('further-pad')).toEqual(['further_area']);
     expect(carried('cabin-pad')).toEqual(['side_window', 'door_arm']);
-    expect(PLATES).toHaveLength(17);
+    expect(PLATES).toHaveLength(18);
   });
 
   it('keeps its clearances to the neighbours (strip-flaps, gear plate, bezels, bus plate)', () => {
@@ -1556,6 +1557,17 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
    */
   const P51_PEDALS_REGION = 'pedals';
   const P51_PEDALS_PLATE = 'pedals-pad';
+  /**
+   * The six toggle buttons of the further actions (Phase 7, plan 07-05, R-07): a trainer region and
+   * its plate in the pilot's footwell between the under-panel pulls and the toe brakes, named
+   * exceptions of the legroom gate like the pedals. Typed in by hand.
+   */
+  const P7_FURTHER_REGION = 'further_area';
+  const P7_FURTHER_PLATE = 'further-pad';
+  const FURTHER_PLATE: Rect = { x: 200, y: 893, w: 640, h: 210 };
+  const FURTHER_REGION: Rect = { x: 190, y: 868, w: 660, h: 260 };
+  /** The six slots of the cluster (600 x 170) in global units: the plate stands 20 units around them. */
+  const FURTHER_SLOTS: Rect = { x: 220, y: 913, w: 600, h: 170 };
 
   it('the session-pad plate has the Table Z1 rectangle (rx 18) and carries scenario_area only', () => {
     const plate = PLATES.find((p) => p.id === 'session-pad');
@@ -1599,9 +1611,9 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     }
   });
 
-  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions, the owner-placed under_panel_ecs region (2026-10-22), the owner-placed side_window and door_arm regions and their cabin-pad plate (2026-10-27) and the Phase 5.1 pedals region and plate', () => {
+  it('no plate and no region intersects the pilot legroom, except the pre-phase-2 under_panel_left and under_panel_centre regions, the owner-placed under_panel_ecs region (2026-10-22), the owner-placed side_window and door_arm regions and their cabin-pad plate (2026-10-27) the Phase 5.1 pedals region and plate and the Phase 7 further_area region with its further-pad plate', () => {
     const plates = PLATES.filter((p) => overlaps(rectOf(p), PILOT_LEGROOM)).map((p) => p.id);
-    expect(plates.sort()).toEqual([OWNER_CABIN_PLATE, P51_PEDALS_PLATE].sort());
+    expect(plates.sort()).toEqual([OWNER_CABIN_PLATE, P51_PEDALS_PLATE, P7_FURTHER_PLATE].sort());
     const regions = DA50RG.regions
       .filter((r) => overlaps(r.bounds, PILOT_LEGROOM))
       .map((r) => r.id)
@@ -1613,6 +1625,7 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
         OWNER_WINDOW_REGION,
         OWNER_DOOR_REGION,
         P51_PEDALS_REGION,
+        P7_FURTHER_REGION,
       ].sort(),
     );
   });
@@ -1628,6 +1641,42 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
     expect(region.y - plate.y).toBe(20);
     expect(plate.x + plate.w - (region.x + region.w)).toBe(20);
     expect(plate.y + plate.h - (region.y + region.h)).toBeGreaterThanOrEqual(20);
+  });
+
+  it('the further-pad plate has the typed rectangle, carries further_area (which is larger than the plate), stands 20 units around the slots, holds no control and keeps clear of its neighbours (R-07)', () => {
+    const plate = PLATES.find((p) => p.id === P7_FURTHER_PLATE);
+    expect(plate).toBeDefined();
+    if (plate === undefined) return;
+    expect(rectOf(plate)).toEqual(FURTHER_PLATE);
+    expect(plate.rx).toBe(12);
+    expect([...plate.regions]).toEqual([P7_FURTHER_REGION]);
+    const region = DA50RG.regions.find((r) => r.id === P7_FURTHER_REGION);
+    expect(region?.bounds).toEqual(FURTHER_REGION);
+    expect(region?.controlIds).toEqual([]);
+    expect(FURTHER_SLOTS.x - FURTHER_PLATE.x).toBe(20);
+    expect(FURTHER_SLOTS.y - FURTHER_PLATE.y).toBe(20);
+    expect(FURTHER_PLATE.x + FURTHER_PLATE.w - (FURTHER_SLOTS.x + FURTHER_SLOTS.w)).toBe(20);
+    expect(FURTHER_PLATE.y + FURTHER_PLATE.h - (FURTHER_SLOTS.y + FURTHER_SLOTS.h)).toBe(20);
+    // The region holds the plate and leaves room above and below it (the Full panel corner, phones).
+    expect(inside(FURTHER_PLATE, FURTHER_REGION)).toBe(true);
+    for (const r of DA50RG.regions) {
+      if (r.id === P7_FURTHER_REGION) continue;
+      expect(overlaps(FURTHER_REGION, r.bounds), `region vs ${r.id}`).toBe(false);
+    }
+    expect(inside(rectOf(plate), { x: 0, y: 0, w: PANEL_VIEWBOX.w, h: PANEL_VIEWBOX.h })).toBe(
+      true,
+    );
+    for (const p of PLATES) {
+      if (p.id === P7_FURTHER_PLATE) continue;
+      expect(overlaps(rectOf(plate), rectOf(p)), `plate ${p.id}`).toBe(false);
+    }
+    for (const r of DA50RG.regions) {
+      if (r.id === P7_FURTHER_REGION) continue;
+      expect(overlaps(rectOf(plate), r.bounds), `region ${r.id}`).toBe(false);
+    }
+    // Below the under-panel pulls (their regions end at y 865) and above the pedals plate (y 1130).
+    expect(FURTHER_REGION.y).toBeGreaterThanOrEqual(865);
+    expect(FURTHER_REGION.y + FURTHER_REGION.h).toBeLessThanOrEqual(1130);
   });
 
   it('the cabin plate has the typed rectangle, carries the window and the door regions and keeps clear of the pull above and the pedals', () => {

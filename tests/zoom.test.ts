@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG, VIEWBOX, VIEW_PROFILES } from '../src/aircraft/da50rg/panel';
 import type { ControlDef, Rect } from '../src/engine/registry';
 import { PANEL_EXTENT, WINDSCREEN_REFERENCE } from './layout-reference';
-import { sessionFootprints } from '../src/ui/panel/session-area';
+import { furtherFootprints, sessionFootprints } from '../src/ui/panel/session-area';
 import {
   DOUBLE_TAP_MS,
   DOUBLE_TAP_PX,
@@ -965,10 +965,10 @@ describe('session area zoom (plan 02-10)', () => {
   const REGION: Rect = { x: 1300, y: 780, w: 440, h: 480 };
   /**
    * New, choose, reset, close, next and the four choose rows, then the four buttons of the run view
-   * (checklist, hint, further, leave), as global rectangles (Phase 5.1: the region is 440 wide, the
+   * (checklist, hint, leave), as global rectangles (Phase 5.1: the region is 440 wide, the
    * choose buttons 370, CLOSE LIST and NEXT PAGE 177 each with 16 between them; Phase 7 plan 07-04: the
-   * three free-panel buttons are 280 wide at local x 80; the run view has rows of 80 at 20, 116 and
-   * 212 and LEAVE, 177 x 80, at local x 228, y 392).
+   * three free-panel buttons are 280 wide at local x 80; the run view has rows of 80 at 20 and 116
+   * and LEAVE, 177 x 80, at local x 228, y 392).
    */
   const SESSION_TARGETS: readonly Rect[] = [
     { x: 1380, y: 800, w: 280, h: 120 },
@@ -982,7 +982,6 @@ describe('session area zoom (plan 02-10)', () => {
     { x: 1335, y: 1160, w: 370, h: 80 },
     { x: 1335, y: 800, w: 370, h: 80 },
     { x: 1335, y: 896, w: 370, h: 80 },
-    { x: 1335, y: 992, w: 370, h: 80 },
     { x: 1528, y: 1172, w: 177, h: 80 },
   ];
   const profiles = [
@@ -1021,6 +1020,97 @@ describe('session area zoom (plan 02-10)', () => {
       expect(buttonOverlap(corner, view, screen, SESSION_TARGETS), `${name} ${corner}`).toBe(0);
     });
   }
+});
+
+// Phase 7 plan 07-05 (R-07): the six footwell buttons of the region further_area at every zoom level.
+// The region origin and the global slot rectangles are typed in by hand, not read from the data.
+describe('further actions area zoom (plan 07-05)', () => {
+  /**
+   * The panel area of the landscape phones of the e2e projects while a run is live (the footer with
+   * Procedure complete takes 32 px more than on the free panel): Pixel 7 863 x 300, iPhone 15 734 x 283.
+   */
+  const PHONE_RUNS = [
+    { w: 863, h: 300 },
+    { w: 734, h: 283 },
+  ];
+  const REGION: Rect = { x: 190, y: 868, w: 660, h: 260 };
+  /** The region stands 30 units wider and 45 higher than the slots on each side (room for the Full panel corner on the phone). Three columns x 220, 425, 630 (190 wide), two rows y 913 and 1005 (78 high). */
+  const FURTHER_TARGETS: readonly Rect[] = [
+    { x: 220, y: 913, w: 190, h: 78 },
+    { x: 425, y: 913, w: 190, h: 78 },
+    { x: 630, y: 913, w: 190, h: 78 },
+    { x: 220, y: 1005, w: 190, h: 78 },
+    { x: 425, y: 1005, w: 190, h: 78 },
+    { x: 630, y: 1005, w: 190, h: 78 },
+  ];
+  const profiles = [
+    ['phone', VIEW_PROFILES.phone],
+    ['tablet', VIEW_PROFILES.tablet],
+    ['desktop', VIEW_PROFILES.desktop],
+  ] as const;
+
+  it('furtherFootprints returns the six global slot rectangles', () => {
+    expect(furtherFootprints(REGION)).toEqual(FURTHER_TARGETS);
+  });
+
+  it('the registry region has the reference bounds and holds no control', () => {
+    const region = DA50RG.regions.find((r) => r.id === 'further_area');
+    expect(region?.bounds).toEqual(REGION);
+    expect(region?.controlIds).toEqual([]);
+  });
+
+  for (const [name, screen] of profiles) {
+    it(`every button reaches ${MIN_TAP_PX} px after the region zoom on the ${name} profile`, () => {
+      const view = zoomRect(REGION, VIEWBOX);
+      const scale = fitScale(view, screen);
+      for (const t of FURTHER_TARGETS) {
+        expect(t.h * scale, `${t.x},${t.y} high on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+        expect(t.w * scale, `${t.x},${t.y} wide on ${name}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+      }
+    });
+
+    it(`the Full panel corner covers no footwell button when zoomed into the area on the ${name} profile`, () => {
+      const view = zoomRect(REGION, VIEWBOX);
+      const corner = chooseButtonCorner({
+        view,
+        screen,
+        footprints: [...controlFootprints(DA50RG), ...FURTHER_TARGETS],
+        current: 'tr',
+      });
+      expect(buttonOverlap(corner, view, screen, FURTHER_TARGETS), `${name} ${corner}`).toBe(0);
+    });
+  }
+
+  it('the Full panel corner covers no footwell button on the landscape phone areas of a live run', () => {
+    const view = zoomRect(REGION, VIEWBOX);
+    for (const screen of PHONE_RUNS) {
+      const corner = chooseButtonCorner({
+        view,
+        screen,
+        footprints: [...controlFootprints(DA50RG), ...FURTHER_TARGETS],
+        current: 'tr',
+      });
+      expect(buttonOverlap(corner, view, screen, FURTHER_TARGETS), `${screen.w}`).toBe(0);
+      const scale = fitScale(view, screen);
+      for (const t of FURTHER_TARGETS) {
+        expect(t.h * scale, `${screen.w}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+      }
+    }
+  });
+
+  it('also reaches the minimum on the portrait phones of the e2e projects (393 x 603, 393 x 631) and 412 x 800', () => {
+    const view = zoomRect(REGION, VIEWBOX);
+    for (const screen of [
+      { w: 393, h: 603 },
+      { w: 393, h: 631 },
+      { w: 412, h: 800 },
+    ]) {
+      const scale = fitScale(view, screen);
+      for (const t of FURTHER_TARGETS) {
+        expect(t.h * scale, `${screen.w}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+      }
+    }
+  });
 });
 
 // The emergency window and the door lock lever (Phase 5.1, P-07, P-09, owner 2026-10-27): two regions

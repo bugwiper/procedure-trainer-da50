@@ -6,6 +6,7 @@ import type { PressTarget } from '../press-targets';
 
 const FACE = '#1b2127';
 const RIM = '#3a424b';
+const FACE_SELECTED = '#2c5d8f';
 const RIM_PRESSED = '#8fb8e6';
 const LABEL = '#e6e9ed';
 const FOCUS = '#8fb8e6';
@@ -21,6 +22,11 @@ export interface SessionButtonProps {
   readonly onActivate: () => void;
   /** Keeps the pressed rim (a load started by this button is still running). */
   readonly held?: boolean;
+  /**
+   * A toggle button that is switched on (Phase 7, R-07): the face is tinted, the rim is the pressed
+   * rim and the group says aria-pressed. The label never changes (G-0). Absent: not a toggle.
+   */
+  readonly selected?: boolean;
   /** performance.now() time before which an activation is ignored (the 400 ms shield of a new view). */
   readonly ignoreUntil?: number;
 }
@@ -57,6 +63,7 @@ export function SessionButton({
   id,
   onActivate,
   held = false,
+  selected,
   ignoreUntil,
 }: SessionButtonProps) {
   const pending = useSignal(false);
@@ -68,13 +75,15 @@ export function SessionButton({
   const press = makeSessionPress(activate, (on) => {
     pending.value = on;
   });
-  const rimPressed = pending.value || held;
+  const rimPressed = pending.value || held || selected === true;
   const { x, y, w, h } = rect;
   return (
     <g
       class="session-button"
       data-session-button={id}
       data-pressed={rimPressed ? 'true' : undefined}
+      data-selected={selected === undefined ? undefined : selected ? 'true' : 'false'}
+      aria-pressed={selected}
       role="button"
       tabIndex={0}
       aria-label={ariaLabel}
@@ -91,7 +100,7 @@ export function SessionButton({
         width={w}
         height={h}
         rx={10}
-        fill={FACE}
+        fill={selected === true ? FACE_SELECTED : FACE}
         stroke={rimPressed ? RIM_PRESSED : RIM}
         stroke-width={rimPressed ? 3 : 2}
         pointer-events="none"
