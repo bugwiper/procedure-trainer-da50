@@ -18,16 +18,20 @@ import { isStrayFullPanelClick } from './panel/tap-intent';
 import { buttonCorner, isZoomed, viewChangedByTapAt, zoomOut } from './panel/zoom';
 import { Ack } from './screens/Ack';
 import { Briefing } from './screens/Briefing';
+import { HintBox } from './screens/HintBox';
 import { LevelPick } from './screens/LevelPick';
 import { RunChecklist } from './screens/RunChecklist';
+import type { SheetBody } from './screens/RunChecklist';
 import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
 import { FurtherActions } from './screens/FurtherActions';
 import { offersConduct } from '../engine/further';
 import { Debrief } from './screens/Debrief';
 import { parsePreviewFlags, parsePreviewQuantities } from './preview';
+import { branchStatuses } from '../engine/grading';
 import { RUN_ERROR_PATH, createSession } from './session';
 import type { LoadFailure } from './session';
 import type { Level } from './session';
+import type { Scenario } from '../scenario/schema';
 
 const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
 
@@ -214,6 +218,42 @@ const backToPanel = () => {
   session.backToPanel();
 };
 
+/** What the checklist sheet shows now (R-02, R-03): the list, a chosen checklist or the scenario's own. */
+function sheetBody(scenario: Scenario): SheetBody {
+  const own: SheetBody = {
+    kind: 'checklist',
+    scenario,
+    branches: session.runBranches.value,
+    marks: session.checklistMarks.value,
+  };
+  if (session.level.value !== 'realistic') return own;
+  const list = session.checklistList.value;
+  const choice = session.checklistChoice.value;
+  if (session.checklistView.value === 'list' || choice === null) {
+    return {
+      kind: 'list',
+      list,
+      onChoose: (ref) => {
+        session.chooseChecklist(ref);
+      },
+      onRetry: () => {
+        session.retryChecklistList();
+      },
+    };
+  }
+  const entry = list.entries.find(
+    (e) => e.ref.pack === choice.ref.pack && e.ref.scenario === choice.ref.scenario,
+  );
+  // A checklist of another scenario is shown plain: its branches as its own start state decides.
+  if (entry === undefined || entry.scenario.id === scenario.id) return own;
+  return {
+    kind: 'checklist',
+    scenario: entry.scenario,
+    branches: branchStatuses(entry.scenario, DA50RG_ENV),
+    marks: null,
+  };
+}
+
 export function App() {
   const screen = session.screen.value;
   const scenario = session.scenario.value;
@@ -267,11 +307,19 @@ export function App() {
         ) : null}
         {sheetShown && scenario !== null ? (
           <RunChecklist
-            scenario={scenario}
-            branches={session.runBranches.value}
-            marks={session.checklistMarks.value}
+            body={sheetBody(scenario)}
             onHide={toggleChecklist}
+            {...(session.level.value === 'realistic'
+              ? {
+                  onBackToList: () => {
+                    session.showChecklistList();
+                  },
+                }
+              : {})}
           />
+        ) : null}
+        {screen === 'running' && scenario !== null && session.hintShown.value ? (
+          <HintBox scenario={scenario} />
         ) : null}
       </div>
       {rotateHintDismissed.value ? null : (
@@ -352,6 +400,7 @@ export function App() {
           scenario={scenario}
           result={result}
           level={session.level.value}
+          checklistUsed={session.checklistChoice.value?.heading ?? null}
           completedAt={session.recording.value?.completedAt ?? 0}
           onClose={closeDebrief}
           onRetry={() => {

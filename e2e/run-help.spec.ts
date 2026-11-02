@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { parseScenario } from '../src/scenario/parse';
 import type { ProcedureNode, Scenario, Step } from '../src/scenario/schema';
-import { chooseScenario, startRealistic, startScenario } from './support/session';
+import { chooseScenario, shippedScenarios, startRealistic, startScenario } from './support/session';
 import { activate } from './support/zoom';
 
 // SES-02 (phase 07, plans 07-04): there is no mode; every run has a CHECKLIST button whose sheet marks
@@ -168,7 +168,35 @@ for (const level of ['easy', 'medium'] as const) {
   });
 }
 
-test('@hooks Realistic: CHECKLIST stays shut until the onset, then shows the sheet', async ({
+/** The heading the list shows for a shipped scenario: the printed heading, else the title. */
+function headingOfShipped(file: string, title: string): string {
+  return scenarioFile(file).checklist?.heading ?? title;
+}
+
+/** The headings of all shipped checklists in listing order, derived in node from the files. */
+function expectedHeadings(): string[] {
+  return shippedScenarios().map((entry) =>
+    headingOfShipped(`${entry.pack}/${entry.file}`, entry.title),
+  );
+}
+
+/** Waits until the run clock stands at or past the onset of a Realistic run. */
+async function afterOnset(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const host = globalThis as unknown as {
+      __panelSession?: { now(): number | null; onset(): { at: number } | null };
+    };
+    const now = host.__panelSession?.now() ?? null;
+    const onset = host.__panelSession?.onset() ?? null;
+    return now !== null && onset !== null && now >= onset.at;
+  });
+}
+
+const ENTRIES = '[data-testid="run-checklist-entry"]';
+const entryOf = (page: Page, heading: string) =>
+  page.locator(ENTRIES).filter({ hasText: heading }).first();
+
+test('@hooks Realistic: CHOOSE CHECKLIST lists the headings of all checklists before the onset, none marked as the right one', async ({
   page,
   hasTouch,
   browserName,
@@ -180,22 +208,139 @@ test('@hooks Realistic: CHECKLIST stays shut until the onset, then shows the she
   await page.goto('./');
   await expect(page.getByTestId('panel')).toBeVisible();
   await startRealistic(page, hasTouch, ENGINE_ROW);
-  // The clean start: the sheet would name the situation, so the press shows nothing (WR-01).
-  await activate(page.locator(CHECKLIST), hasTouch);
-  await expect(page.getByTestId('run-checklist')).toHaveCount(0);
-  await page.waitForFunction(() => {
-    const host = globalThis as unknown as {
-      __panelSession?: { now(): number | null; onset(): { at: number } | null };
-    };
-    const now = host.__panelSession?.now() ?? null;
-    const onset = host.__panelSession?.onset() ?? null;
-    return now !== null && onset !== null && now >= onset.at;
-  });
-  await activate(page.locator(CHECKLIST), hasTouch);
-  await expect(page.getByTestId('run-checklist')).toBeVisible();
-  await expect(page.getByTestId('run-checklist')).toContainText(
-    scenarioFile('engine/eng-oil-temp-green').checklist?.heading ?? '',
+  await expect(page.locator('[data-session-button="session.checklist"]')).toContainText(
+    'CHOOSE CHECKLIST',
   );
+
+  await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(page.getByTestId('run-checklist-list')).toBeVisible();
+  await expect(page.locator(ENTRIES)).toHaveText(expectedHeadings());
+  // Alike: no entry carries a mark, a state or a title of its own.
+  const attrs = await page
+    .locator(ENTRIES)
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttributeNames().sort().join(',')));
+  expect(new Set(attrs).size).toBe(1);
+  // Not a modal: no dialog.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // A second press hides the sheet where it leaves the button free; the hide button anywhere.
+  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  await expect(page.getByTestId('run-checklist')).toHaveCount(0);
+});
+
+test('@hooks Realistic: the own checklist is marked after the onset, a foreign one never, the debrief names the last choice', async ({
+  page,
+  hasTouch,
+  browserName,
+}) => {
+  test.skip(
+    browserName === 'webkit' && hasTouch && process.platform === 'linux',
+    WEBKIT_LINUX_TOUCH,
+  );
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  const own = scenarioFile('engine/eng-oil-temp-green');
+  const ownHeading = own.checklist?.heading ?? own.title;
+  const foreign = shippedScenarios().find((entry) => entry.row !== ENGINE_ROW);
+  if (foreign === undefined) throw new Error('only one scenario is shipped');
+  const foreignHeading = headingOfShipped(`${foreign.pack}/${foreign.file}`, foreign.title);
+  expect(foreignHeading).not.toBe(ownHeading);
+  const first = stepsOf(own.procedure)[0];
+  if (first === undefined) throw new Error('the file has no step');
+
+  await startRealistic(page, hasTouch, ENGINE_ROW);
+  await activate(page.locator(CHECKLIST), hasTouch);
+  await expect(page.locator(ENTRIES).first()).toBeVisible();
+
+  // The own checklist, chosen after the onset and then the step done: exactly that row is green.
+  await afterOnset(page);
+  await activate(entryOf(page, ownHeading), hasTouch);
+  await expect(page.getByTestId('run-checklist')).toContainText(own.checklist?.message ?? '');
+  await expect(page.getByTestId('run-checklist-back')).toBeVisible();
+  await expect(page.locator('[data-testid="sheet-step"][data-verdict]')).toHaveCount(0);
+  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  await activate(page.locator('[data-detent="lv.power:p50"]'), hasTouch);
+  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p50');
+  // The press reopens the chosen checklist, not the list.
+  await activate(page.locator(CHECKLIST), hasTouch);
+  const done = page.locator('[data-testid="sheet-step"][data-verdict="Done"]');
+  await expect(done).toHaveCount(1);
+  await expect(done).toHaveAttribute('data-step-id', first.id);
+
+  // A foreign checklist: its rows, nothing marked.
+  await activate(page.getByTestId('run-checklist-back'), hasTouch);
+  await activate(entryOf(page, foreignHeading), hasTouch);
+  await expect(page.getByTestId('run-checklist')).toContainText(foreignHeading);
+  await expect(page.locator('[data-testid="sheet-step"][data-verdict]')).toHaveCount(0);
+  await expect(page.getByTestId('debrief-row')).toHaveCount(0);
+
+  // The last choice is named in the debrief and the verdict is the grade of the panel alone.
+  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toBeVisible();
+  await expect(page.getByTestId('debrief-checklist')).toHaveText(
+    `Checklist used: ${foreignHeading}`,
+  );
+});
+
+test('@hooks Realistic: a run without a choice prints "Checklist used: none"; Easy prints no such line', async ({
+  page,
+  hasTouch,
+}) => {
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await startRealistic(page, hasTouch, ENGINE_ROW);
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-checklist')).toHaveText('Checklist used: none');
+  await activate(page.getByTestId('debrief-back'), hasTouch);
+
+  await startScenario(page, hasTouch, ENGINE_ROW, 'easy');
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toBeVisible();
+  await expect(page.getByTestId('debrief-checklist')).toHaveCount(0);
+});
+
+test('@hooks Realistic: HINT shows the situation name and text of the file, a second press hides the box, and before the onset it does nothing', async ({
+  page,
+  hasTouch,
+  browserName,
+}) => {
+  test.skip(
+    browserName === 'webkit' && hasTouch && process.platform === 'linux',
+    WEBKIT_LINUX_TOUCH,
+  );
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  const scenario = scenarioFile('engine/eng-oil-temp-green');
+  await startRealistic(page, hasTouch, ENGINE_ROW);
+
+  // The clean start: the box would name the situation, so the press shows nothing.
+  await activate(page.locator(HINT), hasTouch);
+  await expect(page.getByTestId('hint-box')).toHaveCount(0);
+
+  await afterOnset(page);
+  await activate(page.locator(HINT), hasTouch);
+  await expect(page.getByTestId('hint-box')).toBeVisible();
+  await expect(page.getByTestId('hint-box-title')).toHaveText(scenario.title);
+  await expect(page.getByTestId('hint-box-situation')).toHaveText(scenario.briefing.situation);
+  await expect(page.locator('[data-session-button="session.hint"]')).toHaveAttribute(
+    'data-pressed',
+    'true',
+  );
+  // A box over the windscreen that takes no press; no dialog; the panel keeps working.
+  await expect(page.getByTestId('hint-box')).toHaveCSS('pointer-events', 'none');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await activate(page.locator('[data-detent="lv.power:p50"]'), hasTouch);
+  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p50');
+
+  await activate(page.locator(HINT), hasTouch);
+  await expect(page.getByTestId('hint-box')).toHaveCount(0);
+
+  // It is gone when the run ends.
+  await activate(page.locator(HINT), hasTouch);
+  await expect(page.getByTestId('hint-box')).toBeVisible();
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toBeVisible();
+  await expect(page.getByTestId('hint-box')).toHaveCount(0);
 });
 
 test('the sheet is gone when the run ends', async ({ page, hasTouch, browserName }) => {

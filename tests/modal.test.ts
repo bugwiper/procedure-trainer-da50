@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { h } from 'preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { grade } from '../src/engine/grading';
@@ -8,6 +9,7 @@ import { parseScenario } from '../src/scenario/parse';
 import { anyModalOpen, holdModal, releaseModal } from '../src/ui/modals';
 import { Debrief } from '../src/ui/screens/Debrief';
 import { INPUT_SHIELD_MS, Modal, isShielded, nextFocusIndex } from '../src/ui/screens/Modal';
+import { expand, findElements, textOf } from './vnode-walk';
 
 // The modal shell helpers, the modal registry and the debrief's use of the shell (plan 02-09,
 // Table M1; U-12): pure cases in the node environment.
@@ -93,6 +95,7 @@ describe('Debrief on the shell', () => {
       scenario,
       result,
       level: 'easy',
+      checklistUsed: null,
       completedAt: 0,
       onClose,
       onRetry,
@@ -120,5 +123,30 @@ describe('Debrief on the shell', () => {
     expect(buttons[0]?.['onClick']).toBe(onRetry);
     expect(buttons[1]?.['onClick']).toBe(onNext);
     expect(buttons[2]?.['onClick']).toBe(onClose);
+  });
+
+  /** The text of the line "Checklist used: ..." the debrief prints, or null when it prints none. */
+  function checklistLine(level: 'easy' | 'medium' | 'realistic', used: string | null) {
+    const vnode = Debrief({
+      further: DA50RG_ENV.further,
+      scenario,
+      result,
+      level,
+      checklistUsed: used,
+      completedAt: 0,
+      onClose: vi.fn(),
+      onRetry: vi.fn(),
+      onNext: vi.fn(),
+    });
+    const tree = expand(h('div', null, (vnode.props as { children: never }).children));
+    const lines = findElements(tree, (el) => el.props['data-testid'] === 'debrief-checklist');
+    return lines.length === 0 ? null : textOf(lines[0] ?? tree);
+  }
+
+  it('names the checklist used on Realistic only, and none when none was chosen (R-03)', () => {
+    expect(checklistLine('realistic', 'ALTN 1 FAIL')).toBe('Checklist used: ALTN 1 FAIL');
+    expect(checklistLine('realistic', null)).toBe('Checklist used: none');
+    expect(checklistLine('easy', 'ALTN 1 FAIL')).toBeNull();
+    expect(checklistLine('medium', null)).toBeNull();
   });
 });

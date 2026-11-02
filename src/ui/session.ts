@@ -45,6 +45,7 @@ import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
 import type { Scenario } from '../scenario/schema';
 import type { PanelBridge } from './bridge';
+import { checklistHead } from './outline';
 import { pageCount } from './panel/session-area';
 
 export type Screen = 'free' | 'choosing' | 'briefing' | 'running' | 'debrief';
@@ -77,6 +78,28 @@ const SLOW_MARKS_MS = 30;
 
 /** The wait (ms) of a trailing refresh: events in between are coalesced into one. */
 const TRAILING_MARKS_MS = 150;
+
+/** One checklist of the Realistic list (R-03): its scenario entry, the heading shown and the parsed file. */
+export interface ChecklistEntry {
+  readonly ref: ScenarioRef;
+  readonly heading: string;
+  readonly scenario: Scenario;
+}
+
+/** The lazily loaded list of the checklists of all allowed scenarios. */
+export interface ChecklistList {
+  readonly status: 'idle' | 'loading' | 'ready' | 'failed';
+  readonly entries: readonly ChecklistEntry[];
+}
+
+/** The checklist chosen last on Realistic: display state of the run, never an input of grade. */
+export interface ChecklistChoice {
+  readonly ref: ScenarioRef;
+  readonly heading: string;
+}
+
+const sameRef = (a: ScenarioRef | null, b: ScenarioRef | null): boolean =>
+  a !== null && b !== null && a.pack === b.pack && a.scenario === b.scenario;
 
 /** The seeds the session draws are unsigned 32-bit integers. */
 const SEED_RANGE = 4_294_967_296;
@@ -184,6 +207,20 @@ export interface Session {
    */
   readonly checklistMarks: ReadonlySignal<GradeResult | null>;
   /**
+   * What the shown sheet holds: the list of checklists or one checklist (R-03). Easy and Medium are
+   * always 'sheet'; on Realistic the sheet opens at the list until a checklist was chosen.
+   */
+  readonly checklistView: ReadonlySignal<'list' | 'sheet'>;
+  /**
+   * Realistic only: the checklist chosen last (display state of the run, named in the debrief; the
+   * Recording and grade never see it). Kept until the debrief closes; null when none was chosen.
+   */
+  readonly checklistChoice: ReadonlySignal<ChecklistChoice | null>;
+  /** Realistic only: the checklists of every allowed scenario, loaded on the first press (R-03). */
+  readonly checklistList: ReadonlySignal<ChecklistList>;
+  /** True while the Realistic hint box is shown (R-04); cleared whenever the run ends. */
+  readonly hintShown: ReadonlySignal<boolean>;
+  /**
    * The branch statuses of the current run's scenario as the briefing showed them (decided at the
    * start), for the checklist sheet; empty outside a run.
    */
@@ -251,9 +288,21 @@ export interface Session {
    */
   setLevel(level: Level): void;
   /**
-   * Running only: shows or hides the checklist sheet. It records nothing and changes no grade.
+   * Running only: shows or hides the checklist sheet (on Realistic it opens at the list of
+   * checklists, or at the chosen one). It records nothing and changes no grade.
    */
   toggleChecklist(): void;
+  /** Realistic run with the sheet shown: back to the list of checklists. */
+  showChecklistList(): void;
+  /** Realistic run with the sheet shown: shows the chosen checklist; the last choice is kept. */
+  chooseChecklist(ref: ScenarioRef): void;
+  /** Repeats a failed load of the list of checklists; the run goes on meanwhile. */
+  retryChecklistList(): void;
+  /**
+   * Realistic run only, from the onset on: shows or hides the hint box with the situation name and
+   * the situation text of the Medium briefing (R-04). Nothing before the onset and on other levels.
+   */
+  toggleHint(): void;
   /**
    * Running only: logs one further action or flight conduct pick at the run clock's time. Ignored
    * before the onset of a Realistic run, for an id the aircraft does not have, for a conduct when the
@@ -398,6 +447,10 @@ export function createSession(deps: SessionDeps): Session {
   const levelPicked = signal(false);
   const checklistShown = signal(false);
   const checklistMarks = signal<GradeResult | null>(null);
+  const checklistView = signal<'list' | 'sheet'>('sheet');
+  const checklistChoice = signal<ChecklistChoice | null>(null);
+  const checklistList = signal<ChecklistList>({ status: 'idle', entries: [] });
+  const hintShown = signal(false);
   const runBranches = signal<readonly BranchVerdict[]>([]);
   const decisions = signal<readonly RecordedDecision[]>([]);
   const furtherOpen = signal(false);
@@ -409,6 +462,8 @@ export function createSession(deps: SessionDeps): Session {
   /** True when the last refresh of the sheet marks took longer than SLOW_MARKS_MS. */
   let slowMarks = false;
   let trailingMarks: ReturnType<typeof setTimeout> | null = null;
+  /** Counts the runs: a list load that outlives its run drops its result. */
+  let listGeneration = 0;
 
   /**
    * The recording of the run so far, stamped with the run clock's time now: the pilot's events only
@@ -440,6 +495,16 @@ export function createSession(deps: SessionDeps): Session {
   };
 
   /**
+   * True when the sheet shows the scenario's own checklist: always on Easy and Medium, on Realistic
+   * once the chosen checklist has the ref of the opened scenario (R-03).
+   */
+  const showsOwnChecklist = (): boolean => {
+    if (level.peek() !== 'realistic') return true;
+    const choice = checklistChoice.peek();
+    return checklistView.peek() === 'sheet' && choice !== null && sameRef(choice.ref, openedRef);
+  };
+
+  /**
    * Refreshes the marks of the sheet (R-02, S-02): the grade of the partial recording, only while
    * the sheet is shown and, on Realistic, once the onset has passed; otherwise nothing is marked.
    * Called by each logged panel event or retract and when the sheet is opened; never per tick.
@@ -447,7 +512,13 @@ export function createSession(deps: SessionDeps): Session {
   const computeMarks = (): void => {
     const current = scenario.peek();
     const graded = currentRecording();
-    if (!checklistShown.peek() || current === null || graded === null || beforeOnset()) {
+    if (
+      !checklistShown.peek() ||
+      current === null ||
+      graded === null ||
+      beforeOnset() ||
+      !showsOwnChecklist()
+    ) {
       checklistMarks.value = null;
       return;
     }
@@ -475,6 +546,11 @@ export function createSession(deps: SessionDeps): Session {
   const clearRunHelp = (): void => {
     checklistShown.value = false;
     checklistMarks.value = null;
+    checklistView.value = 'sheet';
+    checklistChoice.value = null;
+    checklistList.value = { status: 'idle', entries: [] };
+    hintShown.value = false;
+    listGeneration += 1;
     runBranches.value = [];
     slowMarks = false;
     if (trailingMarks !== null) clearTimeout(trailingMarks);
@@ -489,6 +565,47 @@ export function createSession(deps: SessionDeps): Session {
   bridge.store.onRetract((event) => {
     if (event.source === 'user' && checklistShown.peek()) refreshMarks();
   });
+
+  /**
+   * Loads the checklist list once per run (S-03): every scenario of every allowed pack through the
+   * pack seam, in listing order. It does not use `loading`, `busy` or `loadFailure`, so presses and
+   * the run are untouched; a failure shows in the sheet and can be retried.
+   */
+  const loadChecklistList = async (): Promise<void> => {
+    const status = checklistList.peek().status;
+    if (status === 'loading' || status === 'ready') return;
+    const generation = listGeneration;
+    checklistList.value = { status: 'loading', entries: [] };
+    const listed = await listChoices();
+    const opened = listed.ok
+      ? await Promise.all(
+          listed.choices.map(async (choice) => ({
+            choice,
+            opened: await openScenario(packs, env, {
+              pack: choice.pack,
+              scenario: choice.scenario,
+            }),
+          })),
+        )
+      : [];
+    // The run ended (or restarted) while the files loaded: nothing to show any more.
+    if (generation !== listGeneration) return;
+    const entries: ChecklistEntry[] = [];
+    for (const { choice, opened: result } of opened) {
+      if (!result.ok) {
+        checklistList.value = { status: 'failed', entries: [] };
+        return;
+      }
+      entries.push({
+        ref: { pack: choice.pack, scenario: choice.scenario },
+        heading: checklistHead(result.scenario).heading ?? result.scenario.title,
+        scenario: result.scenario,
+      });
+    }
+    checklistList.value = listed.ok
+      ? { status: 'ready', entries }
+      : { status: 'failed', entries: [] };
+  };
 
   /** Debrief only, not busy: the next scenario of the list opens its briefing (D-14). */
   const runNext = async (): Promise<void> => {
@@ -526,7 +643,10 @@ export function createSession(deps: SessionDeps): Session {
     if (graded === null || current === null || runClock === null) return;
     recording.value = graded;
     result.value = grade(current, env, graded);
+    // The debrief names the last checklist choice, so it outlives the sheet until the debrief closes.
+    const used = checklistChoice.peek();
     clearRunHelp();
+    checklistChoice.value = used;
     furtherOpen.value = false;
     runClock.pause();
     bridge.setTimeSource(null);
@@ -750,6 +870,10 @@ export function createSession(deps: SessionDeps): Session {
     levelPicked,
     checklistShown,
     checklistMarks,
+    checklistView,
+    checklistChoice,
+    checklistList,
+    hintShown,
     runBranches,
     decisions,
     furtherOpen,
@@ -871,10 +995,39 @@ export function createSession(deps: SessionDeps): Session {
     },
     toggleChecklist() {
       if (screen.peek() !== 'running') return;
-      // The sheet names the situation: on Realistic it stays shut until the onset (WR-01).
-      if (beforeOnset()) return;
-      checklistShown.value = !checklistShown.peek();
+      const opening = !checklistShown.peek();
+      if (opening && level.peek() === 'realistic') {
+        // Every checklist is listed alike, so the sheet may open before the onset (R-03).
+        const choice = checklistChoice.peek();
+        checklistView.value = choice === null ? 'list' : 'sheet';
+        void loadChecklistList();
+      }
+      checklistShown.value = opening;
       computeMarks();
+    },
+    showChecklistList() {
+      if (screen.peek() !== 'running' || level.peek() !== 'realistic') return;
+      checklistView.value = 'list';
+      void loadChecklistList();
+      computeMarks();
+    },
+    chooseChecklist(ref) {
+      if (screen.peek() !== 'running' || level.peek() !== 'realistic') return;
+      const list = checklistList.peek();
+      const entry = list.entries.find((e) => sameRef(e.ref, ref));
+      if (list.status !== 'ready' || entry === undefined) return;
+      checklistChoice.value = { ref: entry.ref, heading: entry.heading };
+      checklistView.value = 'sheet';
+      computeMarks();
+    },
+    retryChecklistList() {
+      if (screen.peek() !== 'running' || checklistList.peek().status !== 'failed') return;
+      checklistList.value = { status: 'idle', entries: [] };
+      void loadChecklistList();
+    },
+    toggleHint() {
+      if (screen.peek() !== 'running' || level.peek() !== 'realistic' || beforeOnset()) return;
+      hintShown.value = !hintShown.peek();
     },
     decide(id) {
       const current = scenario.peek();

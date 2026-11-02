@@ -1004,6 +1004,70 @@ body,
   }
 }
 
+/* The hint box of a Realistic run (Phase 7, R-04): the situation name and the situation text in a box
+   over the windscreen at the top of the panel area. It is art only and takes no press, so the panel
+   underneath stays operable and the run clock keeps running. It stays clear of the Full panel button
+   (top right) and the rotate hint (top left) by the side margins, and moves aside while the checklist
+   sheet is shown. */
+.hint-box {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  z-index: 20;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(520px, calc(100% - 2 * 136px));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 1px solid #3a424b;
+  border-radius: 6px;
+  background: rgba(27, 31, 37, 0.92);
+  color: #e6e9ed;
+  font-family: var(--font-placard);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.3;
+  pointer-events: none;
+}
+
+.hint-box-title {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #8fb8e6;
+}
+
+.hint-box-situation {
+  overflow-wrap: anywhere;
+}
+
+.panel-area[data-checklist-shown] .hint-box {
+  left: var(--sheet-w);
+  max-width: min(520px, calc(100% - var(--sheet-w) - 2 * 136px));
+}
+
+/* A landscape phone has a windscreen a few dozen pixels high: the box shrinks to stay out of the way. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .hint-box {
+    gap: 2px;
+    padding: 5px 10px;
+    font-size: 13px;
+    line-height: 1.25;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 700px) {
+  .hint-box,
+  .panel-area[data-checklist-shown] .hint-box {
+    top: 60px;
+    left: 0;
+    max-width: calc(100% - 16px);
+  }
+}
+
 /* The checklist sheet of a run (Phase 7, H-04, R-02): docked to the left of the panel area, at most
    40 per cent of its width (a bottom sheet of 40 per cent of its height on a narrow portrait phone),
    scrollable, above the panel and under the modals. It lies inside the panel area, so the footer is
@@ -1076,4 +1140,34 @@ body,
     border-right: 0;
     border-top: 1px solid #3a424b;
   }
+}
+
+/* The list of checklists on Realistic (R-03): one full-width button per heading, all alike. */
+.run-checklist-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.run-checklist-entry {
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.run-checklist-back {
+  margin-bottom: 8px;
+  min-height: 44px;
+}
+
+.run-checklist-message {
+  margin: 0;
+}
+
+.run-checklist-message p {
+  margin: 0 0 8px;
 }

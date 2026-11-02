@@ -21,7 +21,7 @@ import { Modal } from './Modal';
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
  * apply muted (the table form and the printed heading follow the scenario, plan 03-14), an order line under every ordered group and the harmful actions in log order
- * (no time). It names the level of the run ("Level: Easy"), on a meta line before it, the scenario (D-05); a scenario with variants adds one line naming the cause that was drawn (V-08); a run the 30-minute cap ended adds the limit line after the level line (V-14); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
+ * (no time). It names the level of the run ("Level: Easy"), on a meta line before it, the scenario (D-05); a Realistic run adds "Checklist used: ..." naming the last checklist chosen (none when none was, R-03); a scenario with variants adds one line naming the cause that was drawn (V-08); a run the 30-minute cap ended adds the limit line after the level line (V-14); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
@@ -29,6 +29,7 @@ export function Debrief({
   scenario,
   result,
   level,
+  checklistUsed,
   completedAt,
   onClose,
   onRetry,
@@ -39,6 +40,8 @@ export function Debrief({
   readonly scenario: Scenario;
   readonly result: GradeResult;
   readonly level: Level;
+  /** Realistic only: the heading of the checklist chosen last during the run, null when none was. */
+  readonly checklistUsed: string | null;
   /** The run clock at the end of the run (the recording's completedAt). */
   readonly completedAt: number;
   readonly onClose: () => void;
@@ -113,6 +116,11 @@ export function Debrief({
       <p class="briefing-meta" data-testid="debrief-level">
         {`Level: ${LEVEL_NAMES[level]}`}
       </p>
+      {level === 'realistic' ? (
+        <p class="briefing-meta" data-testid="debrief-checklist">
+          {`Checklist used: ${checklistUsed ?? 'none'}`}
+        </p>
+      ) : null}
       {limit === null ? null : (
         <p class="briefing-meta" data-testid="debrief-limit">
           {limit}
