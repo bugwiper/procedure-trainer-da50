@@ -4,7 +4,7 @@ import { basename, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect } from '@playwright/test';
 import { ACK_STORAGE_KEY, ACK_VERSION } from '../../src/ui/ack';
-import type { BrowserContext, Page } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 
 // Shared helpers of the offline specs (PLT-02). Test support, not a spec: the name does not end in
 // .spec.ts, so Playwright never collects it. Everything the page reports is read through the real
@@ -217,4 +217,27 @@ export async function linkedManifest(page: Page): Promise<LinkedManifest> {
     contentType: response.headers()['content-type'] ?? '',
     json: JSON.parse(text) as Record<string, unknown>,
   };
+}
+
+/** The device of the running project, as a private context needs it. */
+export interface DeviceOptions {
+  viewport: { width: number; height: number } | null;
+  userAgent: string | undefined;
+  hasTouch: boolean;
+  isMobile: boolean;
+  deviceScaleFactor: number | undefined;
+}
+
+/** A context for the private server's origin with the same device as the project. */
+export async function privateContext(
+  browser: Browser,
+  origin: string,
+  device: DeviceOptions,
+): Promise<BrowserContext> {
+  return browser.newContext({
+    ...device,
+    viewport: device.viewport,
+    serviceWorkers: 'allow',
+    storageState: acceptedStateFor(origin),
+  });
 }

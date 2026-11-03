@@ -893,6 +893,49 @@ body,
   touch-action: manipulation;
 }
 
+/* Update notice (Phase 8, D-05): a static sentence and one button at the bottom edge of the panel
+   area, on the free panel only. It does not move the layout; only its button takes pointer input.
+   Lifted above the Full panel button when that sits in a bottom corner. */
+.update-notice {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  box-sizing: border-box;
+  max-width: calc(100% - 16px);
+  padding: 4px 8px 4px 12px;
+  border-radius: 6px;
+  background: rgba(27, 31, 37, 0.94);
+  border: 1px solid #3a424b;
+  font-family: var(--font-placard);
+  font-size: 14px;
+  font-weight: 400;
+  pointer-events: none;
+}
+
+.update-notice[data-lifted='true'] {
+  bottom: 60px;
+}
+
+.update-notice button {
+  pointer-events: auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #8fb8e6;
+  border-radius: 8px;
+  background: #0b0d10;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
 @media (orientation: portrait) and (max-width: 700px) {
   .rotate-hint {
     display: flex;

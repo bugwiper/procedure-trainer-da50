@@ -15,6 +15,7 @@ import { attachClockDriver } from './clock-driver';
 import { checklistNote } from './debrief-text';
 import { anyModalOpen, holdModal, releaseModal } from './modals';
 import { Panel } from './panel/Panel';
+import { UpdateNotice } from './pwa/UpdateNotice';
 import { isStrayFullPanelClick } from './panel/tap-intent';
 import { buttonCorner, isZoomed, viewChangedByTapAt, zoomOut } from './panel/zoom';
 import { Ack } from './screens/Ack';
@@ -318,6 +319,7 @@ export function App() {
             Full panel
           </button>
         ) : null}
+        <UpdateNotice screen={screen} lifted={isZoomed.value} />
         {sheetShown && scenario !== null ? (
           <RunChecklist
             body={sheetBody(scenario)}

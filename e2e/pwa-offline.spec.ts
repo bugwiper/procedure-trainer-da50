@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
-import type { Browser, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import {
-  acceptedStateFor,
   cachedUrls,
   cacheNames,
   collectRequests,
   diskHash,
   fetchFromPage,
+  privateContext,
   precacheUrls,
   registrationOf,
   shippedPackFolders,
@@ -123,26 +123,6 @@ test('the list equals the built files and covers every pack chunk and font @loca
   const answers = await fetchFromPage(page, baseURL, paths);
   for (const answer of answers) expect(answer.hash, answer.path).toBe(diskHash(answer.path));
 });
-
-/** A context for the private server's origin with the same device as the project. */
-async function privateContext(
-  browser: Browser,
-  origin: string,
-  device: {
-    viewport: { width: number; height: number } | null;
-    userAgent: string | undefined;
-    hasTouch: boolean;
-    isMobile: boolean;
-    deviceScaleFactor: number | undefined;
-  },
-) {
-  return browser.newContext({
-    ...device,
-    viewport: device.viewport,
-    serviceWorkers: 'allow',
-    storageState: acceptedStateFor(origin),
-  });
-}
 
 test('one missing file fails the install as a whole and leaves no cache @local', async ({
   browser,

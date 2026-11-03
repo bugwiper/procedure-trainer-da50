@@ -36,6 +36,13 @@ export interface PrivateServer {
   removeFile(path: string): void;
   /** Replaces the first occurrence of `from` in a text file of the served copy. */
   replaceText(path: string, from: string, to: string): void;
+  /**
+   * Ships a new version: puts another build id into the copy's sw.js (so the browser sees a
+   * different worker script) and a marker comment into its index.html (which the new worker
+   * precaches, so the page can tell which version it came from). No other file changes, so the
+   * new worker's precache succeeds. Returns the new build id and the marker.
+   */
+  deployNewVersion(): { id: string; marker: string };
   /** Stops the server, drops open connections and deletes the copy. */
   close(): Promise<void>;
 }
@@ -48,6 +55,7 @@ export async function startPrivateServer(
   const dir = mkdtempSync(join(tmpdir(), 'da50-pwa-'));
   cpSync(fileURLToPath(source), dir, { recursive: true });
   const log: string[] = [];
+  let deployments = 0;
   const server: Server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const answer = (status: number, body: Buffer | string, type?: string): void => {
@@ -89,6 +97,22 @@ export async function startPrivateServer(
       const text = readFileSync(join(dir, path), 'utf8');
       if (!text.includes(from)) throw new Error(`"${from}" is not in ${path}`);
       writeFileSync(join(dir, path), text.replace(from, to));
+    },
+    deployNewVersion: () => {
+      const text = readFileSync(join(dir, 'sw.js'), 'utf8');
+      const old = /^const BUILD_ID = "([^"\n]*)";/m.exec(text)?.[1];
+      if (old === undefined) throw new Error('sw.js carries no build id');
+      deployments += 1;
+      const id = `next${deployments}${old}`.slice(0, 12);
+      const marker = `da50-deployed-${deployments}`;
+      writeFileSync(
+        join(dir, 'sw.js'),
+        text.replace(`const BUILD_ID = "${old}";`, `const BUILD_ID = "${id}";`),
+      );
+      const html = readFileSync(join(dir, 'index.html'), 'utf8');
+      if (!html.includes('</body>')) throw new Error('index.html has no closing body tag');
+      writeFileSync(join(dir, 'index.html'), html.replace('</body>', `<!-- ${marker} --></body>`));
+      return { id, marker };
     },
     close: async () => {
       server.closeAllConnections();
