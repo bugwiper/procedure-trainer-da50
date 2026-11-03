@@ -36,6 +36,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-25**: The PFD shows the active CAS messages in one vertical column at the lower right of the glass: black rows with thin level-coloured type, about half as wide as before, joined without a gap, the most severe on top (warning, caution, advisory), the column growing upward with each further message; texts and levels are unchanged; the heat cautions read the printed tags PITOT HT OFF and STALL HT OFF (plan 07-06, 2026-11-02, pending the phase UAT)
 - [x] **PNL-26**: The PFD has synthetic vision under the whole glass (the sky and terrain of the situation's scene, a runway on the take-off roll and the apron on the parked scene) that follows pitch and bank, with translucent speed and altitude tapes over it and a plain compass over a translucent backing, without map and without deviation bar
 - [x] **PNL-27**: A narrow vertical speed scale (plus and minus 3000 fpm, ticks every 500, numerals 1, 2 and 3) stands right of the altitude tape in place of the VS box, with a moving black readout box that carries the bare number, and the barometer setting under the tape reads QNH in hPa in turquoise from a static display value that a situation may set
+- [ ] **PNL-28**: A scene `outlanding` shows one off-airport landing field in the windscreen and in the synthetic vision of the PFD, growing toward the pilot as the altitude falls toward the terrain height; both read one cue (`field_near`, a level from the altitude) and one geometry function, the field is part of the scene and not chosen by the user, no text is drawn, and the free panel keeps its default scene (planned for Phase 9, plan 09-01)
 
 ### Scenario Engine
 
@@ -55,6 +56,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SCN-14**: The fuel system is a model: two tanks of 26 US gal, the FUEL selector picks the tank, the common-rail return always flows into the left tank, FUEL TRANS pumps 60 US gal/h from the right to the left tank with a white FUEL TRANS advisory on the PFD, fuel flow, gallons used, calculator values and the fuel temperatures (left outside air temperature + 8 C, right left minus a situation-dependent difference of 3 C by default, limits -25 and +60 C) derive from the simulated state with + - * / only
 - [x] **SCN-15**: A scenario scripts its situation in data (start quantities and an optional profile section of parameters in force from the first second: the flight state level, climb, descent, bank, stopped and the engine-stopped glide, the outside air temperature and the fuel temperature difference), identically in the live run and in every replay; lint rule L25 checks the profile against the aircraft
 - [x] **SCN-16**: The oil pressure follows the oil temperature and the POWER setting: hot oil lowers it (the lower green third at the cruise setting, possibly yellow at ground idle), a cold engine at idle is already in the upper yellow band and any power added on a cold engine drives it into red; the shape is a table in the aircraft data and the bands stay in the quantity data
+- [ ] **SCN-17**: A scenario can end by itself when a declared condition holds (`finish`, for example the aircraft has reached the field): the run completes as if the pilot had pressed Procedure complete at that time, graded by the unchanged grade function and identical in the live run and in every replay, with lint L32 rejecting a finish that does not resolve, holds at the start or is not reached by a do-nothing run; the profile can stop the engine from the first second (`engine_stopped`) so the existing glide regime applies (planned for Phase 9, plans 09-01 and 09-02)
 
 ### Session & Debrief
 
@@ -66,6 +68,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SES-06**: User can retry the scenario or move to the next situation
 - [x] **SES-07**: A running scenario survives a failing step listener (the error is shown and the run ends cleanly) and a run that reaches the 30-minute cap ends exactly as its replay does
 - [x] **SES-08**: CHOOSE SITUATION lists any number of situations in pages of four with a NEXT PAGE button
+- [ ] **SES-09**: When the conduct selected at the end of a graded run is the emergency landing and the scenario declares a follow-on for it (`follow_on` in the `further` section, lint L33 and L34), the debrief offers the button Emergency landing, which opens the follow-on situation through the pack seam with the level kept; nothing is carried over and each situation is graded on its own; a situation on a landing scene declares `conduct: none` and shows no conduct or Avoid buttons (planned for Phase 9, plans 09-02 and 09-03)
 
 ### Content
 
@@ -74,6 +77,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CNT-03**: A content policy for AFM-derived text (paraphrased vs verbatim, public vs private repo) is decided before any procedure text is committed
 - [x] **CNT-04**: The pack contains an ALTN 2 FAIL scenario with its checklist as printed and several causes behind the one message
 - [x] **CNT-05**: The pack contains Engine Fire on Ground, Electrical Fire with Smoke on Ground (engine running or stopped), Smoke and Fire During Take-Off (abort and no abort), Electrical Fire in Flight and Unintentional Flight Into Icing, each with its printed AFM page, its scene and its cues
+- [ ] **CNT-06**: A pack `landing` holds the emergency landing situations without engine power and with engine power, each with its printed booklet page typed verbatim (the panel rows graded on the panel, the other rows plain lines the user ticks on the sheet), each an entry of the group NON-ANNUNCIATED EMERGENCY PROCEDURES with the printed tag; ENGINE FIRE IN FLIGHT and T/O FIRE NO ABORT lead to the first and ELEC FIRE FLIGHT to the second (planned for Phase 9, plan 09-03; waits for the owner's booklet pages 9 and 10)
 
 ### Platform & Business
 
@@ -184,12 +188,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SES-06 | Phase 7 | Complete (as built, pending the phase UAT) |
 | CNT-02 | Phase 7 | Complete (as built, pending the phase UAT) |
 | PLT-02 | Phase 8 | Complete (as built, pending the phase UAT and the owner's device round) |
+| PNL-28 | Phase 9 | Planned |
+| SCN-17 | Phase 9 | Planned |
+| SES-09 | Phase 9 | Planned |
+| CNT-06 | Phase 9 | Planned (waits for the owner's booklet pages) |
 
 **Coverage:**
-- v1 requirements: 60 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1; SCN-11, PNL-16, CNT-04 added 2026-10-23 for phase 4; PNL-17, PNL-18, PNL-19, SCN-12 added 2026-10-27 for phase 5; PNL-20, SCN-13, SES-08, CNT-05 added 2026-10-27 for phase 5.1; PNL-21, PNL-22, PNL-23, PNL-24, SCN-14, SCN-15, SCN-16 added 2026-10-28 for phase 6; PNL-25, PNL-26, PNL-27 added 2026-11-01 for the inserted phase 6.1, PFD fidelity)
-- Mapped to phases: 60 (PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27; the seven requirements of phase 6 are complete as built by plans 06-01 to 06-04, 2026-10-29, pending the phase UAT; PNL-25 to PNL-27 complete as built by plans 06.1-01 to 06.1-03, 2026-11-01, pending the phase UAT; SES-02, SES-05, SES-06 and CNT-02 complete as built by plans 07-01 to 07-06 (07-04 and 07-05 rework SES-02, SES-03 and SES-05 after the owner walkthrough, 07-06 reworks SES-01, SES-02, SES-05 and PNL-25 after his second round), 2026-11-02, pending the phase UAT; PLT-02 complete as built by plans 08-01 to 08-03, 2026-11-03, pending the phase UAT and the owner's device round)
+- v1 requirements: 64 total (PNL-28, SCN-17, SES-09, CNT-06 added 2026-11-03 for phase 9, emergency landing situations; before that 60: 28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1; SCN-11, PNL-16, CNT-04 added 2026-10-23 for phase 4; PNL-17, PNL-18, PNL-19, SCN-12 added 2026-10-27 for phase 5; PNL-20, SCN-13, SES-08, CNT-05 added 2026-10-27 for phase 5.1; PNL-21, PNL-22, PNL-23, PNL-24, SCN-14, SCN-15, SCN-16 added 2026-10-28 for phase 6; PNL-25, PNL-26, PNL-27 added 2026-11-01 for the inserted phase 6.1, PFD fidelity)
+- Mapped to phases: 64 (PNL-28, SCN-17, SES-09 and CNT-06 planned in phase 9, 2026-11-03; PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27; the seven requirements of phase 6 are complete as built by plans 06-01 to 06-04, 2026-10-29, pending the phase UAT; PNL-25 to PNL-27 complete as built by plans 06.1-01 to 06.1-03, 2026-11-01, pending the phase UAT; SES-02, SES-05, SES-06 and CNT-02 complete as built by plans 07-01 to 07-06 (07-04 and 07-05 rework SES-02, SES-03 and SES-05 after the owner walkthrough, 07-06 reworks SES-01, SES-02, SES-05 and PNL-25 after his second round), 2026-11-02, pending the phase UAT; PLT-02 complete as built by plans 08-01 to 08-03, 2026-11-03, pending the phase UAT and the owner's device round)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-19*
-*Last updated: 2026-11-03 after phase 8 (PLT-02 built: offline worker, manifest, icons, update flow, device checklist)*
+*Last updated: 2026-11-03 after planning phase 9 (PNL-28, SCN-17, SES-09, CNT-06 added); phase 8 built earlier the same day (PLT-02: offline worker, manifest, icons, update flow, device checklist)*
