@@ -684,4 +684,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 6.1. PFD fidelity                                     | 3/3            | Complete    | 2026-11-01 |
 | 7. Training Mode, Further Actions and Repeat Loop     | 6/6            | Executed, awaiting UAT | 2026-11-02 |
 | 8. Offline PWA and Real-Device Hardening              | 3/3            | Executed, awaiting UAT | 2026-11-03 |
-| 9. Emergency landing situations                       | 4/4            | Executed, awaiting UAT | 2026-11-03 |
+| 9. Emergency landing situations                       | 4/5            | Executed 09-01 to 09-04, awaiting UAT (09-05 planned) | 2026-11-03 |
