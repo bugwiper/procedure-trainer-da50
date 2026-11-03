@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 
 ## Current Position
 
-Phase: 8 — Offline PWA and Real-Device Hardening
-Current Plan: 08-03 complete (plans 08-01 to 08-03 executed, 2026-11-03)
-Total Plans in Phase: 3
-Status: Phase 8 executed, awaiting UAT and the owner's device round (`docs/DEVICE-CHECKLIST.md`); Phase 7 awaits UAT as well
+Phase: 9 — Emergency landing situations
+Current Plan: 09-03 complete (plans 09-01 to 09-03 executed, 2026-11-03); plan 09-04 (ditching, seeded follow-on draw) is planned
+Total Plans in Phase: 3 (plus 09-04 planned)
+Status: Phase 9 executed, awaiting UAT; Phases 7 and 8 await UAT as well (Phase 8 also the owner's device round, `docs/DEVICE-CHECKLIST.md`)
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
-Last activity: 2026-11-03 — Phase 8 executed (offline worker, manifest and icons, update flow, device checklist); awaiting UAT
+Last activity: 2026-11-03 — Phase 9 executed (plan 09-03: the booklet page 9 landing without engine power, pack landing, follow-ons of the engine fires, ELEC FIRE FLIGHT accepts the alternate landing); awaiting UAT
 
 Progress: [███████░░░] 70%
 
@@ -270,5 +270,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-23T10:34:20.154Z
-Stopped at: Completed 08-03-PLAN.md (phase 8 executed, awaiting UAT)
+Stopped at: Completed 09-03-PLAN.md (phase 9 executed, awaiting UAT)
 Resume file: None
