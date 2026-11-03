@@ -157,6 +157,8 @@ test('every region with controls reaches full tap size when zoomed', async ({
   hasTouch,
 }, testInfo) => {
   test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  // The loop zooms into every region (about 40 regions) one after the other: slow on a loaded CI runner.
+  test.slow();
   const regions = await regionsWithControls(page);
   expect(regions.length).toBeGreaterThanOrEqual(8);
   for (const id of regions) {
@@ -198,6 +200,8 @@ test('the Full panel button covers no control hit in any region', async ({
   hasTouch,
 }, testInfo) => {
   test.skip(testInfo.project.name === 'phone-portrait', PORTRAIT_NOTE);
+  // The loop zooms into every region (about 40 regions) one after the other: slow on a loaded CI runner.
+  test.slow();
   const ids = await page
     .locator('[data-region-id]')
     .evaluateAll((els) => els.map((el) => el.getAttribute('data-region-id') ?? ''));
