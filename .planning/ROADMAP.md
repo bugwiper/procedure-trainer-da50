@@ -664,7 +664,7 @@ Plans:
 
 **Wave 4** _(after Wave 3; owner rework of 2026-11-03)_
 
-- [ ] 09-04 — Tracer: the follow-on with several weighted targets (two buttons on Easy and Medium, a seeded recorded draw on Realistic, a landing situation starts at once on Realistic, lint L33 and L34 for lists and weights); the ditching of booklet page 10 as a situation of its own (scene `ditching`, cue `water_near`, pack `landing`, catalog tag DITCHING); the fire sources lead into both targets (weights 2 and 1); documents, requirements and the final gates incl. the Linux image
+- [x] 09-04 — Tracer: the follow-on with several weighted targets (two buttons on Easy and Medium, a seeded recorded draw on Realistic, a landing situation starts at once on Realistic, lint L33 and L34 for lists and weights); the ditching of booklet page 10 as a situation of its own (scene `ditching`, cue `water_near`, pack `landing`, catalog tag DITCHING); the fire sources lead into both targets (weights 2 and 1); documents, requirements and the final gates incl. the Linux image
 
 ## Progress
 
@@ -684,4 +684,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 6.1. PFD fidelity                                     | 3/3            | Complete    | 2026-11-01 |
 | 7. Training Mode, Further Actions and Repeat Loop     | 6/6            | Executed, awaiting UAT | 2026-11-02 |
 | 8. Offline PWA and Real-Device Hardening              | 3/3            | Executed, awaiting UAT | 2026-11-03 |
-| 9. Emergency landing situations                       | 3/4            | In progress (09-04 planned) | -          |
+| 9. Emergency landing situations                       | 4/4            | Executed, awaiting UAT | 2026-11-03 |

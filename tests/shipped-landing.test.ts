@@ -286,6 +286,32 @@ describe('the shipped landing situations (Phase 9)', () => {
     ]);
   });
 
+  it('every follow-on target of every shipped scenario has a label and a title in the aircraft table, and each list has a positive weight total (R-08)', () => {
+    const lists = ALL.flatMap(({ id, scenario }) =>
+      Object.entries(scenario.further?.follow_on ?? {}).map(([conduct, list]) => ({
+        id,
+        conduct,
+        list,
+      })),
+    );
+    expect(lists.length).toBeGreaterThan(0);
+    for (const { id, conduct, list } of lists) {
+      expect(
+        list.reduce((total, target) => total + target.weight, 0),
+        `${id}: the weights of ${conduct}`,
+      ).toBeGreaterThan(0);
+      for (const target of list) {
+        const text = DA50RG_ENV.further.followOnTarget(conduct, target);
+        expect(
+          text,
+          `${id}: ${target.pack}/${target.scenario} has an aircraft entry`,
+        ).toBeDefined();
+        expect(text?.label.trim(), `${target.scenario} label`).not.toBe('');
+        expect(text?.title.trim(), `${target.scenario} title`).not.toBe('');
+      }
+    }
+  });
+
   it('every follow-on target of every shipped scenario exists and is a landing situation', () => {
     const declared = ALL.flatMap(({ id, scenario }) =>
       Object.entries(scenario.further?.follow_on ?? {}).flatMap(([conduct, list]) =>

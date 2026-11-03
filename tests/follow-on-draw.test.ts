@@ -144,3 +144,37 @@ describe('a replay of the draw (T-09-10)', () => {
     expect(followOnFromSeed(2, list).scenario).toBe('landing-fixture-off');
   });
 });
+
+describe('the draw over the shipped sources (R-07)', () => {
+  // The two sources name the engine-off landing (weight 2) and the ditching (weight 1); the targets
+  // of the table seeds are the hand-typed ones of the first table above (below 2 of 3: the landing).
+  const SOURCES = [
+    'scenarios/engine/eng-fire-in-flight.toon',
+    'scenarios/fire/takeoff-fire-no-abort.toon',
+  ];
+
+  it.each(SOURCES)(
+    '%s: the weights are 2 and 1 and the table seeds draw the typed targets',
+    (path) => {
+      const checked = checkScenario(readFileSync(`${root}${path}`, 'utf8'), DA50RG_ENV);
+      if (!checked.ok) throw new Error(JSON.stringify(checked.issues));
+      const list = checked.scenario.further?.follow_on?.['conduct_emergency'];
+      expect(list?.map((t) => `${t.pack}/${t.scenario}:${String(t.weight)}`)).toEqual([
+        'landing/landing-engine-off:2',
+        'landing/ditching:1',
+      ]);
+      if (list === undefined) return;
+      for (const [seed, expected] of TABLE) {
+        expect(followOnFromSeed(seed, list).scenario, `seed ${String(seed)}`).toBe(
+          expected === 'field' ? 'landing-engine-off' : 'ditching',
+        );
+      }
+      // Over seeds 1 to 3000 the engine-off landing is drawn about twice as often as the ditching.
+      let landing = 0;
+      for (let seed = 1; seed <= 3000; seed += 1) {
+        if (followOnFromSeed(seed, list).scenario === 'landing-engine-off') landing += 1;
+      }
+      expect(Math.abs(landing - 2000)).toBeLessThanOrEqual(120);
+    },
+  );
+});

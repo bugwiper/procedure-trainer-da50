@@ -49,7 +49,7 @@ const FIRE_ENGINE_OFF: Declared = {
   roles: ['required', 'optional', 'recommended'],
   conduct: ['conduct_emergency'],
   note: false,
-  followOn: { conduct_emergency: ['landing/landing-engine-off:2'] },
+  followOn: { conduct_emergency: ['landing/landing-engine-off:2', 'landing/ditching:1'] },
 };
 // ELEC FIRE FLIGHT: the engine keeps running, so the right decision is the precautionary (alternate)
 // landing and no follow-on exists (owner answer 2026-11-03: "with engine power this is rather an

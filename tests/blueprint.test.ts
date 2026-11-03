@@ -156,6 +156,13 @@ describe('the blueprint principle', () => {
     expect(APPLICATION.length).toBeGreaterThan(20);
   });
 
+  it('the follow-on target labels of the aircraft are among the forbidden literals (plan 09-04, R-08)', () => {
+    const labels = SCENARIO_LITERALS['further follow-on target label'] ?? [];
+    expect(labels).toEqual(expect.arrayContaining(['Emergency landing', 'Ditching']));
+    const titles = SCENARIO_LITERALS['further follow-on target title'] ?? [];
+    expect(titles.length).toBe(labels.length);
+  });
+
   it('the parameter ids include the keys of every onset block of the shipped scenarios (plan 03-11)', () => {
     // No shipped scenario sets an onset parameter since the oil temperature rate curve (the loop is
     // empty then); a scenario that does must find its keys in the derived list.

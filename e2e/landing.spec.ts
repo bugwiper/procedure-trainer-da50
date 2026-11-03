@@ -287,53 +287,59 @@ const OFFER = SET.option(emergency)?.followOn;
 if (OFFER === undefined) throw new Error('the aircraft gives the emergency landing no follow-on');
 
 for (const source of [ENGINE_FIRE, NO_ABORT]) {
-  test(`@hooks ${source.id}: one button per target on Easy, each opens the briefing of its own target, Retry repeats it`, async ({
-    page,
-    hasTouch,
-  }) => {
-    test.slow();
-    const targets = targetsOf(source);
-    for (const target of targets) {
-      const name = `${target.pack}/${target.scenario}`;
-      await startScenario(page, hasTouch, `${source.pack}.${source.id}`, 'easy');
-      await pickFurther(page, hasTouch, [emergency]);
-      await complete(page, hasTouch);
-      const firstResult = await page.getByTestId('debrief-result').textContent();
-      // Exactly the targets of the file, each with the label of the aircraft table.
-      await expect(followOnButton(page)).toHaveCount(targets.length);
-      for (const [index, entry] of targets.entries()) {
-        const text = SET.followOnTarget(emergency, entry);
-        if (text === undefined) throw new Error(`no aircraft entry for ${entry.scenario}`);
-        await expect(followOnButton(page).nth(index)).toHaveText(text.label);
-        await expect(followOnButton(page).nth(index)).toHaveAttribute('aria-label', text.title);
+  for (const level of ['easy', 'medium'] as const) {
+    test(`@hooks ${source.id}: one button per target on ${level}, each opens the briefing of its own target, Retry repeats it`, async ({
+      page,
+      hasTouch,
+    }) => {
+      test.slow();
+      const targets = targetsOf(source);
+      for (const target of targets) {
+        const name = `${target.pack}/${target.scenario}`;
+        await startScenario(page, hasTouch, `${source.pack}.${source.id}`, level);
+        await pickFurther(page, hasTouch, [emergency]);
+        await complete(page, hasTouch);
+        const firstResult = await page.getByTestId('debrief-result').textContent();
+        // Exactly the targets of the file, each with the label of the aircraft table.
+        await expect(followOnButton(page)).toHaveCount(targets.length);
+        for (const [index, entry] of targets.entries()) {
+          const text = SET.followOnTarget(emergency, entry);
+          if (text === undefined) throw new Error(`no aircraft entry for ${entry.scenario}`);
+          await expect(followOnButton(page).nth(index)).toHaveText(text.label);
+          await expect(followOnButton(page).nth(index)).toHaveAttribute('aria-label', text.title);
+        }
+        await page.waitForTimeout(SHIELD_WAIT_MS);
+        await activate(followOnButton(page, name), hasTouch);
+        await expect(page.getByTestId('briefing')).toBeVisible();
+        await expect(page.getByTestId('briefing').getByRole('heading', { level: 2 })).toHaveText(
+          scenarioOf(entryOf(target)).title,
+        );
+        await expect(page.getByTestId('level-pick')).toHaveCount(0);
+        await activate(page.getByTestId('briefing-start'), hasTouch);
+        await expect(page.getByTestId('procedure-complete')).toBeVisible();
+        expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(
+          target.scenario,
+        );
+        await expect(page.locator(scene(scenarioOf(entryOf(target)).scene ?? ''))).toHaveCount(1);
+        await complete(page, hasTouch);
+        // The level is kept into the follow-on.
+        await expect(page.getByTestId('debrief-level')).toHaveText(
+          `Level: ${level === 'easy' ? 'Easy' : 'Medium'}`,
+        );
+        // Retry inside the follow-on repeats the same target.
+        await page.waitForTimeout(SHIELD_WAIT_MS);
+        await activate(page.getByTestId('debrief-retry'), hasTouch);
+        await expect(page.getByTestId('procedure-complete')).toBeVisible();
+        expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(
+          target.scenario,
+        );
+        // The first run kept its own verdict.
+        expect(firstResult).toBe('FAIL');
+        await page.reload();
+        await expect(page.getByTestId('panel')).toBeVisible();
       }
-      await page.waitForTimeout(SHIELD_WAIT_MS);
-      await activate(followOnButton(page, name), hasTouch);
-      await expect(page.getByTestId('briefing')).toBeVisible();
-      await expect(page.getByTestId('briefing').getByRole('heading', { level: 2 })).toHaveText(
-        scenarioOf(entryOf(target)).title,
-      );
-      await expect(page.getByTestId('level-pick')).toHaveCount(0);
-      await activate(page.getByTestId('briefing-start'), hasTouch);
-      await expect(page.getByTestId('procedure-complete')).toBeVisible();
-      expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(
-        target.scenario,
-      );
-      await expect(page.locator(scene(scenarioOf(entryOf(target)).scene ?? ''))).toHaveCount(1);
-      await complete(page, hasTouch);
-      // Retry inside the follow-on repeats the same target.
-      await page.waitForTimeout(SHIELD_WAIT_MS);
-      await activate(page.getByTestId('debrief-retry'), hasTouch);
-      await expect(page.getByTestId('procedure-complete')).toBeVisible();
-      expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(
-        target.scenario,
-      );
-      // The first run kept its own verdict.
-      expect(firstResult).toBe('FAIL');
-      await page.reload();
-      await expect(page.getByTestId('panel')).toBeVisible();
-    }
-  });
+    });
+  }
 }
 
 for (const source of [ENGINE_FIRE, NO_ABORT]) {

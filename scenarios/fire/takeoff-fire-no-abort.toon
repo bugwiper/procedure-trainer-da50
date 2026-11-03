@@ -159,10 +159,13 @@ further:
       role: recommended
   conduct:
     accept[1]: conduct_emergency
-  # The emergency landing leads into the printed landing checklist (page 9) through the debrief button.
+  # The emergency landing leads into the printed landing checklist of page 9 (weight 2) or the printed ditching checklist of page 10 (weight 1): two debrief buttons on Easy and Medium, one drawn by weight on Realistic. The weights are instructor-review values.
   follow_on:
-    conduct_emergency[1]:
+    conduct_emergency[2]:
       - pack: landing
         scenario: landing-engine-off
         weight: 2
+      - pack: landing
+        scenario: ditching
+        weight: 1
 
