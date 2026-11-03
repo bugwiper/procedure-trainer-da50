@@ -108,14 +108,17 @@ describe('Debrief on the shell', () => {
       labelledBy: string;
       layer?: string;
       onEscape: (() => void) | null;
-      actions: { props: { children: { props: Record<string, unknown> }[] } };
+      actions: { props: { children: ({ props: Record<string, unknown> } | null)[] } };
     };
     expect(props.id).toBe('debrief');
     expect(props.labelledBy).toBe('debrief-result');
     expect(props.layer).toBeUndefined();
     expect(props.onEscape).toBe(onClose);
     // Retry is the primary action (first), then Next situation; Back to panel runs the same close.
-    const buttons = props.actions.props.children.map((child) => child.props);
+    // The follow-on slot between Retry and Next is empty: this scenario names no follow-on.
+    const buttons = props.actions.props.children.flatMap((child) =>
+      child === null ? [] : [child.props],
+    );
     expect(buttons.map((b) => b['data-testid'])).toEqual([
       'debrief-retry',
       'debrief-next',
@@ -124,6 +127,59 @@ describe('Debrief on the shell', () => {
     expect(buttons[0]?.['onClick']).toBe(onRetry);
     expect(buttons[1]?.['onClick']).toBe(onNext);
     expect(buttons[2]?.['onClick']).toBe(onClose);
+  });
+
+  it('adds the follow-on button between Retry and Next situation when the scenario names one for the final conduct (Phase 9, D-02)', () => {
+    const emergency = DA50RG_ENV.further.ids('conduct').at(-1);
+    const text = DA50RG_ENV.further.option(emergency ?? '')?.followOn;
+    if (emergency === undefined || text === undefined) throw new Error('no follow-on conduct');
+    const target = { pack: 'engine', scenario: 'landing-fixture' };
+    const landing: typeof scenario = {
+      ...scenario,
+      further: {
+        actions: [],
+        conduct: { accept: [emergency] },
+        follow_on: { [emergency]: target },
+      },
+    };
+    const landed = grade(landing, DA50RG_ENV, {
+      scenarioId: landing.id,
+      completedAt: 0,
+      events: [],
+      decisions: [{ t: 0, id: emergency, on: true }],
+    });
+    const onFollowOn = vi.fn();
+    const vnode = Debrief({
+      further: DA50RG_ENV.further,
+      scenario: landing,
+      result: landed,
+      level: 'easy',
+      checklistUsed: null,
+      checklistNote: null,
+      completedAt: 0,
+      onClose: vi.fn(),
+      onRetry: vi.fn(),
+      onNext: vi.fn(),
+      onFollowOn,
+    });
+    const props = vnode.props as {
+      actions: { props: { children: ({ props: Record<string, unknown> } | null)[] } };
+    };
+    const buttons = props.actions.props.children.flatMap((child) =>
+      child === null ? [] : [child.props],
+    );
+    expect(buttons.map((b) => b['data-testid'])).toEqual([
+      'debrief-retry',
+      'debrief-follow-on',
+      'debrief-next',
+      'debrief-back',
+    ]);
+    const button = buttons[1];
+    expect(button?.['children']).toBe(text.label);
+    expect(button?.['aria-label']).toBe(text.title);
+    expect(button?.['title']).toBe(text.title);
+    expect(button?.['class']).toBe('secondary-button');
+    expect(button?.['onClick']).toBe(onFollowOn);
   });
 
   /** The text of the line "Checklist used: ..." the debrief prints, or null when it prints none. */
