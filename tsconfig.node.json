@@ -14,11 +14,12 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "tests/**/*.ts", "e2e/**/*.ts"]
+  "include": ["vite.config.ts", "scripts/pwa/**/*.ts", "playwright.config.ts", "tests/**/*.ts", "e2e/**/*.ts"]
 }

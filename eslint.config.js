@@ -34,6 +34,20 @@ export default defineConfig([
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
+    // The offline worker runs in a service worker scope, not in node or a page.
+    files: ['scripts/pwa/sw.js'],
+    languageOptions: {
+      globals: {
+        self: 'readonly',
+        caches: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+        Request: 'readonly',
+        Response: 'readonly',
+      },
+    },
+  },
+  {
     // Purity boundary: deterministic grading engine and aircraft data (CLAUDE.md).
     files: ['src/engine/**/*.ts', 'src/aircraft/**/*.ts', 'src/scenario/**/*.ts'],
     rules: {

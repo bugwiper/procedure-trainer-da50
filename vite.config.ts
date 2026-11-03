@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import preact from '@preact/preset-vite';
+import { pwaPlugin } from './scripts/pwa/plugin.ts';
 
 // Host-agnostic base path (PLT-01): BASE_PATH is the only source, default '/'.
 function resolveBase(): string {
@@ -13,7 +14,7 @@ function resolveBase(): string {
 
 export default defineConfig({
   base: resolveBase(),
-  plugins: [preact()],
+  plugins: [preact(), pwaPlugin()],
   build: {
     rolldownOptions: {
       output: {

@@ -25,9 +25,17 @@ export default defineConfig({
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
   reporter: 'list',
-  // @hooks specs read the test-only window hook that only the e2e build contains.
-  grepInvert: liveBase ? /@hooks/ : undefined,
-  use: { baseURL, storageState: ACCEPTED_STATE, trace: 'on-first-retry' },
+  // @hooks specs read the test-only window hook that only the e2e build contains; @local specs
+  // need the build output on disk and the private static server (e2e/support/pwa-server.ts).
+  grepInvert: liveBase ? /@hooks|@local/ : undefined,
+  // Workers are blocked by default (D-09): a page route does not see requests a worker answers, so
+  // the specs that are not about the worker stay deterministic. e2e/pwa-offline.spec.ts opts in.
+  use: {
+    baseURL,
+    storageState: ACCEPTED_STATE,
+    trace: 'on-first-retry',
+    serviceWorkers: 'block',
+  },
   ...(liveBase
     ? {}
     : {
