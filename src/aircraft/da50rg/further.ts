@@ -76,7 +76,7 @@ export const DA50RG_FURTHER = defineFurther({
       text: 'Initiate emergency landing',
       label: 'EMERGENCY\nLANDING',
       kind: 'conduct',
-      // Shown only where the scenario names no follow-on for this conduct (Phase 9, owner review item 16).
+      // Shown only where the debrief offers no follow-on at all and the final conduct is this one (Phase 9, owner review item 16, R-13).
       debriefNote: 'No landing situation follows from this one.',
       // The debrief buttons that continue with the emergency-landing situations a scenario names
       // (Phase 9, D-03, R-04, R-08): the generic text is the one button of Realistic (the session

@@ -76,7 +76,7 @@ export function Debrief({
   const limit = limitLine(completedAt);
   const finished = finishLine(scenario, endedByFinish);
   const furtherList = furtherRows(result, further);
-  const offers = followOnOffer(result, scenario.further, further, level === 'realistic');
+  const offers = followOnOffer(scenario.further, further, level === 'realistic');
   const note = furtherNote(result, further, scenario.further);
   const hint = conductNote(result, scenario.further, further);
 

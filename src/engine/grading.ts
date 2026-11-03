@@ -52,6 +52,12 @@ export interface RecordedFollowOn {
   readonly from: string;
 }
 
+/**
+ * The panel a follow-on run started with (Phase 9, R-14): every control id to the state the previous
+ * run left it in. Run data like the onset and the variant: `grade` and the replay start from it.
+ */
+export type RecordedCarry = Readonly<Record<string, string>>;
+
 export type { RecordedDecision } from './further';
 
 export interface Recording {
@@ -74,6 +80,12 @@ export interface Recording {
    * debrief button started. grade ignores it: a recording with and without it grades alike.
    */
   readonly followOn?: RecordedFollowOn | null;
+  /**
+   * The panel the run started with when it is a follow-on (Phase 9, R-14): laid over the file's
+   * initial controls for every control it names. `grade`, the simulation and every replay start
+   * from it, Retry repeats it. Absent or null: the file's own baseline.
+   */
+  readonly carry?: RecordedCarry | null;
   /** In log order; never sorted by t. */
   readonly events: readonly RecordedEvent[];
   /**
@@ -170,8 +182,12 @@ export interface GradeResult {
 }
 
 /** R1: the state of the run before the first event. */
-function startContext(scenario: Scenario, env: AircraftEnv): PredicateContext {
-  const baseline = baselineOf(scenario, env.registry);
+function startContext(
+  scenario: Scenario,
+  env: AircraftEnv,
+  carry?: RecordedCarry | null,
+): PredicateContext {
+  const baseline = baselineOf(scenario, env.registry, carry);
   return {
     controls: baseline,
     baseline,
@@ -230,8 +246,12 @@ function walkProcedure(scenario: Scenario, ctx0: PredicateContext, env: Aircraft
 }
 
 /** The status of every branch at the start of the run, in declared order (D-23, D-25). */
-export function branchStatuses(scenario: Scenario, env: AircraftEnv): BranchVerdict[] {
-  return walkProcedure(scenario, startContext(scenario, env), env).branches;
+export function branchStatuses(
+  scenario: Scenario,
+  env: AircraftEnv,
+  carry?: RecordedCarry | null,
+): BranchVerdict[] {
+  return walkProcedure(scenario, startContext(scenario, env, carry), env).branches;
 }
 
 /**
@@ -254,7 +274,10 @@ function replaySim(
   // parameters from t 0.
   const onset = recording.onset ?? null;
   const { state, injected } = simulate(
-    simSetup(env, scenario, onset === null ? {} : { onsetAt: onset.at }),
+    simSetup(env, scenario, {
+      ...(onset === null ? {} : { onsetAt: onset.at }),
+      carry: recording.carry ?? null,
+    }),
     {
       events: recording.events,
       start:
@@ -290,7 +313,7 @@ export function grade(original: Scenario, env: AircraftEnv, recording: Recording
   const scenario = resolveVariant(original, named?.id ?? null, recording.onset != null);
   const { outcome, injected } = replaySim(scenario, env, recording);
   const events = gradedEvents(recording.events, outcome);
-  const ctx0 = startContext(scenario, env);
+  const ctx0 = startContext(scenario, env, recording.carry);
   const { branches, groups } = walkProcedure(scenario, ctx0, env);
 
   // R3: only steps of groups whose enclosing branches all apply are graded.

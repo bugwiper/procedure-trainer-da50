@@ -18,6 +18,10 @@
 // down by STEP_MS and its flag goes off at 0. A reaction is thus in
 // force for exactly its duration, counted from the step that applied the arming event.
 //
+// Carried start (Phase 9, R-14): the controls at t 0 may come from the panel a previous run left
+// (SimOptions.carry), laid over the file's initial controls; the quantities still start from the
+// file and the models move them, within their own time constants, as after a switch the pilot moved.
+//
 // Realistic setup (C-58, C-59): the parameters in force from the onset are the aircraft's normal
 // values, then the scenario's profile (in force from t 0, so the normal set carries it too), then
 // the scenario's parameters, then the parameters of its onset block; the last layer is folded in
@@ -129,6 +133,12 @@ export interface SimSetup {
 
 export interface SimOptions {
   readonly onsetAt?: number;
+  /**
+   * The panel a previous run left (Phase 9, R-14): laid over the scenario's initial controls for
+   * every control it names, so the baseline of the setup is the carried start. Absent: the file's
+   * own baseline.
+   */
+  readonly carry?: Readonly<Record<string, string>> | null;
 }
 
 /**
@@ -168,7 +178,7 @@ export function simSetup(env: AircraftEnv, scenario: Scenario, options: SimOptio
       : Object.freeze({ ...aircraftNormal, ...scenario.profile });
   return Object.freeze({
     env,
-    baseline: Object.freeze(baselineOf(scenario, env.registry)),
+    baseline: Object.freeze(baselineOf(scenario, env.registry, options.carry)),
     normalParameters,
     faultedParameters: Object.freeze({
       ...normalParameters,

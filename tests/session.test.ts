@@ -3273,16 +3273,38 @@ scenarios[1]:
   }
 
   describe('retrySeeds', () => {
-    it('returns the recorded onset, variant and follow-on draw as they are', () => {
+    it('returns the recorded onset, variant, follow-on draw and carried panel as they are', () => {
       const onset = { at: 91000, seed: 7 };
       const variant = { id: 'breaker_popped', seed: 9 };
       const followOn = { seed: 5, from: 'eng-fire-in-flight' };
-      expect(retrySeeds(onset, variant, followOn)).toEqual({ onset, variant, followOn });
-      expect(retrySeeds(onset, null)).toEqual({ onset, variant: null, followOn: null });
+      const carry = { 'sw.elect_master': 'off' };
+      expect(retrySeeds(onset, variant, followOn, carry)).toEqual({
+        onset,
+        variant,
+        followOn,
+        carry,
+      });
+      expect(retrySeeds(onset, variant, followOn)).toEqual({
+        onset,
+        variant,
+        followOn,
+        carry: null,
+      });
+      expect(retrySeeds(onset, null)).toEqual({
+        onset,
+        variant: null,
+        followOn: null,
+        carry: null,
+      });
     });
 
     it('returns null for a record that does not exist', () => {
-      expect(retrySeeds(null, null)).toEqual({ onset: null, variant: null, followOn: null });
+      expect(retrySeeds(null, null)).toEqual({
+        onset: null,
+        variant: null,
+        followOn: null,
+        carry: null,
+      });
     });
   });
 
@@ -3593,10 +3615,8 @@ describe('the follow-on of the debrief (Phase 9, plans 09-02 and 09-04, D-02, D-
   });
   /** The buttons the debrief shows now, from the session's own level and result. */
   const offerOf = (r: Rig) => {
-    const graded = r.session.result.value;
-    if (graded === null) throw new Error('no result');
+    if (r.session.result.value === null) throw new Error('no result');
     return followOnOffer(
-      graded,
       r.session.scenario.value?.further,
       DA50RG_ENV.further,
       r.session.level.value === 'realistic',
@@ -3627,7 +3647,7 @@ describe('the follow-on of the debrief (Phase 9, plans 09-02 and 09-04, D-02, D-
     return r;
   }
 
-  it('offers one button per target, in the file order, exactly when the emergency landing is the conduct at the end', async () => {
+  it('offers one button per target, in the file order, after the emergency landing was picked', async () => {
     const r = await sourceDebrief(['conduct_emergency']);
     const text = DA50RG_ENV.further.option('conduct_emergency')?.followOn;
     expect(offerOf(r)).toEqual([
@@ -3639,11 +3659,28 @@ describe('the follow-on of the debrief (Phase 9, plans 09-02 and 09-04, D-02, D-
     expect(r.session.result.value?.result).toBe('fail');
   });
 
-  it('offers nothing with another conduct at the end, and nothing for a scenario without the map', async () => {
+  it('offers the buttons whatever conduct was selected at the end, after PASS and FAIL (R-13), and nothing for a scenario without the map', async () => {
+    const generic = DA50RG_ENV.further.option('conduct_emergency')?.followOn;
+    const expected = [
+      { ref: FIRST, label: generic?.label, title: generic?.title },
+      { ref: SECOND, label: generic?.label, title: generic?.title },
+    ];
+    // Another conduct at the end, the preselected conduct left alone and no conduct pick at all.
     const other = await sourceDebrief(['conduct_emergency', 'conduct_precautionary']);
-    expect(offerOf(other)).toEqual([]);
+    expect(offerOf(other)).toEqual(expected);
+    expect(other.session.result.value?.further?.conduct.last).toBe('conduct_precautionary');
     const kept = await sourceDebrief([]);
-    expect(offerOf(kept)).toEqual([]);
+    expect(offerOf(kept)).toEqual(expected);
+    // PASS: the source fixture passes when the electric master is off and the emergency landing is the end.
+    const passed = rig({ manifest: MANIFEST, files: files() });
+    await passed.session.openChooser();
+    await passed.session.chooseScenario({ pack: 'engine', scenario: 'landing-source' });
+    passed.session.startRun();
+    passed.bridge.actuate('sw.elect_master', 'off');
+    passed.session.toggleDecision('conduct_emergency');
+    passed.session.complete();
+    expect(passed.session.result.value?.result).toBe('pass');
+    expect(offerOf(passed)).toEqual(expected);
 
     const plain = rig();
     await plain.session.newSituation();
@@ -3757,8 +3794,8 @@ describe('the follow-on of the debrief (Phase 9, plans 09-02 and 09-04, D-02, D-
         expect(r.session.onset.value).toBeNull();
         expect(r.session.followOn.value).toEqual({ seed, from: 'eng-oil-temp-green' });
         expect(r.session.busy.value).toBe(false);
-        // The follow-on starts from the initial block of its own file, not from a Realistic start.
-        expect(r.bridge.stateOf('lv.power').value).toBe('p60');
+        // The follow-on starts from the panel the source run left (R-14): its power lever.
+        expect(r.bridge.stateOf('lv.power').value).toBe('p75');
         // The recording carries the draw, and it grades alike with and without it.
         r.session.complete();
         const recording = r.session.recording.value;
@@ -3779,6 +3816,23 @@ describe('the follow-on of the debrief (Phase 9, plans 09-02 and 09-04, D-02, D-
         expect(followOnFromSeed(recording.followOn?.seed ?? -1, list).scenario).toBe(target);
         expect(sourceResult).not.toBe('');
       }
+    });
+
+    it('starts at once with the panel the source run left (R-14)', async () => {
+      const r = await realisticDebrief([0, drawing(1)]);
+      const left = { ...r.bridge.store.snapshot() };
+      // The source file starts with its own power lever (p75); a changed lever must be what comes along.
+      await r.session.continueToFollowOn();
+      expect(r.session.screen.value).toBe('running');
+      expect(r.session.briefing.value).toBeNull();
+      expect({ ...r.bridge.store.snapshot() }).toEqual(left);
+      expect(r.session.carry.value).toEqual(left);
+      r.session.complete();
+      expect(r.session.recording.value?.carry).toEqual(left);
+      // Retry repeats it as well.
+      r.bridge.actuate('lv.power', 'p10');
+      r.session.retry();
+      expect({ ...r.bridge.store.snapshot() }).toEqual(left);
     });
 
     it('the first run result is the same JSON whatever the draw', async () => {
@@ -3889,6 +3943,225 @@ describe('the follow-on of the debrief (Phase 9, plans 09-02 and 09-04, D-02, D-
     expect(r.session.screen.value).toBe('running');
     expect(r.session.scenario.value?.id).toBe('landing-fixture');
     expect(r.session.level.value).toBe('easy');
+  });
+
+  describe('the follow-on starts with the panel the run left (R-14)', () => {
+    /** The source fixture run on the panel: the given actions, the conduct press, then Procedure complete. */
+    async function sourceRun(
+      actions: readonly (readonly [string, string])[],
+      level: 'easy' | 'medium' = 'easy',
+      options: Parameters<typeof rig>[0] = {},
+    ): Promise<Rig> {
+      const r = rig({ manifest: MANIFEST, files: files(), ...options });
+      await r.session.openChooser();
+      await r.session.chooseScenario({ pack: 'engine', scenario: 'landing-source' });
+      r.session.setLevel(level);
+      r.session.startRun();
+      for (const [id, value] of actions) r.bridge.actuate(id, value);
+      r.session.toggleDecision('conduct_emergency');
+      r.session.complete();
+      expect(r.session.screen.value).toBe('debrief');
+      return r;
+    }
+    // The pilot did the electric master and left the engine master and fuel valve alone, moved the
+    // cowl flap and the power lever: the file of the landing starts at p60 and the registry default.
+    const LEFT: readonly (readonly [string, string])[] = [
+      ['sw.elect_master', 'off'],
+      ['lv.cowl_flap', 'open'],
+      ['lv.power', 'p40'],
+    ];
+    const snapshot = (r: Rig): Record<string, string> => ({ ...r.bridge.store.snapshot() });
+
+    it('the panel of the follow-on is the panel the source run left, a forgotten control included', async () => {
+      for (const level of ['easy', 'medium'] as const) {
+        const r = await sourceRun(LEFT, level);
+        const left = snapshot(r);
+        expect(left['sw.fuel_valve']).toBe('normal');
+        await r.session.continueToFollowOn(FIRST);
+        expect(r.session.screen.value).toBe('briefing');
+        // The carry survives the briefing and is the panel the source left.
+        expect(r.session.briefing.value?.carry).toEqual(left);
+        r.session.startRun();
+        expect(r.session.screen.value).toBe('running');
+        expect(snapshot(r)).toEqual(left);
+        expect(r.bridge.stateOf('lv.power').value).toBe('p40');
+        expect(r.bridge.stateOf('sw.fuel_valve').value).toBe('normal');
+        expect(r.session.carry.value).toEqual(left);
+        expect(r.bridge.store.events()).toEqual([]);
+        // The step the pilot did in the source is credited at once, on the sheet marks too.
+        r.session.toggleChecklist();
+        const done = r.session.checklistMarks.value?.steps.find((s) => s.id === 'elect_master_off');
+        expect(done?.credited).toBe(true);
+        expect(done?.enteredAt).toBe(-1);
+      }
+    });
+
+    it('records the carry with the follow-on run and with no other run', async () => {
+      const r = await sourceRun(LEFT);
+      const left = snapshot(r);
+      expect(r.session.recording.value).not.toBeNull();
+      expect('carry' in (r.session.recording.value ?? {})).toBe(false);
+      await r.session.continueToFollowOn(FIRST);
+      r.session.startRun();
+      r.session.complete();
+      expect(r.session.recording.value?.carry).toEqual(left);
+      expect(r.session.result.value?.result).toBe('pass');
+      // Next situation, the chooser and NEW SITUATION record none.
+      await r.session.nextSituation();
+      expect(r.session.briefing.value?.carry).toBeUndefined();
+      r.session.startRun();
+      expect(r.session.carry.value).toBeNull();
+      r.session.complete();
+      expect('carry' in (r.session.recording.value ?? {})).toBe(false);
+    });
+
+    it('Back to panel from the briefing drops the carry', async () => {
+      const r = await sourceRun(LEFT);
+      await r.session.continueToFollowOn(FIRST);
+      expect(r.session.briefing.value?.carry).toBeDefined();
+      r.session.backToPanel();
+      expect(r.session.screen.value).toBe('free');
+      expect(r.session.briefing.value).toBeNull();
+      await r.session.openChooser();
+      await r.session.chooseScenario(FIRST);
+      r.session.startRun();
+      // The file's own baseline: its power lever, the registry default for everything else.
+      expect(r.bridge.stateOf('lv.power').value).toBe('p60');
+      expect(r.bridge.stateOf('sw.elect_master').value).not.toBe('off');
+      expect(r.session.carry.value).toBeNull();
+    });
+
+    it('Next situation, NEW SITUATION and the chooser start from the file own baseline', async () => {
+      const r = await sourceRun(LEFT);
+      await r.session.continueToFollowOn(FIRST);
+      r.session.startRun();
+      r.session.complete();
+      // Next situation from the follow-on's debrief.
+      await r.session.nextSituation();
+      expect(r.session.briefing.value?.scenario.id).toBe(SECOND.scenario);
+      expect(r.session.briefing.value?.carry).toBeUndefined();
+      r.session.startRun();
+      expect(r.bridge.stateOf('lv.power').value).toBe('p60');
+      expect(r.bridge.stateOf('sw.elect_master').value).not.toBe('off');
+      expect(r.session.carry.value).toBeNull();
+      // LEAVE and NEW SITUATION.
+      r.session.resetPanel();
+      expect(r.session.confirm.value).toBe('reset');
+      await r.session.leaveRun();
+      expect(r.session.carry.value).toBeNull();
+      await r.session.newSituation();
+      expect(r.session.briefing.value?.carry).toBeUndefined();
+    });
+
+    it('Retry in the follow-on repeats the same panel, even after the first attempt changed controls', async () => {
+      const r = await sourceRun(LEFT);
+      const left = snapshot(r);
+      await r.session.continueToFollowOn(FIRST);
+      r.session.startRun();
+      r.bridge.actuate('sw.elect_master', 'on');
+      r.bridge.actuate('lv.power', 'p10');
+      r.bridge.actuate('sw.engine_master', 'off');
+      r.session.complete();
+      expect(r.session.result.value?.result).toBe('fail');
+      for (let i = 0; i < 2; i += 1) {
+        r.session.retry();
+        expect(r.session.screen.value).toBe('running');
+        expect(snapshot(r)).toEqual(left);
+        expect(r.session.carry.value).toEqual(left);
+        expect(r.bridge.store.events()).toEqual([]);
+        r.bridge.actuate('lv.power', 'p10');
+        r.session.complete();
+        expect(r.session.recording.value?.carry).toEqual(left);
+        expect(r.session.result.value?.result).toBe('pass');
+      }
+    });
+
+    it('a retried load of the follow-on keeps the carry', async () => {
+      const broken = files();
+      const r = await sourceRun(LEFT, 'easy', { files: broken });
+      const left = snapshot(r);
+      broken['landing-fixture'] = new Error('network down');
+      await r.session.continueToFollowOn(FIRST);
+      expect(r.session.loadFailure.value).not.toBeNull();
+      broken['landing-fixture'] = LANDING;
+      await r.session.retryLoad();
+      expect(r.session.briefing.value?.carry).toEqual(left);
+    });
+
+    it('leaves the first run result and recording exactly as they were', async () => {
+      const r = await sourceRun(LEFT);
+      const before = JSON.stringify({
+        result: r.session.result.value,
+        recording: r.session.recording.value,
+      });
+      offerOf(r);
+      expect(
+        JSON.stringify({ result: r.session.result.value, recording: r.session.recording.value }),
+      ).toBe(before);
+      const scenario = r.session.scenario.value;
+      const recording = r.session.recording.value;
+      if (scenario === null || recording === null) throw new Error('no run');
+      expect(JSON.stringify(grade(scenario, DA50RG_ENV, recording))).toBe(
+        JSON.stringify(r.session.result.value),
+      );
+    });
+
+    it('a chain of two follow-ons carries the end of the second run into the third', async () => {
+      const chained = (id: string, target: string): string =>
+        SOURCE.replace('id: landing-source\n', `id: ${id}\n`)
+          .replace('title: LANDING SOURCE', `title: ${id}`)
+          .replace(
+            / {2}follow_on:[\s\S]*$/,
+            `  follow_on:\n    conduct_emergency[1]:\n      - pack: engine\n        scenario: ${target}\n        weight: 1\n`,
+          );
+      const r = rig({
+        manifest: manifestOf([
+          ['landing-source', 'LANDING SOURCE'],
+          ['landing-source-b', 'LANDING SOURCE B'],
+          ['landing-fixture', 'LANDING FIXTURE'],
+        ]),
+        files: {
+          'landing-source': chained('landing-source', 'landing-source-b'),
+          'landing-source-b': chained('landing-source-b', 'landing-fixture'),
+          'landing-fixture': LANDING,
+        },
+      });
+      await r.session.openChooser();
+      await r.session.chooseScenario({ pack: 'engine', scenario: 'landing-source' });
+      r.session.startRun();
+      r.bridge.actuate('lv.power', 'p40');
+      r.session.toggleDecision('conduct_emergency');
+      r.session.complete();
+      await r.session.continueToFollowOn();
+      r.session.startRun();
+      expect(r.session.scenario.value?.id).toBe('landing-source-b');
+      expect(r.bridge.stateOf('lv.power').value).toBe('p40');
+      // The second run changes the panel again and ends with its own conduct press.
+      r.bridge.actuate('lv.power', 'p20');
+      r.bridge.actuate('sw.elect_master', 'off');
+      r.session.toggleDecision('conduct_emergency');
+      r.session.complete();
+      const secondEnd = snapshot(r);
+      await r.session.continueToFollowOn();
+      r.session.startRun();
+      expect(r.session.scenario.value?.id).toBe('landing-fixture');
+      expect(snapshot(r)).toEqual(secondEnd);
+      expect(r.bridge.stateOf('lv.power').value).toBe('p20');
+      expect(r.session.carry.value).toEqual(secondEnd);
+    });
+
+    it('a failed run carries nothing and offers no follow-on', async () => {
+      const r = rig({ manifest: MANIFEST, files: files() });
+      await r.session.openChooser();
+      await r.session.chooseScenario({ pack: 'engine', scenario: 'landing-source' });
+      r.session.startRun();
+      r.bridge.actuate('lv.power', 'p40');
+      r.session.failRun(new Error('boom'));
+      expect(r.session.carry.value).toBeNull();
+      expect(r.session.screen.value).toBe('free');
+      await r.session.continueToFollowOn(FIRST);
+      expect(r.session.screen.value).toBe('free');
+    });
   });
 
   it('does nothing outside the debrief and while a load runs', async () => {

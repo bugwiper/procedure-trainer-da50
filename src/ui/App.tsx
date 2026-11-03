@@ -97,6 +97,7 @@ if (import.meta.env.VITE_TEST_HOOKS === '1') {
     onset: () => session.onset.value,
     variant: () => session.variant.value,
     followOn: () => session.followOn.value,
+    carry: () => session.carry.value,
     recording: () => session.recording.value,
   };
 }
@@ -265,7 +266,8 @@ function sheetBody(scenario: Scenario): SheetBody {
   ) {
     return own;
   }
-  return shown(entry.scenario, branchStatuses(entry.scenario, DA50RG_ENV));
+  // A follow-on started with a carried panel judges the other file's branches from that panel too (R-14).
+  return shown(entry.scenario, branchStatuses(entry.scenario, DA50RG_ENV, session.carry.value));
 }
 
 type SheetBodyBranches = Extract<SheetBody, { kind: 'checklist' }>['branches'];

@@ -338,11 +338,13 @@ export const Further = z.strictObject({
    */
   conduct_note: wordsBetween(1, 50).optional(),
   /**
-   * The follow-on situations (Phase 9, D-02, D-03, R-04): a map from a flight conduct option id to
-   * the one to four scenarios the debrief can open when that conduct is the one selected at the end
-   * of the run (a button per target on Easy and Medium, one drawn by weight on Realistic). A target
-   * is two ids (a pack and a manifest entry) and a weight, opened only through the pack seam; lint
-   * L33 and the pack-level check L34 judge what they name.
+   * The follow-on situations (Phase 9, D-02, D-03, R-04, R-13): a map from a flight conduct option
+   * id to the one to four scenarios the debrief can open (a button per target on Easy and Medium,
+   * one drawn by weight on Realistic). The debrief offers them whenever the scenario declares them,
+   * after PASS or FAIL and whatever conduct was selected at the end: the key supplies the aircraft's
+   * button texts and keeps lint L33 coherent (the scenario accepts that conduct), it no longer
+   * decides when the buttons show. A target is two ids (a pack and a manifest entry) and a weight,
+   * opened only through the pack seam; lint L33 and the pack-level check L34 judge what they name.
    */
   follow_on: z.record(nodeId, z.array(FollowOnTarget).min(1).max(MAX_FOLLOW_ON_TARGETS)).optional(),
 });

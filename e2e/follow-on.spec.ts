@@ -6,8 +6,9 @@ import { parseScenario } from '../src/scenario/parse';
 import { followOnButton, pickFurther, startScenario } from './support/session';
 import { activate } from './support/zoom';
 
-// SES-09 (phase 09, plans 09-02, 09-03 and 09-04): the debrief offers buttons that continue with the
-// situations a scenario names as the follow-on of the conduct selected at the end of the run: one
+// SES-09 (phase 09, plans 09-02 to 09-05): the debrief offers buttons that continue with the
+// situations a scenario declares as its follow-on, after PASS or FAIL and whatever conduct was selected
+// at the end of the run (R-13): one
 // button per target on Easy and Medium (the targets are read from the shipped Engine Fire file in
 // node, the texts from the aircraft data), one generic button on Realistic (the landing flows with the
 // seeded draw are in e2e/landing.spec.ts). The landing flow itself is in e2e/landing.spec.ts too.
@@ -146,23 +147,27 @@ test('@hooks Retry inside a follow-on repeats the chosen follow-on', async ({ pa
   );
 });
 
-test('@hooks no button is offered when another conduct is selected at the end', async ({
+test('@hooks the buttons are offered whatever conduct is selected at the end, after FAIL and after PASS (R-13)', async ({
   page,
   hasTouch,
 }) => {
   await startScenario(page, hasTouch, FIRE_ROW);
-  // The default (continue to destination) stays: the follow-on belongs to the emergency landing only.
+  // The preselected conduct (continue to destination) stays and the run FAILs: the scenario declares
+  // a follow-on, so the debrief asks whether to continue with exactly this next situation.
   await finish(page, hasTouch);
-  await expect(followOnButton(page)).toHaveCount(0);
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+  await expect(followOnButton(page)).toHaveCount(TARGETS.length);
+  await expect(page.getByTestId('debrief-further-note')).toHaveCount(0);
   await expect(page.getByTestId('debrief-retry')).toBeVisible();
   await expect(page.getByTestId('debrief-next')).toBeVisible();
 
   await page.waitForTimeout(SHIELD_WAIT_MS);
   await activate(page.getByTestId('debrief-retry'), hasTouch);
   await expect(page.getByTestId('procedure-complete')).toBeVisible();
+  // Another conduct selected last: the offer does not depend on it.
   await pickFurther(page, hasTouch, [emergency, carryOn]);
   await finish(page, hasTouch);
-  await expect(followOnButton(page)).toHaveCount(0);
+  await expect(followOnButton(page)).toHaveCount(TARGETS.length);
 });
 
 test('@hooks no button is offered where the scenario names no follow-on, and the note stays true', async ({

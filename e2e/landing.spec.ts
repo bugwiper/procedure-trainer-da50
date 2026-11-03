@@ -105,40 +105,70 @@ async function fuelValveOff(page: Page, hasTouch: boolean): Promise<void> {
   await leaveZoom(page, hasTouch);
 }
 
-/** The engine fire in flight solved on the panel: fresh air, ECS shut-off, the three shutdown rows. */
-async function solveEngineFire(page: Page, hasTouch: boolean): Promise<void> {
+/** The state a control shows on the panel now. */
+const stateOf = (page: Page, id: string) => control(page, id).getAttribute('data-state');
+
+/**
+ * The engine fire in flight solved on the panel: fresh air, ECS shut-off, the three shutdown rows.
+ * `fuelValve: false` leaves the FUEL selector at its normal stop (the forgotten item of the carried
+ * panel flow, plan 09-05).
+ */
+async function solveEngineFire(
+  page: Page,
+  hasTouch: boolean,
+  options: { readonly fuelValve?: boolean } = {},
+): Promise<void> {
   await activate(page.locator('[data-detent="lv.env_circ:fresh"]'), hasTouch);
   await expect(control(page, 'lv.env_circ')).toHaveAttribute('data-state', 'fresh');
   await activate(page.locator('[data-detent="lv.ecs_shutoff:pulled"]'), hasTouch);
   await expect(control(page, 'lv.ecs_shutoff')).toHaveAttribute('data-state', 'pulled');
   await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
   await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'off');
-  await fuelValveOff(page, hasTouch);
+  if (options.fuelValve !== false) await fuelValveOff(page, hasTouch);
   await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
   await expect(control(page, 'sw.elect_master')).toHaveAttribute('data-state', 'off');
 }
 
-/** The graded rows of the landing file performed on the panel, in the order of the printed page. */
+/**
+ * The graded rows of the landing file performed on the panel, in the order of the printed page. A
+ * row whose control already shows the printed state is left alone: a landing that follows a fire
+ * run starts with the panel that run left (plan 09-05, R-14), and a toggle pressed twice turns the
+ * state back.
+ */
 async function prepareLanding(page: Page, hasTouch: boolean): Promise<void> {
-  await activate(page.locator('[data-detent="lv.power:p0"]'), hasTouch);
-  await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p0');
-  await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
-  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'off');
-  await fuelValveOff(page, hasTouch);
-  // The restart attempt left both pumps on (the file's start): switch them off.
-  await activate(page.locator('[data-hit="sw.emerg_fuel_pump"]'), hasTouch);
-  await expect(control(page, 'sw.emerg_fuel_pump')).toHaveAttribute('data-state', 'off');
-  await activate(page.locator('[data-hit="sw.fuel_trans"]'), hasTouch);
-  await expect(control(page, 'sw.fuel_trans')).toHaveAttribute('data-state', 'off');
+  if ((await stateOf(page, 'lv.power')) !== 'p0') {
+    await activate(page.locator('[data-detent="lv.power:p0"]'), hasTouch);
+    await expect(control(page, 'lv.power')).toHaveAttribute('data-state', 'p0');
+  }
+  if ((await stateOf(page, 'sw.engine_master')) !== 'off') {
+    await activate(page.locator('[data-hit="sw.engine_master"]'), hasTouch);
+    await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'off');
+  }
+  if ((await stateOf(page, 'sw.fuel_valve')) !== 'off') await fuelValveOff(page, hasTouch);
+  // The restart attempt left the emergency pump on in the file's own start: switch it off.
+  if ((await stateOf(page, 'sw.emerg_fuel_pump')) !== 'off') {
+    await activate(page.locator('[data-hit="sw.emerg_fuel_pump"]'), hasTouch);
+    await expect(control(page, 'sw.emerg_fuel_pump')).toHaveAttribute('data-state', 'off');
+  }
+  if ((await stateOf(page, 'sw.fuel_trans')) !== 'off') {
+    await activate(page.locator('[data-hit="sw.fuel_trans"]'), hasTouch);
+    await expect(control(page, 'sw.fuel_trans')).toHaveAttribute('data-state', 'off');
+  }
   // On final: doors, flaps.
-  await zoomIntoRegion(page, hasTouch, 'door_arm');
-  await activate(page.locator('[data-hit="lv.door_release"]'), hasTouch);
-  await expect(control(page, 'lv.door_release')).toHaveAttribute('data-state', 'open');
-  await leaveZoom(page, hasTouch);
-  await activate(page.locator('[data-detent="lv.flaps:ldg"]'), hasTouch);
-  await expect(control(page, 'lv.flaps')).toHaveAttribute('data-state', 'ldg');
-  await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
-  await expect(control(page, 'sw.elect_master')).toHaveAttribute('data-state', 'off');
+  if ((await stateOf(page, 'lv.door_release')) !== 'open') {
+    await zoomIntoRegion(page, hasTouch, 'door_arm');
+    await activate(page.locator('[data-hit="lv.door_release"]'), hasTouch);
+    await expect(control(page, 'lv.door_release')).toHaveAttribute('data-state', 'open');
+    await leaveZoom(page, hasTouch);
+  }
+  if ((await stateOf(page, 'lv.flaps')) !== 'ldg') {
+    await activate(page.locator('[data-detent="lv.flaps:ldg"]'), hasTouch);
+    await expect(control(page, 'lv.flaps')).toHaveAttribute('data-state', 'ldg');
+  }
+  if ((await stateOf(page, 'sw.elect_master')) !== 'off') {
+    await activate(page.locator('[data-hit="sw.elect_master"]'), hasTouch);
+    await expect(control(page, 'sw.elect_master')).toHaveAttribute('data-state', 'off');
+  }
 }
 
 async function complete(page: Page, hasTouch: boolean): Promise<void> {
@@ -178,8 +208,9 @@ test('@hooks ENGINE FIRE IN FLIGHT leads into the landing situation: the field, 
   await expect(page.locator(SVT(LANDING_SCENARIO.scene ?? ''))).toHaveCount(1);
   await expect(page.locator('[data-part="field"]')).toHaveCount(1);
   expect(await quantityOf(page, 'altitude_ft')).toBeGreaterThan(TERRAIN_HEIGHT_FT);
-  // The engine is dead from the first frame: the engine master is still on, the propeller stands still.
-  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'on');
+  // The engine is dead from the first frame and the panel is as the fire run left it (plan 09-05,
+  // R-14): the engine master is off already, the propeller stands still.
+  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'off');
   expect(await quantityOf(page, 'rpm')).toBe(0);
 
   // The footwell offers the calls and the passengers and no conduct and no Avoid button.
@@ -208,6 +239,95 @@ test('@hooks ENGINE FIRE IN FLIGHT leads into the landing situation: the field, 
   await expect(page.getByTestId('debrief-finish')).toHaveCount(0);
   // The decision to land is made, so no further follow-on is offered from the landing itself.
   await expect(page.getByTestId('debrief-follow-on')).toHaveCount(0);
+});
+
+/** The id of the step of a scenario whose predicate names this control, read from the file. */
+function stepOfControl(scenario: Scenario, controlId: string): string {
+  for (const node of scenario.procedure) {
+    if (node.kind !== 'group') continue;
+    for (const step of node.steps) {
+      if ('control' in step.done && step.done.control === controlId) return step.id;
+    }
+  }
+  throw new Error(`no step names ${controlId}`);
+}
+
+test('@hooks ENGINE FIRE with the fuel valve forgotten: the landing starts with the panel the fire run left, its rows marked and the valve row open (R-14)', async ({
+  page,
+  hasTouch,
+}) => {
+  test.slow();
+  const engineMasterRow = stepOfControl(LANDING_SCENARIO, 'sw.engine_master');
+  const electMasterRow = stepOfControl(LANDING_SCENARIO, 'sw.elect_master');
+  const fuelValveRow = stepOfControl(LANDING_SCENARIO, 'sw.fuel_valve');
+  const sheetStep = (id: string) =>
+    page.getByTestId('run-checklist').locator(`[data-testid="sheet-step"][data-step-id="${id}"]`);
+  const sheetButton = page.locator('[data-session-hit="session.checklist"]');
+
+  await startScenario(page, hasTouch, `${ENGINE_FIRE.pack}.${ENGINE_FIRE.id}`, 'easy');
+  await solveEngineFire(page, hasTouch, { fuelValve: false });
+  // The preselected conduct stays: the run FAILs, and the landing is offered all the same.
+  await complete(page, hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+  await expect(followOnButton(page, LANDING_NAME)).toBeVisible();
+  await page.waitForTimeout(SHIELD_WAIT_MS);
+  await activate(followOnButton(page, LANDING_NAME), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  // The briefing names the carried panel and still shows the checklist of the landing.
+  await expect(page.getByTestId('briefing-carry')).toHaveCount(1);
+  await expect(page.getByTestId('briefing-carry')).toHaveText(
+    'The panel is as the previous situation left it.',
+  );
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+  expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(LANDING.id);
+  const carried = await page.evaluate(() => window.__panelSession?.carry() ?? null);
+  expect(carried).not.toBeNull();
+  expect(carried?.['sw.fuel_valve']).toBe('normal');
+
+  // The panel is as the fire run left it, the forgotten fuel selector included.
+  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'off');
+  await expect(control(page, 'sw.elect_master')).toHaveAttribute('data-state', 'off');
+  await expect(control(page, 'lv.env_circ')).toHaveAttribute('data-state', 'fresh');
+  await expect(control(page, 'sw.fuel_valve')).toHaveAttribute('data-state', 'normal');
+  expect(await quantityOf(page, 'rpm')).toBe(0);
+
+  // The sheet marks the rows the pilot did and shows the fuel valve row open.
+  await activate(sheetButton, hasTouch);
+  await expect(page.getByTestId('run-checklist')).toBeVisible();
+  await expect(sheetStep(engineMasterRow)).toHaveAttribute('data-verdict', 'Done');
+  await expect(sheetStep(electMasterRow)).toHaveAttribute('data-verdict', 'Done');
+  await expect(sheetStep(fuelValveRow)).not.toHaveAttribute('data-verdict', /.+/);
+
+  // Switching the fuel valve off in the landing marks its row.
+  await page.waitForTimeout(SHIELD_WAIT_MS);
+  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  await expect(page.getByTestId('run-checklist')).toHaveCount(0);
+  await fuelValveOff(page, hasTouch);
+  await activate(sheetButton, hasTouch);
+  await expect(sheetStep(fuelValveRow)).toHaveAttribute('data-verdict', 'Done');
+  await page.waitForTimeout(SHIELD_WAIT_MS);
+  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+
+  // The critical rows hold (engine master, fuel valve, electric master): Procedure complete passes.
+  await complete(page, hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.locator(`[data-step-id="${engineMasterRow}"]`)).toHaveAttribute(
+    'data-verdict',
+    'Done',
+  );
+
+  // Retry starts again with the same carried panel: the fuel selector back at its normal stop,
+  // the rows the fire run did marked again.
+  await page.waitForTimeout(SHIELD_WAIT_MS);
+  await activate(page.getByTestId('debrief-retry'), hasTouch);
+  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+  await expect(control(page, 'sw.fuel_valve')).toHaveAttribute('data-state', 'normal');
+  await expect(control(page, 'sw.engine_master')).toHaveAttribute('data-state', 'off');
+  expect(await page.evaluate(() => window.__panelSession?.carry() ?? null)).toEqual(carried);
+  await activate(sheetButton, hasTouch);
+  await expect(sheetStep(engineMasterRow)).toHaveAttribute('data-verdict', 'Done');
+  await expect(sheetStep(fuelValveRow)).not.toHaveAttribute('data-verdict', /.+/);
 });
 
 test('@hooks T/O FIRE NO ABORT leads into the same landing situation and a prepared pilot passes', async ({
@@ -249,13 +369,16 @@ test('a pilot who does nothing fails when the aircraft reaches the field, and th
   await expect(page.getByTestId('debrief-follow-on')).toHaveCount(0);
 });
 
-test('a run that did not pick the emergency landing shows no follow-on button', async ({
+test('a run that did not pick the emergency landing still offers the landing situations (R-13)', async ({
   page,
   hasTouch,
 }) => {
   await startScenario(page, hasTouch, `${ENGINE_FIRE.pack}.${ENGINE_FIRE.id}`, 'easy');
   await complete(page, hasTouch);
-  await expect(page.getByTestId('debrief-follow-on')).toHaveCount(0);
+  // The scenario declares a follow-on: it is offered whatever conduct was selected, after FAIL too.
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+  await expect(followOnButton(page, LANDING_NAME)).toBeVisible();
+  await expect(page.getByTestId('debrief-further-note')).toHaveCount(0);
 });
 
 test('ELEC FIRE FLIGHT accepts the precautionary landing and offers no follow-on', async ({

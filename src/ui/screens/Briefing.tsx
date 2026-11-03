@@ -13,7 +13,8 @@ import { Modal } from './Modal';
  * not apply keeps its label and no children. The checklist is laid out as printed (plan 03-14): a
  * heading band with the printed title and message tag, then numbered table rows or the marked
  * outline, as the scenario declares. On Medium no checklist is shown. The panel takes the
- * scenario's initial state only at Start run. It sits on the shared modal shell: Escape is Back to
+ * scenario's initial state only at Start run (the briefing of a follow-on adds one line that the panel
+ * is as the previous situation left it, Phase 9, R-14, R-15). It sits on the shared modal shell: Escape is Back to
  * panel, a backdrop tap does nothing. All scenario text is rendered as text children.
  */
 export function Briefing({
@@ -67,6 +68,11 @@ export function Briefing({
       <p class="modal-body" data-testid="briefing-situation">
         {scenario.briefing.situation}
       </p>
+      {briefed.carry === undefined ? null : (
+        <p class="briefing-meta" data-testid="briefing-carry">
+          The panel is as the previous situation left it.
+        </p>
+      )}
       <p class="briefing-meta" data-testid="briefing-disclaimer">
         {DISCLAIMERS[scenario.disclaimer].short}
       </p>

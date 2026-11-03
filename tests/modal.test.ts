@@ -206,6 +206,50 @@ describe('Debrief on the shell', () => {
     }
   });
 
+  it('shows the follow-on buttons whatever conduct was selected at the end, after PASS and FAIL (R-13)', () => {
+    const emergency = DA50RG_ENV.further.ids('conduct').at(-1) ?? '';
+    const other = DA50RG_ENV.further.ids('conduct')[0] ?? '';
+    const { landing } = landingScenario({
+      [emergency]: [{ pack: 'engine', scenario: 'landing-fixture', weight: 1 }],
+    });
+    const gradeWith = (decisions: { t: number; id: string; on?: boolean }[]) =>
+      grade(landing, DA50RG_ENV, {
+        scenarioId: landing.id,
+        completedAt: 0,
+        events: [],
+        decisions,
+      });
+    const picked = [
+      gradeWith([]),
+      gradeWith([{ t: 0, id: other, on: true }]),
+      gradeWith([
+        { t: 0, id: emergency, on: true },
+        { t: 1, id: other, on: true },
+      ]),
+    ];
+    for (const graded of picked) {
+      const vnode = Debrief({
+        further: DA50RG_ENV.further,
+        scenario: landing,
+        result: graded,
+        level: 'easy',
+        checklistUsed: null,
+        checklistNote: null,
+        completedAt: 0,
+        onClose: vi.fn(),
+        onRetry: vi.fn(),
+        onNext: vi.fn(),
+        onFollowOn: vi.fn(),
+      });
+      expect(buttonsOf(vnode).map((b) => b['data-testid'])).toEqual([
+        'debrief-retry',
+        'debrief-follow-on',
+        'debrief-next',
+        'debrief-back',
+      ]);
+    }
+  });
+
   it('shows one generic button without a data-follow-on on Realistic, which asks for a draw (R-04)', () => {
     const emergency = DA50RG_ENV.further.ids('conduct').at(-1) ?? '';
     const text = DA50RG_ENV.further.option(emergency)?.followOn;

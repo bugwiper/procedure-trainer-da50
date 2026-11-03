@@ -177,13 +177,32 @@ export function predicateProblems(p: Predicate, env: PredicateEnv): PredicatePro
   return problems;
 }
 
-/** The registry defaults overlaid with the scenario's initial controls. */
-export function baselineOf(scenario: Scenario, registry: Registry): Record<string, StateId> {
+/**
+ * The registry defaults overlaid with the scenario's initial controls and, last, with the carry of
+ * a follow-on start (Phase 9, R-14): the panel the previous run left wins for every control it
+ * names. An unknown control or a state that is not legal for it is a PredicateError, in the carry
+ * as in the initial controls. Without a carry the result is exactly the old one.
+ */
+export function baselineOf(
+  scenario: Scenario,
+  registry: Registry,
+  carry?: Readonly<Record<string, StateId>> | null,
+): Record<string, StateId> {
   const baseline: Record<string, StateId> = {};
   for (const def of registry.controls) baseline[def.id] = def.default;
   for (const [id, state] of Object.entries(scenario.initial.controls)) {
     if (registry.get(id) === undefined) throw new PredicateError(`unknown control "${id}"`);
     baseline[id] = state;
+  }
+  if (carry !== undefined && carry !== null) {
+    for (const [id, state] of Object.entries(carry)) {
+      const def = registry.get(id);
+      if (def === undefined) throw new PredicateError(`the carry names unknown control "${id}"`);
+      if (!legalStates(def).includes(state)) {
+        throw new PredicateError(`the carry state "${state}" is not legal for control "${id}"`);
+      }
+      baseline[id] = state;
+    }
   }
   return baseline;
 }

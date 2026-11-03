@@ -20,7 +20,12 @@
 // waits and no onset is drawn. A follow-on that names several targets (Phase 9, R-04 to R-06) shows
 // one button per target on Easy and Medium; on Realistic the one button draws the target by weight
 // with a seed of the injected rng, recorded with the run (the signal `followOn`, then
-// Recording.followOn) and kept by Retry.
+// Recording.followOn) and kept by Retry. The debrief offers the follow-on whenever the scenario
+// declares one, after PASS or FAIL and whatever conduct was selected at the end (R-13), and the
+// follow-on starts with the panel the graded run left (R-14): completeRun captures every control
+// (carryOf), the follow-on start lays it over the file's initial controls, the recording carries it
+// (Recording.carry) and Retry repeats it; Next situation, NEW SITUATION, the chooser and LEAVE start
+// from the file's own baseline.
 // Phase 7 adds the checklist sheet (toggleChecklist), a non-modal sheet that exists in every run:
 // it shows the scenario's own checklist and marks the steps already done from the grade of the
 // partial recording (checklistMarks, the same credit the debrief shows; grade never receives the
@@ -34,12 +39,14 @@
 import { computed, signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import type { CatalogSet } from '../engine/catalog';
+import { carryOf } from '../engine/carry';
 import type { VirtualClock } from '../engine/clock';
 import type { AircraftEnv } from '../engine/env';
 import { branchStatuses, grade } from '../engine/grading';
 import type {
   BranchVerdict,
   GradeResult,
+  RecordedCarry,
   RecordedFollowOn,
   RecordedOnset,
   RecordedVariant,
@@ -128,6 +135,11 @@ export interface Choice extends ScenarioRef {
 export interface Briefed {
   readonly scenario: Scenario;
   readonly branches: readonly BranchVerdict[];
+  /**
+   * The panel the previous run left, present only on the briefing of a follow-on (Phase 9, R-14);
+   * the branch statuses were computed from it, and Start run begins from it.
+   */
+  readonly carry?: RecordedCarry;
 }
 
 /** A failed OpenResult, kept for the screens that render it (plan 12). */
@@ -147,6 +159,8 @@ export interface SessionTestHook {
   followOn(): RecordedFollowOn | null;
   /** The recording the last completed run was graded from; null until a run completes. */
   recording(): Recording | null;
+  /** The panel the current or last run started with when it is a follow-on (R-14); null otherwise. */
+  carry(): RecordedCarry | null;
 }
 
 declare global {
@@ -290,6 +304,12 @@ export interface Session {
   readonly variant: ReadonlySignal<RecordedVariant | null>;
   /** The recording the last run was graded from; null until a run completes, cleared at the next start. */
   readonly recording: ReadonlySignal<Recording | null>;
+  /**
+   * The panel the current or last run started with, when it is a follow-on (Phase 9, R-14): every
+   * control and the state the previous run left it in. Run data like the onset: kept until the
+   * next start, cleared with the panel, null for every other run.
+   */
+  readonly carry: ReadonlySignal<RecordedCarry | null>;
   /** Free and not busy only: opens one random allowed scenario and shows its briefing. */
   newSituation(): Promise<void>;
   /**
@@ -380,7 +400,8 @@ export interface Session {
   /**
    * Debrief only, not while a load runs: starts the same scenario again from a clean initial state
    * at the same level, with the same cause and, on Realistic, the same onset (D-14,
-   * `retrySeeds`). Nothing carries over from the graded run.
+   * `retrySeeds`). Nothing carries over from the graded run, except that the Retry of a follow-on
+   * starts with the same carried panel again (R-14).
    */
   retry(): void;
   /**
@@ -392,9 +413,9 @@ export interface Session {
   nextSituation(): Promise<void>;
   /**
    * Debrief only, not while a load runs, and only where the debrief offers follow-on buttons
-   * (Phase 9, D-02, D-03, R-04): opens the situation the graded scenario names for the conduct
-   * selected at the end, through the pack seam, as Next situation does (same level, nothing carried
-   * over from the graded run, which stays untouched until the open succeeds). The offer is
+   * (Phase 9, D-02, D-03, R-04, R-13): opens a situation the graded scenario declares, through the
+   * pack seam, as Next situation does (same level; the graded run stays untouched until the open
+   * succeeds), with the panel the graded run left as the start of its controls (R-14). The offer is
    * recomputed here from the session's own level and result and no argument is trusted: on Easy and
    * Medium `ref` must be one of the offered targets (absent is taken only where one target is
    * offered); on Realistic `ref` is ignored and the target is drawn by weight with a seed of the
@@ -407,13 +428,14 @@ export interface Session {
 }
 
 /**
- * The three records a retry reuses: the onset of a Realistic run, the cause of a variant run and the
- * follow-on draw of a Realistic landing that a button started.
+ * The four records a retry reuses: the onset of a Realistic run, the cause of a variant run, the
+ * follow-on draw of a Realistic landing that a button started and the panel a follow-on started with.
  */
 export interface RetrySeeds {
   readonly onset: RecordedOnset | null;
   readonly variant: RecordedVariant | null;
   readonly followOn: RecordedFollowOn | null;
+  readonly carry: RecordedCarry | null;
 }
 
 /**
@@ -425,8 +447,9 @@ export function retrySeeds(
   onset: RecordedOnset | null,
   variant: RecordedVariant | null,
   followOn: RecordedFollowOn | null = null,
+  carry: RecordedCarry | null = null,
 ): RetrySeeds {
-  return { onset, variant, followOn };
+  return { onset, variant, followOn, carry };
 }
 
 /** The item at min(n - 1, floor(rng() * n)); throws RangeError for an empty list. */
@@ -487,7 +510,13 @@ export function createSession(deps: SessionDeps): Session {
     | { readonly kind: 'random' }
     | { readonly kind: 'list' }
     | { readonly kind: 'next' }
-    | { readonly kind: 'chosen'; readonly ref: ScenarioRef; readonly key: string }
+    | {
+        readonly kind: 'chosen';
+        readonly ref: ScenarioRef;
+        readonly key: string;
+        /** The panel a follow-on start carries, so its retry keeps it (R-14). */
+        readonly left?: RecordedCarry;
+      }
     | null = null;
   const clock = signal<VirtualClock | null>(null);
   const run = signal<Run | null>(null);
@@ -513,6 +542,8 @@ export function createSession(deps: SessionDeps): Session {
     onset.value = null;
     variant.value = null;
     followOn.value = null;
+    carry.value = null;
+    lastLeft = null;
     clock.value = null;
     clearRunHelp();
     decisions.value = [];
@@ -545,6 +576,13 @@ export function createSession(deps: SessionDeps): Session {
   const onset = signal<RecordedOnset | null>(null);
   const variant = signal<RecordedVariant | null>(null);
   const followOn = signal<RecordedFollowOn | null>(null);
+  /** The panel the current or last run started with when it is a follow-on (R-14). */
+  const carry = signal<RecordedCarry | null>(null);
+  /**
+   * The panel the last graded run left (R-14, P-04): captured when the run completes, read by the
+   * follow-on start before the briefing resets the panel, cleared with the panel.
+   */
+  let lastLeft: RecordedCarry | null = null;
   /** The draw of a Realistic follow-on press, handed to the start it opens; consumed by `start`. */
   let pendingFollowOn: RecordedFollowOn | null = null;
   const recording = signal<Recording | null>(null);
@@ -602,6 +640,7 @@ export function createSession(deps: SessionDeps): Session {
       ...(onset.peek() === null ? {} : { onset: onset.peek() }),
       ...(variant.peek() === null ? {} : { variant: variant.peek() }),
       ...(followOn.peek() === null ? {} : { followOn: followOn.peek() }),
+      ...(carry.peek() === null ? {} : { carry: carry.peek() }),
       ...(decisions.peek().length === 0 ? {} : { decisions: decisions.peek() }),
     };
   };
@@ -641,6 +680,8 @@ export function createSession(deps: SessionDeps): Session {
     completedAt: real.completedAt,
     events: real.events,
     ...(chosen.onset !== undefined && real.onset != null ? { onset: real.onset } : {}),
+    // A foreign checklist is judged from the panel the pilot really started with (R-14).
+    ...(real.carry == null ? {} : { carry: real.carry }),
   });
 
   const setMarks = (marks: GradeResult | null, auto: 'all' | 'panel'): void => {
@@ -815,14 +856,14 @@ export function createSession(deps: SessionDeps): Session {
     const source = scenario.peek();
     if (screen.peek() !== 'debrief' || busy.peek() || graded === null || source === null) return;
     const realistic = level.peek() === 'realistic';
-    const buttons = followOnOffer(graded, source.further, env.further, realistic);
+    const buttons = followOnOffer(source.further, env.further, realistic);
     if (buttons.length === 0) return;
     let ref: ScenarioRef;
     let drawn: RecordedFollowOn | null = null;
     if (realistic) {
       const seed = Math.floor(rng() * SEED_RANGE);
       try {
-        const target = followOnFromSeed(seed, followOnTargets(graded, source.further, env.further));
+        const target = followOnFromSeed(seed, followOnTargets(source.further, env.further));
         ref = { pack: target.pack, scenario: target.scenario };
         drawn = { seed, from: source.id };
       } catch (error) {
@@ -846,17 +887,24 @@ export function createSession(deps: SessionDeps): Session {
       ref = { pack: offered.ref.pack, scenario: offered.ref.scenario };
     }
     const target = ref;
+    // The panel the graded run left is read here: openBriefing resets the panel first.
+    const left = lastLeft;
     pendingFollowOn = drawn;
     await loading('session.follow_on', async () => {
       try {
-        await openBriefing(target, true);
+        await openBriefing(target, true, left ?? undefined);
       } finally {
         // A run that began took the draw; a card or a failure drops it.
         pendingFollowOn = null;
       }
       // A failure to load leaves the free panel with the message; Retry repeats this start.
       if (loadFailure.peek() !== null) {
-        lastRequest = { kind: 'chosen', ref: target, key: 'session.follow_on' };
+        lastRequest = {
+          kind: 'chosen',
+          ref: target,
+          key: 'session.follow_on',
+          ...(left === null ? {} : { left }),
+        };
       }
     });
   };
@@ -869,6 +917,9 @@ export function createSession(deps: SessionDeps): Session {
     if (graded === null || current === null || runClock === null) return;
     recording.value = graded;
     result.value = grade(current, env, graded);
+    // R-14: every end of a run (Procedure complete, an outcome, the finish, the cap) leaves the panel
+    // a follow-on may start with.
+    lastLeft = carryOf(env.registry, bridge.store.snapshot());
     // The debrief names the last checklist choice, so it outlives the sheet until the debrief closes.
     const used = checklistChoice.peek();
     clearRunHelp();
@@ -884,7 +935,12 @@ export function createSession(deps: SessionDeps): Session {
    * quantities laid over by the scenario's onset quantities) and lets the scenario's parameters,
    * with those of its onset block, act from the onset; otherwise the quantities are the scenario's and the failure is there from t 0.
    */
-  const start = (opened: Scenario, realistic: boolean, seeds?: RetrySeeds): void => {
+  const start = (
+    opened: Scenario,
+    realistic: boolean,
+    seeds?: RetrySeeds,
+    carried?: RecordedCarry,
+  ): void => {
     const window = realistic ? opened.onset?.window_s : undefined;
     let drawn: RecordedOnset | null = null;
     let cause: RecordedVariant | null = null;
@@ -907,13 +963,19 @@ export function createSession(deps: SessionDeps): Session {
     }
     // The run uses the scenario its cause makes; the signal and the grade keep the file's own.
     const used = resolveVariant(opened, cause?.id ?? null, drawn !== null);
-    const setup = simSetup(env, used, drawn === null ? {} : { onsetAt: drawn.at });
+    // A retry repeats the carry it was given; every other start has the one handed to it, if any.
+    const panel: RecordedCarry | null = seeds !== undefined ? seeds.carry : (carried ?? null);
+    const setup = simSetup(env, used, {
+      ...(drawn === null ? {} : { onsetAt: drawn.at }),
+      carry: panel,
+    });
     const startQuantities =
       drawn === null
         ? initialQuantities(used, env.quantities)
         : realisticQuantities(used, env.quantities);
+    // One expression with baselineOf: defaults, the file's initial controls, then the carry.
     bridge.reset(
-      used.initial.controls,
+      panel === null ? used.initial.controls : { ...used.initial.controls, ...panel },
       drawn === null ? used.initial.quantities : (used.onset?.quantities ?? {}),
     );
     endRun();
@@ -937,13 +999,14 @@ export function createSession(deps: SessionDeps): Session {
     result.value = null;
     recording.value = null;
     clearRunHelp();
-    runBranches.value = branchStatuses(opened, env);
+    runBranches.value = branchStatuses(opened, env, panel);
     decisions.value = [];
     chooseGroup.value = firstGroup;
     choosePage.value = 0;
     onset.value = drawn;
     variant.value = cause;
     followOn.value = realistic ? fromDraw : null;
+    carry.value = panel;
     run.value = current;
     clock.value = current.clock;
     onRunStart();
@@ -994,7 +1057,11 @@ export function createSession(deps: SessionDeps): Session {
    * (offersRealistic: an onset, or a landing scene, which starts from the initial block) and shows
    * the level card where it does not.
    */
-  const openBriefing = async (ref: ScenarioRef, keepPicks = false): Promise<void> => {
+  const openBriefing = async (
+    ref: ScenarioRef,
+    keepPicks = false,
+    left?: RecordedCarry,
+  ): Promise<void> => {
     const opened = await openScenario(packs, env, ref);
     if (keepPicks) toFreePanel();
     if (!opened.ok) {
@@ -1005,7 +1072,8 @@ export function createSession(deps: SessionDeps): Session {
     // The briefing leaves the panel, the log and the last run untouched (D-14).
     const briefed: Briefed = {
       scenario: opened.scenario,
-      branches: branchStatuses(opened.scenario, env),
+      branches: branchStatuses(opened.scenario, env, left),
+      ...(left === undefined ? {} : { carry: left }),
     };
     briefing.value = briefed;
     choices.value = [];
@@ -1068,15 +1136,20 @@ export function createSession(deps: SessionDeps): Session {
   };
 
   /** One chosen entry opens its briefing (a row of the choose view). */
-  const runChosen = (ref: ScenarioRef, key: string): Promise<void> => {
-    lastRequest = { kind: 'chosen', ref: { pack: ref.pack, scenario: ref.scenario }, key };
-    return loading(key, () => openBriefing(ref));
+  const runChosen = (ref: ScenarioRef, key: string, left?: RecordedCarry): Promise<void> => {
+    lastRequest = {
+      kind: 'chosen',
+      ref: { pack: ref.pack, scenario: ref.scenario },
+      key,
+      ...(left === undefined ? {} : { left }),
+    };
+    return loading(key, () => openBriefing(ref, false, left));
   };
 
   /** Starts the run of the briefed scenario; an illegal baseline is kept as a load failure. */
   const begin = (briefed: Briefed, realistic: boolean): void => {
     try {
-      start(briefed.scenario, realistic);
+      start(briefed.scenario, realistic, undefined, briefed.carry);
     } catch (error) {
       // An illegal baseline changes nothing (bridge.reset); lint should have caught it.
       briefing.value = null;
@@ -1135,6 +1208,7 @@ export function createSession(deps: SessionDeps): Session {
     onset,
     variant,
     recording,
+    carry,
     async newSituation() {
       if (busy.peek()) return;
       // A live run asks first; the request waits in the confirm (U-03).
@@ -1213,6 +1287,8 @@ export function createSession(deps: SessionDeps): Session {
       recording.value = null;
       onset.value = null;
       variant.value = null;
+      carry.value = null;
+      lastLeft = null;
       clock.value = null;
       clearRunHelp();
       decisions.value = [];
@@ -1242,7 +1318,7 @@ export function createSession(deps: SessionDeps): Session {
       if (request.kind === 'random') await runRandom();
       else if (request.kind === 'list') await runList();
       else if (request.kind === 'next') await runNext();
-      else await runChosen(request.ref, request.key);
+      else await runChosen(request.ref, request.key, request.left);
     },
     dismissFailure,
     setLevel(next) {
@@ -1356,6 +1432,7 @@ export function createSession(deps: SessionDeps): Session {
         onset.peek() ?? recording.peek()?.onset ?? null,
         variant.peek() ?? recording.peek()?.variant ?? null,
         followOn.peek() ?? recording.peek()?.followOn ?? null,
+        carry.peek() ?? recording.peek()?.carry ?? null,
       );
       endRun();
       clearRunHelp();

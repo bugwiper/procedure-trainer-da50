@@ -629,7 +629,6 @@ describe('followOnOffer (Phase 9, D-02, D-03, R-04, R-08)', () => {
 
   it('on Easy and Medium offers one button per target in the file order, with the aircraft text of the target', () => {
     const buttons = followOnOffer(
-      ended(emergency),
       section({
         [emergency]: [
           { ...knownRef, weight: 2 },
@@ -647,64 +646,76 @@ describe('followOnOffer (Phase 9, D-02, D-03, R-04, R-08)', () => {
   });
 
   it('offers a target of weight 0 on Easy and Medium', () => {
-    expect(followOnOffer(ended(emergency), two, SET, false).map((b) => b.ref)).toEqual([
-      fixture,
-      second,
-    ]);
+    expect(followOnOffer(two, SET, false).map((b) => b.ref)).toEqual([fixture, second]);
   });
 
   it('on Realistic offers exactly one button with the generic text and no ref', () => {
-    expect(followOnOffer(ended(emergency), two, SET, true)).toEqual([
+    expect(followOnOffer(two, SET, true)).toEqual([
       { ref: null, label: generic.label, title: generic.title },
     ]);
   });
 
-  it('offers it after FAIL as well', () => {
-    expect(followOnOffer(ended(emergency, 'wrong'), two, SET, false)).toHaveLength(2);
-  });
-
-  it('offers nothing for another conduct at the end, without the map, or without a conduct', () => {
+  it('the offer is a function of the declaration and the level only (R-13): not of PASS, FAIL or the conduct', () => {
+    // The old conduct condition is gone: the functions take no result, so the final conduct and
+    // PASS or FAIL cannot be an input; the same declaration gives the same offer every time.
     for (const realistic of [false, true]) {
-      expect(followOnOffer(ended(carryOn), two, SET, realistic)).toEqual([]);
-      expect(followOnOffer(ended(emergency), section(undefined), SET, realistic)).toEqual([]);
-      expect(followOnOffer(ended(emergency), undefined, SET, realistic)).toEqual([]);
-      expect(followOnOffer(ended(null), two, SET, realistic)).toEqual([]);
-      expect(followOnOffer(result({}), two, SET, realistic)).toEqual([]);
+      expect(followOnOffer(two, SET, realistic)).toHaveLength(realistic ? 1 : 2);
+      expect(followOnOffer(two, SET, realistic)).toEqual(followOnOffer(two, SET, realistic));
     }
   });
 
-  it('offers nothing for a key the aircraft gives no button text', () => {
-    expect(
-      followOnOffer(
-        ended(carryOn),
-        section({ [carryOn]: [{ ...fixture, weight: 1 }] }),
-        SET,
-        false,
-      ),
-    ).toEqual([]);
+  it('offers nothing without a section, without the map, or for a key the aircraft gives no text (R-13)', () => {
+    for (const realistic of [false, true]) {
+      expect(followOnOffer(section(undefined), SET, realistic)).toEqual([]);
+      expect(followOnOffer(undefined, SET, realistic)).toEqual([]);
+      expect(followOnOffer(section({}), SET, realistic)).toEqual([]);
+    }
+    const unknownKey = section({ [carryOn]: [{ ...fixture, weight: 1 }] });
+    expect(followOnOffer(unknownKey, SET, false)).toEqual([]);
+    expect(followOnTargets(unknownKey, SET)).toEqual([]);
   });
 
-  it('the declared targets are the list of the scenario for the conduct at the end', () => {
-    expect(followOnTargets(ended(emergency), two, SET)).toEqual([
+  it('takes the targets of every key in the order of the file', () => {
+    // The aircraft gives only the emergency conduct a button text, so a second key of the map is
+    // skipped and the list is that of the emergency key; two keys with text would be listed in order.
+    const both = section({
+      [carryOn]: [{ ...second, weight: 5 }],
+      [emergency]: [
+        { ...fixture, weight: 2 },
+        { ...second, weight: 0 },
+      ],
+    });
+    expect(followOnTargets(both, SET)).toEqual([
       { ...fixture, weight: 2 },
       { ...second, weight: 0 },
     ]);
-    expect(followOnTargets(ended(carryOn), two, SET)).toEqual([]);
+    expect(followOnOffer(both, SET, false).map((b) => b.ref)).toEqual([fixture, second]);
   });
 
-  it('shows the note of the conduct only when no button is offered', () => {
+  it('the declared targets are the list of the scenario', () => {
+    expect(followOnTargets(two, SET)).toEqual([
+      { ...fixture, weight: 2 },
+      { ...second, weight: 0 },
+    ]);
+    expect(followOnTargets(undefined, SET)).toEqual([]);
+  });
+
+  it('shows the note of the conduct only where the scenario declares no follow-on (R-13)', () => {
     const note = SET.option(emergency)?.debriefNote ?? null;
     expect(note).not.toBeNull();
     // Without a follow-on the note is unchanged (also with the old two-argument call).
     expect(furtherNote(ended(emergency), SET)).toBe(note);
     expect(furtherNote(ended(emergency), SET, section(undefined))).toBe(note);
-    // With one or several targets the note is suppressed: one place decides.
+    // Wherever a button shows, whatever the final conduct, the note is gone: one place decides.
     expect(furtherNote(ended(emergency), SET, two)).toBeNull();
     expect(
       furtherNote(ended(emergency), SET, section({ [emergency]: [{ ...fixture, weight: 1 }] })),
     ).toBeNull();
-    // Another conduct at the end: no button, no note of that conduct either.
+    // Another conduct at the end: no note of that conduct either, with or without a follow-on.
     expect(furtherNote(ended(carryOn), SET, two)).toBeNull();
+    expect(furtherNote(ended(carryOn), SET, section(undefined))).toBeNull();
+    // A failed run with the emergency landing and no declaration still shows the note.
+    expect(furtherNote(ended(emergency, 'wrong'), SET, section(undefined))).toBe(note);
   });
 
   it('the note no longer claims the emergency landing is untrained', () => {

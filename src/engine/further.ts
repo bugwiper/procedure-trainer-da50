@@ -54,7 +54,8 @@ export interface FurtherOption {
    * and tooltip), own wording. This generic text is the one button of a Realistic debrief and the
    * fallback of a target without an entry. `targets` gives each follow-on target its own label and
    * title (R-08): the buttons of Easy and Medium, one per target the scenario lists. Conduct options
-   * only; the button exists only where the scenario declares a follow-on for the option.
+   * only; the button exists wherever the scenario declares a follow-on under the option's id
+   * (R-13: whatever conduct was selected at the end; the key supplies these texts).
    */
   readonly followOn?: FollowOnText;
   /**
