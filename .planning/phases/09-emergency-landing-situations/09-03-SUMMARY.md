@@ -75,7 +75,7 @@ A pilot who ends ENGINE FIRE IN FLIGHT or T/O FIRE NO ABORT on the emergency lan
 
 1. Task 1 (owner checkpoint) is satisfied: the owner delivered booklet page 9 (EMERGENCY LANDING (ENGINE OFF)), page 10 (DITCHING, not part of this plan) and a page that is not used. Answer C: the booklet has no checklist for an emergency landing with engine power, so only the engine-off situation ships. Removed from the plan: scenario file, pack entry, catalog entry, tests, e2e and docs of landing-engine-power. Task 3 reduced to the sweep of the generic specs (below). The plan text (`09-03-PLAN.md`: files list, an "Owner answer" section) and `09-CONTEXT.md` (a "Resolved 2026-11-03" line under the open question) say so.
 2. ELEC FIRE FLIGHT: no follow-on, `conduct_precautionary` accepted instead of `conduct_emergency`. Noted in the PANEL-REVIEW Phase 7 table (item 9 table, item 18 table) and in the Phase 9 section (item 14); the unit declaration table and the e2e golden changed with it. D-04 and D-07 of the context are superseded.
-3. `09-CONTEXT.md` also carries the coordinator's own uncommitted edits (rework decisions R-01 to R-09 for plan 09-04) and `09-04-PLAN.md` is untracked; they are not mine and were left uncommitted, including my one-line "Resolved" addition to the context, so the coordinator commits the file as a whole.
+3. `09-CONTEXT.md` carries the coordinator's rework decisions R-01 to R-09 for plan 09-04; my one-line "Resolved 2026-11-03" addition under the open question was committed together with them in the coordinator's `1f566a3`.
 
 ## What was built
 
