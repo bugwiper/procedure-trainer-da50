@@ -25,6 +25,13 @@ import { defineQuantities } from '../../engine/quantities';
  */
 const FUEL_SCALE = 10_000_000;
 
+/**
+ * The terrain height in feet: the base of the altitude and the normal of the scenario parameter
+ * `terrain_ft` (physics.ts). The cue `field_near` of the approach scene reads the altitude against it
+ * (cues.ts), so the ground of the approach scene is the aircraft's normal terrain.
+ */
+export const TERRAIN_HEIGHT_FT = 1400;
+
 /** Each fuel tank holds this many US gallons (owner, 2026-10-28); both tanks share one band table. */
 export const TANK_CAPACITY_GAL = 26;
 /**
@@ -483,7 +490,7 @@ export const DA50RG_QUANTITIES = defineQuantities([
     unit: 'ft',
     min: 0,
     max: 20000,
-    base: 1400,
+    base: TERRAIN_HEIGHT_FT,
     scale: SLOW_SCALE,
     bands: [{ id: 'unmarked', colour: 'none', to: 20000 }],
   },

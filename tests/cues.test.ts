@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
-import { DA50RG_CUES, ENGINE_RPM_STOPPED } from '../src/aircraft/da50rg/cues';
-import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
+import { DA50RG_CUES, ENGINE_RPM_STOPPED, FIELD_SIGHT_FT } from '../src/aircraft/da50rg/cues';
+import { DA50RG_QUANTITIES, TERRAIN_HEIGHT_FT } from '../src/aircraft/da50rg/quantities';
 import { CUE_VISIBLE_LEVEL, CueError, cueLevel, cueVisible, defineCues } from '../src/engine/cues';
 
 // Visual cues (Phase 5, W-05): a quantity read as a level 0 to 1, arithmetic only.
@@ -50,6 +50,30 @@ describe('the DA50 RG cue table', () => {
 
   it('is part of the aircraft environment', () => {
     expect(DA50RG_ENV.cues).toBe(DA50RG_CUES);
+  });
+
+  it('has the field cue of the approach scene: a falling cue on the altitude over FIELD_SIGHT_FT above the terrain', () => {
+    const cue = DA50RG_CUES.get('field_near');
+    expect(cue).toBeDefined();
+    expect(cue?.quantity).toBe('altitude_ft');
+    expect(cue?.from).toBe(TERRAIN_HEIGHT_FT + FIELD_SIGHT_FT);
+    expect(cue?.to).toBe(TERRAIN_HEIGHT_FT);
+    expect(FIELD_SIGHT_FT).toBe(1200);
+    const level = (altitude: number): number =>
+      DA50RG_CUES.levels({ ...DA50RG_QUANTITIES.baseValues(), altitude_ft: altitude })[
+        'field_near'
+      ] ?? Number.NaN;
+    expect(level(TERRAIN_HEIGHT_FT + FIELD_SIGHT_FT)).toBe(0);
+    expect(level(TERRAIN_HEIGHT_FT + FIELD_SIGHT_FT / 2)).toBe(0.5);
+    expect(level(TERRAIN_HEIGHT_FT)).toBe(1);
+    expect(level(TERRAIN_HEIGHT_FT + 5000)).toBe(0);
+    expect(level(0)).toBe(1);
+  });
+
+  it('reads the terrain of the approach from the normal of the parameter terrain_ft', () => {
+    const terrain = DA50RG_ENV.physics.parameters.find((p) => p.id === 'terrain_ft');
+    expect(terrain?.normal).toBe(TERRAIN_HEIGHT_FT);
+    expect(DA50RG_QUANTITIES.get('altitude_ft')?.base).toBe(TERRAIN_HEIGHT_FT);
   });
 
   it('has no id equal to a physics parameter id or a quantity id', () => {

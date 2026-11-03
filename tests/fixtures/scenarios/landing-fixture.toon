@@ -1,0 +1,38 @@
+# Test fixture, not a shipped scenario (Phase 9, plan 09-01): a synthetic approach to an off-airport field for the machinery tests (the scene outlanding, the cue field_near and the finish section). Its row is not printed checklist text and it carries no booklet wording; it lives under tests/ so that no pack lists it and the blueprint gate does not read it.
+format: 1
+id: landing-fixture
+title: LANDING FIXTURE
+source:
+  document: "Test fixture"
+  issue: "none"
+  section: "Synthetic scenario for the approach to a field"
+  verified: "2026-11-03"
+disclaimer: training-aid
+scene: outlanding
+briefing:
+  situation: "You are descending toward a single open field ahead at about 80 knots. The engine runs and no message is shown."
+initial:
+  controls:
+    lv.power: p60
+  quantities:
+    airspeed_kt: 80
+    vertical_speed_fpm: -700
+    altitude_ft: 2200
+# The flight profile (in force from the first second at every level; instructor-review values): the powered regime with a steady descent.
+profile:
+  flight_speed_kt: 80
+  flight_vs_fpm: -700
+annunciations[0]:
+procedure[1]:
+  - kind: group
+    id: grp_prepare
+    ordered: false
+    steps[1]:
+      - id: elect_master_off
+        severity: critical
+        text: Electric master off
+        done:
+          check: state
+          control: sw.elect_master
+          is: off
+forbidden[0]:

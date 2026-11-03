@@ -1,5 +1,5 @@
 import { defineCues } from '../../engine/cues';
-import { DA50RG_QUANTITIES } from './quantities';
+import { DA50RG_QUANTITIES, TERRAIN_HEIGHT_FT } from './quantities';
 
 // DA50 RG visual cues (Phase 5, W-05): each is a simulated quantity read as a level 0 to 1 that the
 // windscreen layer draws. Art values, not AFM numbers: they are listed for the instructor review.
@@ -10,6 +10,12 @@ import { DA50RG_QUANTITIES } from './quantities';
  * windscreen shows the crisp propeller blade instead of the faint spinning disc. Defined once.
  */
 export const ENGINE_RPM_STOPPED = 100;
+
+/**
+ * The height above the terrain (ft) at which the landing field of the approach scene first shows as
+ * a speck (Phase 9, D-06). An instructor-review value, not an AFM figure.
+ */
+export const FIELD_SIGHT_FT = 1200;
 
 export const DA50RG_CUES = defineCues(
   [
@@ -31,6 +37,16 @@ export const DA50RG_CUES = defineCues(
     // The runway marks of the take-off roll scroll at a rate that follows the ground speed (Phase
     // 5.1, P-04): 0 stands still, full rate from 60 kt.
     { id: 'roll_speed', quantity: 'ground_speed_kt', from: 0, to: 60 },
+    // The landing field of the approach scene (Phase 9, D-06): a falling cue on the altitude, level 0
+    // FIELD_SIGHT_FT above the terrain and level 1 at the terrain. The ground of the approach scene
+    // is the aircraft's normal terrain (TERRAIN_HEIGHT_FT, the normal of the parameter terrain_ft);
+    // a scenario on that scene keeps it. The windscreen and the synthetic vision both read the level.
+    {
+      id: 'field_near',
+      quantity: 'altitude_ft',
+      from: TERRAIN_HEIGHT_FT + FIELD_SIGHT_FT,
+      to: TERRAIN_HEIGHT_FT,
+    },
   ],
   DA50RG_QUANTITIES,
 );

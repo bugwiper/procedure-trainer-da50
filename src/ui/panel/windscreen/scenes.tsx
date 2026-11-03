@@ -1,6 +1,8 @@
 import type { JSX } from 'preact';
 import { SCENE_IDS } from '../../../aircraft/da50rg/scenes';
 import type { SceneId } from '../../../aircraft/da50rg/scenes';
+import { FIELD_PALETTE, FURROW_AT, fieldPolygons } from './field';
+import type { FieldCorner } from './field';
 import { OPENING, SCENE_CENTRE_X } from './geometry';
 import {
   ROLL_COLOURS,
@@ -13,7 +15,7 @@ import {
 } from './roll-series';
 import type { Point, RollPolygon } from './roll-series';
 
-// The four views out of the windscreen (Phase 5, W-04, W-07): flat vector art in the opening, no
+// The five views out of the windscreen (Phase 5, W-04, W-07): flat vector art in the opening, no
 // text (G-0), the layer's own `w-` paints (SceneDefs). Every scene shares one horizon height and
 // one vanishing point (the strut at SCENE_CENTRE_X), so the cowl and the cues sit the same way in
 // each. The record is typed by the scene ids of the aircraft data: a scene without art fails the
@@ -174,9 +176,10 @@ function FieldPatches() {
   return <>{out}</>;
 }
 
-function CruiseScene() {
+/** The cruise landscape: sky, clouds, hills, the ground and its field patches (also the approach scene's). */
+function Landscape() {
   return (
-    <g data-scene="cruise">
+    <>
       <rect x={LEFT} y={TOP} width={OPENING.w} height={HORIZON_Y - TOP} fill="url(#w-sky-cruise)" />
       <Cloud x={300} y={-300} s={1.2} />
       <Cloud x={720} y={-215} s={0.8} />
@@ -201,6 +204,28 @@ function CruiseScene() {
         fill="url(#w-ground-cruise)"
       />
       <FieldPatches />
+    </>
+  );
+}
+
+/** The haze on the horizon, over the ground. */
+function HorizonHaze() {
+  return (
+    <rect
+      x={LEFT}
+      y={HORIZON_Y - 6}
+      width={OPENING.w}
+      height={36}
+      fill="#dcebf6"
+      fill-opacity={0.45}
+    />
+  );
+}
+
+function CruiseScene() {
+  return (
+    <g data-scene="cruise">
+      <Landscape />
       <polygon
         points={poly([
           [xAt(-90, yAtDepth(1)), yAtDepth(1)],
@@ -211,14 +236,49 @@ function CruiseScene() {
         fill="#b9b49a"
         fill-opacity={0.8}
       />
-      <rect
-        x={LEFT}
-        y={HORIZON_Y - 6}
-        width={OPENING.w}
-        height={36}
-        fill="#dcebf6"
-        fill-opacity={0.45}
-      />
+      <HorizonHaze />
+    </g>
+  );
+}
+
+/** Half width of the picture at its bottom row: the unit of the lateral measures of the field. */
+const HALF_PICTURE = OPENING.w / 2;
+
+/** A corner of the field in panel space: lateral fraction and row of `field.ts` projected. */
+const fieldPoint = ([lateral, row]: FieldCorner): [number, number] => [
+  SCENE_CENTRE_X + lateral * HALF_PICTURE,
+  HORIZON_Y + row * DEPTH,
+];
+
+/**
+ * The approach to an off-airport field (Phase 9, D-05, D-06): the cruise landscape with one landing
+ * field straight ahead and right of the strut. The field grows with the cue field_near (fieldGeometry,
+ * shared with the synthetic vision): a hedge-coloured outline, stubble inside it and three darker
+ * furrow stripes toward the vanishing point. Flat paint, no text, no animation.
+ */
+function OutlandingScene({ cues }: SceneProps) {
+  const field = fieldPolygons(cues['field_near'] ?? 0);
+  const quad = (q: readonly FieldCorner[]): string => poly(q.map(fieldPoint));
+  return (
+    <g data-scene="outlanding">
+      <Landscape />
+      <g data-part="landing-field">
+        <polygon data-part="field" points={quad(field.outer)} fill={FIELD_PALETTE.hedge} />
+        <polygon
+          data-part="field-stubble"
+          points={quad(field.inner)}
+          fill={FIELD_PALETTE.stubble}
+        />
+        {field.furrows.map((furrow, i) => (
+          <polygon
+            key={FURROW_AT[i]}
+            data-part="field-furrow"
+            points={quad(furrow)}
+            fill={FIELD_PALETTE.furrow}
+          />
+        ))}
+      </g>
+      <HorizonHaze />
     </g>
   );
 }
@@ -362,7 +422,7 @@ const pts = (p: readonly Point[]): string =>
 /** Half width of the fade cover at the bottom edge: inside the edge lines (610 to 634). */
 const ROLL_FADE_HALF = 604;
 
-/** What a scene gets: the cue levels (only the roll scene reads one). */
+/** What a scene gets: the cue levels (the roll scene reads one, the approach scene another). */
 export interface SceneProps {
   readonly cues: Readonly<Record<string, number>>;
 }
@@ -559,6 +619,7 @@ export const SCENES: Readonly<Record<SceneId, (props: SceneProps) => JSX.Element
   takeoff_roll: TakeoffRollScene,
   cruise: CruiseScene,
   cloud: CloudScene,
+  outlanding: OutlandingScene,
 };
 
 /** True when `id` is a scene of the aircraft data. */

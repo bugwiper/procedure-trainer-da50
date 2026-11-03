@@ -11,7 +11,7 @@ import { DA50RG } from './panel';
 import { OIL_PRESSURE_IDLE_CURVE, OIL_PRESSURE_SLOPE_CURVE } from './oil-pressure-curve';
 import { OIL_TEMP_RISE_RATE_CURVE } from './oil-temp-curve';
 import { PROP_SPEED_CURVE } from './prop-curve';
-import { DA50RG_QUANTITIES } from './quantities';
+import { DA50RG_QUANTITIES, TERRAIN_HEIGHT_FT } from './quantities';
 
 // DA50 RG physics (D-01, D-02, D-10, D-12, C-03, C-05, C-09): how the named quantities move during
 // a run. Aircraft behaviour, never a scenario fact: a scenario only sets a parameter such as the
@@ -744,8 +744,15 @@ export const DA50RG_PHYSICS = definePhysics(
       // best-glide figure, and a scenario may override them.
       { id: 'glide_speed_kt', min: 0, max: 200, normal: 90, profile: true },
       { id: 'glide_vs_fpm', min: -2000, max: 2000, normal: -700, profile: true },
-      // The altitude never sinks below this terrain height in feet (the free panel's 1400 ft base).
-      { id: 'terrain_ft', min: 0, max: 10000, normal: 1400, profile: true, floorOf: 'altitude_ft' },
+      // The altitude never sinks below this terrain height in feet (the free panel's base, TERRAIN_HEIGHT_FT).
+      {
+        id: 'terrain_ft',
+        min: 0,
+        max: 10000,
+        normal: TERRAIN_HEIGHT_FT,
+        profile: true,
+        floorOf: 'altitude_ft',
+      },
     ],
     models: [
       lag('rpm', RPM_TAU_MS, rpmTarget),

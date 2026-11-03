@@ -29,6 +29,8 @@ export const SVT_STYLES: Readonly<Record<SceneId, SvtStyle>> = {
   takeoff_roll: { sky: 'w-sky-roll', ground: 'w-grass', art: 'runway' },
   cruise: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'fields' },
   cloud: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'fields' },
+  // Task 1 of Phase 9 only: the field art of the approach follows in the next commit.
+  outlanding: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'fields' },
 };
 
 /** Height over which the sky colours run from the top colour to the horizon colour. */
