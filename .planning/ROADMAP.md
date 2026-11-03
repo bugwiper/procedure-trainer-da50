@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6.1: PFD fidelity** (INSERTED) - Synthetic vision under the whole PFD, translucent tapes, vertical speed scale, QNH in hPa, vertically stacked fine CAS messages, simple compass rose (completed 2026-11-01)
 - [ ] **Phase 7: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
 - [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop (executed 2026-11-03, awaiting UAT and the owner's device round)
-- [ ] **Phase 9: Emergency landing situations** - From the debrief of a fire situation the pilot continues into an emergency landing with or without engine power: the approach to an off-airport field in the windscreen and on the PFD, the pre-landing checklist on the panel and the sheet, a defined end at the field (built 2026-11-03; awaiting UAT)
+- [ ] **Phase 9: Emergency landing situations** - From the debrief of a fire situation the pilot continues into an emergency landing with or without engine power: the approach to an off-airport field in the windscreen and on the PFD, the pre-landing checklist on the panel and the sheet, a defined end at the field; plan 09-04 (2026-11-03) adds the ditching and a two-target follow-on with a Realistic draw
 
 ## Phase Details
 
@@ -642,9 +642,10 @@ Plans:
 2. A scenario can end by itself when its aircraft reaches the field (`finish`): the run completes as if the pilot had pressed Procedure complete at that time, with an unchanged grade function and the same result live and in replay; lint rejects a finish that cannot be reached.
 3. When the conduct selected at the end of a graded run is the emergency landing and the scenario names a follow-on, the debrief offers the button Emergency landing; it opens the follow-on situation with the level kept, the first run's grade is untouched, and a landing situation shows no conduct or Avoid buttons (MAYDAY and brief passengers recommended).
 4. The profile can stop the engine from the first second (`engine_stopped`), so the situation without engine power starts with a stopped engine and glides; with power it descends under power.
-5. The printed situation without engine power (booklet page 9) is in the pack `landing` and in the catalog group NON-ANNUNCIATED EMERGENCY PROCEDURES with the printed tag, typed verbatim from the owner's page (the booklet has no engine-power checklist, so there is no second situation); ENGINE FIRE IN FLIGHT and T/O FIRE NO ABORT lead into it, ELEC FIRE FLIGHT accepts the alternate landing; a prepared pilot passes, a pilot who does nothing fails.
+5. The printed situations of the pack `landing` (the emergency landing without engine power, booklet page 9, and the ditching, page 10; the booklet has no engine-power landing checklist) are in the catalog group NON-ANNUNCIATED EMERGENCY PROCEDURES with the printed tags, typed verbatim from the owner's pages; ENGINE FIRE IN FLIGHT and T/O FIRE NO ABORT lead into both (weights 2 and 1), ELEC FIRE FLIGHT accepts the alternate landing; a prepared pilot passes, a pilot who does nothing fails (plan 09-04 adds the ditching and the second target).
+6. The follow-on has several targets: on Easy and Medium the debrief shows one button per target and the pilot chooses; on Realistic one button leads to a target drawn by weight with a seeded integer draw recorded with the run, and a landing situation starts at once on Realistic (plan 09-04); the scene `ditching` shows a flat sea whose waves approach with the descent in the windscreen and on the PFD.
 
-**Plans:** 3 plans (lean form, see WORKFLOW.md); decisions in 09-CONTEXT.md
+**Plans:** 4 plans (lean form, see WORKFLOW.md); decisions in 09-CONTEXT.md (D-01 to D-15, owner rework R-01 to R-09 for plan 09-04)
 **UI hint**: yes
 
 Plans:
@@ -660,6 +661,10 @@ Plans:
 **Wave 3** _(after Wave 2)_
 
 - [x] 09-03 — The owner's page 9 typed verbatim: the situation without engine power from the fire debrief to the field (pack `landing`, catalog entry, follow-on declarations of ENGINE FIRE IN FLIGHT and T/O FIRE NO ABORT, ELEC FIRE FLIGHT changed to the alternate landing), the phase-end documents and the final gates incl. the Linux image
+
+**Wave 4** _(after Wave 3; owner rework of 2026-11-03)_
+
+- [ ] 09-04 — Tracer: the follow-on with several weighted targets (two buttons on Easy and Medium, a seeded recorded draw on Realistic, a landing situation starts at once on Realistic, lint L33 and L34 for lists and weights); the ditching of booklet page 10 as a situation of its own (scene `ditching`, cue `water_near`, pack `landing`, catalog tag DITCHING); the fire sources lead into both targets (weights 2 and 1); documents, requirements and the final gates incl. the Linux image
 
 ## Progress
 
@@ -679,4 +684,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 6.1. PFD fidelity                                     | 3/3            | Complete    | 2026-11-01 |
 | 7. Training Mode, Further Actions and Repeat Loop     | 6/6            | Executed, awaiting UAT | 2026-11-02 |
 | 8. Offline PWA and Real-Device Hardening              | 3/3            | Executed, awaiting UAT | 2026-11-03 |
-| 9. Emergency landing situations                       | 3/3            | Executed, awaiting UAT | 2026-11-03 |
+| 9. Emergency landing situations                       | 3/4            | In progress (09-04 planned) | -          |
