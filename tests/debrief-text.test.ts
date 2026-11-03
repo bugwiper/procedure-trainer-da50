@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { grade } from '../src/engine/grading';
 import type { GradeResult, OrderViolation, Reason } from '../src/engine/grading';
@@ -10,6 +11,7 @@ import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import {
   checklistNote,
   conductNote,
+  finishLine,
   furtherNote,
   furtherRows,
   harmfulLine,
@@ -225,6 +227,34 @@ describe('limitLine (WR-05, V-14)', () => {
     expect(limitLine(MAX_RUN_MS)).toBe(
       `The run reached the ${String(MAX_RUN_MS / 60_000)} minute limit.`,
     );
+  });
+});
+
+describe('finishLine (Phase 9, D-09)', () => {
+  const LANDING_TEXT = readFileSync(
+    join(
+      fileURLToPath(new URL('../', import.meta.url)),
+      'tests/fixtures/scenarios/landing-fixture.toon',
+    ),
+    'utf8',
+  );
+  const parsed = parseScenario(LANDING_TEXT);
+  if (!parsed.ok) throw new Error('the landing fixture does not parse');
+  const withFinish = parsed.value;
+  const without = { ...withFinish, finish: undefined };
+
+  it("gives the file's finish text for a run that ended that way", () => {
+    expect(finishLine(withFinish, true)).toBe(withFinish.finish?.text);
+    expect(finishLine(withFinish, true)).toBe('The aircraft reached the field');
+  });
+
+  it('gives nothing after a press of Procedure complete, an outcome or the cap', () => {
+    expect(finishLine(withFinish, false)).toBeNull();
+  });
+
+  it('gives nothing for a scenario that declares no finish', () => {
+    expect(finishLine(without, true)).toBeNull();
+    expect(finishLine(without, false)).toBeNull();
   });
 });
 

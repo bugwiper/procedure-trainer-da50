@@ -262,7 +262,7 @@ function OutlandingScene({ cues }: SceneProps) {
   return (
     <g data-scene="outlanding">
       <Landscape />
-      <g data-part="landing-field">
+      <g data-part="landing-field" data-cue="field_near" data-level={cues['field_near'] ?? 0}>
         <polygon data-part="field" points={quad(field.outer)} fill={FIELD_PALETTE.hedge} />
         <polygon
           data-part="field-stubble"

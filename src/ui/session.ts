@@ -42,7 +42,7 @@ import { effectiveSelection, offersConduct } from '../engine/further';
 import type { FurtherSelection, RecordedDecision } from '../engine/further';
 import { initialQuantities, realisticQuantities } from '../engine/predicates';
 import { Run } from '../engine/run';
-import { MAX_RUN_MS, onsetFromSeed, simSetup } from '../engine/sim';
+import { MAX_RUN_MS, onsetFromSeed, simEnded, simSetup } from '../engine/sim';
 import { resolveVariant, variantFromSeed } from '../engine/variants';
 import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
@@ -201,6 +201,13 @@ export interface Session {
    * page lifetime. grade never receives it.
    */
   readonly level: ReadonlySignal<Level>;
+  /**
+   * True while the debrief shows a run that ended by itself at the scenario's finish (Phase 9,
+   * D-09), false after a press of Procedure complete, an outcome or the cap. Display state like the
+   * level: never recorded, never an input of grade. Cleared where a run starts, is retried, left or
+   * closed.
+   */
+  readonly endedByFinish: ReadonlySignal<boolean>;
   /** True once the level of the opened scenario was chosen; the level question comes before the briefing. */
   readonly levelPicked: ReadonlySignal<boolean>;
   /**
@@ -454,9 +461,11 @@ export function createSession(deps: SessionDeps): Session {
   const clock = signal<VirtualClock | null>(null);
   const run = signal<Run | null>(null);
   /** Drops the simulation of the run in hand; the bridge keeps the quantities as they are. */
+  const endedByFinish = signal(false);
   const endRun = (): void => {
     run.peek()?.dispose();
     run.value = null;
+    endedByFinish.value = false;
   };
   /**
    * The free panel as at page load: registry defaults, base quantities, no flags, no log, no run,
@@ -818,8 +827,11 @@ export function createSession(deps: SessionDeps): Session {
       bridge.setFlags(state.flags);
       // D-06: a run whose state carries a named outcome ends by itself, graded as FAIL. The run
       // clock stands at the outcome time, which is what complete() records as completedAt. The
-      // 30-minute cap ends a run the same way, without an outcome (WR-05, V-14).
-      if ((state.outcome !== null || state.t >= MAX_RUN_MS) && screen.peek() === 'running') {
+      // 30-minute cap ends a run the same way, without an outcome (WR-05, V-14). The finish of a
+      // landing situation (D-09) completes the run as a press of Procedure complete would at that
+      // time; the debrief says it ended that way.
+      if ((simEnded(state) || state.t >= MAX_RUN_MS) && screen.peek() === 'running') {
+        endedByFinish.value = state.finish !== null;
         completeRun();
       }
     });
@@ -1008,6 +1020,7 @@ export function createSession(deps: SessionDeps): Session {
     run,
     level,
     levelPicked,
+    endedByFinish,
     checklistShown,
     checklistMarks,
     checklistView,

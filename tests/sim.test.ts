@@ -15,6 +15,7 @@ import {
   mulberry32,
   onsetFromSeed,
   quantise,
+  simEnded,
   simSetup,
   simulate,
   stepSim,
@@ -624,6 +625,113 @@ describe('outcomes and hold timers (C-25, D-06)', () => {
     run.step();
     expect(run.state).toBe(final);
     expect(run.clock.now()).toBe(final.t);
+  });
+});
+
+describe('the finish (Phase 9, D-09)', () => {
+  const COWL = 'lv.cowl_flap';
+  const FINISH = [
+    'finish:',
+    '  when:',
+    '    check: state',
+    `    control: ${COWL}`,
+    '    is: open',
+    '  text: The aircraft reached the field',
+    '',
+  ].join('\n');
+  const OUTCOME = (holdS: number): string =>
+    [
+      'outcomes[1]:',
+      '  - id: the_outcome',
+      '    text: Engine failure from overheating',
+      `    hold_s: ${String(holdS)}`,
+      '    when:',
+      '      check: state',
+      `      control: ${COWL}`,
+      '      is: open',
+      '',
+    ].join('\n');
+
+  function setupOf(extra: string) {
+    const parsed = parseScenario(`${MINIMAL}${extra}`);
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+    return {
+      scenario: parsed.value,
+      setup: simSetup(DA50RG_ENV, parsed.value),
+      start: initialQuantities(parsed.value, DA50RG_ENV.quantities),
+    };
+  }
+  const open = (t: number): SimEvent => ({ t, id: COWL, value: 'open' });
+  const closed = (t: number): SimEvent => ({ t, id: COWL, value: 'closed' });
+
+  it('a scenario without a finish never records one and a state carries null', () => {
+    const plain = setupOf('');
+    const state = simulate(plain.setup, {
+      events: [open(0)],
+      start: plain.start,
+      untilMs: 5000,
+    }).state;
+    expect(state.finish).toBeNull();
+    expect(state.t).toBe(5000);
+    expect(plain.setup.finish).toBeNull();
+  });
+
+  it('records the time of the first step in which the predicate holds, not one step earlier', () => {
+    const f = setupOf(FINISH);
+    expect(f.setup.finish).toEqual(f.scenario.finish);
+    const events = [open(1000)];
+    const before = simulate(f.setup, { events, start: f.start, untilMs: 1000 }).state;
+    expect(before.finish).toBeNull();
+    const at = simulate(f.setup, { events, start: f.start, untilMs: 5000 }).state;
+    expect(at.finish).toEqual({ t: 1000 + STEP_MS });
+    expect(at.t).toBe(1000 + STEP_MS);
+    expect(at.outcome).toBeNull();
+  });
+
+  it('a state with a finish is final: stepSim returns it unchanged and simulate stops there', () => {
+    const f = setupOf(FINISH);
+    const final = simulate(f.setup, { events: [open(0)], start: f.start, untilMs: 5000 }).state;
+    expect(final.finish).toEqual({ t: STEP_MS });
+    const again = stepSim(f.setup, final, [closed(final.t)]);
+    expect(again.state).toBe(final);
+    expect(again.fired).toEqual([]);
+    expect(simEnded(final)).toBe(true);
+    expect(simEnded(initSim(f.setup, f.start))).toBe(false);
+  });
+
+  it('a named outcome that fires in the same step wins and no finish is recorded', () => {
+    const f = setupOf(`${OUTCOME(0)}${FINISH}`);
+    const state = simulate(f.setup, { events: [open(0)], start: f.start, untilMs: 5000 }).state;
+    expect(state.outcome).toEqual({ id: 'the_outcome', t: STEP_MS });
+    expect(state.finish).toBeNull();
+  });
+
+  it('an outcome still holding for its hold time does not stop the finish', () => {
+    const f = setupOf(`${OUTCOME(2)}${FINISH}`);
+    const state = simulate(f.setup, { events: [open(0)], start: f.start, untilMs: 5000 }).state;
+    expect(state.finish).toEqual({ t: STEP_MS });
+    expect(state.outcome).toBeNull();
+  });
+
+  it('a Run reports ended after the finish and stops stepping; it equals simulate', () => {
+    const f = setupOf(FINISH);
+    const store = new PanelStore(DA50RG);
+    store.reset(f.scenario.initial.controls);
+    const run = new Run({ setup: f.setup, store, start: f.start });
+    run.step();
+    expect(run.ended).toBe(false);
+    const done = store.dispatch(COWL, 'open', run.clock.now());
+    expect(done.ok).toBe(true);
+    run.step();
+    expect(run.ended).toBe(true);
+    expect(run.state.finish).toEqual({ t: run.clock.now() });
+    const final = run.state;
+    run.step();
+    expect(run.state).toBe(final);
+    expect(run.clock.now()).toBe(final.t);
+    const replay = simulate(f.setup, { events: store.events(), start: f.start, untilMs: final.t });
+    expect(replay.state).toEqual(final);
+    run.dispose();
   });
 });
 

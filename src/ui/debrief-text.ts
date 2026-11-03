@@ -100,6 +100,16 @@ export function limitLine(completedAt: number): string | null {
   return `The run reached the ${String(MAX_RUN_MS / 60_000)} minute limit.`;
 }
 
+/**
+ * The line of a run that ended by itself at the scenario's finish (Phase 9, D-09): the `finish.text`
+ * of the file, or null when the run ended another way (a press of Procedure complete, an outcome,
+ * the cap) or the scenario declares no finish.
+ */
+export function finishLine(scenario: Scenario, endedByFinish: boolean): string | null {
+  if (!endedByFinish || scenario.finish === undefined) return null;
+  return scenario.finish.text;
+}
+
 /** One row of the Further actions section of the debrief (Phase 7, R19): what, its role and how it went. */
 export interface FurtherRow {
   /** The option id, or `conduct` for the flight decision. */

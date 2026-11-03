@@ -29,6 +29,12 @@
 // held time reaches its hold time fires, with t the time of the new state. A state with an outcome
 // is final: no step follows it.
 //
+// The finish (Phase 9, D-09): a scenario may declare a predicate that ends the run by itself, as if
+// the pilot had pressed Procedure complete. It is evaluated after the outcomes, over the same new
+// controls and quantities; the first step in which it holds records the time in `finish`, and a
+// state with a finish is final like one with an outcome. An outcome that fires in the same step
+// wins, and then no finish is recorded.
+//
 // Event timing rule (C-02): an event with time t is applied before the step that starts at the
 // first step boundary T with T at least t. Events apply one by one in log order and are never
 // sorted by t: a later event of the log waits behind an earlier one that is not yet due.
@@ -37,7 +43,7 @@
 import type { AircraftEnv } from './env';
 import type { LagModel, PhysicsInputs } from './physics';
 import { baselineOf, evaluatePredicate } from './predicates';
-import type { Outcome, Scenario } from '../scenario/schema';
+import type { Finish, Outcome, Scenario } from '../scenario/schema';
 
 /** Length of one simulation step in virtual milliseconds. */
 export const STEP_MS = 100;
@@ -87,6 +93,13 @@ export interface SimState {
   readonly holds: Readonly<Record<string, number>>;
   /** The outcome that ended the run (id and the run time it fired at), or null while none did. */
   readonly outcome: { readonly id: string; readonly t: number } | null;
+  /** The run time the declared finish was reached at (D-09), or null while it was not. */
+  readonly finish: { readonly t: number } | null;
+}
+
+/** True once an outcome or the finish ended the run: no step follows such a state. */
+export function simEnded(state: Pick<SimState, 'outcome' | 'finish'>): boolean {
+  return state.outcome !== null || state.finish !== null;
 }
 
 /** What a simulation is run against: the aircraft, the scenario's baseline and its parameters. */
@@ -110,6 +123,8 @@ export interface SimSetup {
   readonly onsetAt: number;
   /** The scenario's named outcomes, in declared order (C-25). */
   readonly outcomes: readonly Outcome[];
+  /** The scenario's finish (D-09), or null where it declares none. */
+  readonly finish: Finish | null;
 }
 
 export interface SimOptions {
@@ -165,6 +180,7 @@ export function simSetup(env: AircraftEnv, scenario: Scenario, options: SimOptio
     ),
     onsetAt: options.onsetAt ?? 0,
     outcomes: scenario.outcomes,
+    finish: scenario.finish ?? null,
   });
 }
 
@@ -182,6 +198,7 @@ export function initSim(setup: SimSetup, start: Readonly<Record<string, number>>
     trips: Object.freeze({}),
     holds: Object.freeze({}),
     outcome: null,
+    finish: null,
   });
 }
 
@@ -224,11 +241,11 @@ function lagStep(model: LagModel, inputs: PhysicsInputs): number {
  * Advances the state by one step in the order of C-20: applies the due events in order (starting
  * the reactions they arm), ends the reactions whose clear condition holds, evaluates every model
  * with the parameters and flags in force, clamps and quantises each result, counts the timers down
- * evaluates the outcomes and moves t by STEP_MS. A state that already has an outcome is returned
- * unchanged. An event naming a control the state does not have throws Error naming it.
+ * evaluates the outcomes and moves t by STEP_MS. A state that already has an outcome or a finish is
+ * returned unchanged. An event naming a control the state does not have throws Error naming it.
  */
 export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent[]): StepResult {
-  if (state.outcome !== null) {
+  if (simEnded(state)) {
     return { state, fired: Object.freeze([]), injected: Object.freeze([]) };
   }
   const reactions = setup.env.physics.reactions;
@@ -344,6 +361,13 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
     holds[item.id] = held;
     if (outcome === null && held >= item.hold_s * 1000) outcome = { id: item.id, t };
   }
+  // The finish (D-09): after the outcomes, only when none fired in this step.
+  const finish: SimState['finish'] =
+    outcome === null &&
+    setup.finish !== null &&
+    evaluatePredicate(setup.finish.when, context, setup.env)
+      ? { t }
+      : null;
 
   return {
     state: Object.freeze({
@@ -355,6 +379,7 @@ export function stepSim(setup: SimSetup, state: SimState, due: readonly SimEvent
       trips: Object.freeze(tripTimers),
       holds: Object.freeze(holds),
       outcome,
+      finish,
     }),
     fired: Object.freeze(fired),
     injected: Object.freeze(injected),
@@ -376,7 +401,7 @@ export interface ReplayedChange extends InjectedChange {
 
 /**
  * Replays a log from the setup's start state in whole steps until the smaller of untilMs and
- * MAX_RUN_MS, or until an outcome fires. Each step is handed the events, in log order, from the
+ * MAX_RUN_MS, or until an outcome fires or the finish is reached. Each step is handed the events, in log order, from the
  * first not yet applied up to the first whose time is after the step's start (C-02). Events of
  * source `sim` are skipped: the simulation regenerates its own changes and returns them in
  * `injected`, each with `before`, the number of pilot events applied when it happened (V-06).
@@ -390,7 +415,7 @@ export function simulate(
   const injected: ReplayedChange[] = [];
   let next = 0;
   let applied = 0;
-  while (state.t < limit && state.outcome === null) {
+  while (state.t < limit && !simEnded(state)) {
     const from = next;
     for (;;) {
       const event = input.events[next];

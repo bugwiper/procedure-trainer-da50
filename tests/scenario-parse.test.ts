@@ -470,3 +470,47 @@ describe('parseManifest', () => {
     expect(bad.issues[0]).toMatchObject({ path: 'free', line: 3, col: 1 });
   });
 });
+
+describe('the finish section (Phase 9, D-09)', () => {
+  const finish = (extra = '', text = 'The aircraft reached the field'): string =>
+    `${MINIMAL}finish:
+  when:
+    check: quantity
+    quantity: altitude_ft
+    op: lte
+    value: 1400
+${extra}  text: ${text}
+`;
+
+  it('parses a finish with a predicate and a text, and a file without one', () => {
+    const parsed = parseScenario(finish());
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.value.finish?.text).toBe('The aircraft reached the field');
+    const plain = parseScenario(MINIMAL);
+    expect(plain.ok).toBe(true);
+    if (plain.ok) expect(plain.value.finish).toBeUndefined();
+  });
+
+  it('rejects a finish without a predicate, at the finish', () => {
+    const text = `${MINIMAL}finish:\n  text: The aircraft reached the field\n`;
+    const issues = issuesOf(text);
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues[0]).toMatchObject({ path: 'finish.when', line: lineOf(text, 'finish:') });
+  });
+
+  it('rejects an unknown key of the finish at the key itself', () => {
+    const text = finish('  hold_s: 5\n');
+    expect(issuesOf(text)).toContainEqual({
+      path: 'finish.hold_s',
+      message: 'unknown key "hold_s"',
+      line: lineOf(text, 'hold_s'),
+      col: colOf(text, 'hold_s', 'hold_s'),
+    });
+  });
+
+  it('wants a text of 1 to 12 words', () => {
+    expect(parseScenario(finish('', words(12))).ok).toBe(true);
+    const text = finish('', words(13));
+    expect(issuesOf(text)[0]).toMatchObject({ path: 'finish.text', line: lineOf(text, 'w0') });
+  });
+});

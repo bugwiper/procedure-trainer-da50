@@ -1725,6 +1725,109 @@ describe('the 30-minute cap (WR-05, V-14)', () => {
   });
 });
 
+describe('the finish of a landing situation (Phase 9, D-09)', () => {
+  const FIXTURE = readFileSync(join(root, 'tests/fixtures/scenarios/landing-fixture.toon'), 'utf8');
+  const WITHOUT = FIXTURE.replace(/# The run completes by itself[\s\S]*$/, '');
+  if (WITHOUT === FIXTURE) throw new Error('the finish section of the fixture was not found');
+  const MANIFEST = `format: 1
+title: Landing
+free: true
+scenarios[1]:
+  - id: landing-fixture
+    title: LANDING FIXTURE
+    file: landing-fixture
+`;
+  const landing = (text: string) =>
+    started({ manifest: MANIFEST, files: { 'landing-fixture': text } });
+
+  /** Steps the run until the debrief opens or `max` steps went by; returns the steps taken. */
+  function stepToEnd(r: Rig, max = 3000): number {
+    const run = r.session.run.value;
+    if (run === null) throw new Error('no run');
+    let steps = 0;
+    while (r.session.screen.value === 'running' && steps < max) {
+      run.step();
+      steps += 1;
+    }
+    return steps;
+  }
+
+  it('completes the run by itself in the first step in which the predicate holds', async () => {
+    const r = await landing(FIXTURE);
+    expect(r.session.endedByFinish.value).toBe(false);
+    const run = r.session.run.value;
+    if (run === null) throw new Error('no run');
+    const steps = stepToEnd(r);
+    expect(r.session.screen.value).toBe('debrief');
+    const finish = run.state.finish;
+    expect(finish).not.toBeNull();
+    expect(finish?.t).toBe(steps * STEP_MS);
+    expect(r.session.recording.value?.completedAt).toBe(finish?.t);
+    expect(r.session.endedByFinish.value).toBe(true);
+    expect(r.session.result.value?.outcome).toBeNull();
+    // Once, and nothing steps on.
+    run.step();
+    expect(r.session.screen.value).toBe('debrief');
+    expect(run.clock.now()).toBe(finish?.t);
+  });
+
+  it('grades the finished run exactly like a press of Procedure complete at that time', async () => {
+    const finished = await landing(FIXTURE);
+    stepToEnd(finished);
+    const finishedAt = finished.session.recording.value?.completedAt ?? -1;
+    // The same situation without a finish, stepped as long and completed by a press.
+    const pressed = await landing(WITHOUT);
+    const run = pressed.session.run.value;
+    if (run === null) throw new Error('no run');
+    for (let i = 0; i < finishedAt / STEP_MS; i++) run.step();
+    expect(pressed.session.screen.value).toBe('running');
+    pressed.session.complete();
+    expect(pressed.session.screen.value).toBe('debrief');
+    expect(pressed.session.endedByFinish.value).toBe(false);
+    expect(pressed.session.recording.value?.completedAt).toBe(finishedAt);
+    expect(JSON.stringify(finished.session.result.value)).toBe(
+      JSON.stringify(pressed.session.result.value),
+    );
+  });
+
+  it('does not flag a press of Procedure complete before the field, on a file with a finish', async () => {
+    const r = await landing(FIXTURE);
+    const run = r.session.run.value;
+    if (run === null) throw new Error('no run');
+    for (let i = 0; i < 50; i++) run.step();
+    r.session.complete();
+    expect(r.session.screen.value).toBe('debrief');
+    expect(r.session.endedByFinish.value).toBe(false);
+  });
+
+  it('clears the flag with Back to panel and with Retry, and Retry runs to the field again', async () => {
+    const r = await landing(FIXTURE);
+    stepToEnd(r);
+    expect(r.session.endedByFinish.value).toBe(true);
+    r.session.closeDebrief();
+    expect(r.session.endedByFinish.value).toBe(false);
+
+    const again = await landing(FIXTURE);
+    stepToEnd(again);
+    expect(again.session.endedByFinish.value).toBe(true);
+    again.session.retry();
+    expect(again.session.screen.value).toBe('running');
+    expect(again.session.endedByFinish.value).toBe(false);
+    expect(stepToEnd(again)).toBeGreaterThan(0);
+    expect(again.session.screen.value).toBe('debrief');
+    expect(again.session.endedByFinish.value).toBe(true);
+  });
+
+  it('keeps an ordinary run unflagged: the 30 minute cap and a run without a finish', async () => {
+    const r = await landing(WITHOUT);
+    const run = r.session.run.value;
+    if (run === null) throw new Error('no run');
+    for (let i = 0; i < MAX_RUN_MS / STEP_MS; i++) run.step();
+    expect(r.session.screen.value).toBe('debrief');
+    expect(r.session.endedByFinish.value).toBe(false);
+  });
+});
+
 function expectOriginalPanel(r: Rig): void {
   expect(r.session.screen.value).toBe('free');
   expect(r.session.confirm.value).toBeNull();

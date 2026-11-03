@@ -235,6 +235,17 @@ export const Outcome = z.strictObject({
   hold_s: z.number().min(0).max(MAX_HOLD_S),
 });
 
+/**
+ * The finish of a landing situation (Phase 9, D-09): the run completes by itself, graded like a
+ * pressed Procedure complete at that time, in the first step in which `when` holds (the approach
+ * reaches the field). `text` is the debrief line of a run that ended that way. Lint L32 keeps it
+ * from never being reached. Not an outcome: nothing here fails the run.
+ */
+export const Finish = z.strictObject({
+  when: Predicate,
+  text: wordsBetween(1, 12),
+});
+
 /** The longest second of an onset window (T-03-16): bounds the lint loop of the realistic level. */
 export const MAX_ONSET_S = 120;
 
@@ -367,6 +378,8 @@ export const Scenario = z.strictObject({
   procedure: z.array(ProcedureNode).min(1),
   forbidden: z.array(Forbidden).default([]),
   outcomes: z.array(Outcome).max(MAX_OUTCOMES).default([]),
+  /** The end of a landing situation: the run completes by itself when `when` holds (Phase 9, D-09). */
+  finish: Finish.optional(),
   /** The window in which the failure begins in the level Realistic; absent means no such level. */
   onset: Onset.optional(),
   /** The several causes behind the failure; empty means one cause, the file as written. */
@@ -402,6 +415,7 @@ export type RowMark = z.infer<typeof rowNumber>;
 export type Step = z.infer<typeof Step>;
 export type Forbidden = z.infer<typeof Forbidden>;
 export type Outcome = z.infer<typeof Outcome>;
+export type Finish = z.infer<typeof Finish>;
 export type Onset = z.infer<typeof Onset>;
 export type Variant = z.infer<typeof Variant>;
 export type FurtherSection = z.infer<typeof Further>;

@@ -10,6 +10,8 @@ import { PanelStore } from '../src/engine/store';
 import type { ControlEvent } from '../src/engine/store';
 import { resolveVariant } from '../src/engine/variants';
 import { checkScenario } from '../src/scenario/lint';
+import { parseScenario } from '../src/scenario/parse';
+import { MINIMAL } from './scenario-text';
 
 // The run and the action log (plan 03-04; D-03, C-21, C-22, T-03-09, T-03-10): a reaction that
 // fires makes the event it used consumed, a retract of an event the simulation already applied
@@ -510,6 +512,55 @@ describe('the 30-minute cap (WR-05, V-14)', () => {
     steps(f, 10);
     expect(f.run.state.t).toBe(MAX_RUN_MS);
     expect(f.run.clock.now()).toBe(MAX_RUN_MS);
+    f.run.dispose();
+  });
+});
+
+describe('a run that reached the finish (Phase 9, D-09)', () => {
+  const COWL = 'lv.cowl_flap';
+  const FINISH = `${MINIMAL}finish:
+  when:
+    check: state
+    control: ${COWL}
+    is: open
+  text: The aircraft reached the field
+`;
+  const parsed = parseScenario(FINISH);
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+  const landing = parsed.value;
+  const landingSetup = simSetup(DA50RG_ENV, landing);
+  const landingStart = initialQuantities(landing, DA50RG_ENV.quantities);
+
+  function landed(): Fixture {
+    const store = new PanelStore(DA50RG);
+    store.reset(landing.initial.controls);
+    return { store, run: new Run({ setup: landingSetup, store, start: landingStart }) };
+  }
+
+  it('ends, stands still, and goes on again when the event that made it hold is retracted', () => {
+    const f = landed();
+    steps(f, 5);
+    const open = f.store.dispatch(COWL, 'open', f.run.clock.now());
+    if (!open.ok) throw new Error('rejected');
+    steps(f, 3);
+    expect(f.run.ended).toBe(true);
+    const at = f.run.state.t;
+    expect(f.run.state.finish).toEqual({ t: at });
+    expect(f.run.clock.now()).toBe(at);
+    // The rebuild replays the remaining log up to the same time: without the event no finish.
+    expect(f.store.retract(open.event.seq).ok).toBe(true);
+    expect(f.run.state.finish).toBeNull();
+    expect(f.run.ended).toBe(false);
+    steps(f, 5);
+    expect(f.run.state.t).toBe(at + 5 * STEP_MS);
+    f.run.dispose();
+  });
+
+  it('never ends in a run that does not make the predicate hold', () => {
+    const f = landed();
+    steps(f, 200);
+    expect(f.run.ended).toBe(false);
+    expect(f.run.state.finish).toBeNull();
     f.run.dispose();
   });
 });

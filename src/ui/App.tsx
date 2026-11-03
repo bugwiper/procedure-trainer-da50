@@ -409,6 +409,7 @@ export function App() {
             scenario.title,
           )}
           completedAt={session.recording.value?.completedAt ?? 0}
+          endedByFinish={session.endedByFinish.value}
           onClose={closeDebrief}
           onRetry={() => {
             session.retry();

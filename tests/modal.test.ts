@@ -166,4 +166,41 @@ describe('Debrief on the shell', () => {
     expect(note('easy', NOTE)).toBeNull();
     expect(note('medium', NOTE)).toBeNull();
   });
+
+  it('prints the finish text as one line only when the run ended at the finish (Phase 9, D-09)', () => {
+    const landingText = readFileSync(
+      join(root, 'tests/fixtures/scenarios/landing-fixture.toon'),
+      'utf8',
+    );
+    const landing = parseScenario(landingText);
+    if (!landing.ok) throw new Error('the landing fixture does not parse');
+    const landed = grade(landing.value, DA50RG_ENV, {
+      scenarioId: landing.value.id,
+      completedAt: 0,
+      events: [],
+    });
+    const lineOf = (ended: boolean | undefined, which = landing.value, graded = landed) => {
+      const vnode = Debrief({
+        further: DA50RG_ENV.further,
+        scenario: which,
+        result: graded,
+        level: 'easy',
+        checklistUsed: null,
+        checklistNote: null,
+        completedAt: 0,
+        ...(ended === undefined ? {} : { endedByFinish: ended }),
+        onClose: vi.fn(),
+        onRetry: vi.fn(),
+        onNext: vi.fn(),
+      });
+      const tree = expand(h('div', null, (vnode.props as { children: never }).children));
+      const lines = findElements(tree, (el) => el.props['data-testid'] === 'debrief-finish');
+      return lines.length === 0 ? null : textOf(lines[0] ?? tree);
+    };
+    expect(lineOf(true)).toBe('The aircraft reached the field');
+    expect(lineOf(false)).toBeNull();
+    expect(lineOf(undefined)).toBeNull();
+    // A scenario with no finish prints none, whatever the flag says.
+    expect(lineOf(true, scenario, result)).toBeNull();
+  });
 });

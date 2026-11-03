@@ -659,11 +659,14 @@ describe('the ice cues and the spray (Phase 5, C-05, owner answers of 2026-10-27
     const tree = render(levels, 'cruise', true);
     // The runway marks of the take-off roll scene draw the roll_speed cue (Phase 5.1).
     const roll = render(levels, 'takeoff_roll');
+    // The landing field of the approach scene draws the field_near cue (Phase 9).
+    const approach = render(levels, 'outlanding');
     const smoke = expand(CabinSmoke({ level: 1 }));
     for (const id of DA50RG_CUES.ids) {
       const drawn =
         findElements(tree, (el) => el.props['data-cue'] === id).length +
         findElements(roll, (el) => el.props['data-cue'] === id).length +
+        findElements(approach, (el) => el.props['data-cue'] === id).length +
         findElements(smoke, (el) => el.props['data-cue'] === id).length;
       expect(drawn, id).toBeGreaterThan(0);
     }

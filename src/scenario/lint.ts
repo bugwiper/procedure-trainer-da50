@@ -48,6 +48,10 @@
 // (`none` exactly when the profile puts the aircraft on the ground, every accepted id is a conduct
 // option of the aircraft, listed once, and not all of them). L20 also makes the required decisions
 // and the first accepted conduct in the solution it builds.
+// L32 (Phase 9, D-09) checks the optional `finish` (the run completes by itself when it holds): its
+// predicate resolves (reported at finish.when), does not hold at the start of the Easy and Medium
+// run or of the Realistic run, and a run that does nothing reaches it within the 600 s bound of L26,
+// so a situation cannot hang until the 30-minute cap.
 // checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
 // the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
@@ -68,7 +72,7 @@ import type { PredicateContext } from '../engine/predicates';
 import { legalStates } from '../engine/registry';
 import { actionFor, resolveVariant } from '../engine/variants';
 import type { PanelAction } from '../engine/variants';
-import { STEP_MS, initSim, simSetup, stepSim } from '../engine/sim';
+import { STEP_MS, initSim, simEnded, simSetup, stepSim } from '../engine/sim';
 import type { SimState } from '../engine/sim';
 import { joinPath, parseScenario } from './parse';
 import type { ScenarioIssue } from './parse';
@@ -358,6 +362,9 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
     checkPredicate(['outcomes', i, 'when'], item.when);
   });
 
+  // L32: the finish predicate resolves against the aircraft.
+  if (scenario.finish !== undefined) checkPredicate(['finish', 'when'], scenario.finish.when);
+
   // L4: group, step and forbidden ids share one namespace within a scenario.
   const seen = new Set<string>();
   const claim = (path: Segments, id: string): void => {
@@ -427,6 +434,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
     const later = checkRealisticStart(scenario, env, add);
     for (const id of checkLateMessages(scenario, env, add)) later.add(id);
     checkLateList(scenario, later, add);
+    checkFinishReached(scenario, env, add);
   }
   if (issues.length === 0 && scenario.variants.length > 0) {
     const later = new Set<string>();
@@ -441,6 +449,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
       for (const id of checkLateMessages(resolveVariant(scenario, variant.id, false), env, here)) {
         later.add(id);
       }
+      checkFinishReached(resolveVariant(scenario, variant.id, false), env, here);
     });
     // A late annunciation must show in some variant; the variants may differ in what they show.
     checkLateList(scenario, later, add);
@@ -1055,6 +1064,14 @@ function checkInitialState(
       );
     }
   });
+
+  // L32: a finish that holds at the start would complete the run in its first step.
+  if (scenario.finish !== undefined && evaluatePredicate(scenario.finish.when, ctx, env)) {
+    add(
+      ['finish'],
+      'the finish already holds in the initial state; the run would complete at once',
+    );
+  }
 }
 
 /** The quantities a predicate reads, if it reads any (a quantity or band check). */
@@ -1153,6 +1170,16 @@ function checkRealisticStart(
       );
     }
   });
+  // L32: nor may the finish hold at the realistic start.
+  if (
+    scenario.finish !== undefined &&
+    evaluatePredicate(scenario.finish.when, contextOf(firstSetup, state0), env)
+  ) {
+    add(
+      ['finish'],
+      'the finish already holds at the realistic start; the run would complete at once',
+    );
+  }
 
   // L23: a declared cue is not visible at the start either.
   const startLevels = env.cues.levels(state0.quantities);
@@ -1185,7 +1212,7 @@ function checkRealisticStart(
     let state = initSim(setup, start);
     note(state);
     const limit = onsetAt + REALISTIC_LOOKAHEAD_MS;
-    while (state.t < limit && state.outcome === null) {
+    while (state.t < limit && !simEnded(state)) {
       state = stepSim(setup, state, []).state;
       note(state);
     }
@@ -1286,7 +1313,7 @@ function checkLateMessages(
       )
       .map((message) => message.id),
   );
-  while (state.t < REALISTIC_LOOKAHEAD_MS && state.outcome === null) {
+  while (state.t < REALISTIC_LOOKAHEAD_MS && !simEnded(state)) {
     state = stepSim(setup, state, []).state;
     const context: PredicateContext = {
       controls: state.controls,
@@ -1301,6 +1328,30 @@ function checkLateMessages(
     }
   }
   return later;
+}
+
+/**
+ * L32: a run that does nothing, started as Easy and Medium start, reaches the declared finish within
+ * the 600 s bound of L26 (REALISTIC_LOOKAHEAD_MS), so the situation ends by itself at the field and
+ * cannot hang until the 30-minute cap. A run an outcome ends first does not reach it either.
+ */
+function checkFinishReached(
+  scenario: Scenario,
+  env: AircraftEnv,
+  add: (segments: Segments, message: string) => void,
+): void {
+  if (scenario.finish === undefined) return;
+  const setup = simSetup(env, scenario);
+  let state = initSim(setup, initialQuantities(scenario, env.quantities));
+  while (state.t < REALISTIC_LOOKAHEAD_MS && !simEnded(state)) {
+    state = stepSim(setup, state, []).state;
+  }
+  if (state.finish === null) {
+    add(
+      ['finish'],
+      `the finish is not reached within ${String(REALISTIC_LOOKAHEAD_MS / 1000)} s of a run that does nothing; the situation would hang until the 30 minute limit`,
+    );
+  }
 }
 
 /** L26: every late annunciation appears in some run that does nothing, so the list cannot go stale. */

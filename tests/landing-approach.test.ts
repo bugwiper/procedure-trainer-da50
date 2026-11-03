@@ -3,8 +3,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { TERRAIN_HEIGHT_FT } from '../src/aircraft/da50rg/quantities';
+import { grade } from '../src/engine/grading';
+import type { Recording } from '../src/engine/grading';
+import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { initialQuantities } from '../src/engine/predicates';
+import { Run } from '../src/engine/run';
 import { STEP_MS, simSetup, simulate } from '../src/engine/sim';
+import { PanelStore } from '../src/engine/store';
 import { checkScenario } from '../src/scenario/lint';
 import type { Scenario } from '../src/scenario/schema';
 
@@ -24,12 +29,15 @@ const landing: Scenario = checked.scenario;
 
 const SECOND_MS = 1000;
 
-/** A do-nothing run of the fixture until `untilMs`. */
-function runTo(untilMs: number) {
-  const setup = simSetup(DA50RG_ENV, landing);
+/** The fixture without its finish: the run goes on at the terrain (the geometry and level cases). */
+const unfinished: Scenario = { ...landing, finish: undefined };
+
+/** A do-nothing run of `scenario` (the fixture without its finish by default) until `untilMs`. */
+function runTo(untilMs: number, scenario: Scenario = unfinished) {
+  const setup = simSetup(DA50RG_ENV, scenario);
   return simulate(setup, {
     events: [],
-    start: initialQuantities(landing, DA50RG_ENV.quantities),
+    start: initialQuantities(scenario, DA50RG_ENV.quantities),
     untilMs,
   }).state;
 }
@@ -95,5 +103,80 @@ describe('the landing fixture', () => {
       expect(altitudeOf(state), String(seconds)).toBe(TERRAIN_HEIGHT_FT);
       expect(fieldLevel(state), String(seconds)).toBe(1);
     }
+  });
+});
+
+describe('the finish of the fixture (D-09)', () => {
+  const finishedRun = () => runTo(300 * SECOND_MS, landing);
+
+  it('declares a finish that the run of the fixture reaches after the descent', () => {
+    expect(landing.finish).toBeDefined();
+    const state = finishedRun();
+    expect(state.outcome).toBeNull();
+    expect(state.finish).not.toBeNull();
+    // 800 ft at 700 fpm: about 69 s, never at the start.
+    expect(state.finish?.t).toBeGreaterThan(66 * SECOND_MS);
+    expect(state.finish?.t).toBeLessThan(72 * SECOND_MS);
+    expect(state.t).toBe(state.finish?.t);
+    expect(altitudeOf(state)).toBe(TERRAIN_HEIGHT_FT);
+  });
+
+  it('records the finish in the first step in which the predicate holds', () => {
+    const before = runTo((finishedRun().finish?.t ?? 0) - STEP_MS, landing);
+    expect(before.finish).toBeNull();
+    expect(altitudeOf(before)).toBeGreaterThan(TERRAIN_HEIGHT_FT);
+  });
+
+  it('agrees between simulate and a live Run stepped by hand, to the last digit', () => {
+    const store = new PanelStore(DA50RG);
+    store.reset(landing.initial.controls);
+    const run = new Run({
+      setup: simSetup(DA50RG_ENV, landing),
+      store,
+      start: initialQuantities(landing, DA50RG_ENV.quantities),
+    });
+    let steps = 0;
+    while (!run.ended && steps < 6000) {
+      run.step();
+      steps += 1;
+    }
+    expect(run.ended).toBe(true);
+    expect(run.state.finish).not.toBeNull();
+    expect(JSON.stringify(run.state)).toBe(JSON.stringify(finishedRun()));
+    expect(run.clock.now()).toBe(run.state.finish?.t);
+    // Once ended, further steps change nothing.
+    const frozen = JSON.stringify(run.state);
+    run.step();
+    expect(JSON.stringify(run.state)).toBe(frozen);
+  });
+
+  it('grades the finished run exactly like the same recording without any finish at that time', () => {
+    const store = new PanelStore(DA50RG);
+    store.reset(landing.initial.controls);
+    const run = new Run({
+      setup: simSetup(DA50RG_ENV, landing),
+      store,
+      start: initialQuantities(landing, DA50RG_ENV.quantities),
+    });
+    for (let i = 0; i < 300; i += 1) run.step();
+    const done = store.dispatch('sw.elect_master', 'off', run.clock.now());
+    expect(done.ok).toBe(true);
+    while (!run.ended) run.step();
+    const completedAt = run.clock.now();
+    const recording: Recording = {
+      scenarioId: landing.id,
+      completedAt,
+      events: store
+        .events()
+        .filter((event) => event.source === 'user')
+        .map((event) => ({ t: event.t, id: event.id, value: event.value })),
+    };
+    const finished = grade(landing, DA50RG_ENV, recording);
+    // The finish adds nothing to the grade: the same file without it, the same recording.
+    expect(JSON.stringify(finished)).toBe(JSON.stringify(grade(unfinished, DA50RG_ENV, recording)));
+    expect(finished.result).toBe('pass');
+    // And a pilot who did nothing and let the run reach the field fails through the missed step.
+    const idle = grade(landing, DA50RG_ENV, { ...recording, events: [] });
+    expect(idle.result).toBe('fail');
   });
 });

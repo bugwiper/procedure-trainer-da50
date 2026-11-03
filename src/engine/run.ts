@@ -12,7 +12,7 @@
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
 import { VirtualClock } from './clock';
-import { MAX_RUN_MS, STEP_MS, initSim, simulate, stepSim } from './sim';
+import { MAX_RUN_MS, STEP_MS, initSim, simEnded, simulate, stepSim } from './sim';
 import type { SimSetup, SimState } from './sim';
 import type { PanelStore } from './store';
 
@@ -59,14 +59,14 @@ export class Run {
     return this.sim;
   }
 
-  /** True once an outcome or the 30-minute cap ended the run; step does nothing then. */
+  /** True once an outcome, the finish or the 30-minute cap ended the run; step does nothing then. */
   get ended(): boolean {
-    return this.sim.outcome !== null || this.sim.t >= MAX_RUN_MS;
+    return simEnded(this.sim) || this.sim.t >= MAX_RUN_MS;
   }
 
   /**
-   * One STEP_MS step; does nothing while the clock is paused or once an outcome or the cap ended
-   * the run (D-06, V-14). Applies the log events whose time is at most the current simulated time, in order,
+   * One STEP_MS step; does nothing while the clock is paused or once an outcome, the finish or the cap
+   * ended the run (D-06, D-09, V-14). Applies the log events whose time is at most the current simulated time, in order,
    * advances the simulation and the clock, then calls the step listeners with the new state.
    */
   step(): void {

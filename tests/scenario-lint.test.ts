@@ -2020,3 +2020,64 @@ describe('L27 and L28: the further actions (Phase 7, plan 07-02)', () => {
     ]);
   });
 });
+
+describe('L32: the finish', () => {
+  const FIXTURE = readFileSync(`${root}tests/fixtures/scenarios/landing-fixture.toon`, 'utf8');
+  const WHEN = '    quantity: altitude_ft\n    op: lte\n    value: 1400';
+
+  it('passes the landing fixture and a scenario without a finish', () => {
+    expect(checkScenario(FIXTURE, DA50RG_ENV).ok).toBe(true);
+    expect(checkScenario(MINIMAL, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('rejects a predicate that does not resolve, at finish.when', () => {
+    const text = swap(
+      FIXTURE,
+      '    quantity: altitude_ft\n    op: lte',
+      '    quantity: altitude_nope\n    op: lte',
+    );
+    expect(issuesOf(text)).toEqual([
+      expect.objectContaining({
+        path: 'finish.when.quantity',
+        message: 'unknown quantity "altitude_nope"',
+        line: lineOf(text, 'quantity: altitude_nope'),
+      }),
+    ]);
+  });
+
+  it('rejects a finish that already holds at the start, at the finish key', () => {
+    const text = swap(FIXTURE, WHEN, WHEN.replace('value: 1400', 'value: 2300'));
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      path: 'finish',
+      message: 'the finish already holds in the initial state; the run would complete at once',
+      line: lineOf(text, 'finish:'),
+      col: 1,
+    });
+  });
+
+  it('rejects a finish a run that does nothing does not reach within 600 s, naming the bound', () => {
+    // The terrain holds the altitude at 1400 ft; 1000 ft is never reached.
+    const text = swap(FIXTURE, WHEN, WHEN.replace('value: 1400', 'value: 1000'));
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ path: 'finish', line: lineOf(text, 'finish:'), col: 1 });
+    expect(issues[0]?.message).toContain('600 s');
+    expect(issues[0]?.message).toContain('not reached');
+  });
+
+  it('rejects a finish that a slow descent reaches only after 600 s', () => {
+    // 800 ft at 50 fpm: 960 s to the terrain, beyond the bound.
+    const text = swap(FIXTURE, 'flight_vs_fpm: -700', 'flight_vs_fpm: -50');
+    const issues = issuesOf(text);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.message).toContain('600 s');
+  });
+
+  it('accepts a finish that a slow descent reaches inside the bound', () => {
+    // 800 ft at 100 fpm: 480 s, inside the bound.
+    const text = swap(FIXTURE, 'flight_vs_fpm: -700', 'flight_vs_fpm: -100');
+    expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
+  });
+});

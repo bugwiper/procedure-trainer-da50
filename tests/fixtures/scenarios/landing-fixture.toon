@@ -36,3 +36,11 @@ procedure[1]:
           control: sw.elect_master
           is: off
 forbidden[0]:
+# The run completes by itself when the aircraft reaches the terrain height of the field (lint L32).
+finish:
+  when:
+    check: quantity
+    quantity: altitude_ft
+    op: lte
+    value: 1400
+  text: The aircraft reached the field
