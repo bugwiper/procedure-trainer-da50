@@ -3758,6 +3758,20 @@ describe('the follow-on of the debrief (Phase 9, plan 09-02, D-02, D-03)', () =>
     expect(busy.session.briefing.value?.scenario.id).toBe('landing-fixture');
   });
 
+  it('shows the load-failure card for a target the access policy denies, and reads no file of it (T-09-04)', async () => {
+    let open = true;
+    const r = await sourceDebrief(['conduct_emergency'], 'easy', {
+      policy: { canAccess: () => open },
+    });
+    open = false;
+    const loaded = r.loads.length;
+    await r.session.continueToFollowOn();
+    expect(r.session.loadFailure.value?.reason).toBe('denied');
+    expect(r.session.screen.value).toBe('free');
+    expect(r.loads.length).toBe(loaded);
+    expect(r.session.briefing.value).toBeNull();
+  });
+
   it('shows the load-failure state for a missing target, and retry repeats the start', async () => {
     const broken = files();
     const r = await sourceDebrief(['conduct_emergency'], 'easy', { files: broken });

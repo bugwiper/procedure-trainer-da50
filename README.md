@@ -331,7 +331,31 @@ further:
 
 - **Further options:** `atc_mayday`, `atc_pan_pan`, `brief_passengers`, `avoid_imc`, `avoid_nvfr`, `avoid_icing`, `conduct_destination`, `conduct_precautionary`, `conduct_emergency`.
 
-The conduct rule: a scenario with a `further` section writes `conduct` with `accept` (the right options; at least one, never all three, and the option selected at the end of the run must be one of them), except a scenario on the ground, which writes `conduct: none` and is never graded on it. The ground rule is checked: `none` exactly when the profile puts the aircraft on the ground. A scenario without a `further` section grades no further action, and every shipped scenario has one. In a run the pilot sees these as nine toggle buttons in the footwell: the three landing buttons (Continue to destination is preselected) are a group, the calls and the passengers are three toggles, and the three Avoid buttons (Avoid IMC, Avoid NVFR, Avoid icing) are unrated toggles that are never required and never fail; the landing buttons and the Avoid buttons are not drawn where the scenario has no flight decision, and the grade counts the state the buttons are in when Procedure complete is pressed. A scenario that accepts continuing to the destination can carry a `conduct_note` (own words, at most 50 words, rule L31) that the debrief shows as a hint outside the verdict.
+The conduct rule: a scenario with a `further` section writes `conduct` with `accept` (the right options; at least one, never all three, and the option selected at the end of the run must be one of them), except a scenario on the ground or on a landing scene (`outlanding`), which writes `conduct: none` and is never graded on it. The rule is checked: `none` exactly when the profile puts the aircraft on the ground or the scene is a landing scene. A scenario without a `further` section grades no further action, and every shipped scenario has one. In a run the pilot sees these as nine toggle buttons in the footwell: the three landing buttons (Continue to destination is preselected) are a group, the calls and the passengers are three toggles, and the three Avoid buttons (Avoid IMC, Avoid NVFR, Avoid icing) are unrated toggles that are never required and never fail; the landing buttons and the Avoid buttons are not drawn where the scenario has no flight decision, and the grade counts the state the buttons are in when Procedure complete is pressed. A scenario that accepts continuing to the destination can carry a `conduct_note` (own words, at most 50 words, rule L31) that the debrief shows as a hint outside the verdict.
+
+**The end of a landing and the follow-on.** A situation that ends at an off-airport field (the scene `outlanding`, the cue `field_near`) can end by itself with `finish`: when its predicate first holds the run completes exactly as if the pilot had pressed Procedure complete, and the grade is unchanged. `text` is one line of at most 12 words for the debrief. A landing situation also sets `engine_stopped: 1` in the profile when the engine is dead from the first second, and declares `conduct: none`:
+
+```toon fragment
+finish:
+  when:
+    check: quantity
+    quantity: altitude_ft
+    op: lte
+    value: 1400
+  text: The aircraft reached the field
+```
+
+The situation that comes before a landing says where the debrief leads. `follow_on` sits inside `further` and maps a conduct option to a pack and a scenario; when that conduct is the one selected at the end of the run, the debrief offers a button that opens the target at the same level, and each situation is graded on its own (rules L33 and L34 check the declaration):
+
+```toon fragment
+further:
+  conduct:
+    accept[1]: conduct_emergency
+  follow_on:
+    conduct_emergency:
+      pack: landing
+      scenario: landing-engine-off
+```
 
 ### 6. What the checklist sheet and the hint show
 

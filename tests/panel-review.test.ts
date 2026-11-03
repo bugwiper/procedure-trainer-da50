@@ -521,17 +521,18 @@ describe('round 3 gap-closure review (R3 findings, plan 41)', () => {
   };
   const round5 = (): string => sectionFrom(/^## Round 5: morning review/m);
 
-  it('has Phase 7: owner review as the last section after Phase 6.1, 6, 5.1, 5, 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
+  it('has Phase 9: owner review as the last section after Phase 7, 6.1, 6, 5.1, 5, 4, 3.1, 3 and 2 and keeps Round 5 and Round 4', () => {
     const headings = [...review.matchAll(/^## .*$/gm)].map((m) => m[0]);
-    expect(headings[headings.length - 1]).toBe('## Phase 7: owner review');
-    expect(headings[headings.length - 2]).toBe('## Phase 6.1: owner review');
-    expect(headings[headings.length - 3]).toBe('## Phase 6: owner review');
-    expect(headings[headings.length - 4]).toBe('## Phase 5.1: owner review');
-    expect(headings[headings.length - 5]).toBe('## Phase 5: owner review');
-    expect(headings[headings.length - 6]).toBe('## Phase 4: owner review');
-    expect(headings[headings.length - 7]).toBe('## Phase 3.1: owner review');
-    expect(headings[headings.length - 8]).toBe('## Phase 3: owner review');
-    expect(headings[headings.length - 9]).toBe('## Phase 2: owner review');
+    expect(headings[headings.length - 1]).toBe('## Phase 9: owner review');
+    expect(headings[headings.length - 2]).toBe('## Phase 7: owner review');
+    expect(headings[headings.length - 3]).toBe('## Phase 6.1: owner review');
+    expect(headings[headings.length - 4]).toBe('## Phase 6: owner review');
+    expect(headings[headings.length - 5]).toBe('## Phase 5.1: owner review');
+    expect(headings[headings.length - 6]).toBe('## Phase 5: owner review');
+    expect(headings[headings.length - 7]).toBe('## Phase 4: owner review');
+    expect(headings[headings.length - 8]).toBe('## Phase 3.1: owner review');
+    expect(headings[headings.length - 9]).toBe('## Phase 3: owner review');
+    expect(headings[headings.length - 10]).toBe('## Phase 2: owner review');
     expect(headings).toContain('## Round 5: morning review');
     expect(headings).toContain('## Round 4: morning review');
   });
@@ -852,7 +853,8 @@ describe('phase 6.1 owner review (plan 06.1-03)', () => {
 describe('phase 7 owner review (plan 07-03)', () => {
   const at = review.search(/^## Phase 7: owner review/m);
   const phase61 = review.search(/^## Phase 6\.1: owner review/m);
-  const section = at === -1 ? '' : review.slice(at);
+  const phase9At = review.search(/^## Phase 9: owner review/m);
+  const section = at === -1 ? '' : review.slice(at, phase9At === -1 ? undefined : phase9At);
   const numbers = section
     .split('\n')
     .map((line) => /^(\d+)\. /.exec(line)?.[1])
@@ -861,7 +863,7 @@ describe('phase 7 owner review (plan 07-03)', () => {
   const item = (n: number): string =>
     section.split('\n').find((line) => line.startsWith(`${String(n)}. `)) ?? '';
 
-  it('is the last section, after Phase 6.1, and says nothing was pushed', () => {
+  it('comes after Phase 6.1 and says nothing was pushed', () => {
     expect(at).toBeGreaterThan(-1);
     expect(at).toBeGreaterThan(phase61);
     expect(section).toMatch(/nothing was pushed/i);
@@ -974,5 +976,43 @@ describe('phase 7 owner review (plan 07-03)', () => {
       review.search(/^## Simplified transponder/m),
     );
     expect(sessionArea).toContain('Phase 7');
+  });
+});
+
+describe('phase 9 owner review (plan 09-02)', () => {
+  const at = review.search(/^## Phase 9: owner review/m);
+  const section = at === -1 ? '' : review.slice(at);
+  const numbers = section
+    .split('\n')
+    .map((line) => /^(\d+)\. /.exec(line)?.[1])
+    .filter((n): n is string => n !== undefined)
+    .map(Number);
+
+  it('is the last section, says nothing was pushed and has no unfilled item or private material', () => {
+    expect(at).toBeGreaterThan(review.search(/^## Phase 7: owner review/m));
+    expect(section).toMatch(/nothing was pushed/i);
+    expect(section).not.toMatch(/\b(TBD|TODO|to be filled|placeholder)\b|@@/i);
+    expect(section).not.toMatch(/\.input\//);
+  });
+
+  it('numbers its items from 1 without a gap', () => {
+    expect(numbers.length).toBeGreaterThan(0);
+    expect(numbers).toEqual(numbers.map((_, i) => i + 1));
+  });
+
+  it('lists the values and decisions of the approach view and the follow-on machinery', () => {
+    for (const word of [
+      'FIELD_SIGHT_FT',
+      '1200 ft',
+      'field_near',
+      'Emergency landing',
+      'Continue with emergency landing',
+      'FAIL',
+      'landingScenes',
+      'engine_stopped',
+      'Realistic',
+    ]) {
+      expect(section, word).toContain(word);
+    }
   });
 });
