@@ -2037,12 +2037,15 @@ describe('the checklist sheet and its live marks (phase 07, plan 04, R-02)', () 
   });
 });
 
-describe('Realistic: CHOOSE CHECKLIST and the HINT box (phase 07, plan 04, R-03, R-04)', () => {
-  const ALTN1 = readFileSync(join(root, 'scenarios/electrical/elec-altn1-fail.toon'), 'utf8');
-  const LOCKED = BLUEPRINT.replace('id: eng-oil-temp-green', 'id: eng-oil-temp-locked');
-  const MANIFESTS = {
-    '/scenarios/engine/pack.toon': MANIFEST_TWO,
-    '/scenarios/electrical/pack.toon': `format: 1
+describe(
+  'Realistic: CHOOSE CHECKLIST and the HINT box (phase 07, plan 04, R-03, R-04)',
+  { timeout: 30_000 },
+  () => {
+    const ALTN1 = readFileSync(join(root, 'scenarios/electrical/elec-altn1-fail.toon'), 'utf8');
+    const LOCKED = BLUEPRINT.replace('id: eng-oil-temp-green', 'id: eng-oil-temp-locked');
+    const MANIFESTS = {
+      '/scenarios/engine/pack.toon': MANIFEST_TWO,
+      '/scenarios/electrical/pack.toon': `format: 1
 title: Electrical
 free: true
 scenarios[1]:
@@ -2050,7 +2053,7 @@ scenarios[1]:
     title: ALTN 1 FAIL
     file: elec-altn1-fail
 `,
-    '/scenarios/locked/pack.toon': `format: 1
+      '/scenarios/locked/pack.toon': `format: 1
 title: Locked
 free: false
 scenarios[1]:
@@ -2058,643 +2061,645 @@ scenarios[1]:
     title: LOCKED ONE
     file: eng-oil-temp-locked
 `,
-  };
-  /**
-   * The listing order (plan 07-06, R-16): the catalog order of the shipped scenarios (ENG OIL TEMP in
-   * the warnings, ALTN 1 FAIL in the cautions), then the scenarios the catalog does not know, in the
-   * order of the packs by name and the manifests. A hand-written table.
-   */
-  const LISTED = [
-    'engine.eng-oil-temp-green',
-    'electrical.elec-altn1-fail',
-    'engine.eng-oil-temp-copy',
-    'locked.eng-oil-temp-locked',
-  ];
-  const TEXTS: Record<string, string> = {
-    'engine.eng-oil-temp-green': BLUEPRINT,
-    'engine.eng-oil-temp-copy': COPY,
-    'electrical.elec-altn1-fail': ALTN1,
-    'locked.eng-oil-temp-locked': LOCKED,
-  };
-  const headingOf = (key: string): string => {
-    const parsedFile = parseScenario(TEXTS[key] ?? '');
-    if (!parsedFile.ok) throw new Error(`${key} does not parse`);
-    return checklistHead(parsedFile.value).heading ?? parsedFile.value.title;
-  };
-  const refOf = (key: string): { pack: string; scenario: string } => {
-    const [pack = '', scenario = ''] = key.split('.');
-    return { pack, scenario };
-  };
-  const OWN = 'engine.eng-oil-temp-green';
-  const FOREIGN = 'electrical.elec-altn1-fail';
-
-  const own = parseScenario(BLUEPRINT);
-  if (!own.ok) throw new Error('the blueprint does not parse');
-
-  interface ListRig {
-    readonly session: ReturnType<typeof createSession>;
-    readonly bridge: ReturnType<typeof createPanelBridge>;
-    readonly loads: string[];
-    readonly broken: Set<string>;
-  }
-
-  function listRig(policy: AccessPolicy = OPEN_ACCESS): ListRig {
-    const loads: string[] = [];
-    const broken = new Set<string>();
-    const loaders: Record<string, () => Promise<string>> = {};
-    for (const [key, text] of Object.entries(TEXTS)) {
-      const [pack = '', id = ''] = key.split('.');
-      loaders[`/scenarios/${pack}/${id}.toon`] = () => {
-        loads.push(key);
-        return broken.has(key) ? Promise.reject(new Error('no file')) : Promise.resolve(text);
-      };
-    }
-    const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
-    const draws = [0.75];
-    let next = 0;
-    const session = createSession({
-      bridge,
-      packs: { provider: createPackProvider({ manifests: MANIFESTS, loaders }), policy },
-      env: DA50RG_ENV,
-      rng: () => draws[next++] ?? 0,
-      onRunStart: () => undefined,
-    });
-    return { session, bridge, loads, broken };
-  }
-
-  /** A Realistic run of the blueprint; the clock stands at the onset when `afterOnset`. */
-  async function realistic(
-    afterOnset: boolean,
-    policy?: AccessPolicy,
-  ): Promise<ListRig & { readonly onsetAt: number }> {
-    const r = listRig(policy);
-    await r.session.openChooser();
-    await r.session.chooseScenario(refOf(OWN));
-    r.session.setLevel('realistic');
-    expect(r.session.screen.value).toBe('running');
-    expect(r.session.scenario.value?.id).toBe('eng-oil-temp-green');
-    const began = r.session.onset.value;
-    if (began === null) throw new Error('no onset');
-    if (afterOnset) r.session.clock.value?.advance(began.at);
-    return { ...r, onsetAt: began.at };
-  }
-
-  const ready = (r: ListRig) =>
-    vi.waitFor(() => {
-      expect(r.session.checklistList.value.status).toBe('ready');
-    });
-  const keys = (r: ListRig): string[] =>
-    r.session.checklistList.value.entries.map((e) => `${e.ref.pack}.${e.ref.scenario}`);
-
-  /** The ids marked Done, or null while the sheet marks nothing. */
-  const marked = (r: ListRig): string[] | null =>
-    r.session.checklistMarks.value?.steps.filter((step) => step.credited).map((step) => step.id) ??
-    null;
-
-  it('opens at the list before the onset and lists every scenario alike, in listing order', async () => {
-    const r = await realistic(false);
-    expect(r.session.checklistList.value.status).toBe('idle');
-    r.session.toggleChecklist();
-    expect(r.session.checklistShown.value).toBe(true);
-    expect(r.session.checklistView.value).toBe('list');
-    expect(r.session.checklistList.value.status).toBe('loading');
-    await ready(r);
-    expect(keys(r)).toEqual(LISTED);
-    expect(r.session.checklistList.value.entries.map((e) => e.heading)).toEqual(
-      LISTED.map(headingOf),
-    );
-    // Nothing on an entry says which one belongs to the situation.
-    for (const entry of r.session.checklistList.value.entries) {
-      expect(Object.keys(entry).sort()).toEqual(['heading', 'ref', 'scenario']);
-    }
-    // No load failure, no busy flag: the run and the presses are untouched.
-    expect(r.session.loadFailure.value).toBeNull();
-    expect(r.session.busy.value).toBe(false);
-    expect(r.session.screen.value).toBe('running');
-  });
-
-  it('loads the list once per run and only through the pack seam (a denying policy hides a pack, T-07-10)', async () => {
-    const r = await realistic(false, { canAccess: (pack) => pack !== 'locked' });
-    r.session.toggleChecklist();
-    await ready(r);
-    expect(keys(r)).toEqual(LISTED.filter((key) => !key.startsWith('locked.')));
-    expect(r.loads).not.toContain('locked.eng-oil-temp-locked');
-    const before = r.loads.length;
-    r.session.toggleChecklist();
-    r.session.toggleChecklist();
-    expect(r.loads.length).toBe(before);
-
-    // A policy that denies every pack from now on: the run goes on, the list is empty.
-    let open = true;
-    const none = await realistic(false, { canAccess: () => open });
-    open = false;
-    none.session.toggleChecklist();
-    await ready(none);
-    expect(none.session.checklistList.value.entries).toEqual([]);
-  });
-
-  it('keeps the run alive when the load fails and loads again after Try again', async () => {
-    const r = await realistic(true);
-    r.broken.add(FOREIGN);
-    r.session.toggleChecklist();
-    await vi.waitFor(() => {
-      expect(r.session.checklistList.value.status).toBe('failed');
-    });
-    expect(r.session.screen.value).toBe('running');
-    expect(r.session.loadFailure.value).toBeNull();
-    expect(r.session.busy.value).toBe(false);
-    r.bridge.actuate('lv.power', 'p50');
-    expect(r.bridge.stateOf('lv.power').value).toBe('p50');
-
-    r.broken.delete(FOREIGN);
-    r.session.retryChecklistList();
-    await ready(r);
-    expect(keys(r)).toEqual(LISTED);
-  });
-
-  it('choosing shows that checklist, switching is free and the last choice is kept', async () => {
-    const r = await realistic(true);
-    r.session.chooseChecklist(refOf(FOREIGN));
-    expect(r.session.checklistChoice.value).toBeNull();
-    r.session.toggleChecklist();
-    await ready(r);
-    r.session.chooseChecklist(refOf(FOREIGN));
-    expect(r.session.checklistView.value).toBe('sheet');
-    expect(r.session.checklistChoice.value).toEqual({
-      ref: refOf(FOREIGN),
-      heading: headingOf(FOREIGN),
-    });
-    r.session.showChecklistList();
-    expect(r.session.checklistView.value).toBe('list');
-    r.session.chooseChecklist(refOf(OWN));
-    r.session.showChecklistList();
-    r.session.chooseChecklist(refOf(FOREIGN));
-    expect(r.session.checklistChoice.value?.ref).toEqual(refOf(FOREIGN));
-    // An entry that is not in the list is ignored.
-    r.session.chooseChecklist({ pack: 'engine', scenario: 'nope' });
-    expect(r.session.checklistChoice.value?.ref).toEqual(refOf(FOREIGN));
-    // Hidden and shown again, the sheet comes back at the chosen checklist, not the list.
-    r.session.toggleChecklist();
-    r.session.toggleChecklist();
-    expect(r.session.checklistView.value).toBe('sheet');
-  });
-
-  /** The ids credited by a grade of the real recording so far against the own file. */
-  const creditedByGrade = (r: ListRig): string[] => {
-    const clock = r.session.clock.value;
-    if (clock === null) throw new Error('no clock');
-    return grade(own.value, DA50RG_ENV, {
-      scenarioId: own.value.id,
-      completedAt: clock.now(),
-      onset: r.session.onset.value,
-      events: r.bridge.store
-        .events()
-        .filter((e) => e.source === 'user')
-        .map((e) => ({ t: e.t, id: e.id, value: e.value })),
-    })
-      .steps.filter((step) => step.credited)
-      .map((step) => step.id);
-  };
-
-  it('marks the done steps of the own checklist only after the onset, and the list marks nothing', async () => {
-    const early = await realistic(false);
-    early.session.toggleChecklist();
-    await ready(early);
-    early.session.chooseChecklist(refOf(OWN));
-    early.bridge.actuate('lv.power', 'p50');
-    // Before the onset nothing is marked and no step is program-checked: every row can be ticked.
-    expect(early.session.checklistMarks.value).toBeNull();
-    expect(early.session.checklistAuto.value).toBe('none');
-
-    const r = await realistic(true);
-    r.session.toggleChecklist();
-    await ready(r);
-    // The list itself marks nothing.
-    r.bridge.actuate('lv.power', 'p50');
-    expect(r.session.checklistMarks.value).toBeNull();
-    expect(r.session.checklistAuto.value).toBe('none');
-    r.session.chooseChecklist(refOf(OWN));
-    r.bridge.actuate('lv.cowl_flap', 'open');
-    expect(marked(r)).toEqual(creditedByGrade(r));
-    expect(marked(r)).not.toBeNull();
-    expect(r.session.checklistAuto.value).toBe('all');
-  });
-
-  it('marks a foreign checklist from what the pilot really did, step by step, panel steps only (R-24)', async () => {
-    const r = await realistic(true);
-    r.session.toggleChecklist();
-    await ready(r);
-    r.session.chooseChecklist(refOf(FOREIGN));
-    expect(r.session.checklistAuto.value).toBe('panel');
-    expect(marked(r)).toEqual([]);
-    // The foreign step "Alternator 1 off" is satisfied by a real panel action, wrong for this situation.
-    r.bridge.actuate('sw.alternator_1', 'off');
-    expect(marked(r)).toEqual(['alt1_off']);
-    // The own checklist is unaffected by the foreign view: one more action, own marks follow the own file.
-    r.session.showChecklistList();
-    r.session.chooseChecklist(refOf(OWN));
-    expect(marked(r)).toEqual(creditedByGrade(r));
-    expect(marked(r)).not.toContain('alt1_off');
-  });
-
-  it('never marks a foreign step that panel state cannot decide, and its row stays tickable (R-24)', async () => {
-    const r = await realistic(true);
-    r.session.toggleChecklist();
-    await ready(r);
-    r.session.chooseChecklist(refOf(FOREIGN));
-    // The loaded foreign file with its "Essential bus" step asking for a quantity instead of a switch.
-    const entry = r.session.checklistList.value.entries.find(
-      (e) => e.ref.scenario === 'elec-altn1-fail',
-    );
-    if (entry === undefined) throw new Error('no entry');
-    const changed = JSON.parse(JSON.stringify(entry.scenario)) as typeof entry.scenario;
-    const step = changed.procedure
-      .flatMap((n) => (n.kind === 'group' ? [...n.steps] : []))
-      .find((st) => st.id === 'ess_bus_on');
-    if (step === undefined) throw new Error('no ess_bus_on step');
-    (step as { done: unknown }).done = {
-      check: 'quantity',
-      quantity: 'bus_volts',
-      op: 'gte',
-      value: 0,
     };
-    (entry as { scenario: typeof changed }).scenario = changed;
-    r.bridge.actuate('sw.alternator_1', 'off');
-    r.bridge.actuate('sw.ess_bus', 'on');
-    // The panel step is marked; the quantity step is not, whatever the grade says (the outline
-    // decides by the predicate, see tests/outline.test.ts), and the marks say "panel steps only".
-    expect(marked(r)).toContain('alt1_off');
-    expect(r.session.checklistAuto.value).toBe('panel');
-    expect(panelOnly(step.done)).toBe(false);
-  });
+    /**
+     * The listing order (plan 07-06, R-16): the catalog order of the shipped scenarios (ENG OIL TEMP in
+     * the warnings, ALTN 1 FAIL in the cautions), then the scenarios the catalog does not know, in the
+     * order of the packs by name and the manifests. A hand-written table.
+     */
+    const LISTED = [
+      'engine.eng-oil-temp-green',
+      'electrical.elec-altn1-fail',
+      'engine.eng-oil-temp-copy',
+      'locked.eng-oil-temp-locked',
+    ];
+    const TEXTS: Record<string, string> = {
+      'engine.eng-oil-temp-green': BLUEPRINT,
+      'engine.eng-oil-temp-copy': COPY,
+      'electrical.elec-altn1-fail': ALTN1,
+      'locked.eng-oil-temp-locked': LOCKED,
+    };
+    const headingOf = (key: string): string => {
+      const parsedFile = parseScenario(TEXTS[key] ?? '');
+      if (!parsedFile.ok) throw new Error(`${key} does not parse`);
+      return checklistHead(parsedFile.value).heading ?? parsedFile.value.title;
+    };
+    const refOf = (key: string): { pack: string; scenario: string } => {
+      const [pack = '', scenario = ''] = key.split('.');
+      return { pack, scenario };
+    };
+    const OWN = 'engine.eng-oil-temp-green';
+    const FOREIGN = 'electrical.elec-altn1-fail';
 
-  it('shows no marks and every row tickable when grading the chosen file throws (T-07-19)', async () => {
-    const r = await realistic(true);
-    r.session.toggleChecklist();
-    await ready(r);
-    r.session.chooseChecklist(refOf(FOREIGN));
-    expect(r.session.checklistMarks.value).not.toBeNull();
-    // A foreign file whose grade throws: a step names a control the aircraft does not have.
-    const entry = r.session.checklistList.value.entries.find(
-      (e) => e.ref.scenario === 'elec-altn1-fail',
-    );
-    if (entry === undefined) throw new Error('no entry');
-    const broken = JSON.parse(JSON.stringify(entry.scenario)) as typeof entry.scenario;
-    broken.initial.controls['sw.no_such_control'] = 'on';
-    (entry as { scenario: typeof broken }).scenario = broken;
-    r.bridge.actuate('sw.alternator_1', 'off');
-    expect(r.session.checklistMarks.value).toBeNull();
-    expect(r.session.checklistAuto.value).toBe('none');
-    expect(r.session.screen.value).toBe('running');
-  });
+    const own = parseScenario(BLUEPRINT);
+    if (!own.ok) throw new Error('the blueprint does not parse');
 
-  it('keeps the own steps program-checked once marks are shown (never tappable by the outline contract)', async () => {
-    const r = await realistic(true);
-    r.session.toggleChecklist();
-    await ready(r);
-    r.session.chooseChecklist(refOf(OWN));
-    expect(r.session.checklistAuto.value).toBe('all');
-  });
-
-  it('never changes the grade: one recording grades the same with no choice, a foreign and the own one', async () => {
-    const results: string[] = [];
-    for (const choice of [null, FOREIGN, OWN] as const) {
-      const r = await realistic(true);
-      if (choice !== null) {
-        r.session.toggleChecklist();
-        await ready(r);
-        r.session.chooseChecklist(refOf(choice));
-      }
-      r.bridge.actuate('lv.power', 'p50');
-      r.bridge.actuate('lv.cowl_flap', 'open');
-      r.session.complete();
-      results.push(JSON.stringify(r.session.result.value));
-      results.push(JSON.stringify(r.session.recording.value));
+    interface ListRig {
+      readonly session: ReturnType<typeof createSession>;
+      readonly bridge: ReturnType<typeof createPanelBridge>;
+      readonly loads: string[];
+      readonly broken: Set<string>;
     }
-    expect(results[0]).toBe(results[2]);
-    expect(results[0]).toBe(results[4]);
-    expect(results[1]).toBe(results[3]);
-    expect(results[1]).toBe(results[5]);
-    expect(results[0]).toContain('"result"');
-  });
 
-  it('ignores a choice on Easy and Medium and grades the same there', async () => {
-    for (const level of ['easy', 'medium'] as const) {
-      const outcomes: string[] = [];
-      for (const trying of [false, true]) {
-        const r = listRig();
-        await r.session.openChooser();
-        await r.session.chooseScenario(refOf(OWN));
-        r.session.setLevel(level);
-        r.session.startRun();
-        if (trying) {
-          r.session.toggleChecklist();
-          r.session.chooseChecklist(refOf(FOREIGN));
-          r.session.showChecklistList();
-          expect(r.session.checklistChoice.value).toBeNull();
-          expect(r.session.checklistView.value).toBe('sheet');
-          expect(r.session.checklistList.value.status).toBe('idle');
-        }
-        r.bridge.actuate('lv.power', 'p50');
-        r.session.complete();
-        outcomes.push(JSON.stringify(r.session.result.value));
+    function listRig(policy: AccessPolicy = OPEN_ACCESS): ListRig {
+      const loads: string[] = [];
+      const broken = new Set<string>();
+      const loaders: Record<string, () => Promise<string>> = {};
+      for (const [key, text] of Object.entries(TEXTS)) {
+        const [pack = '', id = ''] = key.split('.');
+        loaders[`/scenarios/${pack}/${id}.toon`] = () => {
+          loads.push(key);
+          return broken.has(key) ? Promise.reject(new Error('no file')) : Promise.resolve(text);
+        };
       }
-      expect(outcomes[0], level).toBe(outcomes[1]);
+      const bridge = createPanelBridge(DA50RG, DA50RG_INDICATORS, DA50RG_ENV);
+      const draws = [0.75];
+      let next = 0;
+      const session = createSession({
+        bridge,
+        packs: { provider: createPackProvider({ manifests: MANIFESTS, loaders }), policy },
+        env: DA50RG_ENV,
+        rng: () => draws[next++] ?? 0,
+        onRunStart: () => undefined,
+      });
+      return { session, bridge, loads, broken };
     }
-  });
 
-  it('names the last choice for the debrief and clears everything when the debrief closes', async () => {
-    const none = await realistic(true);
-    none.session.complete();
-    expect(none.session.checklistChoice.value).toBeNull();
+    /** A Realistic run of the blueprint; the clock stands at the onset when `afterOnset`. */
+    async function realistic(
+      afterOnset: boolean,
+      policy?: AccessPolicy,
+    ): Promise<ListRig & { readonly onsetAt: number }> {
+      const r = listRig(policy);
+      await r.session.openChooser();
+      await r.session.chooseScenario(refOf(OWN));
+      r.session.setLevel('realistic');
+      expect(r.session.screen.value).toBe('running');
+      expect(r.session.scenario.value?.id).toBe('eng-oil-temp-green');
+      const began = r.session.onset.value;
+      if (began === null) throw new Error('no onset');
+      if (afterOnset) r.session.clock.value?.advance(began.at);
+      return { ...r, onsetAt: began.at };
+    }
 
-    const r = await realistic(true);
-    r.session.toggleChecklist();
-    await ready(r);
-    r.session.chooseChecklist(refOf(OWN));
-    r.session.showChecklistList();
-    r.session.chooseChecklist(refOf(FOREIGN));
-    r.session.complete();
-    // The sheet is gone, the choice stays for the debrief.
-    expect(r.session.checklistShown.value).toBe(false);
-    expect(r.session.checklistChoice.value?.heading).toBe(headingOf(FOREIGN));
-    r.session.closeDebrief();
-    expect(r.session.checklistChoice.value).toBeNull();
-    expect(r.session.checklistList.value).toEqual({ status: 'idle', entries: [] });
-    expect(r.session.checklistView.value).toBe('sheet');
-  });
+    const ready = (r: ListRig) =>
+      vi.waitFor(() => {
+        expect(r.session.checklistList.value.status).toBe('ready');
+      });
+    const keys = (r: ListRig): string[] =>
+      r.session.checklistList.value.entries.map((e) => `${e.ref.pack}.${e.ref.scenario}`);
 
-  it('keeps the catalog tab of the list for the run: the first group at the start, the last choice after', async () => {
-    const groups = DA50RG_ENV.catalog.groups.map((g) => g.id);
-    const r = await realistic(false);
-    expect(r.session.checklistTab.value).toBe(groups[0]);
-    r.session.setChecklistTab('no-such-group');
-    expect(r.session.checklistTab.value).toBe(groups[0]);
-    r.session.setChecklistTab(groups[2] ?? '');
-    expect(r.session.checklistTab.value).toBe(groups[2]);
-    // Hiding and showing the sheet keeps the tab; a new run starts at the first group again.
-    r.session.toggleChecklist();
-    r.session.toggleChecklist();
-    expect(r.session.checklistTab.value).toBe(groups[2]);
-    r.session.resetPanel();
-    await r.session.leaveRun();
-    expect(r.session.checklistTab.value).toBe(groups[0]);
-    // Easy and Medium have no list: the press does nothing.
-    const easy = await started();
-    easy.session.setChecklistTab(groups[1] ?? '');
-    expect(easy.session.checklistTab.value).toBe(groups[0]);
-  });
+    /** The ids marked Done, or null while the sheet marks nothing. */
+    const marked = (r: ListRig): string[] | null =>
+      r.session.checklistMarks.value?.steps
+        .filter((step) => step.credited)
+        .map((step) => step.id) ?? null;
 
-  describe('ticks on the rows of the sheet (R-23)', () => {
-    const ROW = 'step:alt1_off';
-    const open = async (afterOnset = true) => {
-      const r = await realistic(afterOnset);
+    it('opens at the list before the onset and lists every scenario alike, in listing order', async () => {
+      const r = await realistic(false);
+      expect(r.session.checklistList.value.status).toBe('idle');
+      r.session.toggleChecklist();
+      expect(r.session.checklistShown.value).toBe(true);
+      expect(r.session.checklistView.value).toBe('list');
+      expect(r.session.checklistList.value.status).toBe('loading');
+      await ready(r);
+      expect(keys(r)).toEqual(LISTED);
+      expect(r.session.checklistList.value.entries.map((e) => e.heading)).toEqual(
+        LISTED.map(headingOf),
+      );
+      // Nothing on an entry says which one belongs to the situation.
+      for (const entry of r.session.checklistList.value.entries) {
+        expect(Object.keys(entry).sort()).toEqual(['heading', 'ref', 'scenario']);
+      }
+      // No load failure, no busy flag: the run and the presses are untouched.
+      expect(r.session.loadFailure.value).toBeNull();
+      expect(r.session.busy.value).toBe(false);
+      expect(r.session.screen.value).toBe('running');
+    });
+
+    it('loads the list once per run and only through the pack seam (a denying policy hides a pack, T-07-10)', async () => {
+      const r = await realistic(false, { canAccess: (pack) => pack !== 'locked' });
       r.session.toggleChecklist();
       await ready(r);
-      return r;
+      expect(keys(r)).toEqual(LISTED.filter((key) => !key.startsWith('locked.')));
+      expect(r.loads).not.toContain('locked.eng-oil-temp-locked');
+      const before = r.loads.length;
+      r.session.toggleChecklist();
+      r.session.toggleChecklist();
+      expect(r.loads.length).toBe(before);
+
+      // A policy that denies every pack from now on: the run goes on, the list is empty.
+      let open = true;
+      const none = await realistic(false, { canAccess: () => open });
+      open = false;
+      none.session.toggleChecklist();
+      await ready(none);
+      expect(none.session.checklistList.value.entries).toEqual([]);
+    });
+
+    it('keeps the run alive when the load fails and loads again after Try again', async () => {
+      const r = await realistic(true);
+      r.broken.add(FOREIGN);
+      r.session.toggleChecklist();
+      await vi.waitFor(() => {
+        expect(r.session.checklistList.value.status).toBe('failed');
+      });
+      expect(r.session.screen.value).toBe('running');
+      expect(r.session.loadFailure.value).toBeNull();
+      expect(r.session.busy.value).toBe(false);
+      r.bridge.actuate('lv.power', 'p50');
+      expect(r.bridge.stateOf('lv.power').value).toBe('p50');
+
+      r.broken.delete(FOREIGN);
+      r.session.retryChecklistList();
+      await ready(r);
+      expect(keys(r)).toEqual(LISTED);
+    });
+
+    it('choosing shows that checklist, switching is free and the last choice is kept', async () => {
+      const r = await realistic(true);
+      r.session.chooseChecklist(refOf(FOREIGN));
+      expect(r.session.checklistChoice.value).toBeNull();
+      r.session.toggleChecklist();
+      await ready(r);
+      r.session.chooseChecklist(refOf(FOREIGN));
+      expect(r.session.checklistView.value).toBe('sheet');
+      expect(r.session.checklistChoice.value).toEqual({
+        ref: refOf(FOREIGN),
+        heading: headingOf(FOREIGN),
+      });
+      r.session.showChecklistList();
+      expect(r.session.checklistView.value).toBe('list');
+      r.session.chooseChecklist(refOf(OWN));
+      r.session.showChecklistList();
+      r.session.chooseChecklist(refOf(FOREIGN));
+      expect(r.session.checklistChoice.value?.ref).toEqual(refOf(FOREIGN));
+      // An entry that is not in the list is ignored.
+      r.session.chooseChecklist({ pack: 'engine', scenario: 'nope' });
+      expect(r.session.checklistChoice.value?.ref).toEqual(refOf(FOREIGN));
+      // Hidden and shown again, the sheet comes back at the chosen checklist, not the list.
+      r.session.toggleChecklist();
+      r.session.toggleChecklist();
+      expect(r.session.checklistView.value).toBe('sheet');
+    });
+
+    /** The ids credited by a grade of the real recording so far against the own file. */
+    const creditedByGrade = (r: ListRig): string[] => {
+      const clock = r.session.clock.value;
+      if (clock === null) throw new Error('no clock');
+      return grade(own.value, DA50RG_ENV, {
+        scenarioId: own.value.id,
+        completedAt: clock.now(),
+        onset: r.session.onset.value,
+        events: r.bridge.store
+          .events()
+          .filter((e) => e.source === 'user')
+          .map((e) => ({ t: e.t, id: e.id, value: e.value })),
+      })
+        .steps.filter((step) => step.credited)
+        .map((step) => step.id);
     };
 
-    it('toggles a row of the shown checklist and clears it on the second call', async () => {
-      const r = await open();
-      r.session.chooseChecklist(refOf(FOREIGN));
-      expect([...r.session.checklistTicks.value]).toEqual([]);
-      r.session.toggleManualMark(ROW);
-      expect([...r.session.checklistTicks.value]).toEqual([ROW]);
-      r.session.toggleManualMark(ROW);
-      expect([...r.session.checklistTicks.value]).toEqual([]);
-    });
+    it('marks the done steps of the own checklist only after the onset, and the list marks nothing', async () => {
+      const early = await realistic(false);
+      early.session.toggleChecklist();
+      await ready(early);
+      early.session.chooseChecklist(refOf(OWN));
+      early.bridge.actuate('lv.power', 'p50');
+      // Before the onset nothing is marked and no step is program-checked: every row can be ticked.
+      expect(early.session.checklistMarks.value).toBeNull();
+      expect(early.session.checklistAuto.value).toBe('none');
 
-    it('is ignored while the list is shown, while the sheet is hidden and outside a run', async () => {
-      const r = await open();
-      r.session.toggleManualMark(ROW);
-      expect([...r.session.checklistTicks.value]).toEqual([]);
-      r.session.chooseChecklist(refOf(FOREIGN));
+      const r = await realistic(true);
       r.session.toggleChecklist();
-      r.session.toggleManualMark(ROW);
-      r.session.toggleChecklist();
-      expect([...r.session.checklistTicks.value]).toEqual([]);
-      const idle = listRig();
-      idle.session.toggleManualMark(ROW);
-      expect([...idle.session.checklistTicks.value]).toEqual([]);
-    });
-
-    it('keeps the ticks per checklist while the run goes on', async () => {
-      const r = await open();
-      r.session.chooseChecklist(refOf(FOREIGN));
-      r.session.toggleManualMark(ROW);
-      r.session.showChecklistList();
-      r.session.chooseChecklist(refOf(OWN));
-      expect([...r.session.checklistTicks.value]).toEqual([]);
-      r.session.toggleManualMark('line:procedure.0');
-      r.session.showChecklistList();
-      r.session.chooseChecklist(refOf(FOREIGN));
-      expect([...r.session.checklistTicks.value]).toEqual([ROW]);
-      r.session.showChecklistList();
-      r.session.chooseChecklist(refOf(OWN));
-      expect([...r.session.checklistTicks.value]).toEqual(['line:procedure.0']);
-    });
-
-    it('can be set before the onset, on every checklist alike', async () => {
-      const r = await open(false);
-      r.session.chooseChecklist(refOf(OWN));
-      r.session.toggleManualMark(ROW);
-      expect([...r.session.checklistTicks.value]).toEqual([ROW]);
+      await ready(r);
+      // The list itself marks nothing.
+      r.bridge.actuate('lv.power', 'p50');
       expect(r.session.checklistMarks.value).toBeNull();
-    });
-
-    it('works on Easy and Medium for the own checklist', async () => {
-      const r = await started();
-      r.session.toggleChecklist();
-      r.session.toggleManualMark('line:procedure.1');
-      expect([...r.session.checklistTicks.value]).toEqual(['line:procedure.1']);
-    });
-
-    const ticked = async (): Promise<ListRig> => {
-      const r = await open();
-      r.session.chooseChecklist(refOf(FOREIGN));
-      r.session.toggleManualMark(ROW);
-      expect(r.session.checklistTicks.value.size).toBe(1);
-      return r;
-    };
-    const none = (r: ListRig): void => {
-      expect(r.session.checklistTicks.value.size).toBe(0);
       expect(r.session.checklistAuto.value).toBe('none');
-    };
-
-    it('clears them at complete and when the debrief closes', async () => {
-      const completed = await ticked();
-      completed.session.complete();
-      none(completed);
-      const closed = await ticked();
-      closed.session.complete();
-      closed.session.closeDebrief();
-      none(closed);
+      r.session.chooseChecklist(refOf(OWN));
+      r.bridge.actuate('lv.cowl_flap', 'open');
+      expect(marked(r)).toEqual(creditedByGrade(r));
+      expect(marked(r)).not.toBeNull();
+      expect(r.session.checklistAuto.value).toBe('all');
     });
 
-    it('clears them on leaving and on a failed step', async () => {
-      const left = await ticked();
-      left.session.resetPanel();
-      await left.session.leaveRun();
-      none(left);
-      const failed = await ticked();
-      failed.session.failRun(new Error('boom'));
-      none(failed);
+    it('marks a foreign checklist from what the pilot really did, step by step, panel steps only (R-24)', async () => {
+      const r = await realistic(true);
+      r.session.toggleChecklist();
+      await ready(r);
+      r.session.chooseChecklist(refOf(FOREIGN));
+      expect(r.session.checklistAuto.value).toBe('panel');
+      expect(marked(r)).toEqual([]);
+      // The foreign step "Alternator 1 off" is satisfied by a real panel action, wrong for this situation.
+      r.bridge.actuate('sw.alternator_1', 'off');
+      expect(marked(r)).toEqual(['alt1_off']);
+      // The own checklist is unaffected by the foreign view: one more action, own marks follow the own file.
+      r.session.showChecklistList();
+      r.session.chooseChecklist(refOf(OWN));
+      expect(marked(r)).toEqual(creditedByGrade(r));
+      expect(marked(r)).not.toContain('alt1_off');
     });
 
-    it('clears them at Retry', async () => {
-      const retried = await ticked();
-      retried.session.complete();
-      retried.session.retry();
-      expect(retried.session.screen.value).toBe('running');
-      none(retried);
+    it('never marks a foreign step that panel state cannot decide, and its row stays tickable (R-24)', async () => {
+      const r = await realistic(true);
+      r.session.toggleChecklist();
+      await ready(r);
+      r.session.chooseChecklist(refOf(FOREIGN));
+      // The loaded foreign file with its "Essential bus" step asking for a quantity instead of a switch.
+      const entry = r.session.checklistList.value.entries.find(
+        (e) => e.ref.scenario === 'elec-altn1-fail',
+      );
+      if (entry === undefined) throw new Error('no entry');
+      const changed = JSON.parse(JSON.stringify(entry.scenario)) as typeof entry.scenario;
+      const step = changed.procedure
+        .flatMap((n) => (n.kind === 'group' ? [...n.steps] : []))
+        .find((st) => st.id === 'ess_bus_on');
+      if (step === undefined) throw new Error('no ess_bus_on step');
+      (step as { done: unknown }).done = {
+        check: 'quantity',
+        quantity: 'bus_volts',
+        op: 'gte',
+        value: 0,
+      };
+      (entry as { scenario: typeof changed }).scenario = changed;
+      r.bridge.actuate('sw.alternator_1', 'off');
+      r.bridge.actuate('sw.ess_bus', 'on');
+      // The panel step is marked; the quantity step is not, whatever the grade says (the outline
+      // decides by the predicate, see tests/outline.test.ts), and the marks say "panel steps only".
+      expect(marked(r)).toContain('alt1_off');
+      expect(r.session.checklistAuto.value).toBe('panel');
+      expect(panelOnly(step.done)).toBe(false);
     });
 
-    it('clears them at Next situation', async () => {
-      const next = await ticked();
-      next.session.complete();
-      await next.session.nextSituation();
-      none(next);
+    it('shows no marks and every row tickable when grading the chosen file throws (T-07-19)', async () => {
+      const r = await realistic(true);
+      r.session.toggleChecklist();
+      await ready(r);
+      r.session.chooseChecklist(refOf(FOREIGN));
+      expect(r.session.checklistMarks.value).not.toBeNull();
+      // A foreign file whose grade throws: a step names a control the aircraft does not have.
+      const entry = r.session.checklistList.value.entries.find(
+        (e) => e.ref.scenario === 'elec-altn1-fail',
+      );
+      if (entry === undefined) throw new Error('no entry');
+      const broken = JSON.parse(JSON.stringify(entry.scenario)) as typeof entry.scenario;
+      broken.initial.controls['sw.no_such_control'] = 'on';
+      (entry as { scenario: typeof broken }).scenario = broken;
+      r.bridge.actuate('sw.alternator_1', 'off');
+      expect(r.session.checklistMarks.value).toBeNull();
+      expect(r.session.checklistAuto.value).toBe('none');
+      expect(r.session.screen.value).toBe('running');
     });
 
-    it('never reaches the recording or the grade: the JSON is the same with ticks, a foreign checklist and none', async () => {
+    it('keeps the own steps program-checked once marks are shown (never tappable by the outline contract)', async () => {
+      const r = await realistic(true);
+      r.session.toggleChecklist();
+      await ready(r);
+      r.session.chooseChecklist(refOf(OWN));
+      expect(r.session.checklistAuto.value).toBe('all');
+    });
+
+    it('never changes the grade: one recording grades the same with no choice, a foreign and the own one', async () => {
       const results: string[] = [];
-      for (const mode of ['plain', 'foreign', 'ticked'] as const) {
+      for (const choice of [null, FOREIGN, OWN] as const) {
         const r = await realistic(true);
-        if (mode !== 'plain') {
+        if (choice !== null) {
           r.session.toggleChecklist();
           await ready(r);
-          r.session.chooseChecklist(refOf(FOREIGN));
-        }
-        if (mode === 'ticked') {
-          r.session.toggleManualMark(ROW);
-          r.session.toggleManualMark('line:procedure.0');
+          r.session.chooseChecklist(refOf(choice));
         }
         r.bridge.actuate('lv.power', 'p50');
         r.bridge.actuate('lv.cowl_flap', 'open');
         r.session.complete();
-        results.push(
-          JSON.stringify(r.session.result.value),
-          JSON.stringify(r.session.recording.value),
-        );
+        results.push(JSON.stringify(r.session.result.value));
+        results.push(JSON.stringify(r.session.recording.value));
       }
-      expect(results[2]).toBe(results[0]);
-      expect(results[4]).toBe(results[0]);
-      expect(results[3]).toBe(results[1]);
-      expect(results[5]).toBe(results[1]);
+      expect(results[0]).toBe(results[2]);
+      expect(results[0]).toBe(results[4]);
+      expect(results[1]).toBe(results[3]);
+      expect(results[1]).toBe(results[5]);
+      expect(results[0]).toContain('"result"');
     });
-  });
 
-  it('clears the choice and the list on leaving, a failed step, Retry and Next situation', async () => {
-    const chosen = async (): Promise<Awaited<ReturnType<typeof realistic>>> => {
+    it('ignores a choice on Easy and Medium and grades the same there', async () => {
+      for (const level of ['easy', 'medium'] as const) {
+        const outcomes: string[] = [];
+        for (const trying of [false, true]) {
+          const r = listRig();
+          await r.session.openChooser();
+          await r.session.chooseScenario(refOf(OWN));
+          r.session.setLevel(level);
+          r.session.startRun();
+          if (trying) {
+            r.session.toggleChecklist();
+            r.session.chooseChecklist(refOf(FOREIGN));
+            r.session.showChecklistList();
+            expect(r.session.checklistChoice.value).toBeNull();
+            expect(r.session.checklistView.value).toBe('sheet');
+            expect(r.session.checklistList.value.status).toBe('idle');
+          }
+          r.bridge.actuate('lv.power', 'p50');
+          r.session.complete();
+          outcomes.push(JSON.stringify(r.session.result.value));
+        }
+        expect(outcomes[0], level).toBe(outcomes[1]);
+      }
+    });
+
+    it('names the last choice for the debrief and clears everything when the debrief closes', async () => {
+      const none = await realistic(true);
+      none.session.complete();
+      expect(none.session.checklistChoice.value).toBeNull();
+
       const r = await realistic(true);
       r.session.toggleChecklist();
       await ready(r);
+      r.session.chooseChecklist(refOf(OWN));
+      r.session.showChecklistList();
       r.session.chooseChecklist(refOf(FOREIGN));
-      r.session.toggleHint();
-      expect(r.session.hintShown.value).toBe(true);
-      return r;
-    };
-    const cleared = (r: ListRig): void => {
+      r.session.complete();
+      // The sheet is gone, the choice stays for the debrief.
+      expect(r.session.checklistShown.value).toBe(false);
+      expect(r.session.checklistChoice.value?.heading).toBe(headingOf(FOREIGN));
+      r.session.closeDebrief();
       expect(r.session.checklistChoice.value).toBeNull();
       expect(r.session.checklistList.value).toEqual({ status: 'idle', entries: [] });
-      expect(r.session.checklistShown.value).toBe(false);
       expect(r.session.checklistView.value).toBe('sheet');
-      expect(r.session.hintShown.value).toBe(false);
-    };
+    });
 
-    const left = await chosen();
-    left.session.resetPanel();
-    await left.session.leaveRun();
-    cleared(left);
+    it('keeps the catalog tab of the list for the run: the first group at the start, the last choice after', async () => {
+      const groups = DA50RG_ENV.catalog.groups.map((g) => g.id);
+      const r = await realistic(false);
+      expect(r.session.checklistTab.value).toBe(groups[0]);
+      r.session.setChecklistTab('no-such-group');
+      expect(r.session.checklistTab.value).toBe(groups[0]);
+      r.session.setChecklistTab(groups[2] ?? '');
+      expect(r.session.checklistTab.value).toBe(groups[2]);
+      // Hiding and showing the sheet keeps the tab; a new run starts at the first group again.
+      r.session.toggleChecklist();
+      r.session.toggleChecklist();
+      expect(r.session.checklistTab.value).toBe(groups[2]);
+      r.session.resetPanel();
+      await r.session.leaveRun();
+      expect(r.session.checklistTab.value).toBe(groups[0]);
+      // Easy and Medium have no list: the press does nothing.
+      const easy = await started();
+      easy.session.setChecklistTab(groups[1] ?? '');
+      expect(easy.session.checklistTab.value).toBe(groups[0]);
+    });
 
-    const failed = await chosen();
-    failed.session.failRun(new Error('boom'));
-    cleared(failed);
+    describe('ticks on the rows of the sheet (R-23)', () => {
+      const ROW = 'step:alt1_off';
+      const open = async (afterOnset = true) => {
+        const r = await realistic(afterOnset);
+        r.session.toggleChecklist();
+        await ready(r);
+        return r;
+      };
 
-    const retried = await chosen();
-    retried.session.complete();
-    retried.session.retry();
-    expect(retried.session.screen.value).toBe('running');
-    cleared(retried);
+      it('toggles a row of the shown checklist and clears it on the second call', async () => {
+        const r = await open();
+        r.session.chooseChecklist(refOf(FOREIGN));
+        expect([...r.session.checklistTicks.value]).toEqual([]);
+        r.session.toggleManualMark(ROW);
+        expect([...r.session.checklistTicks.value]).toEqual([ROW]);
+        r.session.toggleManualMark(ROW);
+        expect([...r.session.checklistTicks.value]).toEqual([]);
+      });
 
-    const next = await chosen();
-    next.session.complete();
-    await next.session.nextSituation();
-    cleared(next);
-  });
+      it('is ignored while the list is shown, while the sheet is hidden and outside a run', async () => {
+        const r = await open();
+        r.session.toggleManualMark(ROW);
+        expect([...r.session.checklistTicks.value]).toEqual([]);
+        r.session.chooseChecklist(refOf(FOREIGN));
+        r.session.toggleChecklist();
+        r.session.toggleManualMark(ROW);
+        r.session.toggleChecklist();
+        expect([...r.session.checklistTicks.value]).toEqual([]);
+        const idle = listRig();
+        idle.session.toggleManualMark(ROW);
+        expect([...idle.session.checklistTicks.value]).toEqual([]);
+      });
 
-  it('drops a list that finishes loading after its run ended', async () => {
-    const r = await realistic(true);
-    r.session.toggleChecklist();
-    expect(r.session.checklistList.value.status).toBe('loading');
-    r.session.resetPanel();
-    await r.session.leaveRun();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(r.session.checklistList.value).toEqual({ status: 'idle', entries: [] });
-  });
+      it('keeps the ticks per checklist while the run goes on', async () => {
+        const r = await open();
+        r.session.chooseChecklist(refOf(FOREIGN));
+        r.session.toggleManualMark(ROW);
+        r.session.showChecklistList();
+        r.session.chooseChecklist(refOf(OWN));
+        expect([...r.session.checklistTicks.value]).toEqual([]);
+        r.session.toggleManualMark('line:procedure.0');
+        r.session.showChecklistList();
+        r.session.chooseChecklist(refOf(FOREIGN));
+        expect([...r.session.checklistTicks.value]).toEqual([ROW]);
+        r.session.showChecklistList();
+        r.session.chooseChecklist(refOf(OWN));
+        expect([...r.session.checklistTicks.value]).toEqual(['line:procedure.0']);
+      });
 
-  describe('the hint box', () => {
-    it('does nothing on Easy and Medium', async () => {
-      for (const level of ['easy', 'medium'] as const) {
+      it('can be set before the onset, on every checklist alike', async () => {
+        const r = await open(false);
+        r.session.chooseChecklist(refOf(OWN));
+        r.session.toggleManualMark(ROW);
+        expect([...r.session.checklistTicks.value]).toEqual([ROW]);
+        expect(r.session.checklistMarks.value).toBeNull();
+      });
+
+      it('works on Easy and Medium for the own checklist', async () => {
+        const r = await started();
+        r.session.toggleChecklist();
+        r.session.toggleManualMark('line:procedure.1');
+        expect([...r.session.checklistTicks.value]).toEqual(['line:procedure.1']);
+      });
+
+      const ticked = async (): Promise<ListRig> => {
+        const r = await open();
+        r.session.chooseChecklist(refOf(FOREIGN));
+        r.session.toggleManualMark(ROW);
+        expect(r.session.checklistTicks.value.size).toBe(1);
+        return r;
+      };
+      const none = (r: ListRig): void => {
+        expect(r.session.checklistTicks.value.size).toBe(0);
+        expect(r.session.checklistAuto.value).toBe('none');
+      };
+
+      it('clears them at complete and when the debrief closes', async () => {
+        const completed = await ticked();
+        completed.session.complete();
+        none(completed);
+        const closed = await ticked();
+        closed.session.complete();
+        closed.session.closeDebrief();
+        none(closed);
+      });
+
+      it('clears them on leaving and on a failed step', async () => {
+        const left = await ticked();
+        left.session.resetPanel();
+        await left.session.leaveRun();
+        none(left);
+        const failed = await ticked();
+        failed.session.failRun(new Error('boom'));
+        none(failed);
+      });
+
+      it('clears them at Retry', async () => {
+        const retried = await ticked();
+        retried.session.complete();
+        retried.session.retry();
+        expect(retried.session.screen.value).toBe('running');
+        none(retried);
+      });
+
+      it('clears them at Next situation', async () => {
+        const next = await ticked();
+        next.session.complete();
+        await next.session.nextSituation();
+        none(next);
+      });
+
+      it('never reaches the recording or the grade: the JSON is the same with ticks, a foreign checklist and none', async () => {
+        const results: string[] = [];
+        for (const mode of ['plain', 'foreign', 'ticked'] as const) {
+          const r = await realistic(true);
+          if (mode !== 'plain') {
+            r.session.toggleChecklist();
+            await ready(r);
+            r.session.chooseChecklist(refOf(FOREIGN));
+          }
+          if (mode === 'ticked') {
+            r.session.toggleManualMark(ROW);
+            r.session.toggleManualMark('line:procedure.0');
+          }
+          r.bridge.actuate('lv.power', 'p50');
+          r.bridge.actuate('lv.cowl_flap', 'open');
+          r.session.complete();
+          results.push(
+            JSON.stringify(r.session.result.value),
+            JSON.stringify(r.session.recording.value),
+          );
+        }
+        expect(results[2]).toBe(results[0]);
+        expect(results[4]).toBe(results[0]);
+        expect(results[3]).toBe(results[1]);
+        expect(results[5]).toBe(results[1]);
+      });
+    });
+
+    it('clears the choice and the list on leaving, a failed step, Retry and Next situation', async () => {
+      const chosen = async (): Promise<Awaited<ReturnType<typeof realistic>>> => {
+        const r = await realistic(true);
+        r.session.toggleChecklist();
+        await ready(r);
+        r.session.chooseChecklist(refOf(FOREIGN));
+        r.session.toggleHint();
+        expect(r.session.hintShown.value).toBe(true);
+        return r;
+      };
+      const cleared = (r: ListRig): void => {
+        expect(r.session.checklistChoice.value).toBeNull();
+        expect(r.session.checklistList.value).toEqual({ status: 'idle', entries: [] });
+        expect(r.session.checklistShown.value).toBe(false);
+        expect(r.session.checklistView.value).toBe('sheet');
+        expect(r.session.hintShown.value).toBe(false);
+      };
+
+      const left = await chosen();
+      left.session.resetPanel();
+      await left.session.leaveRun();
+      cleared(left);
+
+      const failed = await chosen();
+      failed.session.failRun(new Error('boom'));
+      cleared(failed);
+
+      const retried = await chosen();
+      retried.session.complete();
+      retried.session.retry();
+      expect(retried.session.screen.value).toBe('running');
+      cleared(retried);
+
+      const next = await chosen();
+      next.session.complete();
+      await next.session.nextSituation();
+      cleared(next);
+    });
+
+    it('drops a list that finishes loading after its run ended', async () => {
+      const r = await realistic(true);
+      r.session.toggleChecklist();
+      expect(r.session.checklistList.value.status).toBe('loading');
+      r.session.resetPanel();
+      await r.session.leaveRun();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(r.session.checklistList.value).toEqual({ status: 'idle', entries: [] });
+    });
+
+    describe('the hint box', () => {
+      it('does nothing on Easy and Medium', async () => {
+        for (const level of ['easy', 'medium'] as const) {
+          const r = listRig();
+          await r.session.openChooser();
+          await r.session.chooseScenario(refOf(OWN));
+          r.session.setLevel(level);
+          r.session.startRun();
+          r.session.toggleHint();
+          expect(r.session.hintShown.value).toBe(false);
+        }
+      });
+
+      it('does nothing outside a run and before the onset, then toggles', async () => {
         const r = listRig();
-        await r.session.openChooser();
-        await r.session.chooseScenario(refOf(OWN));
-        r.session.setLevel(level);
-        r.session.startRun();
         r.session.toggleHint();
         expect(r.session.hintShown.value).toBe(false);
-      }
-    });
+        await r.session.openChooser();
+        await r.session.chooseScenario(refOf(OWN));
+        r.session.toggleHint();
+        expect(r.session.hintShown.value).toBe(false);
+        r.session.setLevel('realistic');
+        const began = r.session.onset.value;
+        const clock = r.session.clock.value;
+        if (began === null || clock === null) throw new Error('no onset or clock');
+        r.session.toggleHint();
+        expect(r.session.hintShown.value).toBe(false);
+        clock.advance(began.at - 1);
+        r.session.toggleHint();
+        expect(r.session.hintShown.value).toBe(false);
+        clock.advance(1);
+        r.session.toggleHint();
+        expect(r.session.hintShown.value).toBe(true);
+        r.session.toggleHint();
+        expect(r.session.hintShown.value).toBe(false);
+      });
 
-    it('does nothing outside a run and before the onset, then toggles', async () => {
-      const r = listRig();
-      r.session.toggleHint();
-      expect(r.session.hintShown.value).toBe(false);
-      await r.session.openChooser();
-      await r.session.chooseScenario(refOf(OWN));
-      r.session.toggleHint();
-      expect(r.session.hintShown.value).toBe(false);
-      r.session.setLevel('realistic');
-      const began = r.session.onset.value;
-      const clock = r.session.clock.value;
-      if (began === null || clock === null) throw new Error('no onset or clock');
-      r.session.toggleHint();
-      expect(r.session.hintShown.value).toBe(false);
-      clock.advance(began.at - 1);
-      r.session.toggleHint();
-      expect(r.session.hintShown.value).toBe(false);
-      clock.advance(1);
-      r.session.toggleHint();
-      expect(r.session.hintShown.value).toBe(true);
-      r.session.toggleHint();
-      expect(r.session.hintShown.value).toBe(false);
-    });
+      it('is cleared when the run ends and holds the title and the situation of the file itself', async () => {
+        const r = await realistic(true);
+        r.session.toggleHint();
+        expect(r.session.hintShown.value).toBe(true);
+        // The box reads the file's own scenario, not a variant's.
+        expect(r.session.scenario.value?.title).toBe(own.value.title);
+        expect(r.session.scenario.value?.briefing.situation).toBe(own.value.briefing.situation);
+        r.session.complete();
+        expect(r.session.hintShown.value).toBe(false);
+      });
 
-    it('is cleared when the run ends and holds the title and the situation of the file itself', async () => {
-      const r = await realistic(true);
-      r.session.toggleHint();
-      expect(r.session.hintShown.value).toBe(true);
-      // The box reads the file's own scenario, not a variant's.
-      expect(r.session.scenario.value?.title).toBe(own.value.title);
-      expect(r.session.scenario.value?.briefing.situation).toBe(own.value.briefing.situation);
-      r.session.complete();
-      expect(r.session.hintShown.value).toBe(false);
+      it('shows the situation of the file, never the cause the draw picked, for a scenario with variants', async () => {
+        const altn = parseScenario(ALTN1);
+        if (!altn.ok) throw new Error('ALTN 1 FAIL does not parse');
+        expect(altn.value.variants.length).toBeGreaterThan(0);
+        const r = listRig();
+        await r.session.openChooser();
+        await r.session.chooseScenario(refOf(FOREIGN));
+        r.session.setLevel('realistic');
+        expect(r.session.screen.value).toBe('running');
+        expect(r.session.variant.value).not.toBeNull();
+        expect(r.session.scenario.value).toEqual(altn.value);
+      });
     });
-
-    it('shows the situation of the file, never the cause the draw picked, for a scenario with variants', async () => {
-      const altn = parseScenario(ALTN1);
-      if (!altn.ok) throw new Error('ALTN 1 FAIL does not parse');
-      expect(altn.value.variants.length).toBeGreaterThan(0);
-      const r = listRig();
-      await r.session.openChooser();
-      await r.session.chooseScenario(refOf(FOREIGN));
-      r.session.setLevel('realistic');
-      expect(r.session.screen.value).toBe('running');
-      expect(r.session.variant.value).not.toBeNull();
-      expect(r.session.scenario.value).toEqual(altn.value);
-    });
-  });
-});
+  },
+);
 
 describe('the marks of a long run are coalesced (phase 07, plan 04, S-02)', () => {
   const SLOW = readFileSync(join(root, 'scenarios/electrical/elec-altn2-fail.toon'), 'utf8');
