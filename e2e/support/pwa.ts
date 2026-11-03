@@ -1,4 +1,9 @@
+import { createHash } from 'node:crypto';
+import { readFileSync, readdirSync } from 'node:fs';
+import { basename, join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect } from '@playwright/test';
+import { ACK_STORAGE_KEY, ACK_VERSION } from '../../src/ui/ack';
 import type { BrowserContext, Page } from '@playwright/test';
 
 // Shared helpers of the offline specs (PLT-02). Test support, not a spec: the name does not end in
@@ -105,5 +110,78 @@ export function collectRequests(page: Page, context: BrowserContext = page.conte
         return url.origin !== base.origin || !url.pathname.startsWith(base.pathname);
       });
     },
+  };
+}
+
+/** The e2e build output, where the specs that read the disk (`@local`) look. */
+export const BUILD_DIR = new URL('../../dist-e2e/', import.meta.url);
+
+/**
+ * The files of a build output directory by independent code (not the plugin's): every file below
+ * it, POSIX paths relative to it, without source maps, dotfiles and the worker itself.
+ */
+export function walkOutput(dir: URL = BUILD_DIR): string[] {
+  const root = fileURLToPath(dir);
+  const found = readdirSync(root, { withFileTypes: true, recursive: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(root, join(entry.parentPath, entry.name)).split(sep).join('/'));
+  return found
+    .filter((path) => path !== 'sw.js' && !path.endsWith('.map') && !basename(path).startsWith('.'))
+    .sort();
+}
+
+/** The pack folders of scenarios/ that hold at least one scenario file besides pack.toon. */
+export function shippedPackFolders(): string[] {
+  const root = fileURLToPath(new URL('../../scenarios/', import.meta.url));
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .filter((pack) =>
+      readdirSync(join(root, pack)).some((name) => name.endsWith('.toon') && name !== 'pack.toon'),
+    )
+    .sort();
+}
+
+/** The SHA-256 (hex) of a file of the build output, read from disk. */
+export function diskHash(path: string, dir: URL = BUILD_DIR): string {
+  return createHash('sha256')
+    .update(readFileSync(join(fileURLToPath(dir), path)))
+    .digest('hex');
+}
+
+/**
+ * Fetches every path from inside the page (resolved against the scope), with the network off in
+ * the caller, and returns status and SHA-256 per path.
+ */
+export function fetchFromPage(
+  page: Page,
+  scope: string,
+  paths: readonly string[],
+): Promise<{ path: string; status: number; hash: string }[]> {
+  return page.evaluate(
+    async ({ scope: base, list }) => {
+      const out: { path: string; status: number; hash: string }[] = [];
+      for (const path of list) {
+        const response = await fetch(new URL(path, base).href);
+        const digest = await crypto.subtle.digest('SHA-256', await response.arrayBuffer());
+        const hash = Array.from(new Uint8Array(digest), (b) =>
+          b.toString(16).padStart(2, '0'),
+        ).join('');
+        out.push({ path, status: response.status, hash });
+      }
+      return out;
+    },
+    { scope, list: [...paths] },
+  );
+}
+
+/** The ACK-accepted storage state for another origin (the config's covers its own origin only). */
+export function acceptedStateFor(origin: string): {
+  cookies: [];
+  origins: { origin: string; localStorage: { name: string; value: string }[] }[];
+} {
+  return {
+    cookies: [],
+    origins: [{ origin, localStorage: [{ name: ACK_STORAGE_KEY, value: String(ACK_VERSION) }] }],
   };
 }

@@ -1,5 +1,20 @@
 import { expect, test } from '@playwright/test';
-import { collectRequests, registrationOf, waitForControl } from './support/pwa';
+import type { Browser } from '@playwright/test';
+import {
+  acceptedStateFor,
+  cachedUrls,
+  cacheNames,
+  collectRequests,
+  diskHash,
+  fetchFromPage,
+  precacheUrls,
+  registrationOf,
+  shippedPackFolders,
+  waitForControl,
+  walkOutput,
+  workerStamp,
+} from './support/pwa';
+import { startPrivateServer } from './support/pwa-server';
 
 // PLT-02, ROADMAP criterion 2: after one online load the worker controls the page and the app
 // runs with the network off. The default config blocks workers (D-09); this file opts in. None of
@@ -29,6 +44,150 @@ test('after one online load a reload with the network off shows the panel', asyn
 
   expect(log.outside(baseURL)).toEqual([]);
   expect(log.consoleErrors).toEqual([]);
+});
+
+/** The scope-relative URL list resolved against a base, the way the worker resolves it. */
+const resolved = (paths: readonly string[], base: string): string[] =>
+  paths.map((path) => new URL(path, base).href).sort();
+
+test('the cache holds exactly the list and every listed URL answers 200 with the network off', async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await waitForControl(page);
+  const paths = await precacheUrls(page, baseURL);
+  expect(paths.length).toBeGreaterThan(0);
+  expect(paths).toContain('index.html');
+  // The cache is filled by the install, before the worker is active.
+  expect((await cachedUrls(page)).sort()).toEqual(resolved(paths, baseURL));
+  const stamp = await workerStamp(page, baseURL);
+  expect(await cacheNames(page)).toEqual([`da50-precache-${stamp.id}`]);
+
+  await context.setOffline(true);
+  const answers = await fetchFromPage(page, baseURL, paths);
+  expect(answers.map((answer) => answer.path)).toEqual(paths);
+  for (const answer of answers) expect(answer.status, answer.path).toBe(200);
+});
+
+test('a navigation with any query string still shows the shell offline, other navigations do not', async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  await page.goto('./');
+  await waitForControl(page);
+  await context.setOffline(true);
+  await page.goto('./?scene=smoke&q=oil_temp_c%3D120');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await page.goto('./index.html?flags=x#top');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  // Not the shell, not a precached file: the worker leaves it to the network, which is off.
+  await expect(page.goto('./not-a-page/')).rejects.toThrow();
+});
+
+test('the list equals the built files and covers every pack chunk and font @local', async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  await page.goto('./');
+  await waitForControl(page);
+  const paths = await precacheUrls(page, baseURL);
+  const built = walkOutput();
+  expect(paths).toEqual(built);
+  expect(new Set(paths).size).toBe(paths.length);
+
+  const packs = shippedPackFolders();
+  expect(packs.length).toBeGreaterThan(0);
+  for (const pack of packs) {
+    expect(
+      paths.filter((path) => new RegExp(`^assets/pack-${pack}-[^/]+\\.js$`).test(path)),
+      `chunk of the pack ${pack}`,
+    ).toHaveLength(1);
+  }
+  const fonts = (list: readonly string[]) =>
+    list.filter((path) => /\.(woff2?|ttf|otf)$/.test(path));
+  expect(fonts(built).length).toBeGreaterThan(0);
+  expect(fonts(paths)).toEqual(fonts(built));
+
+  // What the cache serves is what the build wrote, byte for byte.
+  await context.setOffline(true);
+  const answers = await fetchFromPage(page, baseURL, paths);
+  for (const answer of answers) expect(answer.hash, answer.path).toBe(diskHash(answer.path));
+});
+
+/** A context for the private server's origin with the same device as the project. */
+async function privateContext(
+  browser: Browser,
+  origin: string,
+  device: {
+    viewport: { width: number; height: number } | null;
+    userAgent: string | undefined;
+    hasTouch: boolean;
+    isMobile: boolean;
+    deviceScaleFactor: number | undefined;
+  },
+) {
+  return browser.newContext({
+    ...device,
+    viewport: device.viewport,
+    serviceWorkers: 'allow',
+    storageState: acceptedStateFor(origin),
+  });
+}
+
+test('one missing file fails the install as a whole and leaves no cache @local', async ({
+  browser,
+  baseURL,
+  viewport,
+  userAgent,
+  hasTouch,
+  isMobile,
+  deviceScaleFactor,
+}) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  const server = await startPrivateServer(new URL(baseURL).pathname);
+  const context = await privateContext(browser, server.origin, {
+    viewport,
+    userAgent,
+    hasTouch,
+    isMobile,
+    deviceScaleFactor,
+  });
+  try {
+    const missing = walkOutput().find((path) => path.startsWith('assets/pack-'));
+    if (missing === undefined) throw new Error('the build has no pack chunk');
+    server.removeFile(missing);
+    const page = await context.newPage();
+    await page.goto(server.baseURL);
+    await expect(page.getByTestId('panel')).toBeVisible();
+    // The install asked for the missing file ...
+    await expect.poll(() => server.hits(missing, 404)).toBeGreaterThan(0);
+    // ... and failed: no worker is left, none controls the page, no cache of the new id remains.
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          const registration = await navigator.serviceWorker.getRegistration();
+          return registration === undefined
+            ? 'none'
+            : [registration.installing, registration.waiting, registration.active]
+                .map((w) => w?.state ?? '-')
+                .join(',');
+        }),
+      )
+      .toMatch(/^(none|-,-,-|redundant,-,-)$/);
+    expect(await page.evaluate(() => navigator.serviceWorker.controller)).toBeNull();
+    expect(await cacheNames(page)).toEqual([]);
+  } finally {
+    await context.close();
+    await server.close();
+  }
 });
 
 test.describe('with the worker blocked (the config default)', () => {
