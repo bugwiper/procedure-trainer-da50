@@ -356,7 +356,7 @@ test('the cluster has its headline and the rows of the owner: three conducts on 
   }
 });
 
-test('the debrief shows the picks of the conduct in order and the final one counts, with the note of the emergency landing', async ({
+test('the debrief shows the picks of the conduct in order and the final one counts, with the follow-on button instead of the note of the emergency landing', async ({
   page,
   hasTouch,
 }) => {
@@ -371,9 +371,10 @@ test('the debrief shows the picks of the conduct in order and the final one coun
   await expect(page.getByTestId('debrief-further-picks')).toContainText(
     `${textOf(carryOn)}, then ${textOf(emergency)}`,
   );
-  await expect(page.getByTestId('debrief-further-note')).toHaveText(
-    SET.option(emergency)?.debriefNote ?? '',
-  );
+  // Engine fire leads into the landing (Phase 9): the button takes the place of the old note, which
+  // e2e/follow-on.spec.ts checks for a scenario without a follow-on.
+  await expect(page.getByTestId('debrief-follow-on')).toBeVisible();
+  await expect(page.getByTestId('debrief-further-note')).toHaveCount(0);
 });
 
 test('a run that never switches from the preselected Continue to destination ends FAIL with the wrong conduct, shown as Wrong with its pick', async ({

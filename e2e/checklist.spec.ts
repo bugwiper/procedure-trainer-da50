@@ -89,7 +89,8 @@ async function expectTable(list: Locator, id: string): Promise<void> {
       else await expect(li).toHaveAttribute('data-style', row.style);
       if (row.boxed === true) {
         await expect(li).toHaveAttribute('data-boxed', 'true');
-        await expect(li.locator('.outline-action')).toHaveText(row.reference ?? '');
+        if (row.reference === undefined) await expect(li.locator('.outline-action')).toHaveCount(0);
+        else await expect(li.locator('.outline-action')).toHaveText(row.reference);
       } else {
         await expect(li).not.toHaveAttribute('data-boxed', 'true');
       }
