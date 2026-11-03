@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { Browser } from '@playwright/test';
+import type { Browser, Page } from '@playwright/test';
 import {
   acceptedStateFor,
   cachedUrls,
@@ -15,6 +15,8 @@ import {
   workerStamp,
 } from './support/pwa';
 import { startPrivateServer } from './support/pwa-server';
+import { shippedScenarios, startScenario } from './support/session';
+import { activate } from './support/zoom';
 
 // PLT-02, ROADMAP criterion 2: after one online load the worker controls the page and the app
 // runs with the network off. The default config blocks workers (D-09); this file opts in. None of
@@ -184,6 +186,118 @@ test('one missing file fails the install as a whole and leaves no cache @local',
       .toMatch(/^(none|-,-,-|redundant,-,-)$/);
     expect(await page.evaluate(() => navigator.serviceWorker.controller)).toBeNull();
     expect(await cacheNames(page)).toEqual([]);
+  } finally {
+    await context.close();
+    await server.close();
+  }
+});
+
+/**
+ * Starts the scenario of `row` at the easy level, presses Procedure complete, waits for the debrief
+ * and leaves it with Back to panel. Resolves when the free panel is back.
+ */
+async function runToDebrief(page: Page, hasTouch: boolean, row: string): Promise<void> {
+  await startScenario(page, hasTouch, row, 'easy');
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toBeVisible();
+  await expect(page.getByTestId('debrief-modal')).not.toHaveAttribute('data-shield', 'on');
+  await activate(page.getByTestId('debrief-back'), hasTouch);
+  await expect(page.getByTestId('debrief-modal')).toBeHidden();
+}
+
+/** One online load, the worker in control and the cache complete; then the network goes off. */
+async function installThenGoOffline(page: Page, baseURL: string): Promise<void> {
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await waitForControl(page);
+  const paths = await precacheUrls(page, baseURL);
+  expect((await cachedUrls(page)).sort()).toEqual(resolved(paths, baseURL));
+  await page.context().setOffline(true);
+  await page.reload();
+  await expect(page.getByTestId('panel')).toBeVisible();
+}
+
+test('every shipped scenario runs from start to debrief with the network off', async ({
+  page,
+  hasTouch,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  const scenarios = shippedScenarios();
+  expect(scenarios.length).toBeGreaterThan(0);
+  test.setTimeout(60_000 + scenarios.length * 20_000);
+  const log = collectRequests(page);
+  await installThenGoOffline(page, baseURL);
+  let runs = 0;
+  for (const entry of scenarios) {
+    await runToDebrief(page, hasTouch, entry.row);
+    runs += 1;
+  }
+  expect(runs).toBe(scenarios.length);
+  expect(log.outside(baseURL)).toEqual([]);
+  expect(log.failed).toEqual([]);
+  expect(log.consoleErrors).toEqual([]);
+});
+
+// One scenario of each pack, so a failure names the pack whose lazy chunk the cache did not serve.
+for (const pack of [...new Set(shippedScenarios().map((entry) => entry.pack))]) {
+  test(`the lazy chunk of the pack "${pack}" is served offline`, async ({
+    page,
+    hasTouch,
+    baseURL,
+  }) => {
+    if (baseURL === undefined) throw new Error('baseURL missing');
+    const entry = shippedScenarios().find((candidate) => candidate.pack === pack);
+    if (entry === undefined) throw new Error(`no scenario in the pack ${pack}`);
+    const log = collectRequests(page);
+    await installThenGoOffline(page, baseURL);
+    await startScenario(page, hasTouch, entry.row, 'easy');
+    expect(log.outside(baseURL)).toEqual([]);
+    expect(log.failed).toEqual([]);
+    expect(log.consoleErrors).toEqual([]);
+  });
+}
+
+test('with the server really closed a scenario still runs to the debrief @local', async ({
+  browser,
+  baseURL,
+  viewport,
+  userAgent,
+  hasTouch,
+  isMobile,
+  deviceScaleFactor,
+}, testInfo) => {
+  test.skip(
+    !['desktop-chromium', 'desktop-webkit'].includes(testInfo.project.name),
+    'the closed-server case runs on the two desktop projects',
+  );
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  const server = await startPrivateServer(new URL(baseURL).pathname);
+  const context = await privateContext(browser, server.origin, {
+    viewport,
+    userAgent,
+    hasTouch,
+    isMobile,
+    deviceScaleFactor,
+  });
+  try {
+    const page = await context.newPage();
+    const log = collectRequests(page, context);
+    await page.goto(server.baseURL);
+    await expect(page.getByTestId('panel')).toBeVisible();
+    await waitForControl(page);
+    const paths = await precacheUrls(page, server.baseURL);
+    expect((await cachedUrls(page)).sort()).toEqual(resolved(paths, server.baseURL));
+    await server.close();
+    const before = log.urls.length;
+    await page.reload();
+    await expect(page.getByTestId('panel')).toBeVisible();
+    const first = shippedScenarios()[0];
+    if (first === undefined) throw new Error('no shipped scenario');
+    await runToDebrief(page, hasTouch, first.row);
+    // The server is gone: a missed file would have failed, and every request stays on its origin.
+    expect(log.urls.slice(before).filter((url) => !url.startsWith(server.baseURL))).toEqual([]);
+    expect(log.failed).toEqual([]);
   } finally {
     await context.close();
     await server.close();
