@@ -1,0 +1,8 @@
+# Manifest of the landing pack (format 1). Lists the scenarios without loading them.
+format: 1
+title: Emergency landing
+free: true
+scenarios[1]:
+  - id: landing-engine-off
+    title: LANDING ENGINE OFF
+    file: landing-engine-off

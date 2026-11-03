@@ -398,6 +398,14 @@ describe('the pack seam', () => {
           { id: 'icing-unintentional', title: 'ICING CONDITIONS', file: 'icing-unintentional' },
         ],
       },
+      {
+        id: 'landing',
+        title: 'Emergency landing',
+        free: true,
+        scenarios: [
+          { id: 'landing-engine-off', title: 'LANDING ENGINE OFF', file: 'landing-engine-off' },
+        ],
+      },
     ]);
   });
 

@@ -1,0 +1,209 @@
+# EMERGENCY LANDING (ENGINE OFF) (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist booklet, Edition 4.1 of 2022-10-05, page 9 (owner decisions 2026-10-23, 2026-10-27, 2026-10-28 and 2026-11-03: the booklet is binding): the heading, every item and action, the comment line On final / before touchdown: and the boxed table Approach speed KIAS as printed. The row marks are the numbers 1 to 15 as the booklet counts them; the table is typed as four boxed comment rows (the heading of the table, then the flap position at the left and the speed at the right). The page is graded on the panel where a control shows the desired state, and the other rows are plain lines the pilot ticks on the checklist sheet, which never reach the grade. Graded steps (the order of the rows does not matter, each row is its own unordered group as in the other booklet files): row 3 Power lever FLIGHT IDLE (FI) is the lever at the idle end (travel 10 percent or less; the panel marks no FI position and the engine is stopped, so this is an instructor-review value; standard); row 4 Engine master OFF (critical); row 9 Fuel valve OFF is the state off of the FUEL selector (critical); row 10 Emergency fuel pump OFF (standard); row 11 Fuel transfer pump OFF is the state off of the FUEL TRANS knob (standard); row 12 Doors UNLATCH is the state open of the door release lever (standard); row 14 Flaps T/O or LDG is the flap lever at T/O or LDG (standard); row 15 Electric master OFF (critical). Plain lines: row 1 Gliding speed 94 KIAS (the simulation has no control of the speed, the profile glides at the printed speed), row 2 ATC INFORM (the further actions MAYDAY and PAN PAN PAN stand in the footwell), row 5 Adjustable backrests, row 6 Safety harnesses, row 7 Sun visors, row 8 Keypad, row 13 Landing gear AS REQUIRED (no single right state). The situation text is own wording. The instructor-review values are the start of the pilot's restart attempt (the emergency fuel pump and the fuel transfer pump are switched on at the start, so rows 10 and 11 have something to switch off), the start height, the glide rate and the field sight; the engine is dead from the first frame, as in the 09-02 fixture.
+format: 1
+id: landing-engine-off
+title: LANDING ENGINE OFF
+source:
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
+  section: "Page 9, EMERGENCY LANDING (ENGINE OFF)"
+  verified: "2026-11-03"
+disclaimer: training-aid
+scene: outlanding
+briefing:
+  situation: "The engine has stopped and cannot be restarted. You are gliding at about 94 knots with the propeller standing still, and an open field lies ahead. You decide to land there. Prepare the aircraft for the landing."
+initial:
+  controls:
+    sw.emerg_fuel_pump: "on"
+    sw.fuel_trans: "on"
+  quantities:
+    # The glide start (instructor-review values): 94 knots, 900 feet per minute down, 1500 feet above the terrain; the start values stand here and in the profile.
+    airspeed_kt: 94
+    vertical_speed_fpm: -900
+    altitude_ft: 2900
+    # The engine is dead from the first frame.
+    rpm: 0
+    load_pct: 0
+    oil_pressure_bar: 0
+    fuel_flow_gph: 0
+    fuel_pressure_bar: 0
+    # The transfer pump has been running since before the start, so its white advisory shows at the first frame.
+    fuel_trans_active: 1
+# The flight profile (in force from the first second at every level; instructor-review values): the engine is stopped and the glide regime applies at the printed gliding speed.
+profile:
+  engine_stopped: 1
+  glide_speed_kt: 94
+  glide_vs_fpm: -900
+annunciations[2]: oil_pres,fuel_trans
+checklist:
+  form: table
+  heading: EMERGENCY LANDING (ENGINE OFF)
+procedure[20]:
+  - kind: line
+    number: 1
+    text: "Gliding speed"
+    action: "94 KIAS"
+  - kind: line
+    number: 2
+    text: "ATC"
+    action: "INFORM"
+  - kind: group
+    id: grp_power_lever
+    ordered: false
+    steps[1]:
+      - id: power_flight_idle
+        severity: standard
+        number: 3
+        text: Power lever
+        action: "FLIGHT IDLE (FI)"
+        done:
+          check: travel
+          control: lv.power
+          op: lte
+          value: 10
+  - kind: group
+    id: grp_engine_master
+    ordered: false
+    steps[1]:
+      - id: engine_master_off
+        severity: critical
+        number: 4
+        text: Engine master
+        action: "OFF"
+        done:
+          check: state
+          control: sw.engine_master
+          is: off
+  - kind: line
+    number: 5
+    text: "Adjustable backrests"
+    action: "UPRIGHT"
+  - kind: line
+    number: 6
+    text: "Safety harnesses"
+    action: "TIGHT"
+  - kind: line
+    number: 7
+    text: "Sun visors"
+    action: "STOWED"
+  - kind: line
+    number: 8
+    text: "Keypad"
+    action: "STOWED"
+  - kind: group
+    id: grp_fuel_valve
+    ordered: false
+    steps[1]:
+      - id: fuel_valve_off
+        severity: critical
+        number: 9
+        text: Fuel valve
+        action: "OFF"
+        done:
+          check: state
+          control: sw.fuel_valve
+          is: off
+  - kind: group
+    id: grp_emerg_fuel_pump
+    ordered: false
+    steps[1]:
+      - id: emerg_fuel_pump_off
+        severity: standard
+        number: 10
+        text: Emergency fuel pump
+        action: "OFF"
+        done:
+          check: state
+          control: sw.emerg_fuel_pump
+          is: "off"
+  - kind: group
+    id: grp_fuel_trans
+    ordered: false
+    steps[1]:
+      - id: fuel_trans_off
+        severity: standard
+        number: 11
+        text: Fuel transfer pump
+        action: "OFF"
+        done:
+          check: state
+          control: sw.fuel_trans
+          is: "off"
+  - kind: comment
+    text: "On final / before touchdown:"
+  - kind: group
+    id: grp_doors
+    ordered: false
+    steps[1]:
+      - id: doors_unlatch
+        severity: standard
+        number: 12
+        text: Doors
+        action: UNLATCH
+        done:
+          check: state
+          control: lv.door_release
+          is: open
+  - kind: line
+    number: 13
+    text: "Landing gear"
+    action: "AS REQUIRED"
+  - kind: group
+    id: grp_flaps
+    ordered: false
+    steps[1]:
+      - id: flaps_landing
+        severity: standard
+        number: 14
+        text: Flaps
+        action: "T/O or LDG"
+        done:
+          check: state_in
+          control: lv.flaps
+          in[2]: to,ldg
+  - kind: comment
+    text: "Approach speed KIAS"
+    boxed: true
+  - kind: comment
+    text: "Flaps UP"
+    boxed: true
+    action: "94"
+  - kind: comment
+    text: "Flaps T/O"
+    boxed: true
+    action: "85"
+  - kind: comment
+    text: "Flaps LDG"
+    boxed: true
+    action: "77"
+  - kind: group
+    id: grp_elect_master
+    ordered: false
+    steps[1]:
+      - id: elect_master_off
+        severity: critical
+        number: 15
+        text: Electric master
+        action: "OFF"
+        done:
+          check: state
+          control: sw.elect_master
+          is: off
+forbidden[0]:
+# The run completes by itself when the aircraft reaches the terrain height of the field (lint L32); the text is own wording.
+finish:
+  when:
+    check: quantity
+    quantity: altitude_ft
+    op: lte
+    value: 1400
+  text: The aircraft reached the field
+# The further actions (Phase 7, Phase 9). The roles are instructor-review values, listed in docs/PANEL-REVIEW.md; the decision to land is made, so no flight conduct is offered (lint L28, landing scene). The calls and the passenger briefing can never fail the run; the printed row ATC INFORM stays a checklist row.
+further:
+  actions[3]:
+    - id: atc_mayday
+      role: recommended
+    - id: atc_pan_pan
+      role: optional
+    - id: brief_passengers
+      role: recommended
+  conduct: none

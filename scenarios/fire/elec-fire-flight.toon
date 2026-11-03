@@ -145,7 +145,7 @@ onset:
     # Start altitude of the Realistic run, the same value as in the initial block.
     altitude_ft: 4500
   cues[1]: cabin_smoke
-# The further actions (Phase 7). The roles and the right flight conduct are instructor-review values, listed in docs/PANEL-REVIEW.md; the MAYDAY call is required, the passenger briefing is recommended and never fails a run, and a fire in flight calls for an emergency landing.
+# The further actions (Phase 7). The roles and the right flight conduct are instructor-review values, listed in docs/PANEL-REVIEW.md; the MAYDAY call is required, the passenger briefing is recommended and never fails a run, and with the engine running a smoke or fire in the electrics calls for a precautionary (alternate) landing, not an emergency landing (owner decision 2026-11-03); the situation has no follow-on.
 further:
   actions[3]:
     - id: atc_mayday
@@ -155,4 +155,4 @@ further:
     - id: brief_passengers
       role: recommended
   conduct:
-    accept[1]: conduct_emergency
+    accept[1]: conduct_precautionary

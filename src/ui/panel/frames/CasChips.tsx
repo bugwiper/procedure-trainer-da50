@@ -8,7 +8,7 @@ import { CAS_COLUMN, casColumnRows } from '../../../aircraft/da50rg/pfd-layout';
 // Static: no flashing, no animation, no sound, no border, no live region. The message, level and
 // trigger come from the aircraft rule table; this file only draws them.
 
-// An advisory is white, the text colour of the glass (Phase 6, FUEL TRANS).
+// An advisory is white, the text colour of the glass (Phase 6, the transfer pump message).
 const LEVEL_FILL: Readonly<Record<CasLevel, string>> = {
   warning: '#f0443c',
   caution: '#f2c230',

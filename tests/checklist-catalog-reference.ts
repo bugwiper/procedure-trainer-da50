@@ -65,6 +65,7 @@ export const CATALOG_REFERENCE: readonly CatalogReferenceGroup[] = [
     heading: 'NON-ANNUNCIATED EMERGENCY PROCEDURES',
     tab: 'EMERGENCY',
     rows: [
+      ['EMERGENCY LANDING (ENGINE OFF)', null, 'landing/landing-engine-off'],
       ['ENGINE FIRE IN FLIGHT', null, 'engine/eng-fire-in-flight'],
       ['ENGINE FIRE ON GROUND', null, 'fire/eng-fire-ground'],
       ['ELECTRIC FIRE / SMOKE ON GROUND', null, 'fire/elec-fire-ground'],
@@ -85,6 +86,7 @@ export const CATALOG_LISTING_ORDER: readonly (readonly [string, string])[] = [
   ['engine', 'eng-oil-temp-green'],
   ['electrical', 'elec-altn1-fail'],
   ['electrical', 'elec-altn2-fail'],
+  ['landing', 'landing-engine-off'],
   ['engine', 'eng-fire-in-flight'],
   ['fire', 'eng-fire-ground'],
   ['fire', 'elec-fire-ground'],

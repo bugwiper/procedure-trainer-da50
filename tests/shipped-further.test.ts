@@ -22,6 +22,8 @@ interface Declared {
   readonly conduct: readonly string[] | 'none';
   /** True when the scenario carries a `conduct_note` (plan 07-06, R-22). */
   readonly note: boolean;
+  /** The follow-on of each conduct, as "pack/scenario" (Phase 9); absent means no follow-on. */
+  readonly followOn?: Readonly<Record<string, string>>;
 }
 
 // The review of plan 07-06 (R-20), row by row against the printed comment rows and branches: ENG OIL TEMP
@@ -38,9 +40,26 @@ const ALTERNATOR_CAUTION: Declared = {
   conduct: ['conduct_destination', 'conduct_precautionary'],
   note: true,
 };
-const FIRE_IN_FLIGHT: Declared = {
+// The engine is stopped by the printed list (ENGINE FIRE in flight, T/O FIRE NO ABORT): an emergency
+// landing, which leads into the printed engine-off landing situation (Phase 9).
+const FIRE_ENGINE_OFF: Declared = {
   roles: ['required', 'optional', 'recommended'],
   conduct: ['conduct_emergency'],
+  note: false,
+  followOn: { conduct_emergency: 'landing/landing-engine-off' },
+};
+// ELEC FIRE FLIGHT: the engine keeps running, so the right decision is the precautionary (alternate)
+// landing and no follow-on exists (owner answer 2026-11-03: "with engine power this is rather an
+// alternate landing").
+const FIRE_ENGINE_RUNNING: Declared = {
+  roles: ['required', 'optional', 'recommended'],
+  conduct: ['conduct_precautionary'],
+  note: false,
+};
+// The landing situation itself: the decision to land is made, so no conduct is offered.
+const LANDING: Declared = {
+  roles: ['recommended', 'optional', 'recommended'],
+  conduct: 'none',
   note: false,
 };
 const ON_THE_GROUND: Declared = {
@@ -54,9 +73,10 @@ const TABLE: Readonly<Record<string, Declared>> = {
   'elec-altn1-fail': ALTERNATOR_CAUTION,
   'elec-altn2-fail': ALTERNATOR_CAUTION,
   'icing-unintentional': ADVISORY,
-  'eng-fire-in-flight': FIRE_IN_FLIGHT,
-  'elec-fire-flight': FIRE_IN_FLIGHT,
-  'takeoff-fire-no-abort': FIRE_IN_FLIGHT,
+  'eng-fire-in-flight': FIRE_ENGINE_OFF,
+  'elec-fire-flight': FIRE_ENGINE_RUNNING,
+  'takeoff-fire-no-abort': FIRE_ENGINE_OFF,
+  'landing-engine-off': LANDING,
   'eng-fire-ground': ON_THE_GROUND,
   'elec-fire-ground': ON_THE_GROUND,
   'takeoff-fire-abort': ON_THE_GROUND,
@@ -99,18 +119,27 @@ describe('the further declarations of the shipped scenarios (D-10, D-13)', () =>
         expected.conduct,
       );
       expect(section?.conduct_note !== undefined, 'conduct_note').toBe(expected.note);
+      // Phase 9: the follow-on map of the file is the one of the table.
+      const followOn = Object.fromEntries(
+        Object.entries(section?.follow_on ?? {}).map(([conduct, t]) => [
+          conduct,
+          `${t.pack}/${t.scenario}`,
+        ]),
+      );
+      expect(followOn).toEqual(expected.followOn ?? {});
       // L31: a note only where the conduct it speaks of is accepted.
       if (expected.note) expect(expected.conduct).toContain(DA50RG_ENV.further.noteConduct);
     },
   );
 
   it.each(SHIPPED)(
-    '$id: the ground scenarios are exactly the ones that declare none',
+    '$id: the scenarios on the ground or on a landing scene are exactly the ones that declare none',
     ({ id, path }) => {
       const checked = checkScenario(readFileSync(path, 'utf8'), DA50RG_ENV);
       if (!checked.ok) throw new Error(JSON.stringify(checked.issues));
       const onGround = (checked.scenario.profile[DA50RG_ENV.further.groundParameter] ?? 0) > 0;
-      expect(TABLE[id]?.conduct === 'none', id).toBe(onGround);
+      const landing = DA50RG_ENV.further.landingScenes.includes(checked.scenario.scene ?? '');
+      expect(TABLE[id]?.conduct === 'none', id).toBe(onGround || landing);
     },
   );
 

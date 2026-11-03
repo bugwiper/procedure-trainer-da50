@@ -159,3 +159,9 @@ further:
       role: recommended
   conduct:
     accept[1]: conduct_emergency
+  # The emergency landing leads into the printed landing checklist (page 9) through the debrief button.
+  follow_on:
+    conduct_emergency:
+      pack: landing
+      scenario: landing-engine-off
+

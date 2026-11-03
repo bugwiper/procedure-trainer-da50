@@ -237,6 +237,35 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
       { kind: 'row', item: 'Transponder: squawk 7700', own: true },
     ],
   },
+  // Booklet page 9, typed from the owner's photo (2026-11-03): the comment line before the three last
+  // rows and the boxed table Approach speed KIAS (a heading row, then the flap position and the speed)
+  // between row 14 and row 15.
+  'landing-engine-off': {
+    form: 'table',
+    heading: 'EMERGENCY LANDING (ENGINE OFF)',
+    rows: [
+      { kind: 'row', number: 1, item: 'Gliding speed', action: '94 KIAS' },
+      { kind: 'row', number: 2, item: 'ATC', action: 'INFORM' },
+      { kind: 'row', number: 3, item: 'Power lever', action: 'FLIGHT IDLE (FI)' },
+      { kind: 'row', number: 4, item: 'Engine master', action: 'OFF' },
+      { kind: 'row', number: 5, item: 'Adjustable backrests', action: 'UPRIGHT' },
+      { kind: 'row', number: 6, item: 'Safety harnesses', action: 'TIGHT' },
+      { kind: 'row', number: 7, item: 'Sun visors', action: 'STOWED' },
+      { kind: 'row', number: 8, item: 'Keypad', action: 'STOWED' },
+      { kind: 'row', number: 9, item: 'Fuel valve', action: 'OFF' },
+      { kind: 'row', number: 10, item: 'Emergency fuel pump', action: 'OFF' },
+      { kind: 'row', number: 11, item: 'Fuel transfer pump', action: 'OFF' },
+      { kind: 'comment', text: 'On final / before touchdown:' },
+      { kind: 'row', number: 12, item: 'Doors', action: 'UNLATCH' },
+      { kind: 'row', number: 13, item: 'Landing gear', action: 'AS REQUIRED' },
+      { kind: 'row', number: 14, item: 'Flaps', action: 'T/O or LDG' },
+      { kind: 'comment', text: 'Approach speed KIAS', boxed: true },
+      { kind: 'comment', text: 'Flaps UP', boxed: true, reference: '94' },
+      { kind: 'comment', text: 'Flaps T/O', boxed: true, reference: '85' },
+      { kind: 'comment', text: 'Flaps LDG', boxed: true, reference: '77' },
+      { kind: 'row', number: 15, item: 'Electric master', action: 'OFF' },
+    ],
+  },
   'eng-oil-temp-green': {
     form: 'outline',
     heading: 'ENG OIL TEMP',
@@ -291,4 +320,5 @@ export const PRINTED_FILES: Readonly<Record<string, string>> = {
   'elec-altn2-fail': 'scenarios/electrical/elec-altn2-fail.toon',
   'eng-fire-in-flight': 'scenarios/engine/eng-fire-in-flight.toon',
   'eng-oil-temp-green': 'scenarios/engine/eng-oil-temp-green.toon',
+  'landing-engine-off': 'scenarios/landing/landing-engine-off.toon',
 };

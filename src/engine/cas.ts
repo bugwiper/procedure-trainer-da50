@@ -11,7 +11,7 @@ import type { Predicate } from '../scenario/schema';
 import { evaluatePredicate, predicateProblems } from './predicates';
 import type { PredicateContext, PredicateEnv } from './predicates';
 
-/** Advisory (Phase 6): a white message such as FUEL TRANS; it never sounds a tone. */
+/** Advisory (Phase 6): a white message such as the one of the transfer pump; it never sounds a tone. */
 export type CasLevel = 'warning' | 'caution' | 'advisory';
 
 /** The levels in display order. */
