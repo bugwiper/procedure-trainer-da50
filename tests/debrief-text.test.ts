@@ -518,3 +518,42 @@ describe('conductNote (plan 07-06, R-22)', () => {
     );
   });
 });
+
+// Owner decision 2026-11-03: under the emergency landing the Avoid NVFR and Avoid icing picks are
+// ignored by the debrief (grade and log keep them); they show again for any other final conduct.
+describe('Avoid picks under the emergency landing', () => {
+  const SET = DA50RG_ENV.further;
+  const [carryOn, , emergency] = SET.ids('conduct');
+  const AVOID = SET.avoidIds();
+  const build = (last: string): GradeResult =>
+    result({
+      further: {
+        actions: AVOID.map((id) => ({
+          id,
+          role: 'optional' as const,
+          done: true,
+          failsRun: false,
+        })),
+        conduct: { declared: 'accept', picks: [last], last, status: 'ok' },
+      },
+    });
+
+  it('lists no row for the greyed-out Avoid actions when the final conduct is the emergency landing, only the open one', () => {
+    const rows = furtherRows(build(emergency ?? ''), SET).map((r) => r.id);
+    expect(rows).toEqual(['avoid_imc', 'conduct']);
+  });
+
+  it('lists every picked Avoid action again for another final conduct', () => {
+    const rows = furtherRows(build(carryOn ?? ''), SET).map((r) => r.id);
+    expect(rows).toEqual([...AVOID, 'conduct']);
+  });
+
+  it('shows no conduct note under the emergency landing even with a note and all Avoid picks', () => {
+    const hint = conductNote(
+      build(emergency ?? ''),
+      { actions: [], conduct: { accept: [SET.noteConduct] }, conduct_note: 'Note.' },
+      SET,
+    );
+    expect(hint).toBeNull();
+  });
+});

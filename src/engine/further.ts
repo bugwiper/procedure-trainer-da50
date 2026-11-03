@@ -34,6 +34,14 @@ export interface FurtherOption {
   readonly avoid?: true;
   /** A line the debrief adds when this option is the last conduct pick. */
   readonly debriefNote?: string;
+  /**
+   * The conduct options that grey this action out (owner decision 2026-11-03: with the emergency
+   * landing selected the pilot cannot avoid icing or night VFR any more). While the selected conduct
+   * is one of them the button is shown disabled and a press is ignored; the recorded picks stay in
+   * the log and the selection, the debrief ignores them, and they count again once the conduct is
+   * switched back. Actions only; every id must name a conduct option.
+   */
+  readonly blockedByConduct?: readonly string[];
 }
 
 export interface FurtherDefinition {
@@ -63,6 +71,8 @@ export interface FurtherSet extends FurtherDefinition {
   ids(kind: FurtherKind): readonly string[];
   /** The ids of the Avoid actions, in list order. */
   avoidIds(): readonly string[];
+  /** True when the selected conduct (null: none) greys the option out (`blockedByConduct`). */
+  isBlocked(id: string, conduct: string | null): boolean;
 }
 
 export class FurtherError extends Error {}
@@ -87,7 +97,19 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
     if (option.debriefNote !== undefined && option.kind !== 'conduct') {
       throw new FurtherError(`option "${option.id}" is an action and cannot carry a debrief note`);
     }
+    if (option.blockedByConduct !== undefined && option.kind !== 'action') {
+      throw new FurtherError(`option "${option.id}" is a conduct and cannot be blocked by one`);
+    }
     byId.set(option.id, option);
+  }
+  for (const option of definition.options) {
+    for (const conductId of option.blockedByConduct ?? []) {
+      if (byId.get(conductId)?.kind !== 'conduct') {
+        throw new FurtherError(
+          `option "${option.id}" is blocked by "${conductId}", which is not a conduct option`,
+        );
+      }
+    }
   }
   if (!FURTHER_ID_PATTERN.test(definition.groundParameter)) {
     throw new FurtherError(`the ground parameter "${definition.groundParameter}" is not an id`);
@@ -111,6 +133,8 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
     ids: (kind: FurtherKind) =>
       definition.options.filter((option) => option.kind === kind).map((option) => option.id),
     avoidIds: () => definition.options.filter((option) => option.avoid === true).map((o) => o.id),
+    isBlocked: (id: string, conduct: string | null) =>
+      conduct !== null && (byId.get(id)?.blockedByConduct?.includes(conduct) ?? false),
   });
 }
 

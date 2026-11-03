@@ -10,7 +10,7 @@ import {
   CATALOG_REFERENCE,
   referenceGroupOf,
 } from '../../tests/checklist-catalog-reference';
-import { activate, afterPairWindow } from './zoom';
+import { activate, activateAt, afterPairWindow } from './zoom';
 
 // Shared e2e helpers for starting one named scenario through CHOOSE SITUATION (plan 03-01). Test
 // support, not a spec: the name does not end in .spec.ts, so Playwright never collects it.
@@ -253,6 +253,17 @@ export const furtherButton = (page: Page, id: string) =>
 /** Presses the footwell button of an option once, with no expectation (Phase 7, plan 07-05, S-06). */
 export async function toggleFurther(page: Page, hasTouch: boolean, id: string): Promise<void> {
   await activate(furtherHit(page, id), hasTouch);
+}
+
+/**
+ * Presses a footwell button by pointer at its centre without Playwright's actionability wait: a
+ * greyed-out button (aria-disabled) is "not enabled" to the locator click, but a pilot can still
+ * press it and the press must do nothing (owner decision 2026-11-03).
+ */
+export async function pressGreyedFurther(page: Page, hasTouch: boolean, id: string): Promise<void> {
+  const box = await furtherHit(page, id).boundingBox();
+  if (box === null) throw new Error(`no box for further.${id}`);
+  await activateAt(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, hasTouch);
 }
 
 /**

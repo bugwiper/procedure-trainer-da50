@@ -46,6 +46,8 @@ export const DA50RG_FURTHER = defineFurther({
       kind: 'action',
       unrated: true,
       avoid: true,
+      // A forced landing cannot avoid it; Avoid IMC stays open (owner decision 2026-11-03).
+      blockedByConduct: ['conduct_emergency'],
     },
     {
       id: 'avoid_icing',
@@ -54,6 +56,8 @@ export const DA50RG_FURTHER = defineFurther({
       kind: 'action',
       unrated: true,
       avoid: true,
+      // A forced landing cannot avoid it; Avoid IMC stays open (owner decision 2026-11-03).
+      blockedByConduct: ['conduct_emergency'],
     },
     {
       id: 'conduct_destination',

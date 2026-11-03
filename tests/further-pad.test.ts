@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { FURTHER_PAD } from '../src/aircraft/da50rg/further-pad';
 import { DA50RG } from '../src/aircraft/da50rg/panel';
-import { FURTHER_TITLE, PLATES } from '../src/aircraft/da50rg/plates';
+import { FURTHER_DIVIDER, FURTHER_TITLE, PLATES } from '../src/aircraft/da50rg/plates';
 import {
+  FURTHER_PAD_DIVIDER,
   FURTHER_PAD_REFERENCE,
   FURTHER_PAD_REGION,
   FURTHER_PAD_TITLE,
@@ -83,7 +84,7 @@ describe('the footwell cluster of the further actions', () => {
     expect(SET.option(SET.defaultConduct)?.kind).toBe('conduct');
   });
 
-  it('is as large as the registry region, keeps the slots 25 units from the sides, 35 below the top and 39 above the bottom, and puts the plate 20 units left and right, 10 below the slots and 28 above them for the headline', () => {
+  it('is as large as the registry region, keeps the slots 25 units from the sides, 35 below the top and 37 above the bottom, and puts the plate 20 units left and right, 10 below the slots and 28 above them for the headline', () => {
     const region = DA50RG.regions.find((r) => r.id === 'further_area');
     expect(region).toBeDefined();
     if (region === undefined) return;
@@ -96,7 +97,7 @@ describe('the footwell cluster of the further actions', () => {
     expect(left).toBe(25);
     expect(FURTHER_PAD.region.w - right).toBe(25);
     expect(top).toBe(35);
-    expect(FURTHER_PAD.region.h - bottom).toBe(39);
+    expect(FURTHER_PAD.region.h - bottom).toBe(37);
     const plate = PLATES.find((p) => p.id === 'further-pad');
     expect(plate).toBeDefined();
     if (plate === undefined) return;
@@ -118,5 +119,34 @@ describe('the footwell cluster of the further actions', () => {
     expect(FURTHER_PAD_TITLE.y).toBeLessThanOrEqual(region.bounds.y + 35 - 8);
     // The glyph rule of the panel (0.62 of the size per character) fits the plate with room to spare.
     expect(FURTHER_PAD_TITLE.text.length * FURTHER_PAD_TITLE.size * 0.62).toBeLessThan(plate.w / 2);
+  });
+
+  it('draws one thin divider line on the plate, between the conduct row and the middle row, inside the plate and clear of both rows', () => {
+    expect({ ...FURTHER_DIVIDER }).toEqual({ ...FURTHER_PAD_DIVIDER });
+    const plate = PLATES.find((p) => p.id === 'further-pad');
+    const region = DA50RG.regions.find((r) => r.id === 'further_area');
+    if (plate === undefined || region === undefined) throw new Error('no plate or region');
+    const d = FURTHER_PAD_DIVIDER;
+    // Inside the plate, along the width of the cluster.
+    expect(d.x1).toBe(region.bounds.x + Math.min(...FURTHER_PAD.slots.map((s) => s.x)));
+    expect(d.x2).toBe(region.bounds.x + Math.max(...FURTHER_PAD.slots.map((s) => s.x + s.w)));
+    expect(d.x1).toBeGreaterThan(plate.x);
+    expect(d.x2).toBeLessThan(plate.x + plate.w);
+    expect(d.y).toBeGreaterThan(plate.y);
+    expect(d.y).toBeLessThan(plate.y + plate.h);
+    // Thin, and halfway in the gap between the last conduct row and the first row below it, each
+    // button keeping at least 3 units from the line (the rim is 2 wide).
+    expect(d.width).toBeLessThanOrEqual(1.5);
+    const conducts = FURTHER_PAD.slots.filter((s) => SET.option(s.id)?.kind === 'conduct');
+    const others = FURTHER_PAD.slots.filter((s) => SET.option(s.id)?.kind !== 'conduct');
+    const conductBottom = region.bounds.y + Math.max(...conducts.map((s) => s.y + s.h));
+    const othersTop = region.bounds.y + Math.min(...others.map((s) => s.y));
+    expect(conductBottom).toBeLessThan(d.y);
+    expect(d.y).toBeLessThan(othersTop);
+    expect(d.y - conductBottom).toBeCloseTo(othersTop - d.y, 5);
+    expect(d.y - conductBottom - d.width / 2).toBeGreaterThanOrEqual(3);
+    // Exactly one line: no other row gap carries one, the rows below stay 5 units apart.
+    const rows = [...new Set(FURTHER_PAD.slots.map((s) => s.y))].sort((a, b) => a - b);
+    expect(rows[2] ?? 0).toBe((rows[1] ?? 0) + 65);
   });
 });

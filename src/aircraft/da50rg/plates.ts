@@ -105,11 +105,11 @@ export const PLATES: readonly PlateDef[] = [
   { id: 'pedals-pad', x: 280, y: 1130, w: 400, h: 150, rx: 12, regions: ['pedals'] },
   // The further actions (Phase 7, plans 07-05 and 07-06, R-07, R-21): the plate of the nine footwell
   // toggle buttons, between the under-panel pulls (their regions end at y 865) and the pedals plate
-  // (from y 1130): 8 units of air above and 29 below. It stands 20 units left and right of the
-  // cluster (464 x 190 at x 288, y 901), 10 units below it and 28 above it, where the headline
+  // (from y 1130): 8 units of air above and 27 below. It stands 20 units left and right of the
+  // cluster (464 x 192 at x 288, y 901), 10 units below it and 28 above it, where the headline
   // FURTHER_TITLE is printed (owner feedback 2026-11-02); the region is larger than the plate.
   // Trainer content, no registry control.
-  { id: 'further-pad', x: 268, y: 873, w: 504, h: 228, rx: 12, regions: ['further_area'] },
+  { id: 'further-pad', x: 268, y: 873, w: 504, h: 230, rx: 12, regions: ['further_area'] },
   // The cabin openings (Phase 5.1, P-07, P-09, owner 2026-10-27): the plate in the left strip below
   // ALTERNATE STATIC (its region ends at y 865), carrying the emergency window above the door lock
   // lever and their labels WINDOW and DOOR LOCK. 8 units of plate left and right of the regions, 12
@@ -149,6 +149,14 @@ export const ENV_BOXES: readonly GroupBoxDef[] = [
  * size 14 (the scale of the session buttons). Static shell art; it is there on the free panel too.
  */
 export const FURTHER_TITLE = { text: 'FURTHER ACTIONS', x: 520, y: 892, size: 14 } as const;
+
+/**
+ * The thin divider line of the footwell cluster (owner decision 2026-11-03): static plate art, no
+ * text, between the conduct row (ends y 961) and the middle row (starts y 968), so the three flight
+ * conduct buttons read as one group. It runs the width of the cluster (x 288 to 752) at the middle
+ * of the 7 unit gap (3.5 units to each button, stroke 1). Always drawn, like the headline.
+ */
+export const FURTHER_DIVIDER = { x1: 288, x2: 752, y: 964.5, width: 1 } as const;
 
 /** The TEMPERATURE lever the triangle beside its slot is drawn from (aircraft data, so no UI file names a control). */
 export const ENV_TEMPERATURE_CONTROL = 'lv.env_temp';

@@ -134,7 +134,10 @@ export function furtherRows(result: GradeResult, set: FurtherSet): FurtherRow[] 
   const { further } = result;
   if (further === undefined) return [];
   const textOf = (id: string): string => set.option(id)?.text ?? id;
-  const rows: FurtherRow[] = further.actions.map((entry) => {
+  // An action the final conduct greys out (the Avoid picks under the emergency landing) is ignored
+  // here; the grade and the log keep it, and it counts again if the conduct is switched back.
+  const shown = further.actions.filter((entry) => !set.isBlocked(entry.id, further.conduct.last));
+  const rows: FurtherRow[] = shown.map((entry) => {
     let verdict: string;
     let tone: FurtherRow['tone'] = 'neutral';
     if (entry.role === 'harmful') {

@@ -9,6 +9,8 @@ import type { FrameProps } from './MfdFrame';
  * footwell (region further_area, plate further-pad). Nothing is drawn unless a run is live, so the
  * plate stays empty on the free panel and in the briefing. The slots, the labels and the kind of each
  * option come from aircraft data (FURTHER_PAD, DA50RG_ENV.further); no option id is named here. A
+ * button the selected conduct greys out (`blockedByConduct`: the Avoid actions under the emergency
+ * landing) is drawn disabled and logs nothing; its recorded state is kept and shown dimmed. A
  * press calls session.toggleDecision; the highlight is effectiveSelection of the recorded presses
  * (session.furtherSelection), so the button and the grade cannot disagree. The three conduct buttons
  * and the three Avoid buttons are left out when the scenario offers no conduct (ground, or no further
@@ -41,6 +43,7 @@ export function FurtherAreaFrame({ session }: FrameProps) {
             label={option.label ?? option.text}
             ariaLabel={option.text}
             selected={selected}
+            disabled={set.isBlocked(slot.id, selection.conduct)}
             onActivate={() => {
               session.toggleDecision(slot.id);
             }}

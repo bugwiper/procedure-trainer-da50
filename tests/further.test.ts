@@ -118,6 +118,36 @@ describe('defineFurther', () => {
       },
     ],
     [
+      'an action blocked by an id that is no option',
+      {
+        ...valid,
+        options: [
+          ...valid.options,
+          { id: 'v_one', text: 'x', kind: 'action' as const, blockedByConduct: ['c_two'] },
+        ],
+      },
+    ],
+    [
+      'an action blocked by an action',
+      {
+        ...valid,
+        options: [
+          ...valid.options,
+          { id: 'v_one', text: 'x', kind: 'action' as const, blockedByConduct: ['a_one'] },
+        ],
+      },
+    ],
+    [
+      'a conduct that is blocked by a conduct',
+      {
+        ...valid,
+        options: [
+          ...valid.options,
+          { id: 'c_two', text: 'x', kind: 'conduct' as const, blockedByConduct: ['c_one'] },
+        ],
+      },
+    ],
+    [
       'an avoid option that is a conduct',
       {
         ...valid,
@@ -129,6 +159,38 @@ describe('defineFurther', () => {
     ],
   ])('rejects %s', (_name, definition) => {
     expect(() => defineFurther(definition)).toThrow(FurtherError);
+  });
+
+  it('answers isBlocked from the conduct options an action lists', () => {
+    const set = defineFurther({
+      ...valid,
+      options: [
+        { id: 'a_one', text: 'One', kind: 'action', blockedByConduct: ['c_two'] },
+        { id: 'a_two', text: 'Two', kind: 'action' },
+        { id: 'c_one', text: 'Conduct', kind: 'conduct' },
+        { id: 'c_two', text: 'Conduct 2', kind: 'conduct' },
+      ],
+    });
+    expect(set.isBlocked('a_one', 'c_two')).toBe(true);
+    expect(set.isBlocked('a_one', 'c_one')).toBe(false);
+    expect(set.isBlocked('a_one', null)).toBe(false);
+    expect(set.isBlocked('a_two', 'c_two')).toBe(false);
+    expect(set.isBlocked('nope', 'c_two')).toBe(false);
+  });
+
+  it('the aircraft greys Avoid NVFR and Avoid icing out under the emergency landing and nothing else', () => {
+    const blocked = (conduct: string | null) =>
+      SET.options.filter((o) => SET.isBlocked(o.id, conduct)).map((o) => o.id);
+    expect(blocked(emergency)).toEqual(['avoid_nvfr', 'avoid_icing']);
+    expect(blocked(carryOn)).toEqual([]);
+    expect(blocked(precaution)).toEqual([]);
+    expect(blocked(null)).toEqual([]);
+    // The blocked ones are Avoid actions; Avoid IMC is not among them, and the grade is untouched.
+    for (const id of blocked(emergency)) expect(SET.option(id)?.avoid).toBe(true);
+    const picks = [at(1, 'avoid_nvfr'), at(2, 'avoid_imc'), at(3, emergency)];
+    const sel = effectiveSelection(picks, SET, true);
+    expect([...sel.actions].sort()).toEqual(['avoid_imc', 'avoid_nvfr']);
+    expect(sel.conduct).toBe(emergency);
   });
 
   it('the aircraft list holds the decided options in order', () => {

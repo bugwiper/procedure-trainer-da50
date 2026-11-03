@@ -8,6 +8,7 @@ import {
   furtherButton,
   furtherHit,
   pickFurther,
+  pressGreyedFurther,
   shippedScenarios,
   startRealistic,
   startScenario,
@@ -453,4 +454,130 @@ test('@hooks Realistic: a press before the onset changes nothing, after the onse
   });
   await pickFurther(page, hasTouch, [MAYDAY]);
   expect((await selectedIds(page)).sort()).toEqual([MAYDAY, SET.defaultConduct].sort());
+});
+
+test('a thin divider line on the plate marks the three conduct buttons as one group: it is there on the free panel, inside the plate, between the conduct row and the rows below it', async ({
+  page,
+  hasTouch,
+}) => {
+  const [carryOn] = CONDUCT_IDS;
+  if (carryOn === undefined) throw new Error('no conduct');
+  const divider = page.locator('[data-shell="further-divider"]');
+  const measure = async () =>
+    page.evaluate(
+      ({ conductId, otherId }) => {
+        const rectOf = (el: Element | null) => {
+          if (el === null) return null;
+          const r = el.getBoundingClientRect();
+          return { x: r.x, y: r.y, w: r.width, h: r.height };
+        };
+        return {
+          line: rectOf(document.querySelector('[data-shell="further-divider"]')),
+          plate: rectOf(document.querySelector('[data-plate="further-pad"]')),
+          conduct: rectOf(document.querySelector(`[data-session-hit="further.${conductId}"]`)),
+          other: rectOf(document.querySelector(`[data-session-hit="further.${otherId}"]`)),
+        };
+      },
+      { conductId: carryOn, otherId: MAYDAY },
+    );
+  await page.goto('./');
+  // Static plate art: drawn before any run, no text on it.
+  await expect(divider).toHaveCount(1);
+  expect(await divider.evaluate((el) => (el.textContent ?? '').trim())).toBe('');
+  await startScenario(page, hasTouch, FIRE_ROW);
+  await expect(divider).toHaveCount(1);
+  const { line, plate, conduct, other } = await measure();
+  if (line === null || plate === null || conduct === null || other === null) {
+    throw new Error('no boxes');
+  }
+  // Inside the plate, along the cluster, between the conduct row and the next row, clear of both.
+  expect(line.x).toBeGreaterThan(plate.x);
+  expect(line.x + line.w).toBeLessThan(plate.x + plate.w);
+  expect(line.y).toBeGreaterThan(conduct.y + conduct.h);
+  expect(line.y + line.h).toBeLessThan(other.y);
+  // The line is thin and it is the only one: exactly one divider, nothing else in the cluster draws a line.
+  expect(line.h).toBeLessThan(conduct.h / 10);
+  await expect(page.locator('[data-shell="further-divider"]')).toHaveCount(1);
+});
+
+test('under the emergency landing Avoid NVFR and Avoid icing are greyed out and ignore a press, Avoid IMC stays open, earlier picks stay and the labels never change', async ({
+  page,
+  hasTouch,
+}) => {
+  const [avoidImc, avoidNvfr, avoidIcing] = AVOID_IDS;
+  const [carryOn, precaution, emergency] = CONDUCT_IDS;
+  if (avoidImc === undefined || avoidNvfr === undefined || avoidIcing === undefined) {
+    throw new Error('no avoid actions');
+  }
+  if (carryOn === undefined || precaution === undefined || emergency === undefined) {
+    throw new Error('short list');
+  }
+  const blockedByEmergency = SET.options.filter((o) => SET.isBlocked(o.id, emergency));
+  expect(blockedByEmergency.map((o) => o.id)).toEqual([avoidNvfr, avoidIcing]);
+  await page.goto('./');
+  await startScenario(page, hasTouch, FIRE_ROW);
+  // Nothing is greyed out while another conduct is selected.
+  for (const id of AVOID_IDS) {
+    await expect(furtherButton(page, id)).not.toHaveAttribute('aria-disabled', 'true');
+  }
+  await pickFurther(page, hasTouch, [avoidNvfr, avoidImc]);
+  await pickFurther(page, hasTouch, [emergency]);
+  // Greyed out by the static look and aria-disabled; the label text is the same as before (G-0).
+  for (const id of [avoidNvfr, avoidIcing]) {
+    await expect(furtherButton(page, id)).toHaveAttribute('aria-disabled', 'true');
+    await expect(furtherButton(page, id)).toHaveAttribute('data-disabled', 'true');
+    await expect(furtherButton(page, id)).toHaveAttribute('opacity', /^0\.\d+$/);
+    for (const line of (SET.option(id)?.label ?? '').split('\n')) {
+      await expect(furtherButton(page, id)).toContainText(line);
+    }
+  }
+  await expect(furtherButton(page, avoidImc)).not.toHaveAttribute('aria-disabled', 'true');
+  // The earlier pick stays recorded (shown dimmed, still selected); a press changes nothing.
+  await pressGreyedFurther(page, hasTouch, avoidNvfr);
+  await pressGreyedFurther(page, hasTouch, avoidIcing);
+  await expect(furtherButton(page, avoidNvfr)).toHaveAttribute('data-selected', 'true');
+  await expect(furtherButton(page, avoidIcing)).toHaveAttribute('data-selected', 'false');
+  // Avoid IMC still toggles.
+  await toggleFurther(page, hasTouch, avoidImc);
+  await expect(furtherButton(page, avoidImc)).toHaveAttribute('data-selected', 'false');
+  await toggleFurther(page, hasTouch, avoidImc);
+  await expect(furtherButton(page, avoidImc)).toHaveAttribute('data-selected', 'true');
+  // The keyboard cannot press a greyed-out button either.
+  await furtherButton(page, avoidIcing).focus();
+  await page.keyboard.press('Enter');
+  await expect(furtherButton(page, avoidIcing)).toHaveAttribute('data-selected', 'false');
+  // Back to another conduct: both are live again and the old pick counts.
+  await pickFurther(page, hasTouch, [precaution]);
+  for (const id of AVOID_IDS) {
+    await expect(furtherButton(page, id)).not.toHaveAttribute('aria-disabled', 'true');
+  }
+  await expect(furtherButton(page, avoidNvfr)).toHaveAttribute('data-selected', 'true');
+  await pickFurther(page, hasTouch, [avoidIcing]);
+});
+
+test('the debrief ignores the greyed-out Avoid picks when the run ends on the emergency landing, and lists them again for another final conduct', async ({
+  page,
+  hasTouch,
+}) => {
+  const [avoidImc, avoidNvfr, avoidIcing] = AVOID_IDS;
+  const [, precaution, emergency] = CONDUCT_IDS;
+  if (avoidImc === undefined || avoidNvfr === undefined || avoidIcing === undefined) {
+    throw new Error('no avoid actions');
+  }
+  if (precaution === undefined || emergency === undefined) throw new Error('short list');
+  await page.goto('./');
+  await startScenario(page, hasTouch, FIRE_ROW);
+  await pickFurther(page, hasTouch, [avoidNvfr, avoidIcing, avoidImc, emergency]);
+  await finish(page, hasTouch);
+  await expect(row(page, avoidImc)).toHaveAttribute('data-verdict', 'Done');
+  await expect(row(page, avoidNvfr)).toHaveCount(0);
+  await expect(row(page, avoidIcing)).toHaveCount(0);
+
+  // The same picks with another final conduct are all listed.
+  await page.goto('./');
+  await startScenario(page, hasTouch, FIRE_ROW);
+  await pickFurther(page, hasTouch, [avoidNvfr, avoidIcing, avoidImc, emergency]);
+  await pickFurther(page, hasTouch, [precaution]);
+  await finish(page, hasTouch);
+  for (const id of AVOID_IDS) await expect(row(page, id)).toHaveAttribute('data-verdict', 'Done');
 });

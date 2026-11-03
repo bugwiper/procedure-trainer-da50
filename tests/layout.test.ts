@@ -1564,14 +1564,14 @@ describe('session plate, region and pilot legroom (plan 02-10)', () => {
    */
   const P7_FURTHER_REGION = 'further_area';
   const P7_FURTHER_PLATE = 'further-pad';
-  const FURTHER_PLATE: Rect = { x: 268, y: 873, w: 504, h: 228 };
+  const FURTHER_PLATE: Rect = { x: 268, y: 873, w: 504, h: 230 };
   const FURTHER_REGION: Rect = { x: 263, y: 866, w: 514, h: 264 };
   /**
-   * The nine slots of the cluster (3 x 3 of 150 x 60, 7 units between the columns and 5 between the rows: 464 x 190) in global units
+   * The nine slots of the cluster (3 x 3 of 150 x 60, 7 units between the columns, 7 between the conduct row and the middle row and 5 between the middle row and the Avoid row: 464 x 196) in global units
    * (plan 07-06, R-21): the plate stands 20 units left and right of them, 10 below and 28 above (the
    * headline FURTHER ACTIONS, owner feedback 2026-11-02).
    */
-  const FURTHER_SLOTS: Rect = { x: 288, y: 901, w: 464, h: 190 };
+  const FURTHER_SLOTS: Rect = { x: 288, y: 901, w: 464, h: 192 };
 
   it('the session-pad plate has the Table Z1 rectangle (rx 18) and carries scenario_area only', () => {
     const plate = PLATES.find((p) => p.id === 'session-pad');

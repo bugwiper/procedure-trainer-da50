@@ -1042,17 +1042,17 @@ describe('further actions area zoom (plans 07-05, 07-06)', () => {
     { w: 734, h: 283 },
   ];
   const REGION: Rect = { x: 263, y: 866, w: 514, h: 264 };
-  /** The region stands 25 units wider than the slots on each side, 35 above and 39 below them (room for the Full panel corner on the phone). Three columns x 288, 445, 602 (150 wide), three rows y 901, 966, 1031 (60 high). */
+  /** The region stands 25 units wider than the slots on each side, 35 above and 37 below them (room for the Full panel corner on the phone). Three columns x 288, 445, 602 (150 wide), three rows y 901, 968, 1033 (60 high; 7 units between the first two rows for the divider line). */
   const FURTHER_TARGETS: readonly Rect[] = [
     { x: 288, y: 901, w: 150, h: 60 },
     { x: 445, y: 901, w: 150, h: 60 },
     { x: 602, y: 901, w: 150, h: 60 },
-    { x: 288, y: 966, w: 150, h: 60 },
-    { x: 445, y: 966, w: 150, h: 60 },
-    { x: 602, y: 966, w: 150, h: 60 },
-    { x: 288, y: 1031, w: 150, h: 60 },
-    { x: 445, y: 1031, w: 150, h: 60 },
-    { x: 602, y: 1031, w: 150, h: 60 },
+    { x: 288, y: 968, w: 150, h: 60 },
+    { x: 445, y: 968, w: 150, h: 60 },
+    { x: 602, y: 968, w: 150, h: 60 },
+    { x: 288, y: 1033, w: 150, h: 60 },
+    { x: 445, y: 1033, w: 150, h: 60 },
+    { x: 602, y: 1033, w: 150, h: 60 },
   ];
   const profiles = [
     ['phone', VIEW_PROFILES.phone],

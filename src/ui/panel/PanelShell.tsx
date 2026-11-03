@@ -6,6 +6,7 @@ import {
   ENV_BOXES,
   ENV_TEMPERATURE_CONTROL,
   ENV_TITLE,
+  FURTHER_DIVIDER,
   FURTHER_TITLE,
   GEAR_BLOCK,
   HEADING_FRAME,
@@ -34,6 +35,8 @@ const BEZEL_GROW_BOTTOM = 41;
 const BEZEL_FILL = '#0c0d0f';
 const RIM = '#2d3138';
 const LEGEND = '#c9d0d8';
+/** The divider line of the footwell cluster: a quiet grey that reads on the dark plate. */
+const DIVIDER = '#6a7480';
 const PLATE = '#17191d';
 
 // Letter spacing is a style because the `.panel-svg text` CSS rule would override the attribute.
@@ -502,6 +505,18 @@ function LeftStrip() {
       >
         {FURTHER_TITLE.text}
       </text>
+      {/* The thin line that sets the three flight conduct buttons apart as one group (owner decision 2026-11-03); plate art, no text. */}
+      <line
+        data-shell="further-divider"
+        x1={FURTHER_DIVIDER.x1}
+        x2={FURTHER_DIVIDER.x2}
+        y1={FURTHER_DIVIDER.y}
+        y2={FURTHER_DIVIDER.y}
+        stroke={DIVIDER}
+        stroke-width={FURTHER_DIVIDER.width}
+        stroke-linecap="round"
+        pointer-events="none"
+      />
       <PlateHeadings />
       <BracketGroups />
       <g data-shell="vent">

@@ -10,6 +10,8 @@ const FACE_SELECTED = '#2c5d8f';
 const RIM_PRESSED = '#8fb8e6';
 const LABEL = '#e6e9ed';
 const FOCUS = '#8fb8e6';
+/** The dimming of a disabled button (the whole group: face, rim and label). */
+const DISABLED_OPACITY = 0.38;
 /** Distance between the baselines of a two-line label (size 14). */
 const LINE_STEP = 18;
 
@@ -32,6 +34,12 @@ export interface SessionButtonProps {
    * rim and the group says aria-pressed. The label never changes (G-0). Absent: not a toggle.
    */
   readonly selected?: boolean;
+  /**
+   * Greyed out and not pressable (owner decision 2026-11-03: the Avoid actions under the emergency
+   * landing): the group is dimmed, says aria-disabled, shows no pressed rim and ignores a press and
+   * the keyboard. The label never changes (G-0); a selected state stays visible, dimmed.
+   */
+  readonly disabled?: boolean;
   /** performance.now() time before which an activation is ignored (the 400 ms shield of a new view). */
   readonly ignoreUntil?: number;
 }
@@ -69,18 +77,20 @@ export function SessionButton({
   onActivate,
   held = false,
   selected,
+  disabled = false,
   ignoreUntil,
 }: SessionButtonProps) {
   const pending = useSignal(false);
   // Pointer release and keyboard share one rule: a press inside the shield of a new view is dropped.
   const activate = () => {
+    if (disabled) return;
     if (ignoreUntil !== undefined && performance.now() < ignoreUntil) return;
     onActivate();
   };
   const press = makeSessionPress(activate, (on) => {
     pending.value = on;
   });
-  const rimPressed = pending.value || held || selected === true;
+  const rimPressed = (pending.value && !disabled) || held || selected === true;
   const { x, y, w, h } = rect;
   const lines = label.split('\n');
   return (
@@ -89,6 +99,9 @@ export function SessionButton({
       data-session-button={id}
       data-pressed={rimPressed ? 'true' : undefined}
       data-selected={selected === undefined ? undefined : selected ? 'true' : 'false'}
+      data-disabled={disabled ? 'true' : undefined}
+      aria-disabled={disabled ? 'true' : undefined}
+      opacity={disabled ? DISABLED_OPACITY : undefined}
       aria-pressed={selected}
       role="button"
       tabIndex={0}

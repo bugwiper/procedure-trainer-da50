@@ -1203,6 +1203,8 @@ export function createSession(deps: SessionDeps): Session {
       if ((option.kind === 'conduct' || option.avoid === true) && !offersConduct(current.further))
         return;
       const now = effectiveSelection(decisions.peek(), env.further, offersConduct(current.further));
+      // A greyed-out action (the Avoid picks under the emergency landing) logs nothing.
+      if (env.further.isBlocked(id, now.conduct)) return;
       // A conduct cannot be cleared: the press of the selected one is no change.
       if (option.kind === 'conduct' && now.conduct === id) return;
       const on = option.kind === 'conduct' ? true : !now.actions.has(id);

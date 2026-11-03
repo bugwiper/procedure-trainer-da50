@@ -2884,6 +2884,31 @@ scenarios[1]:
     expect(selected(r).actions).toEqual(['atc_mayday', 'atc_pan_pan', 'brief_passengers']);
   });
 
+  it('greys the Avoid NVFR and Avoid icing picks out under the emergency landing: a press logs nothing, Avoid IMC stays open, earlier picks stay and count again after switching back', async () => {
+    const r = await inFlight();
+    r.session.toggleDecision('avoid_nvfr');
+    r.session.toggleDecision('avoid_imc');
+    expect(selected(r).actions).toEqual(['avoid_imc', 'avoid_nvfr']);
+    r.session.toggleDecision('conduct_emergency');
+    const logged = r.session.decisions.value.length;
+    // The two greyed-out ones ignore a press (switching on and off alike); Avoid IMC still toggles.
+    r.session.toggleDecision('avoid_nvfr');
+    r.session.toggleDecision('avoid_icing');
+    expect(r.session.decisions.value).toHaveLength(logged);
+    r.session.toggleDecision('avoid_imc');
+    expect(r.session.decisions.value).toHaveLength(logged + 1);
+    r.session.toggleDecision('avoid_imc');
+    // The earlier pick of Avoid NVFR is untouched in the log and the selection.
+    expect(selected(r)).toEqual({
+      actions: ['avoid_imc', 'avoid_nvfr'],
+      conduct: 'conduct_emergency',
+    });
+    // Back to another conduct: both are pressable again and the pick is live.
+    r.session.toggleDecision('conduct_precautionary');
+    r.session.toggleDecision('avoid_icing');
+    expect(selected(r).actions).toEqual(['avoid_icing', 'avoid_imc', 'avoid_nvfr']);
+  });
+
   it('preselects Continue to destination and makes the conduct a radio group: another press switches, the selected one is no change', async () => {
     const r = await inFlight();
     // Selected at the start without a press, and nothing in the log.
