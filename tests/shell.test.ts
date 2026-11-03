@@ -9,7 +9,9 @@ describe('index.html shell', () => {
     expect(html).not.toContain('viewport-fit');
   });
 
-  it('uses a data: favicon so nothing requests /favicon.ico at the host root', () => {
-    expect(html).toContain('rel="icon" href="data:,"');
+  it('names its favicon through the base so nothing requests /favicon.ico at the host root', () => {
+    // 08-02 replaced the empty data: favicon by a PNG; the link is the base-prefixed one.
+    expect(html).toMatch(/<link rel="icon"[^>]*href="%BASE_URL%icons\/favicon-32\.png"/);
+    expect(html).not.toMatch(/<link rel="icon"[^>]*href="\//);
   });
 });
