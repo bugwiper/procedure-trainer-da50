@@ -2142,3 +2142,89 @@ describe('L33: the follow-on of a flight conduct (Phase 9, plan 09-02)', () => {
     }
   });
 });
+
+describe('L28 on a landing scene and L25 for engine_stopped (Phase 9, plan 09-02)', () => {
+  const read = (name: string) =>
+    readFileSync(`${root}tests/fixtures/scenarios/${name}.toon`, 'utf8');
+  const LANDING = read('landing-fixture');
+  const OFF = read('landing-fixture-off');
+  const SOURCE = read('landing-source');
+  const NONE = '  conduct: none';
+  const ACCEPT = '  conduct:\n    accept[1]: conduct_emergency';
+  const hitsOf = (text: string, part: string) =>
+    issuesOf(text).filter((issue) => issue.message.includes(part));
+
+  it('passes both landing fixtures', () => {
+    expect(checkScenario(LANDING, DA50RG_ENV).ok).toBe(true);
+    expect(checkScenario(OFF, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('on a landing scene in flight, conduct: none is right', () => {
+    expect(DA50RG_ENV.further.landingScenes).toContain('outlanding');
+    expect(checkScenario(LANDING, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('on a landing scene, conduct: accept is reported, naming the scene, at the conduct key', () => {
+    const text = swap(LANDING, NONE, ACCEPT);
+    const [hit] = hitsOf(text, 'landing scene');
+    expect(hit?.path).toBe('further.conduct');
+    expect(hit?.message).toContain('"outlanding"');
+    expect(hit?.line).toBe(lineOf(text, '  conduct:'));
+  });
+
+  it('on the ground, conduct: accept is reported with the ground message, not the scene one', () => {
+    const ground = swap(swap(LANDING, NONE, ACCEPT), 'profile:\n', 'profile:\n  ground_roll: 1\n');
+    expect(hitsOf(ground, 'ground scenario')).toHaveLength(1);
+    expect(hitsOf(ground, 'landing scene')).toHaveLength(0);
+  });
+
+  it('on another scene in flight, conduct: none is reported and accept passes', () => {
+    // The source fixture names no scene: the default scene is no landing scene.
+    expect(checkScenario(SOURCE, DA50RG_ENV).ok).toBe(true);
+    const none = swap(
+      swap(SOURCE, ACCEPT, NONE),
+      /\n {2}follow_on:[\s\S]*$/.exec(SOURCE)?.[0] ?? '',
+      '\n',
+    );
+    const [hit] = hitsOf(none, 'a scenario in flight must declare conduct: accept');
+    expect(hit?.path).toBe('further.conduct');
+  });
+
+  it('a landing scene without a further section passes (the section is optional)', () => {
+    const stripped = LANDING.replace(/# The decision to land[\s\S]*?(?=# The run completes)/, '');
+    expect(stripped).not.toBe(LANDING);
+    expect(checkScenario(stripped, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('accepts engine_stopped under profile, inside its range', () => {
+    for (const value of ['0.5', '1']) {
+      const text = swap(OFF, 'engine_stopped: 1', `engine_stopped: ${value}`);
+      expect(checkScenario(text, DA50RG_ENV).ok, value).toBe(true);
+    }
+    // The lower bound, on a file whose start does not depend on a stopped engine.
+    const normal = swap(
+      MINIMAL,
+      'annunciations[1]: eng_oil_temp',
+      'profile:\n  engine_stopped: 0\nannunciations[1]: eng_oil_temp',
+    );
+    expect(checkScenario(normal, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('rejects engine_stopped outside its range, at profile.engine_stopped', () => {
+    const text = swap(OFF, 'engine_stopped: 1', 'engine_stopped: 2');
+    const [hit] = hitsOf(text, 'engine_stopped');
+    expect(hit?.path).toBe('profile.engine_stopped');
+    expect(hit?.line).toBe(lineOf(text, 'engine_stopped: 2'));
+  });
+
+  it('reports engine_stopped under parameters with the profile-parameter message', () => {
+    const text = swap(
+      OFF,
+      'profile:\n  engine_stopped: 1\n',
+      'parameters:\n  engine_stopped: 1\nprofile:\n',
+    );
+    const [hit] = hitsOf(text, 'engine_stopped');
+    expect(hit?.path).toBe('parameters.engine_stopped');
+    expect(hit?.message).toContain('profile');
+  });
+});

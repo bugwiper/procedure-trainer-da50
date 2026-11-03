@@ -256,8 +256,15 @@ function fuelCut(inputs: PhysicsInputs): boolean {
   return tank === null || quantityOf(inputs, tank) <= 0;
 }
 
-/** Engine running: ENGINE MASTER on and the FUEL selector not OFF (NORMAL and EMERGENCY feed alike). */
+/**
+ * Engine running: ENGINE MASTER on and the FUEL selector not OFF (NORMAL and EMERGENCY feed alike).
+ * The profile parameter engine_stopped above 0 (Phase 9, D-08, P-04) stops it from the first second
+ * whatever the switches say, so a situation can start with the engine already dead without a
+ * checklist row for it; this is the only place that reads it, and every model that asks whether the
+ * engine runs (rpm, load, oil, fuel flow, electrics, the flight regime) follows.
+ */
 function running(inputs: PhysicsInputs): boolean {
+  if (parameterOf(inputs, 'engine_stopped') > 0) return false;
   return stateOf(inputs, 'sw.engine_master') === 'on' && !fuelCut(inputs);
 }
 
@@ -729,6 +736,9 @@ export const DA50RG_PHYSICS = definePhysics(
       // parked (Phase 5.1). The ground is a property of the situation, not of the failure, so it is
       // a profile parameter: in force from the first second at every level (Phase 6 review, WR-02).
       { id: 'ground_roll', min: 0, max: 1, normal: 0, profile: true },
+      // 0 is an engine that runs as its switches say; above 0 the engine is stopped from the first
+      // second at every level (Phase 9, D-08): the situation of an emergency landing without power.
+      { id: 'engine_stopped', min: 0, max: 1, normal: 0, profile: true },
       // The outside air temperature in degrees C (Phase 6, D-04c); 15 is the normal situation.
       { id: 'oat_c', min: -40, max: 50, normal: 15, profile: true },
       // How much warmer the left fuel tank is than the right one, degrees C: 3 in the normal situation

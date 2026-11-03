@@ -1,0 +1,88 @@
+# Test fixture, not a shipped scenario (Phase 9, plan 09-02): a synthetic approach to an off-airport field with the engine stopped from the first second (the profile parameter engine_stopped), for the machinery tests. Its rows are not printed checklist text and carry no booklet wording; the two plain action lines have no panel check and are ticked on the sheet. It lives under tests/ so that no pack lists it and the blueprint gate does not read it.
+format: 1
+id: landing-fixture-off
+title: LANDING NO POWER
+source:
+  document: "Test fixture"
+  issue: "none"
+  section: "Synthetic scenario for the approach to a field without engine power"
+  verified: "2026-11-03"
+disclaimer: training-aid
+scene: outlanding
+briefing:
+  situation: "You are gliding toward a single open field ahead at about 80 knots. The engine is stopped and the propeller stands still."
+initial:
+  controls:
+    lv.power: p60
+  quantities:
+    airspeed_kt: 80
+    vertical_speed_fpm: -700
+    altitude_ft: 2200
+    rpm: 0
+    load_pct: 0
+    oil_pressure_bar: 0
+    fuel_flow_gph: 0
+    fuel_pressure_bar: 0
+# The flight profile (in force from the first second at every level; instructor-review values): the engine is stopped and the glide regime applies.
+profile:
+  engine_stopped: 1
+  glide_speed_kt: 80
+  glide_vs_fpm: -700
+annunciations[1]: oil_pres
+# The table form of the booklet: a text and an action on every row.
+checklist:
+  form: table
+procedure[3]:
+  - kind: group
+    id: grp_prepare
+    ordered: false
+    steps[3]:
+      - id: engine_master_off
+        severity: critical
+        text: Engine master
+        action: "OFF"
+        done:
+          check: state
+          control: sw.engine_master
+          is: off
+      - id: fuel_valve_off
+        severity: critical
+        text: Fuel selector
+        action: "OFF"
+        done:
+          check: state
+          control: sw.fuel_valve
+          is: off
+      - id: elect_master_off
+        severity: standard
+        text: Electric master
+        action: "OFF"
+        done:
+          check: state
+          control: sw.elect_master
+          is: off
+  - kind: line
+    text: Seat belts and harnesses
+    action: TIGHTEN
+  - kind: line
+    text: Loose items in the cabin
+    action: SECURE
+forbidden[0]:
+# The run completes by itself when the aircraft reaches the terrain height of the field (lint L32).
+finish:
+  when:
+    check: quantity
+    quantity: altitude_ft
+    op: lte
+    value: 1400
+  text: The aircraft reached the field
+# The decision to land is made: no flight conduct is offered (lint L28, landing scene). The calls and the passengers are recommended or optional and can never fail the run.
+further:
+  actions[3]:
+    - id: atc_mayday
+      role: recommended
+    - id: atc_pan_pan
+      role: optional
+    - id: brief_passengers
+      role: recommended
+  conduct: none

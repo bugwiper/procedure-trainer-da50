@@ -180,3 +180,122 @@ describe('the finish of the fixture (D-09)', () => {
     expect(idle.result).toBe('fail');
   });
 });
+
+// Plan 09-02: both landing fixtures pass the scenario check, declare the landing situation (recommended
+// calls, no conduct) and run to their finish when nothing is done; the second one starts with the
+// engine stopped (D-08, D-11). No file under scenarios/ is involved.
+describe('both landing fixtures (Phase 9, plan 09-02)', () => {
+  const load = (name: string): Scenario => {
+    const result = checkScenario(
+      readFileSync(`${root}tests/fixtures/scenarios/${name}.toon`, 'utf8'),
+      DA50RG_ENV,
+    );
+    if (!result.ok) throw new Error(`${name} does not pass: ${JSON.stringify(result.issues)}`);
+    return result.scenario;
+  };
+  const fixtures = [
+    ['landing-fixture', load('landing-fixture')],
+    ['landing-fixture-off', load('landing-fixture-off')],
+  ] as const;
+
+  for (const [name, scenario] of fixtures) {
+    describe(name, () => {
+      it('is on a landing scene of the aircraft and declares no conduct', () => {
+        expect(scenario.scene).toBeDefined();
+        expect(DA50RG_ENV.further.landingScenes).toContain(scenario.scene);
+        expect(scenario.further?.conduct).toBe('none');
+      });
+
+      it('declares MAYDAY recommended, PAN PAN PAN optional and brief passengers recommended', () => {
+        const roles = Object.fromEntries(
+          (scenario.further?.actions ?? []).map((entry) => [entry.id, entry.role]),
+        );
+        expect(roles).toEqual({
+          atc_mayday: 'recommended',
+          atc_pan_pan: 'optional',
+          brief_passengers: 'recommended',
+        });
+        // None of them is required or harmful, so none can fail a run (R17).
+        expect((scenario.further?.actions ?? []).every((a) => a.fails_run === false)).toBe(true);
+      });
+
+      it('reaches its finish in a run that does nothing, inside the 600 s bound, and fails by missed steps', () => {
+        const state = runTo(600 * SECOND_MS, scenario);
+        expect(state.finish).not.toBeNull();
+        expect(state.outcome).toBeNull();
+        expect(altitudeOf(state)).toBe(TERRAIN_HEIGHT_FT);
+        const graded = grade(scenario, DA50RG_ENV, {
+          scenarioId: scenario.id,
+          completedAt: state.t,
+          events: [],
+        });
+        expect(graded.result).toBe('fail');
+        expect(graded.further?.conduct.declared).toBe('none');
+      });
+    });
+  }
+
+  describe('landing-fixture-off: the engine is stopped from the first second', () => {
+    const off = load('landing-fixture-off');
+
+    it('sets engine_stopped in the profile and no other scenario file of the pair does', () => {
+      expect(off.profile['engine_stopped']).toBe(1);
+      expect(fixtures[0][1].profile['engine_stopped']).toBeUndefined();
+    });
+
+    it('the first frame already shows a stopped engine, and the cue says so', () => {
+      const start = initialQuantities(off, DA50RG_ENV.quantities);
+      expect(start['rpm']).toBe(0);
+      expect(DA50RG_ENV.cues.levels(start)['prop_stopped']).toBe(1);
+      const later = runTo(30 * SECOND_MS, off);
+      expect(later.quantities['rpm']).toBe(0);
+      expect(later.quantities['fuel_flow_gph']).toBe(0);
+    });
+
+    it('descends in the glide regime at the glide values', () => {
+      const state = runTo(40 * SECOND_MS, off);
+      expect(state.quantities['airspeed_kt']).toBeCloseTo(80, 0);
+      expect(state.quantities['vertical_speed_fpm']).toBeCloseTo(-700, 0);
+    });
+
+    it('the engine-off steps are the panel steps, and the two plain lines carry no check', () => {
+      const steps = off.procedure.flatMap((node) => (node.kind === 'group' ? node.steps : []));
+      expect(steps.map((s) => s.id)).toEqual([
+        'engine_master_off',
+        'fuel_valve_off',
+        'elect_master_off',
+      ]);
+      const lines = off.procedure.filter((node) => node.kind === 'line');
+      expect(lines).toHaveLength(2);
+    });
+
+    it('a pilot who switches the three off passes at the field', () => {
+      const store = new PanelStore(DA50RG);
+      store.reset(off.initial.controls);
+      const run = new Run({
+        setup: simSetup(DA50RG_ENV, off),
+        store,
+        start: initialQuantities(off, DA50RG_ENV.quantities),
+      });
+      for (const [id, value] of [
+        ['sw.engine_master', 'off'],
+        ['sw.fuel_valve', 'off'],
+        ['sw.elect_master', 'off'],
+      ] as const) {
+        for (let i = 0; i < 20; i += 1) run.step();
+        expect(store.dispatch(id, value, run.clock.now()).ok).toBe(true);
+      }
+      while (!run.ended) run.step();
+      const recording: Recording = {
+        scenarioId: off.id,
+        completedAt: run.clock.now(),
+        events: store
+          .events()
+          .filter((event) => event.source === 'user')
+          .map((event) => ({ t: event.t, id: event.id, value: event.value })),
+      };
+      expect(grade(off, DA50RG_ENV, recording).result).toBe('pass');
+      run.dispose();
+    });
+  });
+});

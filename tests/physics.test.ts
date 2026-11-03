@@ -1082,6 +1082,44 @@ describe('DA50 RG models for every quantity (plan 03-02, Table P2, C-09)', () =>
     });
   });
 
+  describe('the stopped engine of the profile (Phase 9, D-08)', () => {
+    const STOPPED = { engine_stopped: 1 };
+
+    it('is a profile parameter, 0 to 1, normal 0', () => {
+      const parameter = DA50RG_PHYSICS.parameter('engine_stopped');
+      expect(parameter).toMatchObject({ min: 0, max: 1, normal: 0, profile: true });
+    });
+
+    it('with 0 every quantity of a run equals the run without the parameter', () => {
+      const plain = settle({}, MINUTE);
+      const zero = settle({}, MINUTE, { parameters: { engine_stopped: 0 } });
+      expect(zero).toEqual(plain);
+    });
+
+    it('with 1 and the switches as they are the engine is dead like ENGINE MASTER off', () => {
+      const stopped = settle({}, MINUTE, { parameters: STOPPED });
+      const off = settle({ 'sw.engine_master': 'off' }, MINUTE);
+      expect(q(stopped, 'rpm')).toBeLessThan(1);
+      for (const id of ['rpm', 'load_pct', 'oil_pressure_bar', 'fuel_pressure_bar', 'alt1_amps']) {
+        nearZero(q(stopped, id), baseOf(id));
+        expect(q(stopped, id), id).toBe(q(off, id));
+      }
+      expect(q(stopped, 'fuel_flow_gph')).toBe(0);
+      expect(q(stopped, 'fuel_flow_gph')).toBe(q(off, 'fuel_flow_gph'));
+    });
+
+    it('wins over a ENGINE MASTER on and the FUEL selector EMERGENCY', () => {
+      const stopped = settle({ 'sw.fuel_valve': 'emergency' }, MINUTE, { parameters: STOPPED });
+      expect(q(stopped, 'rpm')).toBeLessThan(1);
+    });
+
+    it('stops from the first second: the speed has fallen after one second, not only after a switch', () => {
+      const start = q(settle({}, 0, { parameters: STOPPED }), 'rpm');
+      const later = q(settle({}, 1000, { parameters: STOPPED }), 'rpm');
+      expect(later).toBeLessThan(start);
+    });
+  });
+
   describe('the fuel cut of the FUEL selector (plan 03-08, C-44)', () => {
     it('OFF drops rpm, load, oil pressure, fuel pressure and Amps like ENGINE MASTER OFF', () => {
       const cut = settle({ 'sw.fuel_valve': 'off' }, MINUTE);

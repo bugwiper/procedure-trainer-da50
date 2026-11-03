@@ -36,6 +36,16 @@ procedure[1]:
           control: sw.elect_master
           is: off
 forbidden[0]:
+# The decision to land is made: no flight conduct is offered (lint L28, landing scene). The calls and the passengers are recommended or optional and can never fail the run.
+further:
+  actions[3]:
+    - id: atc_mayday
+      role: recommended
+    - id: atc_pan_pan
+      role: optional
+    - id: brief_passengers
+      role: recommended
+  conduct: none
 # The run completes by itself when the aircraft reaches the terrain height of the field (lint L32).
 finish:
   when:

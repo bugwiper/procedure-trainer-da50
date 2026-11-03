@@ -213,6 +213,25 @@ describe('defineFurther', () => {
     expect(texts[0]?.title.trim()).not.toBe('');
   });
 
+  it('lists the landing scenes: none by default, the ids given, each once and an id', () => {
+    expect(defineFurther(valid).landingScenes).toEqual([]);
+    expect(defineFurther({ ...valid, landingScenes: ['field', 'strip'] }).landingScenes).toEqual([
+      'field',
+      'strip',
+    ]);
+    for (const landingScenes of [['Field'], ['field', 'field'], ['']]) {
+      expect(() => defineFurther({ ...valid, landingScenes })).toThrow(FurtherError);
+    }
+  });
+
+  it('every landing scene of the aircraft is a scene of the aircraft, and the outlanding is one', () => {
+    expect(SET.landingScenes.length).toBeGreaterThan(0);
+    for (const id of SET.landingScenes) expect(DA50RG_ENV.scenes.ids).toContain(id);
+    expect(SET.landingScenes).toContain('outlanding');
+    // The default scene of the free panel and of a scenario without a scene is no landing scene.
+    expect(SET.landingScenes).not.toContain(DA50RG_ENV.scenes.default);
+  });
+
   it('answers isBlocked from the conduct options an action lists', () => {
     const set = defineFurther({
       ...valid,

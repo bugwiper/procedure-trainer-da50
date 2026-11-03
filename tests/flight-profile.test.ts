@@ -640,3 +640,87 @@ describe('the ground situations are on the ground before the onset (WR-02)', () 
     }
   });
 });
+
+// Phase 9 (plan 09-02, D-08): the profile parameter engine_stopped stops the engine from the first
+// second at every level; the existing glide regime and the stopped-propeller cue apply.
+describe('the stopped engine of the profile (Phase 9, D-08)', () => {
+  const profile = { engine_stopped: 1, glide_speed_kt: 80, glide_vs_fpm: -700 };
+  const gliding = flight(profile, { quantities: { [ALT]: 3000 } });
+  const powered = flight(
+    { glide_speed_kt: 80, glide_vs_fpm: -700 },
+    { quantities: { [ALT]: 3000 } },
+  );
+
+  it('is a profile parameter', () => {
+    expect(parameter('engine_stopped').profile).toBe(true);
+  });
+
+  it('the glide values are reached with every switch as it is, from the first second', () => {
+    const state = run(gliding, at(60));
+    expect(q(state, SPEED)).toBeCloseTo(80, 1);
+    expect(q(state, VS)).toBeCloseTo(-700, 0);
+    expect(q(state, ALT)).toBeLessThan(3000);
+    // The same file without the parameter flies the powered regime (140 kt, level).
+    const flying = run(powered, at(60));
+    expect(q(flying, SPEED)).toBeCloseTo(140, 1);
+    expect(q(flying, VS)).toBeCloseTo(0, 0);
+  });
+
+  it('the same values as ENGINE MASTER off in the powered file', () => {
+    const stoppedByParameter = run(gliding, at(60));
+    const stoppedBySwitch = run(powered, at(60), [ENGINE_OFF]);
+    for (const id of [SPEED, VS, PITCH, BANK]) {
+      expect(q(stoppedByParameter, id), id).toBeCloseTo(q(stoppedBySwitch, id), 0);
+    }
+  });
+
+  it('the pitch follows the glide: a nose-down attitude', () => {
+    expect(q(run(gliding, at(60)), PITCH)).toBeLessThan(0);
+  });
+
+  it('the propeller cue shows stopped, and the engine reads zero', () => {
+    const state = run(gliding, at(60));
+    expect(q(state, 'rpm')).toBeLessThan(1);
+    expect(DA50RG_ENV.cues.levels(state.quantities)['prop_stopped']).toBe(1);
+    expect(q(state, 'fuel_flow_gph')).toBe(0);
+    const spinning = run(powered, at(60));
+    expect(DA50RG_ENV.cues.levels(spinning.quantities)['prop_stopped']).toBe(0);
+  });
+
+  it('a Realistic start is on the glide before the onset, as on every level', () => {
+    // The Realistic start takes the base quantities laid over by the onset quantities: 3000 ft here.
+    const onset = {
+      window_s: [60, 120],
+      quantities: { [ALT]: 3000 },
+      parameters: {},
+      controls: {},
+      cues: [],
+    };
+    const withOnset = flight(profile, {
+      quantities: { [ALT]: 3000 },
+      onset: onset as unknown as Scenario['onset'],
+    });
+    const state = run(withOnset, at(30), [], at(100));
+    expect(q(state, SPEED)).toBeCloseTo(80, 0);
+    expect(q(state, VS)).toBeCloseTo(-700, 0);
+    expect(q(state, 'rpm')).toBeLessThan(1);
+  });
+
+  it('a live Run equals its replay at every step', () => {
+    const setup = simSetup(DA50RG_ENV, gliding);
+    const start = initialQuantities(gliding, DA50RG_ENV.quantities);
+    const store = new PanelStore(DA50RG);
+    store.reset(gliding.initial.controls);
+    const live = new Run({ setup, store, start });
+    for (let n = 1; n <= 200; n += 1) {
+      live.step();
+      const replay = simulate(setup, {
+        events: store.events(),
+        start,
+        untilMs: live.state.t,
+      }).state;
+      expect(live.state, `step ${n}`).toEqual(replay);
+    }
+    live.dispose();
+  });
+});

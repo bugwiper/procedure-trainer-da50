@@ -45,7 +45,7 @@
 // L31 (plan 07-06) allows the `conduct_note` of the further section only where `accept` lists the conduct the note speaks of.
 // L27 and L28 (Phase 7) check the optional `further` section: L27 the actions (every id is an action
 // option of the aircraft, listed once, `fails_run` only on the role harmful), L28 the flight conduct
-// (`none` exactly when the profile puts the aircraft on the ground, every accepted id is a conduct
+// (`none` exactly when the profile puts the aircraft on the ground or the scene is a landing scene of the aircraft, every accepted id is a conduct
 // option of the aircraft, listed once, and not all of them). L20 also makes the required decisions
 // and the first accepted conduct in the solution it builds.
 // L32 (Phase 9, D-09) checks the optional `finish` (the run completes by itself when it holds): its
@@ -791,6 +791,11 @@ function checkFurther(
   checkFollowOn(section, set, add);
 
   const onGround = (scenario.profile[set.groundParameter] ?? 0) > 0;
+  // Phase 9, D-11: a scenario on a landing scene has made the decision to land, like a scenario on the
+  // ground has no flight; both declare conduct: none.
+  const sceneId = scenario.scene ?? env.scenes.default;
+  const onLanding = set.landingScenes.includes(sceneId);
+  const landingMessage = `landing scene "${sceneId}": declare conduct: none, the decision to land is made and no flight conduct is offered`;
   if (section.conduct === 'none') {
     if (section.conduct_note !== undefined) {
       add(
@@ -798,7 +803,7 @@ function checkFurther(
         'L31: a conduct note belongs to a scenario that accepts continuing to the destination; this one offers no conduct',
       );
     }
-    if (!onGround) {
+    if (!onGround && !onLanding) {
       add(
         ['further', 'conduct'],
         'a scenario in flight must declare conduct: accept, the flight conduct is part of the decision',
@@ -811,6 +816,8 @@ function checkFurther(
       ['further', 'conduct'],
       'ground scenario: declare conduct: none, no flight conduct decision is offered on the ground',
     );
+  } else if (onLanding) {
+    add(['further', 'conduct'], landingMessage);
   }
   const accepted = new Set<string>();
   section.conduct.accept.forEach((id, i) => {

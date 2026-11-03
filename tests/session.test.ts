@@ -16,6 +16,7 @@ import { OPEN_ACCESS, createPackProvider } from '../src/scenario/packs';
 import type { AccessPolicy } from '../src/scenario/packs';
 import type { Scenario } from '../src/scenario/schema';
 import { createPanelBridge } from '../src/ui/bridge';
+import { FurtherAreaFrame } from '../src/ui/panel/frames/FurtherAreaFrame';
 import { checklistHead } from '../src/ui/outline';
 import { anyModalOpen } from '../src/ui/modals';
 import { SESSION_LAYOUT, pageCount, pageSlice } from '../src/ui/panel/session-area';
@@ -3703,6 +3704,7 @@ describe('the follow-on of the debrief (Phase 9, plan 09-02, D-02, D-03)', () =>
     // The follow-on run is graded on its own: another scenario, another recording.
     expect(r.session.result.value?.scenarioId).toBe('landing-fixture');
     expect(r.session.recording.value?.scenarioId).toBe('landing-fixture');
+    expect(r.session.result.value?.further?.conduct.declared).toBe('none');
     // The first run's records, held by value, are as they were and grade to the same result.
     expect(JSON.stringify({ firstResult, firstRecording })).toBe(before);
     expect(JSON.stringify(grade(firstScenario, DA50RG_ENV, firstRecording))).toBe(
@@ -3772,4 +3774,74 @@ describe('the follow-on of the debrief (Phase 9, plan 09-02, D-02, D-03)', () =>
     expect(r.session.briefing.value?.scenario.id).toBe('landing-fixture');
     expect(r.session.level.value).toBe('easy');
   });
+});
+
+describe('a landing situation offers no conduct (Phase 9, plan 09-02, D-11)', () => {
+  const LANDINGS = {
+    'landing-fixture': readFileSync(
+      join(root, 'tests/fixtures/scenarios/landing-fixture.toon'),
+      'utf8',
+    ),
+    'landing-fixture-off': readFileSync(
+      join(root, 'tests/fixtures/scenarios/landing-fixture-off.toon'),
+      'utf8',
+    ),
+  };
+  const MANIFEST = `format: 1
+title: Landing
+free: true
+scenarios[2]:
+  - id: landing-fixture
+    title: LANDING FIXTURE
+    file: landing-fixture
+  - id: landing-fixture-off
+    title: LANDING NO POWER
+    file: landing-fixture-off
+`;
+  const SET = DA50RG_ENV.further;
+  const startOf = async (id: keyof typeof LANDINGS) => {
+    const r = rig({ manifest: MANIFEST, files: LANDINGS });
+    await r.session.openChooser();
+    await r.session.chooseScenario({ pack: 'engine', scenario: id });
+    r.session.setLevel('easy');
+    r.session.startRun();
+    expect(r.session.screen.value).toBe('running');
+    return r;
+  };
+
+  for (const id of Object.keys(LANDINGS) as (keyof typeof LANDINGS)[]) {
+    it(`${id}: the footwell shows MAYDAY, PAN PAN PAN and brief passengers, not the conduct or the Avoid row`, async () => {
+      const r = await startOf(id);
+      const frame = FurtherAreaFrame({
+        session: r.session,
+        bridge: r.bridge,
+        region: DA50RG.regions[0] as never,
+      }) as { props: { children: ({ props: { id: string } } | null)[]; [k: string]: unknown } };
+      expect(frame.props['data-further-conduct']).toBe('false');
+      const drawn = frame.props.children.flatMap((child) =>
+        child === null ? [] : [child.props.id.replace('further.', '')],
+      );
+      const calls = SET.ids('action').filter((option) => SET.option(option)?.avoid !== true);
+      // The slots fix the order on the plate; the set is what matters.
+      expect([...drawn].sort()).toEqual([...calls].sort());
+      expect([...drawn].sort()).toEqual(['atc_mayday', 'atc_pan_pan', 'brief_passengers']);
+    });
+
+    it(`${id}: a press of a conduct or an Avoid button logs nothing, a call is logged`, async () => {
+      const r = await startOf(id);
+      expect(r.session.furtherSelection.value.conduct).toBeNull();
+      for (const option of SET.options) {
+        if (option.kind === 'conduct' || option.avoid === true) r.session.toggleDecision(option.id);
+      }
+      expect(r.session.decisions.value).toEqual([]);
+      r.session.toggleDecision('atc_mayday');
+      expect(r.session.decisions.value.map((d) => d.id)).toEqual(['atc_mayday']);
+      expect(r.session.furtherSelection.value.conduct).toBeNull();
+      r.session.complete();
+      expect(r.session.result.value?.further?.conduct.declared).toBe('none');
+      expect(
+        r.session.result.value?.further?.actions.find((a) => a.id === 'atc_mayday')?.done,
+      ).toBe(true);
+    });
+  }
 });

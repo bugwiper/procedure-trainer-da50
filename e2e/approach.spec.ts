@@ -110,3 +110,15 @@ test('the horizon of the PFD still moves with the pitch over the approach scene'
   expect(level).not.toBeNull();
   expect(pitched).not.toBe(level);
 });
+
+test('the stopped propeller shows on the approach scene as on the others (engine_stopped, Phase 9)', async ({
+  page,
+}) => {
+  await open(page, `scene=outlanding&q=altitude_ft:${String(HEIGHTS[1])},rpm:0`);
+  await expect(page.locator(SCENE)).toHaveCount(1);
+  await expect(page.locator('[data-part="blade_stopped"]')).toHaveAttribute('opacity', '1');
+  await expect(page.locator('[data-part="disc"]')).toHaveAttribute('fill-opacity', '0');
+  // A turning engine on the same scene shows the faint disc and no blade.
+  await open(page, `scene=outlanding&q=altitude_ft:${String(HEIGHTS[1])},rpm:600`);
+  await expect(page.locator('[data-part="blade_stopped"]')).toHaveAttribute('opacity', '0');
+});

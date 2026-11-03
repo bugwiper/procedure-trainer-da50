@@ -58,6 +58,13 @@ export interface FurtherDefinition {
   /** The profile parameter that puts the aircraft on the ground: a scenario with it above 0 has no conduct. */
   readonly groundParameter: string;
   /**
+   * The scene ids that are themselves a landing (Phase 9, D-11; optional, none by default): a
+   * scenario on one of them declares `conduct: none`, like a scenario on the ground, because the
+   * decision to land is made and the flight conduct buttons would ask it again. Lint L28 reads it;
+   * every id must name a scene of the aircraft (checked where the aircraft is assembled).
+   */
+  readonly landingScenes?: readonly string[];
+  /**
    * The conduct option that is selected when a run starts, without any press (owner decision
    * 2026-11-02: "Continue to destination" is preselected, the pilot deviates by pressing another one). It
    * counts like a pick. Must name an option of kind `conduct`.
@@ -72,6 +79,8 @@ export interface FurtherDefinition {
 }
 
 export interface FurtherSet extends FurtherDefinition {
+  /** The scene ids that are themselves a landing; empty when the aircraft names none. */
+  readonly landingScenes: readonly string[];
   has(id: string): boolean;
   option(id: string): FurtherOption | undefined;
   /** The ids of the options of one kind, in list order. */
@@ -129,6 +138,15 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
   if (!FURTHER_ID_PATTERN.test(definition.groundParameter)) {
     throw new FurtherError(`the ground parameter "${definition.groundParameter}" is not an id`);
   }
+  const landingScenes = definition.landingScenes ?? [];
+  for (const id of landingScenes) {
+    if (!FURTHER_ID_PATTERN.test(id)) {
+      throw new FurtherError(`the landing scene "${id}" is not an id`);
+    }
+  }
+  if (new Set(landingScenes).size !== landingScenes.length) {
+    throw new FurtherError('the landing scenes list an id twice');
+  }
   if (byId.get(definition.defaultConduct)?.kind !== 'conduct') {
     throw new FurtherError(
       `the default conduct "${definition.defaultConduct}" is not a conduct option`,
@@ -141,6 +159,7 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
     options: Object.freeze([...definition.options]),
     conductTitle: definition.conductTitle,
     groundParameter: definition.groundParameter,
+    landingScenes: Object.freeze([...landingScenes]),
     defaultConduct: definition.defaultConduct,
     noteConduct: definition.noteConduct,
     has: (id: string) => byId.has(id),
