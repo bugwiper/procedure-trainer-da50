@@ -2081,3 +2081,64 @@ describe('L32: the finish', () => {
     expect(checkScenario(text, DA50RG_ENV).ok).toBe(true);
   });
 });
+
+describe('L33: the follow-on of a flight conduct (Phase 9, plan 09-02)', () => {
+  const SOURCE = readFileSync(`${root}tests/fixtures/scenarios/landing-source.toon`, 'utf8');
+  const SET = DA50RG_ENV.further;
+  const withFollowOn = SET.ids('conduct').filter((id) => SET.option(id)?.followOn !== undefined);
+  const withoutFollowOn = SET.ids('conduct').filter((id) => SET.option(id)?.followOn === undefined);
+  const KEY = '    conduct_emergency:\n      pack: engine';
+
+  it('passes the source fixture', () => {
+    expect(checkScenario(SOURCE, DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('rejects a conduct the aircraft gives no follow-on, at the key', () => {
+    const [other] = withoutFollowOn;
+    if (other === undefined) throw new Error('every conduct has a follow-on');
+    const text = swap(SOURCE, KEY, KEY.replace('conduct_emergency', other));
+    const hits = issuesOf(text).filter((i) => i.message.startsWith('L33'));
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({
+      path: `further.follow_on.${other}`,
+      line: lineOf(text, `    ${other}:`),
+    });
+    expect(hits[0]?.message).toContain(`known: ${withFollowOn.join(', ')}`);
+  });
+
+  it('rejects an unknown key', () => {
+    const text = swap(SOURCE, KEY, KEY.replace('conduct_emergency', 'conduct_nope'));
+    const hits = issuesOf(text).filter((i) => i.message.startsWith('L33'));
+    expect(hits.map((h) => h.path)).toEqual(['further.follow_on.conduct_nope']);
+  });
+
+  it('rejects a conduct the scenario does not accept', () => {
+    const [other] = withoutFollowOn;
+    if (other === undefined) throw new Error('every conduct has a follow-on');
+    const text = swap(SOURCE, 'accept[1]: conduct_emergency', `accept[1]: ${other}`);
+    const hits = issuesOf(text).filter((i) => i.message.startsWith('L33'));
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.path).toBe('further.follow_on.conduct_emergency');
+    expect(hits[0]?.message).toContain('needs accept to list "conduct_emergency"');
+  });
+
+  it('rejects a follow-on under conduct: none', () => {
+    const text = swap(SOURCE, '  conduct:\n    accept[1]: conduct_emergency', '  conduct: none');
+    const hits = issuesOf(text).filter((i) => i.message.startsWith('L33'));
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.message).toContain('offers no conduct');
+  });
+
+  it('the schema refuses a target without both ids and an id that is no id', () => {
+    for (const text of [
+      swap(SOURCE, '      pack: engine\n', ''),
+      swap(SOURCE, 'pack: engine', 'pack: ../engine'),
+      swap(SOURCE, 'scenario: landing-fixture', 'scenario: Landing_Fixture'),
+    ]) {
+      const result = checkScenario(text, DA50RG_ENV);
+      expect(result.ok).toBe(false);
+      if (!result.ok)
+        expect(result.issues.every((i) => i.path.startsWith('further.follow_on'))).toBe(true);
+    }
+  });
+});

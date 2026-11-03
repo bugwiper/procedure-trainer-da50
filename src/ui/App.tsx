@@ -417,6 +417,9 @@ export function App() {
           onNext={() => {
             void session.nextSituation();
           }}
+          onFollowOn={() => {
+            void session.continueToFollowOn();
+          }}
         />
       ) : null}
       {session.confirm.value !== null ? (

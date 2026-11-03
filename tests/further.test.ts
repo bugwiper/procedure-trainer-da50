@@ -148,6 +148,36 @@ describe('defineFurther', () => {
       },
     ],
     [
+      'a follow-on on an action',
+      {
+        ...valid,
+        options: [
+          ...valid.options,
+          { id: 'a_x', text: 'x', kind: 'action' as const, followOn: { label: 'L', title: 'T' } },
+        ],
+      },
+    ],
+    [
+      'a follow-on without a label',
+      {
+        ...valid,
+        options: [
+          ...valid.options,
+          { id: 'c_x', text: 'x', kind: 'conduct' as const, followOn: { label: ' ', title: 'T' } },
+        ],
+      },
+    ],
+    [
+      'a follow-on without a title',
+      {
+        ...valid,
+        options: [
+          ...valid.options,
+          { id: 'c_x', text: 'x', kind: 'conduct' as const, followOn: { label: 'L', title: '' } },
+        ],
+      },
+    ],
+    [
       'an avoid option that is a conduct',
       {
         ...valid,
@@ -159,6 +189,28 @@ describe('defineFurther', () => {
     ],
   ])('rejects %s', (_name, definition) => {
     expect(() => defineFurther(definition)).toThrow(FurtherError);
+  });
+
+  it('keeps the follow-on text of a conduct option', () => {
+    const set = defineFurther({
+      ...valid,
+      options: [
+        ...valid.options,
+        { id: 'c_two', text: 'x', kind: 'conduct', followOn: { label: 'Go', title: 'Go on' } },
+      ],
+    });
+    expect(set.option('c_two')?.followOn).toEqual({ label: 'Go', title: 'Go on' });
+    expect(set.option('c_one')?.followOn).toBeUndefined();
+  });
+
+  it('the aircraft gives the emergency landing a follow-on label and title in own words', () => {
+    const texts = SET.ids('conduct').flatMap((id) => {
+      const text = SET.option(id)?.followOn;
+      return text === undefined ? [] : [{ id, ...text }];
+    });
+    expect(texts.map((t) => t.id)).toEqual([emergency]);
+    expect(texts[0]?.label.trim()).not.toBe('');
+    expect(texts[0]?.title.trim()).not.toBe('');
   });
 
   it('answers isBlocked from the conduct options an action lists', () => {

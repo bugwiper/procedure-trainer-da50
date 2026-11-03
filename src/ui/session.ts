@@ -48,6 +48,7 @@ import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
 import type { Scenario } from '../scenario/schema';
 import type { PanelBridge } from './bridge';
+import { followOnOffer } from './debrief-text';
 import { checklistHead } from './outline';
 import { pageCount } from './panel/session-area';
 
@@ -378,6 +379,14 @@ export interface Session {
    * onset (D-14).
    */
   nextSituation(): Promise<void>;
+  /**
+   * Debrief only, not while a load runs, and only where the debrief offers the follow-on button
+   * (Phase 9, D-02, D-03): opens the situation the graded scenario names for the conduct selected
+   * at the end, through the pack seam, as Next situation does (same level, nothing carried over
+   * from the graded run, which stays untouched until the open succeeds). A target that cannot be
+   * opened shows the load-failure state; its retry repeats this start.
+   */
+  continueToFollowOn(): Promise<void>;
 }
 
 /** The two records a retry reuses: the onset of a Realistic run and the cause of a variant run. */
@@ -765,6 +774,22 @@ export function createSession(deps: SessionDeps): Session {
       await openBriefing(ref, true);
       // A failure to load leaves the free panel with the message; Retry repeats this entry.
       if (loadFailure.peek() !== null) lastRequest = { kind: 'chosen', ref, key: 'session.next' };
+    });
+  };
+
+  /** Debrief only, not busy: the follow-on the debrief offers opens its briefing (Phase 9, D-02). */
+  const runFollowOn = async (): Promise<void> => {
+    const graded = result.peek();
+    if (screen.peek() !== 'debrief' || busy.peek() || graded === null) return;
+    const offer = followOnOffer(graded, scenario.peek()?.further, env.further);
+    if (offer === null) return;
+    const ref = offer.ref;
+    await loading('session.follow_on', async () => {
+      await openBriefing(ref, true);
+      // A failure to load leaves the free panel with the message; Retry repeats this start.
+      if (loadFailure.peek() !== null) {
+        lastRequest = { kind: 'chosen', ref, key: 'session.follow_on' };
+      }
     });
   };
 
@@ -1272,5 +1297,6 @@ export function createSession(deps: SessionDeps): Session {
       }
     },
     nextSituation: runNext,
+    continueToFollowOn: runFollowOn,
   };
 }

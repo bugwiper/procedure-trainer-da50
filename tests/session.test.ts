@@ -20,7 +20,7 @@ import { checklistHead } from '../src/ui/outline';
 import { anyModalOpen } from '../src/ui/modals';
 import { SESSION_LAYOUT, pageCount, pageSlice } from '../src/ui/panel/session-area';
 import { CATALOG_REFERENCE } from './checklist-catalog-reference';
-import { reasonLines } from '../src/ui/debrief-text';
+import { followOnOffer, reasonLines } from '../src/ui/debrief-text';
 import { attachClockDriver } from '../src/ui/clock-driver';
 import {
   LEVELS,
@@ -3548,5 +3548,228 @@ scenarios[1]:
       expect(d.loads.length - loadsBefore).toBe(single.loads.length - singleBefore);
       expect(d.session.briefing.value?.scenario.id).toBe('eng-oil-temp-copy');
     });
+  });
+});
+
+describe('the follow-on of the debrief (Phase 9, plan 09-02, D-02, D-03)', () => {
+  const SOURCE = readFileSync(join(root, 'tests/fixtures/scenarios/landing-source.toon'), 'utf8');
+  const LANDING = readFileSync(join(root, 'tests/fixtures/scenarios/landing-fixture.toon'), 'utf8');
+  const manifestOf = (entries: readonly (readonly [string, string])[]): string =>
+    `format: 1\ntitle: Engine\nfree: true\nscenarios[${String(entries.length)}]:\n${entries
+      .map(([id, title]) => `  - id: ${id}\n    title: ${title}\n    file: ${id}`)
+      .join('\n')}\n`;
+  const MANIFEST = manifestOf([
+    ['landing-source', 'LANDING SOURCE'],
+    ['landing-fixture', 'LANDING FIXTURE'],
+  ]);
+  // The oil-temperature blueprint has an onset; its section accepts the emergency landing and names
+  // the landing fixture, so the Realistic start can be tried (the landing fixture has no onset).
+  const WITH_ONSET = BLUEPRINT.replace(
+    '    accept[1]: conduct_precautionary',
+    '    accept[1]: conduct_emergency',
+  ).concat(
+    '  follow_on:\n    conduct_emergency:\n      pack: engine\n      scenario: landing-fixture\n',
+  );
+  if (WITH_ONSET === BLUEPRINT) throw new Error('the blueprint accept line was not found');
+  const MANIFEST_ONSET = manifestOf([
+    ['eng-oil-temp-green', 'ENG OIL TEMP'],
+    ['landing-fixture', 'LANDING FIXTURE'],
+  ]);
+
+  const files = (): Record<string, string | Error> => ({
+    'landing-source': SOURCE,
+    'landing-fixture': LANDING,
+  });
+  const offerOf = (r: Rig) => {
+    const graded = r.session.result.value;
+    if (graded === null) throw new Error('no result');
+    return followOnOffer(graded, r.session.scenario.value?.further, DA50RG_ENV.further);
+  };
+
+  /** The source fixture run to its debrief with the given conduct presses (none: the default stays). */
+  async function sourceDebrief(
+    presses: readonly string[],
+    level: 'easy' | 'medium' = 'easy',
+    options: Parameters<typeof rig>[0] = {},
+  ): Promise<Rig> {
+    const r = rig({ manifest: MANIFEST, files: files(), ...options });
+    await r.session.openChooser();
+    await r.session.chooseScenario({ pack: 'engine', scenario: 'landing-source' });
+    r.session.setLevel(level);
+    r.session.startRun();
+    for (const id of presses) r.session.toggleDecision(id);
+    r.session.complete();
+    expect(r.session.screen.value).toBe('debrief');
+    return r;
+  }
+
+  it('offers the follow-on exactly when the emergency landing is the conduct at the end', async () => {
+    const r = await sourceDebrief(['conduct_emergency']);
+    expect(offerOf(r)).toEqual({
+      ref: { pack: 'engine', scenario: 'landing-fixture' },
+      label: DA50RG_ENV.further.option('conduct_emergency')?.followOn?.label,
+      title: DA50RG_ENV.further.option('conduct_emergency')?.followOn?.title,
+    });
+    // The decision to land was made either way: the offer stands after FAIL as well.
+    expect(r.session.result.value?.result).toBe('fail');
+  });
+
+  it('offers nothing with another conduct at the end, and nothing for a scenario without the map', async () => {
+    const other = await sourceDebrief(['conduct_emergency', 'conduct_precautionary']);
+    expect(offerOf(other)).toBeNull();
+    const kept = await sourceDebrief([]);
+    expect(offerOf(kept)).toBeNull();
+
+    const plain = rig();
+    await plain.session.newSituation();
+    plain.session.startRun();
+    plain.session.toggleDecision('conduct_emergency');
+    plain.session.complete();
+    expect(offerOf(plain)).toBeNull();
+    await plain.session.continueToFollowOn();
+    expect(plain.session.screen.value).toBe('debrief');
+    expect(plain.loads.at(-1)).toBe('eng-oil-temp-green');
+    expect(new Set(plain.loads)).toEqual(new Set(['eng-oil-temp-green']));
+  });
+
+  it('opens the briefing of the follow-on through the seam with the level kept', async () => {
+    for (const level of ['easy', 'medium'] as const) {
+      const r = await sourceDebrief(['conduct_emergency'], level);
+      const loaded = r.loads.length;
+      await r.session.continueToFollowOn();
+      expect(r.session.screen.value).toBe('briefing');
+      expect(r.session.briefing.value?.scenario.id).toBe('landing-fixture');
+      expect(r.session.level.value).toBe(level);
+      expect(r.session.levelPicked.value).toBe(true);
+      expect(r.session.openedRef.value).toEqual({ pack: 'engine', scenario: 'landing-fixture' });
+      // Nothing is carried over: the free-panel cleanup ran, the log is empty.
+      expect(r.session.result.value).toBeNull();
+      expect(r.session.recording.value).toBeNull();
+      expect(r.session.decisions.value).toEqual([]);
+      expect(r.bridge.store.events()).toEqual([]);
+      // The target was read through the seam for the start.
+      expect(r.loads.slice(loaded)).toContain('landing-fixture');
+      r.session.startRun();
+      expect(r.session.screen.value).toBe('running');
+      expect(r.session.scenario.value?.id).toBe('landing-fixture');
+      expect(r.bridge.stateOf('lv.power').value).toBe('p60');
+      // Nothing of the first run's presses is carried over.
+      expect(r.session.furtherSelection.value.picks).toEqual([]);
+    }
+  });
+
+  it('shows the level card after a Realistic run, because the fixture has no onset', async () => {
+    const r = rig({
+      manifest: MANIFEST_ONSET,
+      files: { 'eng-oil-temp-green': WITH_ONSET, 'landing-fixture': LANDING },
+    });
+    await r.session.openChooser();
+    await r.session.chooseScenario({ pack: 'engine', scenario: 'eng-oil-temp-green' });
+    r.session.setLevel('realistic');
+    expect(r.session.screen.value).toBe('running');
+    // Presses count from the onset on.
+    const run = r.session.run.value;
+    const onsetAt = r.session.onset.value?.at ?? Number.POSITIVE_INFINITY;
+    if (run === null) throw new Error('no run');
+    while (run.clock.now() < onsetAt && r.session.screen.value === 'running') run.step();
+    expect(r.session.screen.value).toBe('running');
+    r.session.toggleDecision('conduct_emergency');
+    r.session.complete();
+    expect(offerOf(r)).not.toBeNull();
+    await r.session.continueToFollowOn();
+    expect(r.session.screen.value).toBe('briefing');
+    expect(r.session.briefing.value?.scenario.id).toBe('landing-fixture');
+    expect(r.session.level.value).toBe('realistic');
+    expect(r.session.levelPicked.value).toBe(false);
+  });
+
+  it('leaves the result, the recording and the debrief data of the first run untouched', async () => {
+    const r = await sourceDebrief(['conduct_emergency']);
+    const firstResult = r.session.result.value;
+    const firstRecording = r.session.recording.value;
+    const firstScenario = r.session.scenario.value;
+    if (firstResult === null || firstRecording === null || firstScenario === null) {
+      throw new Error('no first run');
+    }
+    const before = JSON.stringify({ firstResult, firstRecording });
+    // Computing the offer changes nothing.
+    offerOf(r);
+    expect(JSON.stringify({ firstResult, firstRecording })).toBe(before);
+    expect(JSON.stringify(r.session.result.value)).toBe(JSON.stringify(firstResult));
+
+    await r.session.continueToFollowOn();
+    r.session.startRun();
+    r.session.complete();
+    // The follow-on run is graded on its own: another scenario, another recording.
+    expect(r.session.result.value?.scenarioId).toBe('landing-fixture');
+    expect(r.session.recording.value?.scenarioId).toBe('landing-fixture');
+    // The first run's records, held by value, are as they were and grade to the same result.
+    expect(JSON.stringify({ firstResult, firstRecording })).toBe(before);
+    expect(JSON.stringify(grade(firstScenario, DA50RG_ENV, firstRecording))).toBe(
+      JSON.stringify(firstResult),
+    );
+  });
+
+  it('Retry inside the follow-on restarts the follow-on', async () => {
+    const r = await sourceDebrief(['conduct_emergency']);
+    await r.session.continueToFollowOn();
+    r.session.startRun();
+    r.session.complete();
+    expect(r.session.screen.value).toBe('debrief');
+    r.session.retry();
+    expect(r.session.screen.value).toBe('running');
+    expect(r.session.scenario.value?.id).toBe('landing-fixture');
+    expect(r.session.level.value).toBe('easy');
+  });
+
+  it('does nothing outside the debrief and while a load runs', async () => {
+    const free = rig({ manifest: MANIFEST, files: files() });
+    await free.session.continueToFollowOn();
+    expect(free.session.screen.value).toBe('free');
+    expect(free.loads).toEqual([]);
+
+    const running = rig({ manifest: MANIFEST, files: files() });
+    await running.session.openChooser();
+    await running.session.chooseScenario({ pack: 'engine', scenario: 'landing-source' });
+    await running.session.continueToFollowOn();
+    expect(running.session.screen.value).toBe('briefing');
+    running.session.startRun();
+    running.session.toggleDecision('conduct_emergency');
+    await running.session.continueToFollowOn();
+    expect(running.session.screen.value).toBe('running');
+    const readsOfTarget = (r: Rig): number => r.loads.filter((n) => n === 'landing-fixture').length;
+    const beforePresses = readsOfTarget(running);
+    await running.session.continueToFollowOn();
+    expect(readsOfTarget(running)).toBe(beforePresses);
+
+    // A second press during the load starts nothing: the loads equal those of one press alone.
+    const busy = await sourceDebrief(['conduct_emergency']);
+    const single = await sourceDebrief(['conduct_emergency']);
+    const singleBefore = readsOfTarget(single);
+    await single.session.continueToFollowOn();
+    const busyBefore = readsOfTarget(busy);
+    const first = busy.session.continueToFollowOn();
+    expect(busy.session.busy.value).toBe(true);
+    await busy.session.continueToFollowOn();
+    await first;
+    expect(readsOfTarget(busy) - busyBefore).toBe(readsOfTarget(single) - singleBefore);
+    expect(busy.session.briefing.value?.scenario.id).toBe('landing-fixture');
+  });
+
+  it('shows the load-failure state for a missing target, and retry repeats the start', async () => {
+    const broken = files();
+    const r = await sourceDebrief(['conduct_emergency'], 'easy', { files: broken });
+    broken['landing-fixture'] = new Error('network down');
+    await r.session.continueToFollowOn();
+    expect(r.session.loadFailure.value).not.toBeNull();
+    expect(r.session.screen.value).toBe('free');
+    expect(r.session.busy.value).toBe(false);
+
+    broken['landing-fixture'] = LANDING;
+    await r.session.retryLoad();
+    expect(r.session.loadFailure.value).toBeNull();
+    expect(r.session.screen.value).toBe('briefing');
+    expect(r.session.briefing.value?.scenario.id).toBe('landing-fixture');
+    expect(r.session.level.value).toBe('easy');
   });
 });

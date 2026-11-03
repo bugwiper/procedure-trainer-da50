@@ -323,6 +323,15 @@ export const Further = z.strictObject({
    * Lint L31 allows it only where `accept` lists that conduct. It never changes PASS or FAIL.
    */
   conduct_note: wordsBetween(1, 50).optional(),
+  /**
+   * The follow-on situations (Phase 9, D-02, D-03): a map from a flight conduct option id to the
+   * scenario the debrief opens when that conduct is the one selected at the end of the run. The
+   * target is two ids (a pack and a manifest entry), opened only through the pack seam; lint L33 and
+   * the pack-level check L34 judge what they name.
+   */
+  follow_on: z
+    .record(nodeId, z.strictObject({ pack: scenarioId, scenario: scenarioId }))
+    .optional(),
 });
 
 /** The printed form of a checklist and its heading and message tag (all optional, plan 03-13). */

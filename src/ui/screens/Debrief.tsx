@@ -4,6 +4,7 @@ import type { Scenario } from '../../scenario/schema';
 import {
   causeLine,
   conductNote,
+  followOnOffer,
   furtherNote,
   finishLine,
   furtherRows,
@@ -23,7 +24,7 @@ import { Modal } from './Modal';
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
  * apply muted (the table form and the printed heading follow the scenario, plan 03-14), an order line under every ordered group and the harmful actions in log order
- * (no time). It names the level of the run ("Level: Easy"), on a meta line before it, the scenario (D-05); a Realistic run adds "Checklist used: ..." naming the last checklist chosen (none when none was, R-03); a scenario with variants adds one line naming the cause that was drawn (V-08); a run the 30-minute cap ended adds the limit line after the level line (V-14); a run that ended at the scenario's finish adds the file's finish text after it (Phase 9, D-09); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
+ * (no time). It names the level of the run ("Level: Easy"), on a meta line before it, the scenario (D-05); a Realistic run adds "Checklist used: ..." naming the last checklist chosen (none when none was, R-03); a scenario with variants adds one line naming the cause that was drawn (V-08); a run the 30-minute cap ended adds the limit line after the level line (V-14); a scenario that names a follow-on for the conduct selected at the end adds the button with the aircraft's label between Retry and Next situation (Phase 9, D-02); a run that ended at the scenario's finish adds the file's finish text after it (Phase 9, D-09); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
@@ -38,6 +39,7 @@ export function Debrief({
   onClose,
   onRetry,
   onNext,
+  onFollowOn,
 }: {
   /** The further actions of the aircraft: the texts of the rows (Phase 7). */
   readonly further: FurtherSet;
@@ -57,6 +59,8 @@ export function Debrief({
   readonly onRetry: () => void;
   /** Opens the next situation in listing order (D-14). */
   readonly onNext: () => void;
+  /** Continues with the situation the scenario names for the conduct selected at the end (Phase 9, D-02). */
+  readonly onFollowOn?: () => void;
 }) {
   const outline = buildOutline(scenario, result.branches, 'debrief', result);
   const head = checklistHead(scenario);
@@ -66,7 +70,8 @@ export function Debrief({
   const limit = limitLine(completedAt);
   const finished = finishLine(scenario, endedByFinish);
   const furtherList = furtherRows(result, further);
-  const note = furtherNote(result, further);
+  const offer = followOnOffer(result, scenario.further, further);
+  const note = furtherNote(result, further, scenario.further);
   const hint = conductNote(result, scenario.further, further);
 
   return (
@@ -87,6 +92,18 @@ export function Debrief({
           >
             Retry
           </button>
+          {offer === null ? null : (
+            <button
+              type="button"
+              class="secondary-button"
+              data-testid="debrief-follow-on"
+              aria-label={offer.title}
+              title={offer.title}
+              onClick={onFollowOn}
+            >
+              {offer.label}
+            </button>
+          )}
           <button
             type="button"
             class="secondary-button"

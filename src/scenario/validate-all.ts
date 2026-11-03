@@ -10,6 +10,8 @@ import { DA50RG_ENV } from '../aircraft/da50rg/aircraft';
 import type { AircraftEnv } from '../engine/env';
 import { checkCatalog } from './catalog-check';
 import type { ShippedScenario } from './catalog-check';
+import { checkFollowOns } from './follow-on-check';
+import type { FollowOnSource } from './follow-on-check';
 import { checkScenario } from './lint';
 import { parseManifest } from './parse';
 import type { ScenarioIssue } from './parse';
@@ -47,11 +49,14 @@ interface PackResult {
   readonly issues: ValidationIssue[];
   /** The manifest entries whose file exists, for the catalog cross-check (L29, L30). */
   readonly shipped: ShippedScenario[];
+  /** The follow-on targets of the manifest entries that passed their own checks (L34). */
+  readonly followOns: FollowOnSource[];
 }
 
 function validatePack(pack: PackInput, env: AircraftEnv): PackResult {
   const out: ValidationIssue[] = [];
   const shipped: ShippedScenario[] = [];
+  const followOns: FollowOnSource[] = [];
   const manifestFile = `${pack.dir}/pack.toon`;
   const fileOf = (name: string): string => `${pack.dir}/${name}.toon`;
   const push = (file: string, line: number, col: number, message: string): void => {
@@ -83,6 +88,7 @@ function validatePack(pack: PackInput, env: AircraftEnv): PackResult {
       idAt: ReturnType<typeof locate>;
       heading: string;
       headingAt: ReturnType<typeof locate>;
+      targets: FollowOnSource['targets'];
     }
   >();
   for (const file of pack.files) {
@@ -100,10 +106,18 @@ function validatePack(pack: PackInput, env: AircraftEnv): PackResult {
       idAt: locate(index, ['id']),
       heading: heading ?? result.scenario.title,
       headingAt: locate(index, heading === undefined ? ['title'] : ['checklist', 'heading']),
+      targets: Object.entries(result.scenario.further?.follow_on ?? {}).map(
+        ([conduct, target]) => ({
+          conduct,
+          pack: target.pack,
+          scenario: target.scenario,
+          ...locate(index, ['further', 'follow_on', conduct]),
+        }),
+      ),
     });
   }
 
-  if (manifest === undefined) return { issues: out, shipped };
+  if (manifest === undefined) return { issues: out, shipped, followOns };
 
   // L9: the manifest and the folder describe the same scenarios.
   const listed = new Set<string>();
@@ -135,6 +149,14 @@ function validatePack(pack: PackInput, env: AircraftEnv): PackResult {
       col: scenario?.headingAt.col ?? 1,
     });
     if (scenario === undefined) return; // its own problems are reported above
+    if (scenario.targets.length > 0) {
+      followOns.push({
+        pack: pack.id,
+        id: entry.id,
+        file: fileOf(entry.file),
+        targets: scenario.targets,
+      });
+    }
     if (scenario.id !== entry.id) {
       push(
         fileOf(entry.file),
@@ -157,7 +179,7 @@ function validatePack(pack: PackInput, env: AircraftEnv): PackResult {
       push(fileOf(file.name), 1, 1, `scenario file is not listed in ${manifestFile}`);
     }
   }
-  return { issues: out, shipped };
+  return { issues: out, shipped, followOns };
 }
 
 export function validateAll(
@@ -171,7 +193,13 @@ export function validateAll(
     results.flatMap((r) => r.shipped),
     new Set(packs.map((p) => p.id)),
   );
-  return [...results.flatMap((r) => r.issues), ...catalog].sort(
+  // L34: the follow-on targets against the manifest entries of every pack that was checked.
+  const followOns = checkFollowOns(
+    results.flatMap((r) => r.followOns),
+    results.flatMap((r) => r.shipped),
+    new Set(packs.map((p) => p.id)),
+  );
+  return [...results.flatMap((r) => r.issues), ...catalog, ...followOns].sort(
     (a, b) =>
       a.file.localeCompare(b.file) ||
       a.line - b.line ||

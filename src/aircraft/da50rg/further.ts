@@ -77,6 +77,8 @@ export const DA50RG_FURTHER = defineFurther({
       label: 'EMERGENCY\nLANDING',
       kind: 'conduct',
       debriefNote: 'The emergency landing itself is not trained yet.',
+      // The debrief button that continues with the emergency-landing situation a scenario names (Phase 9, D-03).
+      followOn: { label: 'Emergency landing', title: 'Continue with emergency landing' },
     },
   ],
   conductTitle: 'Choose further flight conduct',

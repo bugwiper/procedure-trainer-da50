@@ -35,6 +35,13 @@ export interface FurtherOption {
   /** A line the debrief adds when this option is the last conduct pick. */
   readonly debriefNote?: string;
   /**
+   * The text of the debrief button that continues with the situation a scenario names as the
+   * follow-on of this conduct (Phase 9, D-03, P-03): the visible `label` and the `title` (aria-label
+   * and tooltip), own wording. Conduct options only; the button exists only where the scenario
+   * declares a follow-on for the option.
+   */
+  readonly followOn?: { readonly label: string; readonly title: string };
+  /**
    * The conduct options that grey this action out (owner decision 2026-11-03: with the emergency
    * landing selected the pilot cannot avoid icing or night VFR any more). While the selected conduct
    * is one of them the button is shown disabled and a press is ignored; the recorded picks stay in
@@ -96,6 +103,14 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
     }
     if (option.debriefNote !== undefined && option.kind !== 'conduct') {
       throw new FurtherError(`option "${option.id}" is an action and cannot carry a debrief note`);
+    }
+    if (option.followOn !== undefined) {
+      if (option.kind !== 'conduct') {
+        throw new FurtherError(`option "${option.id}" is an action and cannot carry a follow-on`);
+      }
+      if (option.followOn.label.trim() === '' || option.followOn.title.trim() === '') {
+        throw new FurtherError(`the follow-on of "${option.id}" needs a label and a title`);
+      }
     }
     if (option.blockedByConduct !== undefined && option.kind !== 'action') {
       throw new FurtherError(`option "${option.id}" is a conduct and cannot be blocked by one`);

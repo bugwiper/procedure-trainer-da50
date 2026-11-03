@@ -59,6 +59,7 @@
 import { MAX_CAS_CHIPS } from '../engine/cas';
 import { cueVisible } from '../engine/cues';
 import type { AircraftEnv } from '../engine/env';
+import { conductAccept } from '../engine/further';
 import { grade } from '../engine/grading';
 import type { Recording } from '../engine/grading';
 import {
@@ -787,6 +788,8 @@ function checkFurther(
     }
   });
 
+  checkFollowOn(section, set, add);
+
   const onGround = (scenario.profile[set.groundParameter] ?? 0) > 0;
   if (section.conduct === 'none') {
     if (section.conduct_note !== undefined) {
@@ -830,6 +833,33 @@ function checkFurther(
       ['further', 'conduct_note'],
       `L31: a conduct note speaks of "${set.noteConduct}"; accept must list it`,
     );
+  }
+}
+
+/**
+ * L33 (Phase 9, D-03): every key of `further.follow_on` is a flight conduct the aircraft gives a
+ * follow-on button, the scenario lists it in `accept`, and the scenario does not declare `conduct:
+ * none` (no conduct is offered, so the debrief could never offer the button). Reported at the key.
+ * The target itself is judged by the pack-level L34 (follow-on-check.ts).
+ */
+function checkFollowOn(
+  section: NonNullable<Scenario['further']>,
+  set: AircraftEnv['further'],
+  add: (segments: Segments, message: string) => void,
+): void {
+  const map = section.follow_on;
+  if (map === undefined) return;
+  const known = set.ids('conduct').filter((id) => set.option(id)?.followOn !== undefined);
+  const accepted = conductAccept(section) ?? [];
+  for (const key of Object.keys(map)) {
+    const at: Segments = ['further', 'follow_on', key];
+    if (!known.includes(key)) {
+      add(at, `L33: "${key}" is not a flight conduct with a follow-on; known: ${known.join(', ')}`);
+    } else if (section.conduct === 'none') {
+      add(at, `L33: a follow-on needs conduct: accept; this scenario offers no conduct`);
+    } else if (!accepted.includes(key)) {
+      add(at, `L33: the follow-on for "${key}" needs accept to list "${key}"`);
+    }
   }
 }
 

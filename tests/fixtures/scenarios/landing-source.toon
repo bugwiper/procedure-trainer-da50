@@ -1,0 +1,40 @@
+# Test fixture, not a shipped scenario (Phase 9, plan 09-02): a synthetic situation in flight whose right flight conduct is the emergency landing and which names the landing fixture as the follow-on of that conduct, for the machinery tests of the debrief button. Its row is not printed checklist text and it carries no booklet wording; it lives under tests/ so that no pack lists it and the blueprint gate does not read it. The follow-on target uses the pack id of the in-memory test provider (engine).
+format: 1
+id: landing-source
+title: LANDING SOURCE
+source:
+  document: "Test fixture"
+  issue: "none"
+  section: "Synthetic scenario that leads into the landing fixture"
+  verified: "2026-11-03"
+disclaimer: training-aid
+briefing:
+  situation: "You are in cruise flight and a problem forces you to land at once. The engine is not running well and no message is shown."
+initial:
+  controls:
+    lv.power: p60
+  quantities:
+    airspeed_kt: 100
+    altitude_ft: 4500
+annunciations[0]:
+procedure[1]:
+  - kind: group
+    id: grp_prepare
+    ordered: false
+    steps[1]:
+      - id: elect_master_off
+        severity: critical
+        text: Electric master off
+        done:
+          check: state
+          control: sw.elect_master
+          is: off
+forbidden[0]:
+# The flight conduct that is right is the emergency landing, and the debrief continues with the landing fixture when it was the one selected at the end.
+further:
+  conduct:
+    accept[1]: conduct_emergency
+  follow_on:
+    conduct_emergency:
+      pack: engine
+      scenario: landing-fixture
