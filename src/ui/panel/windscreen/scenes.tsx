@@ -14,6 +14,8 @@ import {
   rollScales,
 } from './roll-series';
 import type { Point, RollPolygon } from './roll-series';
+import { WATER_PALETTE, waterPolygons } from './water';
+import type { WaterCorner } from './water';
 
 // The five views out of the windscreen (Phase 5, W-04, W-07): flat vector art in the opening, no
 // text (G-0), the layer's own `w-` paints (SceneDefs). Every scene shares one horizon height and
@@ -46,6 +48,8 @@ export interface GradientColours {
 export const SCENE_GRADIENTS = {
   'w-sky-cruise': { top: '#2c68ad', mid: '#6aa2d4', bottom: '#c4def0' },
   'w-ground-cruise': { top: '#9bb08e', mid: null, bottom: '#5a7843' },
+  // The sea of the ditching scene (Phase 9, R-03): hazy at the horizon, darker toward the pilot.
+  'w-ground-sea': { top: '#7da3b8', mid: null, bottom: '#2a5f82' },
   'w-sky-parked': { top: '#4a86c4', mid: '#8fbbe0', bottom: '#d4e6f3' },
   'w-apron': { top: '#a7abae', mid: null, bottom: '#6d7276' },
   'w-sky-roll': { top: '#3a76b8', mid: '#7eb0dc', bottom: '#cfe3f2' },
@@ -176,8 +180,8 @@ function FieldPatches() {
   return <>{out}</>;
 }
 
-/** The cruise landscape: sky, clouds, hills, the ground and its field patches (also the approach scene's). */
-function Landscape() {
+/** The cruise sky with its clouds (also the sky of the ditching scene). */
+function CruiseSky() {
   return (
     <>
       <rect x={LEFT} y={TOP} width={OPENING.w} height={HORIZON_Y - TOP} fill="url(#w-sky-cruise)" />
@@ -186,6 +190,15 @@ function Landscape() {
       <Cloud x={1480} y={-310} s={1} />
       <Cloud x={1930} y={-230} s={1.15} />
       <Cloud x={1050} y={-365} s={0.7} />
+    </>
+  );
+}
+
+/** The cruise landscape: sky, clouds, hills, the ground and its field patches (also the approach scene's). */
+function Landscape() {
+  return (
+    <>
+      <CruiseSky />
       <path
         d={`M${LEFT} ${HORIZON_Y} L${LEFT} -190 L140 -205 L260 -178 L420 -216 L560 -176 L720 -160 L860 ${HORIZON_Y} Z`}
         fill="#8aa1ba"
@@ -276,6 +289,48 @@ function OutlandingScene({ cues }: SceneProps) {
             points={quad(furrow)}
             fill={FIELD_PALETTE.furrow}
           />
+        ))}
+      </g>
+      <HorizonHaze />
+    </g>
+  );
+}
+
+/** A corner of the sea in panel space: lateral fraction and row of `water.ts` projected. */
+const waterPoint = ([lateral, row]: WaterCorner): [number, number] => [
+  SCENE_CENTRE_X + lateral * HALF_PICTURE,
+  HORIZON_Y + row * DEPTH,
+];
+
+/**
+ * The approach to the sea (Phase 9, R-03): the cruise sky and clouds over a flat sea with no hills.
+ * Wave bands (a dark trough with a light crest line) come toward the pilot with the cue water_near
+ * (waterGeometry, shared with the synthetic vision). Flat paint, no text, no animation.
+ */
+function SeaScene({ cues }: SceneProps) {
+  const level = cues['water_near'] ?? 0;
+  const sea = waterPolygons(level);
+  const quad = (q: readonly WaterCorner[]): string => poly(q.map(waterPoint));
+  return (
+    <g data-scene="ditching">
+      <CruiseSky />
+      <rect
+        x={LEFT}
+        y={HORIZON_Y}
+        width={OPENING.w}
+        height={BOTTOM_Y - HORIZON_Y}
+        fill="url(#w-ground-sea)"
+      />
+      <g data-part="waves" data-cue="water_near" data-level={level}>
+        {sea.troughs.map((trough, i) => (
+          <g key={i} data-part="wave-band">
+            <polygon data-part="wave-trough" points={quad(trough)} fill={WATER_PALETTE.trough} />
+            <polygon
+              data-part="wave-crest"
+              points={quad(sea.crests[i] ?? trough)}
+              fill={WATER_PALETTE.crest}
+            />
+          </g>
         ))}
       </g>
       <HorizonHaze />
@@ -620,6 +675,7 @@ export const SCENES: Readonly<Record<SceneId, (props: SceneProps) => JSX.Element
   cruise: CruiseScene,
   cloud: CloudScene,
   outlanding: OutlandingScene,
+  ditching: SeaScene,
 };
 
 /** True when `id` is a scene of the aircraft data. */

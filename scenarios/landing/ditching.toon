@@ -1,0 +1,132 @@
+# DITCHING (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist booklet, Edition 4.1 of 2022-10-05, page 10 (owner decisions 2026-10-23, 2026-10-27, 2026-10-28 and 2026-11-03: the booklet is binding): the heading, rows 1 to 10 with their actions, the boxed note of the swell and the wind (two boxed rows, the text at the left and the action at the right as the page prints them), the boxed touchdown note and the two boxes EVACUATE through doors and When outside inflate life vests (raft), typed as boxed comment rows in the printed place. The row marks are the numbers 1 to 10 as the booklet counts them. The page is graded on the panel where a control shows the desired state, and the other rows are plain lines the pilot ticks on the checklist sheet, which never reach the grade. Graded steps (the order of the rows does not matter, each row is its own unordered group as in the other booklet files): row 7 Landing Gear UP is the state up of the landing gear lever (critical: the gear starts down so that the printed row has an action; instructor-review severity); row 8 Flaps LDG is the state ldg of the flap lever (standard). Plain lines (no panel control shows the desired state, or none sets it): row 1 Mayday call CONSIDER (the further actions MAYDAY and PAN PAN PAN stand in the footwell), rows 2 to 6 Heavy objects, Adjustable backrests, Keypad, Sun visors, Safety harnesses, row 9 Final approach speed Vref 77 KIAS (the simulation has no control of the speed; the profile glides at the printed speed) and row 10 Power 300FT/MIN rate of descent (not a power setting here: do not try a full flare over water, reduce speed with 300 feet per minute in the last part and touch down at that rate; no control shows a rate of descent, so it is a plain printed line and the profile holds minus 300 feet per minute from the start). The situation text and the finish text are own wording. Own additions: none to the printed rows. The instructor-review values are the start height (450 feet above the water), the glide at the printed Vref 77 knots and minus 300 feet per minute (constants of the run, they cannot vary with the height), the water at sea level (terrain_ft 0), the severities and the dead engine from the first frame, as in the engine-off landing; the engine is out in this situation and the file does not say why.
+format: 1
+id: ditching
+title: DITCHING
+source:
+  document: "DA50 C / RG Emergency Procedures checklist"
+  issue: "Edition 4.1, 2022-10-05"
+  section: "Page 10, DITCHING"
+  verified: "2026-11-03"
+disclaimer: training-aid
+scene: ditching
+briefing:
+  situation: "The engine is out and you are gliding low over open water with the gear extended. No airfield is within reach and you have decided to ditch. Prepare the aircraft for the touchdown on the water."
+initial:
+  controls:
+    lv.gear: down
+  quantities:
+    # The glide start (instructor-review values): the printed Vref of 77 knots, 300 feet per minute down, 450 feet above the water; the start values stand here and in the profile.
+    airspeed_kt: 77
+    vertical_speed_fpm: -300
+    altitude_ft: 450
+    # The engine is dead from the first frame.
+    rpm: 0
+    load_pct: 0
+    oil_pressure_bar: 0
+    fuel_flow_gph: 0
+    fuel_pressure_bar: 0
+# The flight profile (in force from the first second at every level; instructor-review values): the engine is stopped and the glide regime applies at the printed Vref; the water is at sea level.
+profile:
+  engine_stopped: 1
+  glide_speed_kt: 77
+  glide_vs_fpm: -300
+  terrain_ft: 0
+annunciations[1]: oil_pres
+checklist:
+  form: table
+  heading: DITCHING
+procedure[15]:
+  - kind: line
+    number: 1
+    text: "Mayday call"
+    action: "CONSIDER"
+  - kind: line
+    number: 2
+    text: "Heavy objects"
+    action: "SECURE"
+  - kind: line
+    number: 3
+    text: "Adjustable backrests"
+    action: "UPRIGHT"
+  - kind: line
+    number: 4
+    text: "Keypad"
+    action: "STOWED"
+  - kind: line
+    number: 5
+    text: "Sun visors"
+    action: "STOWED"
+  - kind: line
+    number: 6
+    text: "Safety harnesses"
+    action: "TIGHT"
+  - kind: group
+    id: grp_landing_gear
+    ordered: false
+    steps[1]:
+      - id: gear_up
+        severity: critical
+        number: 7
+        text: "Landing Gear"
+        action: "UP"
+        done:
+          check: state
+          control: lv.gear
+          is: up
+  - kind: comment
+    text: "Heavy swell with light wind:"
+    boxed: true
+    action: "ditch parallel to the swell"
+  - kind: comment
+    text: "Heavy wind:"
+    boxed: true
+    action: "ditch into the wind"
+  - kind: group
+    id: grp_flaps
+    ordered: false
+    steps[1]:
+      - id: flaps_ldg
+        severity: standard
+        number: 8
+        text: "Flaps"
+        action: "LDG"
+        done:
+          check: state
+          control: lv.flaps
+          is: ldg
+  - kind: line
+    number: 9
+    text: "Final approach speed Vref"
+    action: "77 KIAS"
+  - kind: line
+    number: 10
+    text: "Power"
+    action: "300FT/MIN rate of descent"
+  - kind: comment
+    text: "Touchdown, in level attitude, avoid landing flare (height difficult to judge), airplane will float only a short time."
+    boxed: true
+  - kind: comment
+    text: "EVACUATE through doors"
+    boxed: true
+  - kind: comment
+    text: "When outside inflate life vests (raft)"
+    boxed: true
+forbidden[0]:
+# The run completes by itself when the aircraft reaches the water (lint L32); the text is own wording.
+finish:
+  when:
+    check: quantity
+    quantity: altitude_ft
+    op: lte
+    value: 0
+  text: The aircraft reached the water
+# The further actions (Phase 7, Phase 9). The roles are instructor-review values, listed in docs/PANEL-REVIEW.md; the decision to ditch is made, so no flight conduct is offered (lint L28, landing scene). The calls and the passenger briefing can never fail the run; the printed row Mayday call stays a checklist row.
+further:
+  actions[3]:
+    - id: atc_mayday
+      role: recommended
+    - id: atc_pan_pan
+      role: optional
+    - id: brief_passengers
+      role: recommended
+  conduct: none

@@ -661,12 +661,15 @@ describe('the ice cues and the spray (Phase 5, C-05, owner answers of 2026-10-27
     const roll = render(levels, 'takeoff_roll');
     // The landing field of the approach scene draws the field_near cue (Phase 9).
     const approach = render(levels, 'outlanding');
+    // The wave bands of the ditching scene draw the water_near cue (Phase 9, plan 09-04).
+    const sea = render(levels, 'ditching');
     const smoke = expand(CabinSmoke({ level: 1 }));
     for (const id of DA50RG_CUES.ids) {
       const drawn =
         findElements(tree, (el) => el.props['data-cue'] === id).length +
         findElements(roll, (el) => el.props['data-cue'] === id).length +
         findElements(approach, (el) => el.props['data-cue'] === id).length +
+        findElements(sea, (el) => el.props['data-cue'] === id).length +
         findElements(smoke, (el) => el.props['data-cue'] === id).length;
       expect(drawn, id).toBeGreaterThan(0);
     }

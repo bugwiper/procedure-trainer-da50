@@ -1,5 +1,5 @@
 import { defineCues } from '../../engine/cues';
-import { DA50RG_QUANTITIES, TERRAIN_HEIGHT_FT } from './quantities';
+import { DA50RG_QUANTITIES, TERRAIN_HEIGHT_FT, WATER_LEVEL_FT } from './quantities';
 
 // DA50 RG visual cues (Phase 5, W-05): each is a simulated quantity read as a level 0 to 1 that the
 // windscreen layer draws. Art values, not AFM numbers: they are listed for the instructor review.
@@ -16,6 +16,13 @@ export const ENGINE_RPM_STOPPED = 100;
  * a speck (Phase 9, D-06). An instructor-review value, not an AFM figure.
  */
 export const FIELD_SIGHT_FT = 1200;
+
+/**
+ * The height above the water (ft) at which the waves of the ditching scene first show (Phase 9,
+ * R-03). An instructor-review value, not an AFM figure; the ditching starts 450 ft above the water,
+ * so the waves are on the way from the first frame.
+ */
+export const WATER_SIGHT_FT = 600;
 
 export const DA50RG_CUES = defineCues(
   [
@@ -46,6 +53,15 @@ export const DA50RG_CUES = defineCues(
       quantity: 'altitude_ft',
       from: TERRAIN_HEIGHT_FT + FIELD_SIGHT_FT,
       to: TERRAIN_HEIGHT_FT,
+    },
+    // The sea of the ditching scene (Phase 9, R-03): a falling cue on the altitude, level 0 WATER_SIGHT_FT
+    // above the water and level 1 at the water (WATER_LEVEL_FT). The wave bands come toward the pilot
+    // with it, on the windscreen and on the PFD synthetic vision.
+    {
+      id: 'water_near',
+      quantity: 'altitude_ft',
+      from: WATER_LEVEL_FT + WATER_SIGHT_FT,
+      to: WATER_LEVEL_FT,
     },
   ],
   DA50RG_QUANTITIES,

@@ -279,8 +279,8 @@ onset:
   cues[1]: flames
 ```
 
-- **Scenes:** `parked`, `takeoff_roll`, `cruise`, `cloud`, `outlanding`.
-- **Cues:** `flames`, `cabin_smoke`, `ice_pilot_side`, `ice_copilot_side`, `prop_stopped`, `oil_streaks`, `roll_speed`, `field_near`.
+- **Scenes:** `parked`, `takeoff_roll`, `cruise`, `cloud`, `outlanding`, `ditching`.
+- **Cues:** `flames`, `cabin_smoke`, `ice_pilot_side`, `ice_copilot_side`, `prop_stopped`, `oil_streaks`, `roll_speed`, `field_near`, `water_near`.
 
 An onset needs at least one annunciation or one cue, and a cue must not be visible at the Realistic start.
 

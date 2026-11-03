@@ -66,6 +66,7 @@ export const CATALOG_REFERENCE: readonly CatalogReferenceGroup[] = [
     tab: 'EMERGENCY',
     rows: [
       ['EMERGENCY LANDING (ENGINE OFF)', null, 'landing/landing-engine-off'],
+      ['DITCHING', null, 'landing/ditching'],
       ['ENGINE FIRE IN FLIGHT', null, 'engine/eng-fire-in-flight'],
       ['ENGINE FIRE ON GROUND', null, 'fire/eng-fire-ground'],
       ['ELECTRIC FIRE / SMOKE ON GROUND', null, 'fire/elec-fire-ground'],
@@ -87,6 +88,7 @@ export const CATALOG_LISTING_ORDER: readonly (readonly [string, string])[] = [
   ['electrical', 'elec-altn1-fail'],
   ['electrical', 'elec-altn2-fail'],
   ['landing', 'landing-engine-off'],
+  ['landing', 'ditching'],
   ['engine', 'eng-fire-in-flight'],
   ['fire', 'eng-fire-ground'],
   ['fire', 'elec-fire-ground'],

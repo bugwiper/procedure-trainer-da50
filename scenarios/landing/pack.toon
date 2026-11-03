@@ -2,7 +2,10 @@
 format: 1
 title: Emergency landing
 free: true
-scenarios[1]:
+scenarios[2]:
   - id: landing-engine-off
     title: LANDING ENGINE OFF
     file: landing-engine-off
+  - id: ditching
+    title: DITCHING
+    file: ditching

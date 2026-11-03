@@ -32,6 +32,13 @@ const FUEL_SCALE = 10_000_000;
  */
 export const TERRAIN_HEIGHT_FT = 1400;
 
+/**
+ * The height of the water surface in feet (Phase 9, R-03): sea level. A scenario on the scene
+ * `ditching` sets the parameter `terrain_ft` to it, so the altitude sinks to the water; the cue
+ * `water_near` reads the altitude against it (cues.ts). Instructor-review value.
+ */
+export const WATER_LEVEL_FT = 0;
+
 /** Each fuel tank holds this many US gallons (owner, 2026-10-28); both tanks share one band table. */
 export const TANK_CAPACITY_GAL = 26;
 /**

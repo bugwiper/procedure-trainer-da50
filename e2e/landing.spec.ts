@@ -7,6 +7,7 @@ import { parseScenario } from '../src/scenario/parse';
 import type { Scenario } from '../src/scenario/schema';
 import { followOnFromSeed } from '../src/engine/follow-on';
 import {
+  chooseScenario,
   followOnButton,
   forceFollowOn,
   furtherButton,
@@ -397,4 +398,97 @@ test('a landing chosen from the chooser on Realistic starts at once, from the in
   // The initial block of the file, with the dead engine, from the first frame.
   expect(await quantityOf(page, 'rpm')).toBe(0);
   expect(await quantityOf(page, 'altitude_ft')).toBeGreaterThan(TERRAIN_HEIGHT_FT);
+});
+
+// DITCHING (booklet page 10, Phase 9 plan 09-04): chosen from the EMERGENCY tab, engine-out over the
+// sea, graded on the gear and the flaps. Everything the specs expect is read from the shipped file.
+const DITCHING = LANDINGS.find((entry) => entry.id === 'ditching');
+if (DITCHING === undefined) throw new Error('the ditching is not shipped');
+const DITCHING_SCENARIO = scenarioOf(DITCHING);
+const DITCHING_ROW = `${DITCHING.pack}.${DITCHING.id}`;
+
+/** The printed texts of the rows of a scenario's checklist, in reading order (lines, steps, comments). */
+function printedTexts(scenario: Scenario): string[] {
+  return scenario.procedure.flatMap((node): string[] => {
+    if (node.kind === 'line') return [node.text];
+    if (node.kind === 'comment') return [node.text];
+    if (node.kind === 'group') return node.steps.map((step) => step.text);
+    return [];
+  });
+}
+
+test('@hooks DITCHING from the chooser, Easy: the printed checklist, the sea, the footwell, gear up and flaps LDG, PASS', async ({
+  page,
+  hasTouch,
+}) => {
+  await chooseScenario(page, hasTouch, DITCHING_ROW);
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await expect(page.getByTestId('briefing').getByRole('heading', { level: 2 })).toHaveText(
+    DITCHING_SCENARIO.title,
+  );
+  await expect(page.getByTestId('briefing-situation')).toHaveText(
+    DITCHING_SCENARIO.briefing.situation,
+  );
+  // The checklist rows of the file are in the briefing, as printed.
+  const outline = page.getByTestId('briefing-outline');
+  for (const text of printedTexts(DITCHING_SCENARIO)) {
+    await expect(outline).toContainText(text);
+  }
+  await expect(page.getByTestId('checklist-title')).toHaveText(
+    DITCHING_SCENARIO.checklist?.heading ?? '',
+  );
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+
+  // The sea on the windscreen and on the PFD, the engine dead from the first frame, the gear down.
+  await expect(page.locator(scene('ditching'))).toHaveCount(1);
+  await expect(page.locator(SVT('ditching'))).toHaveCount(1);
+  await expect(page.locator('[data-part="wave-trough"]')).not.toHaveCount(0);
+  expect(await quantityOf(page, 'rpm')).toBe(0);
+  expect(await quantityOf(page, 'altitude_ft')).toBeGreaterThan(0);
+  await expect(control(page, 'lv.gear')).toHaveAttribute('data-state', 'down');
+
+  // The footwell offers the calls and the passengers and none of the conduct or Avoid buttons.
+  for (const id of SET.ids('action').filter((a) => !SET.avoidIds().includes(a))) {
+    await expect(furtherHit(page, id)).toHaveCount(1);
+  }
+  for (const id of [...SET.ids('conduct'), ...SET.avoidIds()]) {
+    await expect(furtherHit(page, id)).toHaveCount(0);
+  }
+
+  await activate(page.locator('[data-detent="lv.gear:up"]'), hasTouch);
+  await expect(control(page, 'lv.gear')).toHaveAttribute('data-state', 'up');
+  await activate(page.locator('[data-detent="lv.flaps:ldg"]'), hasTouch);
+  await expect(control(page, 'lv.flaps')).toHaveAttribute('data-state', 'ldg');
+  await pickFurther(page, hasTouch, [atcMayday, brief]);
+  await complete(page, hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.getByTestId('debrief-scenario')).toHaveText(DITCHING_SCENARIO.title);
+  for (const id of ['gear_up', 'flaps_ldg']) {
+    await expect(page.locator(`[data-step-id="${id}"]`)).toHaveAttribute('data-verdict', 'Done');
+  }
+  await expect(page.getByTestId('debrief-further-row').first()).toBeVisible();
+  await expect(page.getByTestId('debrief-finish')).toHaveCount(0);
+  await expect(followOnButton(page)).toHaveCount(0);
+});
+
+test('a pilot who does nothing in the ditching fails when the aircraft reaches the water, and the debrief says so', async ({
+  page,
+  hasTouch,
+}) => {
+  // The glide lasts about ninety seconds (virtual time follows real frames).
+  test.slow();
+  test.setTimeout(240_000);
+  await startScenario(page, hasTouch, DITCHING_ROW, 'easy');
+  await expect(page.locator(scene('ditching'))).toHaveCount(1);
+  // The run ends by itself: the debrief opens without a press.
+  await expect(page.getByTestId('debrief')).toBeVisible({ timeout: 200_000 });
+  await expect(page.getByTestId('debrief-finish')).toHaveText(DITCHING_SCENARIO.finish?.text ?? '');
+  await expect(page.getByTestId('debrief-result')).toHaveText('FAIL');
+  // The critical row (gear up) is missed; the standard row too.
+  await expect(page.locator('[data-step-id="gear_up"]')).toHaveAttribute('data-verdict', 'Missed');
+  await expect(page.getByTestId('debrief-reason').first()).toContainText('critical');
+  await expect(followOnButton(page)).toHaveCount(0);
 });

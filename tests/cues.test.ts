@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
-import { DA50RG_CUES, ENGINE_RPM_STOPPED, FIELD_SIGHT_FT } from '../src/aircraft/da50rg/cues';
-import { DA50RG_QUANTITIES, TERRAIN_HEIGHT_FT } from '../src/aircraft/da50rg/quantities';
+import {
+  DA50RG_CUES,
+  ENGINE_RPM_STOPPED,
+  FIELD_SIGHT_FT,
+  WATER_SIGHT_FT,
+} from '../src/aircraft/da50rg/cues';
+import {
+  DA50RG_QUANTITIES,
+  TERRAIN_HEIGHT_FT,
+  WATER_LEVEL_FT,
+} from '../src/aircraft/da50rg/quantities';
 import { CUE_VISIBLE_LEVEL, CueError, cueLevel, cueVisible, defineCues } from '../src/engine/cues';
 
 // Visual cues (Phase 5, W-05): a quantity read as a level 0 to 1, arithmetic only.
@@ -68,6 +77,28 @@ describe('the DA50 RG cue table', () => {
     expect(level(TERRAIN_HEIGHT_FT)).toBe(1);
     expect(level(TERRAIN_HEIGHT_FT + 5000)).toBe(0);
     expect(level(0)).toBe(1);
+  });
+
+  it('has the water cue of the ditching scene: a falling cue on the altitude over WATER_SIGHT_FT above the water', () => {
+    const cue = DA50RG_CUES.get('water_near');
+    expect(cue).toBeDefined();
+    expect(cue?.quantity).toBe('altitude_ft');
+    // The values are typed by hand: the water is at sea level and the sight is 600 ft.
+    expect(WATER_LEVEL_FT).toBe(0);
+    expect(WATER_SIGHT_FT).toBe(600);
+    expect(cue?.from).toBe(600);
+    expect(cue?.to).toBe(0);
+    const level = (altitude: number): number =>
+      DA50RG_CUES.levels({ ...DA50RG_QUANTITIES.baseValues(), altitude_ft: altitude })[
+        'water_near'
+      ] ?? Number.NaN;
+    expect(level(600)).toBe(0);
+    expect(level(450)).toBe(0.25);
+    expect(level(300)).toBe(0.5);
+    expect(level(0)).toBe(1);
+    expect(level(5000)).toBe(0);
+    // The free panel's cruise altitude shows no waves.
+    expect(DA50RG_CUES.levels(DA50RG_QUANTITIES.baseValues())['water_near']).toBe(0);
   });
 
   it('reads the terrain of the approach from the normal of the parameter terrain_ft', () => {

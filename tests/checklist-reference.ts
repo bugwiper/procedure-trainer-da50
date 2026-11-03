@@ -266,6 +266,39 @@ export const PRINTED: Readonly<Record<string, PrintedChecklist>> = {
       { kind: 'row', number: 15, item: 'Electric master', action: 'OFF' },
     ],
   },
+  // Booklet page 10, typed from the owner's photo (2026-11-03) in a second reading: the two boxed rows of
+  // the swell and wind note after row 7 (text at the left, the action as the reference), the boxed
+  // touchdown note and the two boxes EVACUATE through doors and When outside inflate life vests (raft).
+  ditching: {
+    form: 'table',
+    heading: 'DITCHING',
+    rows: [
+      { kind: 'row', number: 1, item: 'Mayday call', action: 'CONSIDER' },
+      { kind: 'row', number: 2, item: 'Heavy objects', action: 'SECURE' },
+      { kind: 'row', number: 3, item: 'Adjustable backrests', action: 'UPRIGHT' },
+      { kind: 'row', number: 4, item: 'Keypad', action: 'STOWED' },
+      { kind: 'row', number: 5, item: 'Sun visors', action: 'STOWED' },
+      { kind: 'row', number: 6, item: 'Safety harnesses', action: 'TIGHT' },
+      { kind: 'row', number: 7, item: 'Landing Gear', action: 'UP' },
+      {
+        kind: 'comment',
+        text: 'Heavy swell with light wind:',
+        boxed: true,
+        reference: 'ditch parallel to the swell',
+      },
+      { kind: 'comment', text: 'Heavy wind:', boxed: true, reference: 'ditch into the wind' },
+      { kind: 'row', number: 8, item: 'Flaps', action: 'LDG' },
+      { kind: 'row', number: 9, item: 'Final approach speed Vref', action: '77 KIAS' },
+      { kind: 'row', number: 10, item: 'Power', action: '300FT/MIN rate of descent' },
+      {
+        kind: 'comment',
+        text: 'Touchdown, in level attitude, avoid landing flare (height difficult to judge), airplane will float only a short time.',
+        boxed: true,
+      },
+      { kind: 'comment', text: 'EVACUATE through doors', boxed: true },
+      { kind: 'comment', text: 'When outside inflate life vests (raft)', boxed: true },
+    ],
+  },
   'eng-oil-temp-green': {
     form: 'outline',
     heading: 'ENG OIL TEMP',
@@ -321,4 +354,5 @@ export const PRINTED_FILES: Readonly<Record<string, string>> = {
   'eng-fire-in-flight': 'scenarios/engine/eng-fire-in-flight.toon',
   'eng-oil-temp-green': 'scenarios/engine/eng-oil-temp-green.toon',
   'landing-engine-off': 'scenarios/landing/landing-engine-off.toon',
+  ditching: 'scenarios/landing/ditching.toon',
 };

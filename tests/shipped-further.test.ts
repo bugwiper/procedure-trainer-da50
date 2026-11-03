@@ -80,6 +80,7 @@ const TABLE: Readonly<Record<string, Declared>> = {
   'elec-fire-flight': FIRE_ENGINE_RUNNING,
   'takeoff-fire-no-abort': FIRE_ENGINE_OFF,
   'landing-engine-off': LANDING,
+  ditching: LANDING,
   'eng-fire-ground': ON_THE_GROUND,
   'elec-fire-ground': ON_THE_GROUND,
   'takeoff-fire-abort': ON_THE_GROUND,

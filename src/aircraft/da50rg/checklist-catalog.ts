@@ -68,6 +68,8 @@ export const DA50RG_CATALOG = defineCatalog({
           tag: 'EMERGENCY LANDING (ENGINE OFF)',
           ref: { pack: 'landing', scenario: 'landing-engine-off' },
         },
+        // Booklet page 10, directly after page 9 (printed page order).
+        { tag: 'DITCHING', ref: { pack: 'landing', scenario: 'ditching' } },
         { tag: 'ENGINE FIRE IN FLIGHT', ref: { pack: 'engine', scenario: 'eng-fire-in-flight' } },
         { tag: 'ENGINE FIRE ON GROUND', ref: { pack: 'fire', scenario: 'eng-fire-ground' } },
         {

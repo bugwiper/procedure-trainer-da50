@@ -91,6 +91,12 @@ export const DA50RG_FURTHER = defineFurther({
             label: 'Emergency landing',
             title: 'Continue with the emergency landing, engine off',
           },
+          {
+            pack: 'landing',
+            scenario: 'ditching',
+            label: 'Ditching',
+            title: 'Continue with the ditching',
+          },
         ],
       },
     },
@@ -102,7 +108,7 @@ export const DA50RG_FURTHER = defineFurther({
    * The scenes that are themselves a landing (Phase 9, D-11): a scenario on one of them offers no
    * flight conduct, like a scenario on the ground. Every id is a scene of the aircraft (a test checks it).
    */
-  landingScenes: ['outlanding'],
+  landingScenes: ['outlanding', 'ditching'],
   /**
    * "Continue to destination" is selected when a run starts, without a press (owner decision 2026-11-02):
    * to deviate the pilot must press another conduct button, and the choice is never cleared.

@@ -51,9 +51,19 @@ const unique = <T>(values: readonly T[]): T[] => [...new Set(values)];
 /** The CAS ids every shipped scenario lists, at the start and later. */
 const CAS_IDS = unique(scenarios.flatMap((s) => [...s.annunciations, ...s.late_annunciations]));
 
+/**
+ * The scenario ids that are scene ids of the aircraft too (Phase 9, plan 09-04: the ditching scenario
+ * is on the ditching scene, owner decisions R-01 and R-03). A scene id is aircraft data and the UI
+ * names it as it names every scene, so such an id is not a scenario fact; every other id stays
+ * forbidden. A test below pins the list so the exemption cannot grow unnoticed.
+ */
+const SCENE_NAMED_SCENARIO_IDS = scenarios
+  .map((s) => s.id)
+  .filter((id) => DA50RG_ENV.scenes.has(id));
+
 /** Scenario, step, group, forbidden and outcome ids; the control and parameter ids; CAS ids and texts. */
 const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {
-  'scenario id': scenarios.map((s) => s.id),
+  'scenario id': scenarios.map((s) => s.id).filter((id) => !SCENE_NAMED_SCENARIO_IDS.includes(id)),
   'step and group ids': unique(scenarios.flatMap((s) => strings(valuesOfKey(s.procedure, 'id')))),
   'forbidden ids': unique(scenarios.flatMap((s) => s.forbidden.map((f) => f.id))),
   'outcome ids': unique(scenarios.flatMap((s) => s.outcomes.map((o) => o.id))),
@@ -131,7 +141,11 @@ describe('the blueprint principle', () => {
     // The gate sees every file the walk finds, and there is more than one scenario to see.
     expect(scenarios.length).toBe(SCENARIO_FILES.length);
     expect(SCENARIO_FILES.length).toBeGreaterThan(1);
-    expect(SCENARIO_LITERALS['scenario id']?.length).toBe(SCENARIO_FILES.length);
+    expect((SCENARIO_LITERALS['scenario id']?.length ?? 0) + SCENE_NAMED_SCENARIO_IDS.length).toBe(
+      SCENARIO_FILES.length,
+    );
+    // Only the ditching shares its id with a scene; any other id that does is a new decision.
+    expect(SCENE_NAMED_SCENARIO_IDS).toEqual(['ditching']);
   });
 
   it('derives a non-empty literal list from the data', () => {

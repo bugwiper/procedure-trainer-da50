@@ -404,6 +404,7 @@ describe('the pack seam', () => {
         free: true,
         scenarios: [
           { id: 'landing-engine-off', title: 'LANDING ENGINE OFF', file: 'landing-engine-off' },
+          { id: 'ditching', title: 'DITCHING', file: 'ditching' },
         ],
       },
     ]);

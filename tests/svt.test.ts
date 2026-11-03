@@ -12,6 +12,7 @@ import {
 } from '../src/ui/panel/frames/SyntheticVision';
 import type { Session } from '../src/ui/session';
 import { FIELD_PALETTE, fieldPolygons } from '../src/ui/panel/windscreen/field';
+import { WATER_PALETTE, waterPolygons } from '../src/ui/panel/windscreen/water';
 import { OPENING, SCENE_CENTRE_X } from '../src/ui/panel/windscreen/geometry';
 import { HORIZON_Y, SCENES, SCENE_GRADIENTS } from '../src/ui/panel/windscreen/scenes';
 import { expand, findElements } from './vnode-walk';
@@ -270,9 +271,9 @@ describe('the art of the four scenes', () => {
 // The landing field of the approach scene (Phase 9, D-05, D-07): the synthetic vision draws the
 // polygons of field.ts that the windscreen draws too, at the level of the cue field_near.
 
-const drawField = (scene: string, fieldLevel: number): El =>
+const drawField = (scene: string, artLevel: number): El =>
   expand(
-    SyntheticVision({ scene, cx: ATTITUDE.cx, cy: ATTITUDE.cy, reach: ATTITUDE.reach, fieldLevel }),
+    SyntheticVision({ scene, cx: ATTITUDE.cx, cy: ATTITUDE.cy, reach: ATTITUDE.reach, artLevel }),
   );
 
 /** The points of a polygon attribute as numbers. */
@@ -378,9 +379,100 @@ describe('the landing field of the outlanding scene', () => {
     expect(findElements(tree, (e) => 'filter' in e.props || 'mask' in e.props)).toEqual([]);
   });
 
-  it('leaves the other scenes unchanged by a field level', () => {
-    for (const scene of SCENE_IDS.filter((id) => id !== 'outlanding')) {
+  it('leaves the other scenes unchanged by an art level', () => {
+    for (const scene of SCENE_IDS.filter((id) => id !== 'outlanding' && id !== 'ditching')) {
       expect(JSON.stringify(drawField(scene, 1))).toBe(JSON.stringify(drawField(scene, 0)));
     }
+  });
+});
+
+// The sea of the ditching scene (Phase 9, plan 09-04, R-03): the synthetic vision draws the polygons of
+// water.ts that the windscreen draws too, at the level of the cue water_near.
+
+const SVT_WAVES = (tree: El): El[] =>
+  findElements(tree, (e) => e.props['data-svt-wave'] !== undefined);
+
+describe('the sea of the ditching scene', () => {
+  it('has the style ditching with the cruise sky, the sea ground and its own art kind', () => {
+    expect(SVT_STYLES.ditching.art).toBe('ditching');
+    expect(SVT_STYLES.ditching.sky).toBe(SVT_STYLES.cruise.sky);
+    expect(SVT_STYLES.ditching.ground).toBe('w-ground-sea');
+    expect(SCENE_GRADIENTS['w-ground-sea']).toBeDefined();
+  });
+
+  it('draws the art for its scene only', () => {
+    for (const scene of SCENE_IDS) {
+      const tree = drawField(scene, 1);
+      const art = findElements(tree, (e) => e.props['data-svt-art'] === 'ditching');
+      expect(art.length, scene).toBe(scene === 'ditching' ? 1 : 0);
+      expect(SVT_WAVES(tree).length > 0, scene).toBe(scene === 'ditching');
+    }
+  });
+
+  it('paints the bands from the shared palette', () => {
+    const fills = findElements(drawField('ditching', 0.6), () => true).map((e) => e.props['fill']);
+    expect(fills).toContain(WATER_PALETTE.trough);
+    expect(fills).toContain(WATER_PALETTE.crest);
+  });
+
+  it('moves the nearest band down and thickens it with the level: 0.2, 0.6 and 1', () => {
+    const boxes = [0.2, 0.6, 1].map((level) => {
+      const nearest = SVT_WAVES(drawField('ditching', level))[0];
+      if (nearest === undefined) throw new Error('no wave polygon');
+      const points = pointsOf(nearest);
+      const ys = points.map(([, y]) => y);
+      return { bottom: Math.max(...ys), height: Math.max(...ys) - Math.min(...ys) };
+    });
+    const [a, b, c] = boxes as [(typeof boxes)[0], (typeof boxes)[0], (typeof boxes)[0]];
+    expect(b.bottom).toBeGreaterThan(a.bottom);
+    expect(c.bottom).toBeGreaterThan(b.bottom);
+    expect(b.height).toBeGreaterThan(a.height);
+    expect(c.height).toBeGreaterThan(b.height);
+    // At level 1 the nearest band reaches below the bottom of the view.
+    expect(c.bottom).toBeGreaterThan(ATTITUDE.cy + ATTITUDE.reach);
+  });
+
+  it('draws the same bands as the windscreen: both projections invert to waterPolygons', () => {
+    const depth = OPENING.y + OPENING.h - HORIZON_Y;
+    for (const level of [0, 0.2, 0.6, 1]) {
+      const expected = waterPolygons(level).troughs;
+      const svt = SVT_WAVES(drawField('ditching', level));
+      const windscreen = findElements(
+        expand(SCENES.ditching({ cues: { water_near: level } })),
+        (e) => e.props['data-part'] === 'wave-trough',
+      );
+      expect(svt.length).toBe(expected.length);
+      expect(windscreen.length).toBe(expected.length);
+      expected.forEach((quad, band) => {
+        const fromSvt = svt[band];
+        const fromWindscreen = windscreen[band];
+        if (fromSvt === undefined || fromWindscreen === undefined) throw new Error('missing band');
+        pointsOf(fromSvt).forEach(([x, y], i) => {
+          const [lateral, row] = quad[i] ?? [Number.NaN, Number.NaN];
+          expect((x - ATTITUDE.cx) / FIELD_HALF_VIEW).toBeCloseTo(lateral, 3);
+          expect((y - ATTITUDE.cy) / ATTITUDE.reach).toBeCloseTo(row, 3);
+        });
+        pointsOf(fromWindscreen).forEach(([x, y], i) => {
+          const [lateral, row] = quad[i] ?? [Number.NaN, Number.NaN];
+          expect((x - SCENE_CENTRE_X) / (OPENING.w / 2)).toBeCloseTo(lateral, 3);
+          expect((y - HORIZON_Y) / depth).toBeCloseTo(row, 3);
+        });
+      });
+    }
+  });
+
+  it('draws no text and no animation, filter or mask', () => {
+    const tree = drawField('ditching', 0.7);
+    expect(findElements(tree, (e) => e.tag === 'text' || e.tag === 'tspan')).toEqual([]);
+    expect(findElements(tree, (e) => /^(animate|filter|mask)/.test(e.tag))).toEqual([]);
+    expect(findElements(tree, (e) => 'filter' in e.props || 'mask' in e.props)).toEqual([]);
+  });
+
+  it('the windscreen scene carries the cue and its level for the every-cue-has-art gate', () => {
+    const group = findElements(
+      expand(SCENES.ditching({ cues: { water_near: 0.4 } })),
+      (e) => e.props['data-cue'] === 'water_near',
+    )[0];
+    expect(group?.props['data-level']).toBe(0.4);
   });
 });

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { FIELD_SIGHT_FT } from '../src/aircraft/da50rg/cues';
-import { TERRAIN_HEIGHT_FT } from '../src/aircraft/da50rg/quantities';
+import { FIELD_SIGHT_FT, WATER_SIGHT_FT } from '../src/aircraft/da50rg/cues';
+import { TERRAIN_HEIGHT_FT, WATER_LEVEL_FT } from '../src/aircraft/da50rg/quantities';
 
 // The approach to an off-airport field (Phase 9, plan 09-01): the scene outlanding shows one landing
 // field that grows with the descent, in the windscreen and on the PFD synthetic vision. The free
@@ -121,4 +121,79 @@ test('the stopped propeller shows on the approach scene as on the others (engine
   // A turning engine on the same scene shows the faint disc and no blade.
   await open(page, `scene=outlanding&q=altitude_ft:${String(HEIGHTS[1])},rpm:600`);
   await expect(page.locator('[data-part="blade_stopped"]')).toHaveAttribute('opacity', '0');
+});
+
+// The approach to the sea (Phase 9, plan 09-04, R-03): the scene ditching shows wave bands that come
+// toward the pilot with the descent, in the windscreen and on the PFD synthetic vision, from one cue
+// and one geometry function. Same free-panel approach as above (preview flags, no hook).
+
+const SEA = `${WINDSCREEN} [data-scene="ditching"]`;
+const SEA_BANDS = `${SEA} [data-part="wave-trough"]`;
+const SVT_SEA = '[data-testid="pfd-attitude"] [data-svt-art="ditching"]';
+const SVT_WAVES = `${SVT_SEA} [data-svt-wave]`;
+const WATER_HEIGHTS = [
+  WATER_LEVEL_FT + WATER_SIGHT_FT,
+  WATER_LEVEL_FT + WATER_SIGHT_FT / 2,
+  WATER_LEVEL_FT,
+] as const;
+
+interface Band {
+  top: number;
+  bottom: number;
+  height: number;
+}
+
+/** The box of the nearest band (the first of the group) as top, bottom and height. */
+async function nearestBand(page: Page, selector: string): Promise<Band> {
+  const box = await page.locator(selector).first().boundingBox();
+  if (box === null) throw new Error(`no box for ${selector}`);
+  return { top: box.y, bottom: box.y + box.height, height: box.height };
+}
+
+test('the wave bands come lower and grow thicker in the windscreen from the sight height to the water', async ({
+  page,
+}) => {
+  const bands: Band[] = [];
+  for (const height of WATER_HEIGHTS) {
+    await open(page, `scene=ditching&q=altitude_ft:${String(height)}`);
+    await expect(page.locator(SEA)).toHaveCount(1);
+    await expect(page.locator(`${SEA} [data-cue="water_near"]`)).toHaveCount(1);
+    expect(await page.locator(SEA_BANDS).count()).toBeGreaterThan(3);
+    bands.push(await nearestBand(page, SEA_BANDS));
+  }
+  const [far, middle, near] = bands as [Band, Band, Band];
+  expect(middle.bottom).toBeGreaterThan(far.bottom);
+  expect(near.bottom).toBeGreaterThan(middle.bottom);
+  expect(middle.height).toBeGreaterThan(far.height);
+  expect(near.height).toBeGreaterThan(middle.height);
+});
+
+test('the wave bands come lower and grow thicker on the PFD synthetic vision', async ({ page }) => {
+  const bands: Band[] = [];
+  for (const height of WATER_HEIGHTS) {
+    await open(page, `scene=ditching&q=altitude_ft:${String(height)}`);
+    await expect(page.locator(SVT_SEA)).toHaveCount(1);
+    expect(await page.locator(SVT_WAVES).count()).toBeGreaterThan(3);
+    bands.push(await nearestBand(page, SVT_WAVES));
+  }
+  const [far, middle, near] = bands as [Band, Band, Band];
+  expect(middle.bottom).toBeGreaterThan(far.bottom);
+  expect(near.bottom).toBeGreaterThan(middle.bottom);
+  expect(middle.height).toBeGreaterThan(far.height);
+  expect(near.height).toBeGreaterThan(middle.height);
+});
+
+test('the sea draws no text, and the free panel default scene is unchanged', async ({ page }) => {
+  await open(page, `scene=ditching&q=altitude_ft:${String(WATER_HEIGHTS[1])}`);
+  await expect(
+    page.locator(`${SEA} text, ${SEA} tspan, ${SVT_SEA} text, ${SVT_SEA} tspan`),
+  ).toHaveCount(0);
+  await open(page, '');
+  await expect(page.locator(`${WINDSCREEN} [data-scene="cruise"]`)).toHaveCount(1);
+  await expect(page.locator('[data-scene="ditching"]')).toHaveCount(0);
+  await expect(page.locator('[data-part="wave-trough"]')).toHaveCount(0);
+  await expect(page.locator('[data-svt-art="ditching"]')).toHaveCount(0);
+  // The altitude flag alone, without the scene flag, keeps the cruise view.
+  await open(page, `q=altitude_ft:${String(WATER_LEVEL_FT)}`);
+  await expect(page.locator('[data-scene="ditching"]')).toHaveCount(0);
 });

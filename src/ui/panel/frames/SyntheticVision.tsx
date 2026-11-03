@@ -4,6 +4,8 @@ import type { SceneId } from '../../../aircraft/da50rg/scenes';
 import { FIELD_PALETTE, FURROW_AT, fieldPolygons } from '../windscreen/field';
 import type { FieldCorner } from '../windscreen/field';
 import { FIELD_COLOURS, SCENE_GRADIENTS, isSceneId } from '../windscreen/scenes';
+import { WATER_PALETTE, waterPolygons } from '../windscreen/water';
+import type { WaterCorner } from '../windscreen/water';
 import type { GradientColours, SceneGradientId } from '../windscreen/scenes';
 
 // Synthetic vision (Phase 6.1, PNL-26, D-07, D-08): the simplified outside view of the situation's
@@ -19,9 +21,9 @@ export interface SvtStyle {
   readonly ground: SceneGradientId;
   /**
    * The art on the ground: perspective field patches, the apron with its taxi line, the runway, or
-   * the field patches with the landing field of the approach.
+   * the field patches with the landing field of the approach, or the wave bands of the sea.
    */
-  readonly art: 'fields' | 'apron' | 'runway' | 'outlanding';
+  readonly art: 'fields' | 'apron' | 'runway' | 'outlanding' | 'ditching';
 }
 
 /**
@@ -36,6 +38,8 @@ export const SVT_STYLES: Readonly<Record<SceneId, SvtStyle>> = {
   cloud: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'fields' },
   // The approach to an off-airport field (Phase 9): the cruise terrain with the landing field.
   outlanding: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'outlanding' },
+  // The approach to the sea (Phase 9, R-03): the cruise sky over the sea, with its wave bands.
+  ditching: { sky: 'w-sky-cruise', ground: 'w-ground-sea', art: 'ditching' },
 };
 
 /** Height over which the sky colours run from the top colour to the horizon colour. */
@@ -230,6 +234,37 @@ function Outlanding({
   );
 }
 
+/**
+ * The approach to the sea (Phase 9, R-03): the wave bands of `waterPolygons(level)`, the polygons the
+ * windscreen draws too, projected here with the view's own rows (a row is a fraction of `reach`
+ * below the horizon). A dark trough with a light crest line per band; flat paint, no text.
+ */
+function SeaWaves({
+  cx,
+  cy,
+  reach,
+  level,
+}: {
+  cx: number;
+  cy: number;
+  reach: number;
+  level: number;
+}) {
+  const sea = waterPolygons(level);
+  const quad = (q: readonly WaterCorner[]): string =>
+    q.map(([lateral, row]) => pt(cx + lateral * FIELD_HALF_VIEW, cy + row * reach)).join(' ');
+  return (
+    <g data-svt-art="ditching">
+      {sea.troughs.map((trough, i) => (
+        <g key={i}>
+          <polygon data-svt-wave points={quad(trough)} fill={WATER_PALETTE.trough} />
+          <polygon points={quad(sea.crests[i] ?? trough)} fill={WATER_PALETTE.crest} />
+        </g>
+      ))}
+    </g>
+  );
+}
+
 /** The apron: two seams across it and the yellow taxi line as a wedge to the vanishing point. */
 function Apron({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
   const edge = FIELD_LINES[0] ?? 0;
@@ -261,15 +296,18 @@ export function SyntheticVision({
   cx,
   cy,
   reach,
-  fieldLevel = 0,
+  artLevel = 0,
 }: {
   /** A scene id; one the art does not know draws the default scene. */
   scene: string;
   cx: number;
   cy: number;
   reach: number;
-  /** The level 0 to 1 of the cue field_near: how near the landing field of the approach scene is. */
-  fieldLevel?: number;
+  /**
+   * The one neutral art level 0 to 1 of the scene's cue: how near the landing field (cue field_near,
+   * scene outlanding) or the waves (cue water_near, scene ditching) are; the frame picks the cue.
+   */
+  artLevel?: number;
 }) {
   const id: SceneId = isSceneId(scene) ? scene : DEFAULT_SCENE;
   const style = SVT_STYLES[id];
@@ -320,8 +358,11 @@ export function SyntheticVision({
       {style.art === 'runway' ? <Runway cx={cx} cy={cy} reach={reach} /> : null}
       {style.art === 'fields' ? <Fields cx={cx} cy={cy} reach={reach} /> : null}
       {style.art === 'apron' ? <Apron cx={cx} cy={cy} reach={reach} /> : null}
+      {style.art === 'ditching' ? (
+        <SeaWaves cx={cx} cy={cy} reach={reach} level={artLevel} />
+      ) : null}
       {style.art === 'outlanding' ? (
-        <Outlanding cx={cx} cy={cy} reach={reach} level={fieldLevel} />
+        <Outlanding cx={cx} cy={cy} reach={reach} level={artLevel} />
       ) : null}
       <rect
         data-svt-haze
