@@ -344,7 +344,8 @@ test('the cluster has its headline and the rows of the owner: three conducts on 
         });
       });
     expect(lineBoxes.length, `${option.id} lines`).toBe((option.label ?? '').split('\n').length);
-    const margin = hit.w * (6 / 150);
+    // 6 units of margin, less 1 px of font slack: the Linux runner draws the text a fraction of a pixel wider (WORKFLOW, font slack).
+    const margin = hit.w * (6 / 150) - 1;
     for (const box of lineBoxes) {
       expect(box.x, `${option.id} left`).toBeGreaterThanOrEqual(hit.x + margin);
       expect(box.x + box.w, `${option.id} right`).toBeLessThanOrEqual(hit.x + hit.w - margin);
