@@ -78,7 +78,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Platform & Business
 
 - [x] **PLT-01**: GitHub Actions deploys to GitHub Pages; build is host-agnostic (base path from environment)
-- [ ] **PLT-02**: App installs as a PWA and works offline
+- [x] **PLT-02**: App installs as a PWA and works offline (as built by plans 08-01 to 08-03, 2026-11-03; the owner's device round, `docs/DEVICE-CHECKLIST.md`, and the phase UAT are pending)
 - [x] **PLT-03**: Scenario packs load only through a PackProvider/AccessPolicy seam, open in v1
 - [x] **PLT-04**: First-run training-aid acknowledgment is shown, and each scenario shows its source/disclaimer
 
@@ -183,13 +183,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SES-05 | Phase 7 | Complete (as built, reworked after the owner walkthrough 2026-11-02 and in plan 07-06, pending the phase UAT) |
 | SES-06 | Phase 7 | Complete (as built, pending the phase UAT) |
 | CNT-02 | Phase 7 | Complete (as built, pending the phase UAT) |
-| PLT-02 | Phase 8 | Pending |
+| PLT-02 | Phase 8 | Complete (as built, pending the phase UAT and the owner's device round) |
 
 **Coverage:**
 - v1 requirements: 60 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1; SCN-11, PNL-16, CNT-04 added 2026-10-23 for phase 4; PNL-17, PNL-18, PNL-19, SCN-12 added 2026-10-27 for phase 5; PNL-20, SCN-13, SES-08, CNT-05 added 2026-10-27 for phase 5.1; PNL-21, PNL-22, PNL-23, PNL-24, SCN-14, SCN-15, SCN-16 added 2026-10-28 for phase 6; PNL-25, PNL-26, PNL-27 added 2026-11-01 for the inserted phase 6.1, PFD fidelity)
-- Mapped to phases: 60 (PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27; the seven requirements of phase 6 are complete as built by plans 06-01 to 06-04, 2026-10-29, pending the phase UAT; PNL-25 to PNL-27 complete as built by plans 06.1-01 to 06.1-03, 2026-11-01, pending the phase UAT; SES-02, SES-05, SES-06 and CNT-02 complete as built by plans 07-01 to 07-06 (07-04 and 07-05 rework SES-02, SES-03 and SES-05 after the owner walkthrough, 07-06 reworks SES-01, SES-02, SES-05 and PNL-25 after his second round), 2026-11-02, pending the phase UAT; only PLT-02 is still pending, in phase 8)
+- Mapped to phases: 60 (PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27; the seven requirements of phase 6 are complete as built by plans 06-01 to 06-04, 2026-10-29, pending the phase UAT; PNL-25 to PNL-27 complete as built by plans 06.1-01 to 06.1-03, 2026-11-01, pending the phase UAT; SES-02, SES-05, SES-06 and CNT-02 complete as built by plans 07-01 to 07-06 (07-04 and 07-05 rework SES-02, SES-03 and SES-05 after the owner walkthrough, 07-06 reworks SES-01, SES-02, SES-05 and PNL-25 after his second round), 2026-11-02, pending the phase UAT; PLT-02 complete as built by plans 08-01 to 08-03, 2026-11-03, pending the phase UAT and the owner's device round)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-19*
-*Last updated: 2026-11-02 after the phase 7 rework (SES-02, SES-03 and SES-05 reworded: checklist sheet with marks, no mode, footwell toggle buttons)*
+*Last updated: 2026-11-03 after phase 8 (PLT-02 built: offline worker, manifest, icons, update flow, device checklist)*

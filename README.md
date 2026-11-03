@@ -341,6 +341,16 @@ There is no hint text in a scenario file. The CHECKLIST sheet prints the checkli
 
 Run `npm run dev`, open CHOOSE SITUATION (zoom into the session pad with a double tap), choose the tab of its group and pick the new row; the new situation appears at once, the manifest title in the list and the file's own title in the briefing. Answer the level card (Realistic is offered only when the file has an `onset`), operate the panel and press Procedure complete. In the debrief **Retry** restarts the same situation with the same cause and onset, which makes it a quick loop while tuning a file, and **Next situation** moves on in the order of the catalog.
 
+## Install and offline use
+
+The trainer is a PWA. In a production build a small service worker (`scripts/pwa`, stamped by a Vite plugin at build time) keeps every file of the build in a cache, so after one online visit the whole app, every situation included, runs with the network off. A web app manifest and generated icons (`public/`) let Chrome, Edge, Android Chrome and iOS or iPadOS Safari install it and open it standalone; nothing changes on the panel itself.
+
+- **Offline:** open the site once online. **About and content policy** shows `Offline: ready, version <id>` when the copy is complete (the id names the deploy), or `Offline: not available`. There is no worker in `npm run dev`.
+- **Updates:** after a new deploy the new version installs in the background and waits. On the free panel only (never in the chooser, a briefing, a run or a debrief) a notice reads "A new version is ready." with a button "Reload"; one tap reloads once into the new version. Nothing reloads by itself.
+- **Icons:** `npm run icons` regenerates the PNGs in `public/icons/` from own artwork (it uses the Playwright Chromium); the PNGs are committed and CI never runs it. Overwrite them to change the icon.
+- **Tests:** Playwright blocks service workers by default, so the other specs stay deterministic. `e2e/pwa-offline.spec.ts`, `e2e/pwa-install.spec.ts` and `e2e/pwa-update.spec.ts` allow them; specs titled `@local` also need the build output on disk and a private static server that ships a "new version", and are skipped when `PW_BASE_URL` points at a deployed site. The cases without `@local` also run against the live site: `PW_BASE_URL=<site url> npx playwright test e2e/pwa-offline.spec.ts e2e/pwa-install.spec.ts e2e/pwa-update.spec.ts`.
+- **Real devices:** what no emulation can show (installing on each platform, airplane mode, safe areas, the touch flow) is in the [Device checklist](docs/DEVICE-CHECKLIST.md).
+
 ## Content policy
 
 Read the [Content policy](docs/CONTENT-POLICY.md) before adding any scenario, procedure text or artwork. It exists to keep AFM-derived material out of this public repository beyond a well-defined limit: checklist text is reproduced exactly as printed (owner decision 2026-10-23), while photographs, scans, the AFM files and the manual's prose stay out and all other text is in own words.
@@ -359,6 +369,7 @@ npm run validate       # check every scenario file (file:line:col)
 npm run format:check   # check formatting
 npm test               # unit tests (Vitest: layout, reference-table and static-text gates)
 npm run e2e            # end-to-end tests (Playwright; builds dist-e2e with the test hook and serves it)
+npm run icons          # regenerate the PWA icons in public/icons (committed; CI never runs it)
 ```
 
 `BASE_PATH` sets the deploy base path (default "/"). The e2e run uses the base `/procedure-trainer-da-50/` on port 4173; set `PW_PORT` to use another port (parallel worktrees). Playwright projects: desktop-chromium, desktop-webkit, phone-chromium, phone-webkit, tablet-chromium, tablet-webkit and phone-portrait (run one with `npx playwright test --project=tablet-chromium`). Specs titled `@hooks` read the test-only `window.__panel` hook and are skipped when `PW_BASE_URL` points the run at a deployed site.

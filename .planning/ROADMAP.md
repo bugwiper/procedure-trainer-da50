@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Fuel, tank and engine fidelity and the engine page** - Two tanks and a combined gauge, fuel flow and calculator, oil pressure, oxygen, de-ice quantity, rudder trim, the real engine page layout and a live PFD (completed 2026-11-01)
 - [x] **Phase 6.1: PFD fidelity** (INSERTED) - Synthetic vision under the whole PFD, translucent tapes, vertical speed scale, QNH in hPa, vertically stacked fine CAS messages, simple compass rose (completed 2026-11-01)
 - [ ] **Phase 7: Training Mode, Further Actions and Repeat Loop** - Checklist and hints, non-panel decisions, retry/next, and the authoring guide
-- [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop
+- [ ] **Phase 8: Offline PWA and Real-Device Hardening** - Installable, offline-capable app verified on real phones, tablets and desktop (executed 2026-11-03, awaiting UAT and the owner's device round)
 
 ## Phase Details
 
@@ -614,7 +614,21 @@ Plans:
 3. After a new version is deployed, a returning user gets the new version without a blank screen or stale-asset errors, and the installed app still resolves its assets under the GitHub Pages base path.
 4. The full flow (acknowledgment, new situation, operating the panel, debrief, retry) works by touch on a real iPhone, an iPad and an Android phone.
 
-**Plans**: TBD
+**Plans:** 3 plans (lean form, see WORKFLOW.md); decisions in 08-CONTEXT.md
+
+Plans:
+
+**Wave 1**
+
+- [x] 08-01 — Tracer: a hand-written service worker stamped by an in-repo Vite plugin precaches the whole build; every shipped scenario runs from start to debrief with the network off on all seven projects
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [x] 08-02 — Web app manifest, generated DA50RG / GO-AROUND icons, iOS tags, installability specs, brand rule held
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [x] 08-03 — Tracer: the update flow (a waiting worker, a calm notice on the free panel only, one reload after a tap, never in a run, a second tab never reloads by itself), the About version line, the owner device checklist, the phase-end documents and the final gates incl. the Linux image
 
 ## Progress
 
@@ -633,4 +647,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 6. Fuel, tank and engine fidelity and the engine page | 4/4            | Executed, awaiting UAT | 2026-10-29 |
 | 6.1. PFD fidelity                                     | 3/3            | Complete    | 2026-11-01 |
 | 7. Training Mode, Further Actions and Repeat Loop     | 6/6            | Executed, awaiting UAT | 2026-11-02 |
-| 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |
+| 8. Offline PWA and Real-Device Hardening              | 3/3            | Executed, awaiting UAT | 2026-11-03 |

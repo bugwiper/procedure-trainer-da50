@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 
 ## Current Position
 
-Phase: 6 — Fuel, tank and engine fidelity and the engine page
-Current Plan: 06-04 complete (plans 06-01 to 06-04 executed)
-Total Plans in Phase: 4
-Status: Phase 6.1 complete (owner review 2026-11-01, PFD narrowed and symmetric, code review warning fixed, deployed), ready to plan Phase 7
+Phase: 8 — Offline PWA and Real-Device Hardening
+Current Plan: 08-03 complete (plans 08-01 to 08-03 executed, 2026-11-03)
+Total Plans in Phase: 3
+Status: Phase 8 executed, awaiting UAT and the owner's device round (`docs/DEVICE-CHECKLIST.md`); Phase 7 awaits UAT as well
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
-Last activity: 2026-11-01 — Phase 6 complete (walk-through passed; MFD map strip follows the real display; low red bands on the temperature bars)
+Last activity: 2026-11-03 — Phase 8 executed (offline worker, manifest and icons, update flow, device checklist); awaiting UAT
 
 Progress: [███████░░░] 70%
 
@@ -270,5 +270,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-23T10:34:20.154Z
-Stopped at: Phase 6 complete, ready to plan Phase 6.1
+Stopped at: Completed 08-03-PLAN.md (phase 8 executed, awaiting UAT)
 Resume file: None
