@@ -6,16 +6,16 @@ import { parseScenario } from '../src/scenario/parse';
 import { pickFurther, startScenario } from './support/session';
 import { activate } from './support/zoom';
 
-// SES-09 (phase 09, plan 09-02): the debrief offers a button that continues with the situation a
-// scenario names as the follow-on of the conduct selected at the end of the run. No shipped file
-// declares a follow-on before plan 09-03, so the spec patches the text of the shipped engine pack on
-// its way into the page: it adds a follow_on map to the Engine Fire file that points at the Engine Oil
-// Temperature file (an existing situation, so the real pack seam, the real session and the real debrief
-// are exercised). Once a shipped file declares its own follow-on, the patch steps aside and the
-// target is read from that file in node. The button text comes from the aircraft data.
+// SES-09 (phase 09, plans 09-02 and 09-03): the debrief offers a button that continues with the
+// situation a scenario names as the follow-on of the conduct selected at the end of the run. Since plan
+// 09-03 the shipped Engine Fire file declares its own follow-on (the landing situation), so the target
+// is read from that file in node. Before it did, the spec patched the text of the shipped engine pack on
+// its way into the page (the patch below steps aside when the shipped file has a follow-on). The button
+// text comes from the aircraft data. The landing flow itself is in e2e/landing.spec.ts.
 
 const FIRE_FILE = 'scenarios/engine/eng-fire-in-flight.toon';
 const FIRE_ROW = 'engine.eng-fire-in-flight';
+const NO_FOLLOW_ON_ROW = 'fire.elec-fire-flight';
 const TARGET = { pack: 'engine', scenario: 'eng-oil-temp-green' };
 /** The 400 ms input shield of a freshly shown overlay plus 100 ms of margin. */
 const SHIELD_WAIT_MS = 500;
@@ -30,10 +30,11 @@ const emergency: string = lastConduct;
 const OFFER = SET.option(emergency)?.followOn;
 if (OFFER === undefined) throw new Error('the aircraft gives the emergency landing no follow-on');
 
-const fileOf = (name: string) => new URL(`../scenarios/engine/${name}.toon`, import.meta.url);
-const titleOf = (name: string): string => {
-  const parsed = parseScenario(readFileSync(fileOf(name), 'utf8'));
-  if (!parsed.ok) throw new Error(`${name} does not parse`);
+const fileOf = (pack: string, name: string) =>
+  new URL(`../scenarios/${pack}/${name}.toon`, import.meta.url);
+const titleOf = (target: { pack: string; scenario: string }): string => {
+  const parsed = parseScenario(readFileSync(fileOf(target.pack, target.scenario), 'utf8'));
+  if (!parsed.ok) throw new Error(`${target.scenario} does not parse`);
   return parsed.value.title;
 };
 
@@ -102,7 +103,7 @@ for (const level of ['easy', 'medium'] as const) {
     // The same start as Next situation: the briefing of the target, the level kept, no level card.
     await expect(page.getByTestId('briefing')).toBeVisible();
     await expect(page.getByTestId('briefing').getByRole('heading', { level: 2 })).toHaveText(
-      titleOf(TARGET_NOW.scenario),
+      titleOf(TARGET_NOW),
     );
     await expect(page.getByTestId('level-pick')).toHaveCount(0);
     await expect(page.getByTestId('debrief-result')).toHaveCount(0);
@@ -114,7 +115,7 @@ for (const level of ['easy', 'medium'] as const) {
     // Nothing of the first run is carried over: the second debrief is its own grade.
     await finish(page, hasTouch);
     await expect(page.getByTestId('debrief-level')).toHaveText(`Level: ${LEVEL_NAMES[level]}`);
-    await expect(page.getByTestId('debrief-scenario')).toHaveText(titleOf(TARGET_NOW.scenario));
+    await expect(page.getByTestId('debrief-scenario')).toHaveText(titleOf(TARGET_NOW));
     expect(firstResult).toBe('FAIL');
     expect(firstReasons.length).toBeGreaterThan(0);
   });
@@ -163,12 +164,9 @@ test('@hooks no button is offered where the scenario names no follow-on, and the
   page,
   hasTouch,
 }) => {
-  test.skip(
-    shippedTarget() !== null,
-    'the shipped Engine Fire file declares a follow-on of its own',
-  );
-  // No patch: the shipped file has no follow_on map.
-  await startScenario(page, hasTouch, FIRE_ROW);
+  // ELEC FIRE FLIGHT names no follow-on (the engine keeps running, owner answer 2026-11-03): even the
+  // emergency landing picked there offers no button, and the note of the conduct shows.
+  await startScenario(page, hasTouch, NO_FOLLOW_ON_ROW);
   await pickFurther(page, hasTouch, [emergency]);
   await finish(page, hasTouch);
   await expect(page.getByTestId('debrief-follow-on')).toHaveCount(0);

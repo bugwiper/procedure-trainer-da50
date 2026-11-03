@@ -904,7 +904,8 @@ describe('phase 7 owner review (plan 07-03)', () => {
       'ENG OIL TEMP',
       'ALTN 1 FAIL, ALTN 2 FAIL',
       'ICING CONDITIONS',
-      'ENGINE FIRE (in flight), ELEC FIRE FLIGHT, T/O FIRE NO ABORT',
+      'ENGINE FIRE (in flight), T/O FIRE NO ABORT',
+      'ELEC FIRE FLIGHT (changed 2026-11-03, Phase 9)',
       'ENGINE FIRE GROUND, ELEC FIRE GROUND, T/O FIRE ABORT',
     ]) {
       expect(section, row).toContain(row);
@@ -1011,6 +1012,20 @@ describe('phase 9 owner review (plan 09-02)', () => {
       'landingScenes',
       'engine_stopped',
       'Realistic',
+    ]) {
+      expect(section, word).toContain(word);
+    }
+  });
+
+  it('lists the printed content of the shipped situation (plan 09-03)', () => {
+    for (const word of [
+      'LANDING ENGINE OFF',
+      'EMERGENCY LANDING (ENGINE OFF)',
+      'page 9',
+      'FLIGHT IDLE',
+      'conduct_precautionary',
+      'ELEC FIRE FLIGHT',
+      'no checklist for an emergency landing with engine power',
     ]) {
       expect(section, word).toContain(word);
     }

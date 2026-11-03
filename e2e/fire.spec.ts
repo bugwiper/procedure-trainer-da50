@@ -338,7 +338,7 @@ test('@hooks Electrical Fire in Flight: smoke over the cruise scene from the sta
   await flightGolden(page, hasTouch);
   await expect(page.locator(SMOKE)).toHaveCount(0, { timeout: CLEARS_WITHIN_MS });
 
-  await pickFurther(page, hasTouch, ['atc_mayday', 'conduct_emergency']);
+  await pickFurther(page, hasTouch, ['atc_mayday', 'conduct_precautionary']);
   await activate(page.getByTestId('procedure-complete'), hasTouch);
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
   for (const id of ['av_master_off', 'elect_master_off', 'circ_air_fresh', 'ecs_pulled']) {

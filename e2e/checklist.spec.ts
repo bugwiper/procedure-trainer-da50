@@ -192,6 +192,7 @@ for (const [id, row] of [
   ['takeoff-fire-no-abort', 'fire.takeoff-fire-no-abort'],
   ['elec-fire-flight', 'fire.elec-fire-flight'],
   ['icing-unintentional', 'icing.icing-unintentional'],
+  ['landing-engine-off', 'landing.landing-engine-off'],
 ] as const) {
   test(`the Easy briefing of ${id} reads like the booklet table, numbers and comment rows as printed`, async ({
     page,
