@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { linkedManifest, pngSize, registrationOf, waitForControl } from './support/pwa';
+import {
+  cachedUrls,
+  collectRequests,
+  linkedManifest,
+  pngSize,
+  registrationOf,
+  waitForControl,
+} from './support/pwa';
 import type { LinkedManifest } from './support/pwa';
 
 // PLT-02, ROADMAP criteria 1 and 3 (the install half): the page links a manifest that satisfies the
@@ -127,4 +134,102 @@ test('Chromium reports no manifest error and no installability error (CDP, Chrom
     installabilityErrors: { errorId: string }[];
   };
   expect(verdict.installabilityErrors.map((error) => error.errorId)).toEqual([]);
+});
+
+/** `<meta name=... content=...>` of the live DOM, or null. */
+const metaContent = (page: Page, name: string): Promise<string | null> =>
+  page.evaluate(
+    (key) => document.querySelector(`meta[name="${key}"]`)?.getAttribute('content') ?? null,
+    name,
+  );
+
+test('the built page carries the iOS tags, a 180 apple icon and the manifest theme colour', async ({
+  page,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  await page.goto('./');
+  const manifest = await linkedManifest(page);
+
+  expect(await metaContent(page, 'apple-mobile-web-app-capable')).toBe('yes');
+  expect(await metaContent(page, 'mobile-web-app-capable')).toBe('yes');
+  expect(await metaContent(page, 'apple-mobile-web-app-title')).toBe(manifest.json['short_name']);
+  expect(await metaContent(page, 'apple-mobile-web-app-status-bar-style')).toBe('black');
+  expect(await metaContent(page, 'theme-color')).toBe(manifest.json['theme_color']);
+  // Safari keeps the page inside the safe area only when the viewport does not ask for the cover.
+  expect(await metaContent(page, 'viewport')).not.toMatch(/viewport-fit/i);
+
+  const apple = await page.evaluate(
+    () => document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')?.href ?? '',
+  );
+  expect(apple.startsWith(baseURL)).toBe(true);
+  const response = await page.request.get(apple);
+  expect(response.status()).toBe(200);
+  expect(pngSize(await response.body())).toEqual({ width: 180, height: 180 });
+
+  // The favicon is a PNG under the base, no longer an empty data URL.
+  const favicon = await page.evaluate(
+    () => document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.href ?? '',
+  );
+  expect(favicon.startsWith(baseURL)).toBe(true);
+  expect((await page.request.get(favicon)).status()).toBe(200);
+});
+
+test('the manifest and every icon answer 200 from the cache with the network off', async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await waitForControl(page);
+  const manifest = await linkedManifest(page);
+  const icons = (manifest.json['icons'] ?? []) as ManifestIcon[];
+  const apple = await page.evaluate(
+    () => document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')?.href ?? '',
+  );
+  const urls = [
+    manifest.url,
+    apple,
+    ...icons.map((icon) => new URL(icon.src ?? '', manifest.url).href),
+  ];
+
+  await context.setOffline(true);
+  const answers = await page.evaluate(async (list) => {
+    const out: { url: string; status: number; bytes: number }[] = [];
+    for (const url of list) {
+      const response = await fetch(url);
+      out.push({ url, status: response.status, bytes: (await response.arrayBuffer()).byteLength });
+    }
+    return out;
+  }, urls);
+  for (const answer of answers) {
+    expect(answer.status, answer.url).toBe(200);
+    expect(answer.bytes, answer.url).toBeGreaterThan(0);
+  }
+  // And the cache holds them under the scope, which is what answered.
+  const cached = await cachedUrls(page);
+  for (const url of urls) expect(cached, url).toContain(url);
+});
+
+test('every request of the install checks stays on one origin under the base path', async ({
+  page,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  const log = collectRequests(page);
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await waitForControl(page);
+  const manifest = await linkedManifest(page);
+  const icons = (manifest.json['icons'] ?? []) as ManifestIcon[];
+  for (const icon of icons) await page.request.get(new URL(icon.src ?? '', manifest.url).href);
+  await page.reload();
+  await expect(page.getByTestId('panel')).toBeVisible();
+
+  expect(log.urls.length).toBeGreaterThan(0);
+  expect(log.outside(baseURL)).toEqual([]);
+  expect(log.failed).toEqual([]);
+  expect(log.consoleErrors).toEqual([]);
 });

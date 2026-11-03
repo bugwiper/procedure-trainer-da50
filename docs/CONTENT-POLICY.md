@@ -71,6 +71,8 @@ All panel artwork is original vector work. The private reference photos are used
 
 Brand replacement rule: the panel never shows a real maker's mark. The avionics maker's name on the display bezels reads GO-AROUND, no airframe maker's wordmark is drawn at all, and the type name DA50RG stays. No real logo, swoosh, bird, wordmark shape or aircraft registration is drawn. A unit test and an end-to-end test check the rendered text.
 
+The app icons follow the same rule as the panel artwork: they are own vector art made only of the DA50RG and GO-AROUND marks on the panel's own greys, with no logo, swoosh, bird, wordmark shape or registration and no maker name. The owner may replace them by other art that keeps the rule.
+
 ## 8. Corrections and error reports
 
 Report content errors as a GitHub issue on this repository. A fix updates the scenario and its last-verified date.
