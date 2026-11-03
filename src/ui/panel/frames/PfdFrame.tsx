@@ -97,6 +97,9 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
   // The scene of the situation (the ?scene= flag on the free panel); SyntheticVision falls back to
   // the default scene for an id the art does not know. Reading the signal subscribes this frame.
   const scene = session?.scene.value ?? DEFAULT_SCENE;
+  // How near the landing field of the approach scene is (the cue field_near, 0 where none); reading
+  // the signal subscribes the frame, so the field redraws with each simulation step like the tapes.
+  const fieldLevel = bridge.cueLevels.value['field_near'] ?? 0;
   const airspeed = bridge.quantities.value[PFD_AIRSPEED_QUANTITY];
   const altitude = bridge.quantities.value[PFD_ALTITUDE_QUANTITY];
   const verticalSpeed = bridge.quantities.value[PFD_VERTICAL_SPEED_QUANTITY];
@@ -133,7 +136,13 @@ export function PfdFrame({ region, bridge, session }: FrameProps) {
           <g clip-path={`url(#${ATTITUDE_CLIP_ID})`}>
             {/* One group: the synthetic vision, horizon line and pitch ladder move and turn together. */}
             <g data-horizon transform={horizonTransform}>
-              <SyntheticVision scene={scene} cx={cx} cy={HORIZON_Y} reach={HORIZON_REACH} />
+              <SyntheticVision
+                scene={scene}
+                cx={cx}
+                cy={HORIZON_Y}
+                reach={HORIZON_REACH}
+                fieldLevel={fieldLevel}
+              />
               <line
                 x1={cx - HORIZON_REACH}
                 y1={HORIZON_Y}

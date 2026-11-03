@@ -71,6 +71,7 @@ function fakeBridge(page: 'map' | 'engine', avMaster: 'on' | 'off' = 'on'): Pane
     stateOf: (id: string) => ({ value: id === AV_MASTER_CONTROL ? avMaster : page }),
     quantities: { value: DA50RG_QUANTITIES.baseValues() },
     cas: { value: [] },
+    cueLevels: { value: {} },
   } as unknown as PanelBridge;
 }
 

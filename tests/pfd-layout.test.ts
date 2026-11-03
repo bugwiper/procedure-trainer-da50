@@ -77,6 +77,7 @@ const bridge = {
   stateOf: () => ({ value: 'map' }),
   quantities: { value: DA50RG_QUANTITIES.baseValues() },
   cas: { value: [] },
+  cueLevels: { value: {} },
 } as unknown as PanelBridge;
 const tree = expand(PfdFrame({ region: pfdRegion, bridge }));
 

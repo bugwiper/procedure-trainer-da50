@@ -5,9 +5,15 @@ import { DA50RG } from '../src/aircraft/da50rg/panel';
 import { DA50RG_QUANTITIES } from '../src/aircraft/da50rg/quantities';
 import type { PanelBridge } from '../src/ui/bridge';
 import { PfdFrame } from '../src/ui/panel/frames/PfdFrame';
-import { SVT_STYLES, SyntheticVision } from '../src/ui/panel/frames/SyntheticVision';
+import {
+  FIELD_HALF_VIEW,
+  SVT_STYLES,
+  SyntheticVision,
+} from '../src/ui/panel/frames/SyntheticVision';
 import type { Session } from '../src/ui/session';
-import { SCENE_GRADIENTS } from '../src/ui/panel/windscreen/scenes';
+import { FIELD_PALETTE, fieldPolygons } from '../src/ui/panel/windscreen/field';
+import { OPENING, SCENE_CENTRE_X } from '../src/ui/panel/windscreen/geometry';
+import { HORIZON_Y, SCENES, SCENE_GRADIENTS } from '../src/ui/panel/windscreen/scenes';
 import { expand, findElements } from './vnode-walk';
 import type { El } from './vnode-walk';
 
@@ -144,6 +150,7 @@ function pfdTree(scene: string): El {
     stateOf: () => ({ value: 'map' }),
     quantities: { value: DA50RG_QUANTITIES.baseValues() },
     cas: { value: [] },
+    cueLevels: { value: {} },
   } as unknown as PanelBridge;
   const session = { scene: { value: scene } } as unknown as Session;
   return expand(PfdFrame({ region: pfdRegion as never, bridge, session }));
@@ -256,6 +263,124 @@ describe('the art of the four scenes', () => {
     for (const rect of rects) {
       expect(Number(rect.props['x'])).toBe(ATTITUDE.cx - ATTITUDE.reach);
       expect(Number(rect.props['width'])).toBe(2 * ATTITUDE.reach);
+    }
+  });
+});
+
+// The landing field of the approach scene (Phase 9, D-05, D-07): the synthetic vision draws the
+// polygons of field.ts that the windscreen draws too, at the level of the cue field_near.
+
+const drawField = (scene: string, fieldLevel: number): El =>
+  expand(
+    SyntheticVision({ scene, cx: ATTITUDE.cx, cy: ATTITUDE.cy, reach: ATTITUDE.reach, fieldLevel }),
+  );
+
+/** The points of a polygon attribute as numbers. */
+const pointsOf = (el: El): [number, number][] =>
+  String(el.props['points'])
+    .split(' ')
+    .map((pair) => {
+      const [x, y] = pair.split(',').map(Number) as [number, number];
+      return [x, y];
+    });
+
+const SVT_FIELD = (tree: El): El[] =>
+  findElements(tree, (e) => e.props['data-svt-field'] !== undefined);
+
+/** Width and height of the box around the points. */
+function extent(points: readonly [number, number][]): { width: number; height: number } {
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  return { width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+}
+
+describe('the landing field of the outlanding scene', () => {
+  it('has the style outlanding with the cruise palette and its own art kind', () => {
+    expect(SVT_STYLES.outlanding.art).toBe('outlanding');
+    expect(SVT_STYLES.outlanding.sky).toBe(SVT_STYLES.cruise.sky);
+    expect(SVT_STYLES.outlanding.ground).toBe(SVT_STYLES.cruise.ground);
+  });
+
+  it('draws the art and the field for its scene only', () => {
+    for (const scene of SCENE_IDS) {
+      const tree = drawField(scene, 1);
+      const art = findElements(tree, (e) => e.props['data-svt-art'] === 'outlanding');
+      expect(art.length, scene).toBe(scene === 'outlanding' ? 1 : 0);
+      expect(SVT_FIELD(tree).length, scene).toBe(scene === 'outlanding' ? 1 : 0);
+    }
+  });
+
+  it('paints the field from the shared palette', () => {
+    const tree = drawField('outlanding', 0.6);
+    const fills = findElements(tree, () => true).map((e) => e.props['fill']);
+    expect(fills).toContain(FIELD_PALETTE.hedge);
+    expect(fills).toContain(FIELD_PALETTE.stubble);
+    expect(fills).toContain(FIELD_PALETTE.furrow);
+  });
+
+  it('grows in extent with the level: 0.2, 0.6 and 1', () => {
+    const sizes = [0.2, 0.6, 1].map((level) => {
+      const polygon = SVT_FIELD(drawField('outlanding', level))[0];
+      if (polygon === undefined) throw new Error('no field polygon');
+      return extent(pointsOf(polygon));
+    });
+    const [a, b, c] = sizes as [(typeof sizes)[0], (typeof sizes)[0], (typeof sizes)[0]];
+    expect(b.width).toBeGreaterThan(a.width);
+    expect(b.height).toBeGreaterThan(a.height);
+    expect(c.width).toBeGreaterThan(b.width);
+    expect(c.height).toBeGreaterThan(b.height);
+  });
+
+  it('defaults the level to 0: a speck, narrower than a few percent of the view', () => {
+    const defaulted = expand(
+      SyntheticVision({
+        scene: 'outlanding',
+        cx: ATTITUDE.cx,
+        cy: ATTITUDE.cy,
+        reach: ATTITUDE.reach,
+      }),
+    );
+    expect(JSON.stringify(defaulted)).toBe(JSON.stringify(drawField('outlanding', 0)));
+    const polygon = SVT_FIELD(defaulted)[0];
+    if (polygon === undefined) throw new Error('no field polygon');
+    expect(extent(pointsOf(polygon)).width).toBeLessThan(0.1 * 2 * ATTITUDE.reach);
+  });
+
+  it('draws the same field as the windscreen: both projections invert to fieldPolygons', () => {
+    const depth = OPENING.y + OPENING.h - HORIZON_Y;
+    for (const level of [0, 0.2, 0.6, 1]) {
+      const expected = fieldPolygons(level).outer;
+      const svt = SVT_FIELD(drawField('outlanding', level))[0];
+      const windscreen = findElements(
+        expand(SCENES.outlanding({ cues: { field_near: level } })),
+        (e) => e.props['data-part'] === 'field',
+      )[0];
+      expect(svt).toBeDefined();
+      expect(windscreen).toBeDefined();
+      if (svt === undefined || windscreen === undefined) return;
+      pointsOf(svt).forEach(([x, y], i) => {
+        const [lateral, row] = expected[i] ?? [Number.NaN, Number.NaN];
+        expect((x - ATTITUDE.cx) / FIELD_HALF_VIEW).toBeCloseTo(lateral, 3);
+        expect((y - ATTITUDE.cy) / ATTITUDE.reach).toBeCloseTo(row, 3);
+      });
+      pointsOf(windscreen).forEach(([x, y], i) => {
+        const [lateral, row] = expected[i] ?? [Number.NaN, Number.NaN];
+        expect((x - SCENE_CENTRE_X) / (OPENING.w / 2)).toBeCloseTo(lateral, 3);
+        expect((y - HORIZON_Y) / depth).toBeCloseTo(row, 3);
+      });
+    }
+  });
+
+  it('draws no text and no animation, filter or mask', () => {
+    const tree = drawField('outlanding', 0.7);
+    expect(findElements(tree, (e) => e.tag === 'text' || e.tag === 'tspan')).toEqual([]);
+    expect(findElements(tree, (e) => /^(animate|filter|mask)/.test(e.tag))).toEqual([]);
+    expect(findElements(tree, (e) => 'filter' in e.props || 'mask' in e.props)).toEqual([]);
+  });
+
+  it('leaves the other scenes unchanged by a field level', () => {
+    for (const scene of SCENE_IDS.filter((id) => id !== 'outlanding')) {
+      expect(JSON.stringify(drawField(scene, 1))).toBe(JSON.stringify(drawField(scene, 0)));
     }
   });
 });

@@ -1,6 +1,8 @@
 import type { JSX } from 'preact';
 import { DEFAULT_SCENE } from '../../../aircraft/da50rg/scenes';
 import type { SceneId } from '../../../aircraft/da50rg/scenes';
+import { FIELD_PALETTE, FURROW_AT, fieldPolygons } from '../windscreen/field';
+import type { FieldCorner } from '../windscreen/field';
 import { FIELD_COLOURS, SCENE_GRADIENTS, isSceneId } from '../windscreen/scenes';
 import type { GradientColours, SceneGradientId } from '../windscreen/scenes';
 
@@ -15,8 +17,11 @@ import type { GradientColours, SceneGradientId } from '../windscreen/scenes';
 export interface SvtStyle {
   readonly sky: SceneGradientId;
   readonly ground: SceneGradientId;
-  /** The art on the ground: perspective field patches, the apron with its taxi line, or the runway. */
-  readonly art: 'fields' | 'apron' | 'runway';
+  /**
+   * The art on the ground: perspective field patches, the apron with its taxi line, the runway, or
+   * the field patches with the landing field of the approach.
+   */
+  readonly art: 'fields' | 'apron' | 'runway' | 'outlanding';
 }
 
 /**
@@ -29,8 +34,8 @@ export const SVT_STYLES: Readonly<Record<SceneId, SvtStyle>> = {
   takeoff_roll: { sky: 'w-sky-roll', ground: 'w-grass', art: 'runway' },
   cruise: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'fields' },
   cloud: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'fields' },
-  // Task 1 of Phase 9 only: the field art of the approach follows in the next commit.
-  outlanding: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'fields' },
+  // The approach to an off-airport field (Phase 9): the cruise terrain with the landing field.
+  outlanding: { sky: 'w-sky-cruise', ground: 'w-ground-cruise', art: 'outlanding' },
 };
 
 /** Height over which the sky colours run from the top colour to the horizon colour. */
@@ -67,6 +72,13 @@ const FIELD_OPACITY_STEP = 0.08;
 const APRON_SEAMS = [1.7, 3.2] as const;
 /** Bottom-of-view offsets of the yellow taxi line (a wedge to the vanishing point). */
 const TAXI_LINE = { from: -130, to: -80 } as const;
+
+/**
+ * Half width of the view at its bottom row, the unit of the lateral measures of the landing field
+ * (field.ts). The field lines of the patches reach 3000 at the bottom row; the PFD shows the lower
+ * rows only, where this unit puts the field right of the centre.
+ */
+export const FIELD_HALF_VIEW = 1500;
 
 const pt = (x: number, y: number): string => `${x.toFixed(2)},${y.toFixed(2)}`;
 
@@ -153,11 +165,8 @@ function Runway({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
 /** Row offset below the horizon of depth `d` (1 at the bottom of the view). */
 const rowOffset = (reach: number, d: number): number => reach / d;
 
-/**
- * The fields of the cruise view: patches between rows and lines that converge on the vanishing
- * point, in the field colours of the windscreen. A diagonal third of the patches stays the ground.
- */
-function Fields({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
+/** The field patches of the cruise view: between rows and lines that converge on the vanishing point. */
+function FieldPatches({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
   const out: JSX.Element[] = [];
   for (let r = 0; r + 1 < FIELD_ROWS.length; r += 1) {
     const near = rowOffset(reach, FIELD_ROWS[r] ?? 1);
@@ -174,7 +183,51 @@ function Fields({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
       );
     }
   }
-  return <g data-svt-art="fields">{out}</g>;
+  return <>{out}</>;
+}
+
+/**
+ * The fields of the cruise view: patches in the field colours of the windscreen. A diagonal third of
+ * the patches stays the ground.
+ */
+function Fields({ cx, cy, reach }: { cx: number; cy: number; reach: number }) {
+  return (
+    <g data-svt-art="fields">
+      <FieldPatches cx={cx} cy={cy} reach={reach} />
+    </g>
+  );
+}
+
+/**
+ * The approach to an off-airport field (Phase 9, D-05, D-07): the cruise patches and the landing
+ * field of `fieldPolygons(level)`, the polygons the windscreen draws too, projected here with the
+ * view's own rows (a row is a fraction of `reach` below the horizon). Hedge outline, stubble inside
+ * it and three furrow stripes; flat paint, no text.
+ */
+function Outlanding({
+  cx,
+  cy,
+  reach,
+  level,
+}: {
+  cx: number;
+  cy: number;
+  reach: number;
+  level: number;
+}) {
+  const field = fieldPolygons(level);
+  const quad = (q: readonly FieldCorner[]): string =>
+    q.map(([lateral, row]) => pt(cx + lateral * FIELD_HALF_VIEW, cy + row * reach)).join(' ');
+  return (
+    <g data-svt-art="outlanding">
+      <FieldPatches cx={cx} cy={cy} reach={reach} />
+      <polygon data-svt-field points={quad(field.outer)} fill={FIELD_PALETTE.hedge} />
+      <polygon points={quad(field.inner)} fill={FIELD_PALETTE.stubble} />
+      {field.furrows.map((furrow, i) => (
+        <polygon key={FURROW_AT[i]} points={quad(furrow)} fill={FIELD_PALETTE.furrow} />
+      ))}
+    </g>
+  );
 }
 
 /** The apron: two seams across it and the yellow taxi line as a wedge to the vanishing point. */
@@ -208,12 +261,15 @@ export function SyntheticVision({
   cx,
   cy,
   reach,
+  fieldLevel = 0,
 }: {
   /** A scene id; one the art does not know draws the default scene. */
   scene: string;
   cx: number;
   cy: number;
   reach: number;
+  /** The level 0 to 1 of the cue field_near: how near the landing field of the approach scene is. */
+  fieldLevel?: number;
 }) {
   const id: SceneId = isSceneId(scene) ? scene : DEFAULT_SCENE;
   const style = SVT_STYLES[id];
@@ -264,6 +320,9 @@ export function SyntheticVision({
       {style.art === 'runway' ? <Runway cx={cx} cy={cy} reach={reach} /> : null}
       {style.art === 'fields' ? <Fields cx={cx} cy={cy} reach={reach} /> : null}
       {style.art === 'apron' ? <Apron cx={cx} cy={cy} reach={reach} /> : null}
+      {style.art === 'outlanding' ? (
+        <Outlanding cx={cx} cy={cy} reach={reach} level={fieldLevel} />
+      ) : null}
       <rect
         data-svt-haze
         x={cx - reach}

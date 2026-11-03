@@ -66,3 +66,47 @@ test('the free panel without the flag draws no landing field', async ({ page }) 
   await open(page, `q=altitude_ft:${String(TERRAIN_HEIGHT_FT)}`);
   await expect(page.locator('[data-scene="outlanding"]')).toHaveCount(0);
 });
+
+const SVT_ART = '[data-testid="pfd-attitude"] [data-svt-art="outlanding"]';
+const SVT_FIELD = `${SVT_ART} [data-svt-field]`;
+
+test('the field grows on the PFD synthetic vision from the sight height to the terrain', async ({
+  page,
+}) => {
+  const sizes: Size[] = [];
+  for (const height of HEIGHTS) {
+    await open(page, `scene=outlanding&q=altitude_ft:${String(height)}`);
+    await expect(page.locator(SVT_ART)).toHaveCount(1);
+    await expect(page.locator(SVT_FIELD)).toHaveCount(1);
+    sizes.push(await sizeOf(page, SVT_FIELD));
+  }
+  const [far, middle, near] = sizes as [Size, Size, Size];
+  expect(middle.height).toBeGreaterThan(far.height);
+  expect(middle.width).toBeGreaterThan(far.width);
+  expect(near.height).toBeGreaterThan(middle.height);
+  expect(near.width).toBeGreaterThan(middle.width);
+});
+
+test('the PFD draws no landing field on the free panel and no text in the field art', async ({
+  page,
+}) => {
+  await open(page, '');
+  await expect(page.locator('[data-testid="pfd-attitude"] [data-svt-scene="cruise"]')).toHaveCount(
+    1,
+  );
+  await expect(page.locator('[data-svt-field]')).toHaveCount(0);
+  await open(page, `scene=outlanding&q=altitude_ft:${String(HEIGHTS[1])}`);
+  await expect(page.locator(`${SVT_ART} text, ${SVT_ART} tspan`)).toHaveCount(0);
+});
+
+test('the horizon of the PFD still moves with the pitch over the approach scene', async ({
+  page,
+}) => {
+  const horizon = '[data-testid="pfd-attitude"] [data-horizon]';
+  await open(page, `scene=outlanding&q=altitude_ft:${String(HEIGHTS[1])}`);
+  const level = await page.locator(horizon).getAttribute('transform');
+  await open(page, `scene=outlanding&q=altitude_ft:${String(HEIGHTS[1])},pitch_deg:8`);
+  const pitched = await page.locator(horizon).getAttribute('transform');
+  expect(level).not.toBeNull();
+  expect(pitched).not.toBe(level);
+});

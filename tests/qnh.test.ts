@@ -109,6 +109,7 @@ describe('the PFD readout', () => {
       stateOf: () => ({ value: 'map' }),
       quantities: { value: values },
       cas: { value: [] },
+      cueLevels: { value: {} },
     } as unknown as PanelBridge;
     return expand(PfdFrame({ region, bridge }));
   };

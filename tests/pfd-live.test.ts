@@ -47,6 +47,7 @@ function render(values: Record<string, number>): El {
     stateOf: (id: string) => ({ value: id === AV_MASTER_CONTROL ? 'on' : 'map' }),
     quantities: { value: values },
     cas: { value: [] },
+    cueLevels: { value: {} },
   } as unknown as PanelBridge;
   return expand(PfdFrame({ region, bridge }));
 }
