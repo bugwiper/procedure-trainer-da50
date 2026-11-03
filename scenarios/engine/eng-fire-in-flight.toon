@@ -1,4 +1,4 @@
-# ENGINE FIRE in flight (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decision 2026-10-23): every checklist line is as printed except the squawk 7700 row, which is the one row that is not printed (an own addition, optional); all other text is own wording. The fire constants, the outcome threshold and hold time, the onset window and the forbidden items are instructor-review values.
+# ENGINE FIRE in flight (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist, Edition 4.1 of 2022-10-05 (owner decision 2026-10-23): every checklist line is as printed except the squawk 7700 row, which is the one row that is not printed (an own addition, optional); all other text is own wording. Rows 7 (Emergency front windows) and 8 (Doors) are optional panel steps on the emergency window and the door release lever, credited whenever the window or the door opens (owner decisions S-07 of 2026-10-27 and R-12 of 2026-11-03: optional in flight, like T/O FIRE NO ABORT; the simulation has no standstill, so the door row is credited at any time). The fire constants, the outcome threshold and hold time, the onset window and the forbidden items are instructor-review values.
 format: 1
 id: eng-fire-in-flight
 title: ENGINE FIRE
@@ -99,10 +99,19 @@ procedure[14]:
     number: 6
     text: Airspeed
     action: "AS REQUIRED / CONSIDER HIGHER"
-  - kind: line
-    number: 7
-    text: Emergency front windows
-    action: OPEN as necessary
+  - kind: group
+    id: grp_windows
+    ordered: false
+    steps[1]:
+      - id: windows_open
+        severity: optional
+        number: 7
+        text: Emergency front windows
+        action: OPEN as necessary
+        done:
+          check: state
+          control: sw.emerg_window
+          is: open
   - kind: comment
     text: "Carry Out:"
   - kind: comment
@@ -111,10 +120,19 @@ procedure[14]:
     action: (page 9)
   - kind: comment
     text: "After standstill and when engine stopped:"
-  - kind: line
-    number: 8
-    text: Doors
-    action: OPEN
+  - kind: group
+    id: grp_doors
+    ordered: false
+    steps[1]:
+      - id: doors_open
+        severity: optional
+        number: 8
+        text: Doors
+        action: OPEN
+        done:
+          check: state
+          control: lv.door_release
+          is: open
   - kind: comment
     text: Evacuate
   - kind: group

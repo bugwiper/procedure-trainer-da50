@@ -330,6 +330,81 @@ test('@hooks ENGINE FIRE with the fuel valve forgotten: the landing starts with 
   await expect(sheetStep(fuelValveRow)).not.toHaveAttribute('data-verdict', /.+/);
 });
 
+test('@hooks the landing chosen from the chooser starts with the transfer pump off and no FUEL TRANS message; row 11 is marked at once, the emergency pump is on and row 10 is open (R-10, R-11)', async ({
+  page,
+  hasTouch,
+}) => {
+  const trans = stepOfControl(LANDING_SCENARIO, 'sw.fuel_trans');
+  const emerg = stepOfControl(LANDING_SCENARIO, 'sw.emerg_fuel_pump');
+  const sheetStep = (id: string) =>
+    page.getByTestId('run-checklist').locator(`[data-testid="sheet-step"][data-step-id="${id}"]`);
+  await startScenario(page, hasTouch, `${LANDING.pack}.${LANDING.id}`, 'easy');
+  await expect(control(page, 'sw.fuel_trans')).toHaveAttribute('data-state', 'off');
+  await expect(control(page, 'sw.emerg_fuel_pump')).toHaveAttribute('data-state', 'on');
+  // The CAS column shows the annunciations the file lists and no FUEL TRANS advisory, also later.
+  const chips = page.locator('[data-testid="cas-chip"]');
+  await expect(chips).toHaveCount(LANDING_SCENARIO.annunciations.length);
+  await expect(page.locator('[data-testid="cas-chip"][data-cas-id="fuel_trans"]')).toHaveCount(0);
+  await page.waitForTimeout(1500);
+  await expect(page.locator('[data-testid="cas-chip"][data-cas-id="fuel_trans"]')).toHaveCount(0);
+  await activate(page.locator('[data-session-hit="session.checklist"]'), hasTouch);
+  await expect(page.getByTestId('run-checklist')).toBeVisible();
+  await expect(sheetStep(trans)).toHaveAttribute('data-verdict', 'Done');
+  await expect(sheetStep(emerg)).not.toHaveAttribute('data-verdict', /.+/);
+  await page.waitForTimeout(SHIELD_WAIT_MS);
+  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  // The full preparation passes without touching the transfer pump.
+  await prepareLanding(page, hasTouch);
+  await expect(control(page, 'sw.fuel_trans')).toHaveAttribute('data-state', 'off');
+  await complete(page, hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  await expect(page.locator(`[data-step-id="${trans}"]`)).toHaveAttribute('data-verdict', 'Done');
+});
+
+test('@hooks ENGINE FIRE: the emergency window and the door open in the run are marked on the sheet and Done in the debrief, and the landing starts with the door open (R-12, R-14)', async ({
+  page,
+  hasTouch,
+}) => {
+  test.slow();
+  const fire = scenarioOf(ENGINE_FIRE);
+  const windowRow = stepOfControl(fire, 'sw.emerg_window');
+  const doorRow = stepOfControl(fire, 'lv.door_release');
+  const doorLanding = stepOfControl(LANDING_SCENARIO, 'lv.door_release');
+  const flapsLanding = stepOfControl(LANDING_SCENARIO, 'lv.flaps');
+  const fireStep = (id: string) =>
+    page.getByTestId('run-checklist').locator(`[data-testid="sheet-step"][data-step-id="${id}"]`);
+  await startScenario(page, hasTouch, `${ENGINE_FIRE.pack}.${ENGINE_FIRE.id}`, 'easy');
+  await solveEngineFire(page, hasTouch);
+  // The emergency window, then the door release lever on the zoomed door region.
+  await zoomIntoRegion(page, hasTouch, 'side_window');
+  await activate(page.locator('[data-hit="sw.emerg_window"]'), hasTouch);
+  await expect(control(page, 'sw.emerg_window')).toHaveAttribute('data-state', 'open');
+  await leaveZoom(page, hasTouch);
+  await zoomIntoRegion(page, hasTouch, 'door_arm');
+  await activate(page.locator('[data-hit="lv.door_release"]'), hasTouch);
+  await expect(control(page, 'lv.door_release')).toHaveAttribute('data-state', 'open');
+  await leaveZoom(page, hasTouch);
+  await activate(page.locator('[data-session-hit="session.checklist"]'), hasTouch);
+  await expect(page.getByTestId('run-checklist')).toBeVisible();
+  await expect(fireStep(windowRow)).toHaveAttribute('data-verdict', 'Done');
+  await expect(fireStep(doorRow)).toHaveAttribute('data-verdict', 'Done');
+  await page.waitForTimeout(SHIELD_WAIT_MS);
+  await activate(page.getByTestId('run-checklist-hide'), hasTouch);
+  await pickFurther(page, hasTouch, [atcMayday, emergency]);
+  await complete(page, hasTouch);
+  await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
+  for (const id of [windowRow, doorRow]) {
+    await expect(page.locator(`[data-step-id="${id}"]`)).toHaveAttribute('data-verdict', 'Done');
+  }
+
+  // The landing starts with the door open: its row 12 is marked at once, the flaps row is open.
+  await continueIntoLanding(page, hasTouch);
+  await expect(control(page, 'lv.door_release')).toHaveAttribute('data-state', 'open');
+  await activate(page.locator('[data-session-hit="session.checklist"]'), hasTouch);
+  await expect(fireStep(doorLanding)).toHaveAttribute('data-verdict', 'Done');
+  await expect(fireStep(flapsLanding)).not.toHaveAttribute('data-verdict', /.+/);
+});
+
 test('@hooks T/O FIRE NO ABORT leads into the same landing situation and a prepared pilot passes', async ({
   page,
   hasTouch,

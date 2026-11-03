@@ -123,10 +123,16 @@ const FIRE_GROUPS: Readonly<Record<string, string>> = {
   engine_master_off: 'grp_eng_master',
   fuel_valve_off: 'grp_fuel_valve',
   elect_master_off: 'grp_elect_master',
+  // Rows 7 and 8 of the printed list became optional panel steps (plan 09-05, R-12).
+  windows_open: 'grp_windows',
+  doors_open: 'grp_doors',
   squawk_7700: 'grp_xpdr_code',
 };
 
-/** The six steps in checklist order; the squawk step is optional, the other five are critical. */
+/** The optional steps of the Engine Fire file: the window, the door and the squawk. */
+const FIRE_OPTIONAL: ReadonlySet<string> = new Set(['windows_open', 'doors_open', 'squawk_7700']);
+
+/** The eight steps in checklist order; the window, the door and the squawk are optional, the other five are critical. */
 const fireSteps = (
   entered: Readonly<Record<string, number>>,
   groups: Readonly<Record<string, string>> = FIRE_GROUPS,
@@ -134,7 +140,7 @@ const fireSteps = (
   Object.keys(FIRE_GROUPS).map((id) => ({
     id,
     group: groups[id] ?? '',
-    severity: id === 'squawk_7700' ? 'optional' : 'critical',
+    severity: FIRE_OPTIONAL.has(id) ? 'optional' : 'critical',
     credited: id in entered,
     enteredAt: entered[id] ?? null,
   }));
@@ -1081,7 +1087,7 @@ describe('Engine Fire replays (plan 03-08, D-08, D-06, C-48)', () => {
     expect(groups(fireOrdered)).toHaveLength(groups(fire).length - 2);
   });
 
-  it('grades every panel step of the checklist: five critical steps and the optional squawk', () => {
+  it('grades every panel step of the checklist: five critical steps, the optional window and door, and the optional squawk', () => {
     const steps = grade(fire, DA50RG_ENV, recording('fire-do-nothing')).steps;
     expect(steps.map((s) => s.severity)).toEqual([
       'critical',
@@ -1090,7 +1096,28 @@ describe('Engine Fire replays (plan 03-08, D-08, D-06, C-48)', () => {
       'critical',
       'critical',
       'optional',
+      'optional',
+      'optional',
     ]);
+    expect(steps.map((s) => s.id)).toEqual(Object.keys(FIRE_GROUPS));
+  });
+
+  it('credits the emergency window and the door at their log positions (R-12), and a handled fire still passes', () => {
+    const golden = recording('fire-golden');
+    const events = [
+      ...golden.events,
+      { t: golden.completedAt - 3000, id: 'sw.emerg_window', value: 'open' },
+      { t: golden.completedAt - 2000, id: 'lv.door_release', value: 'open' },
+    ];
+    const result = grade(fire, DA50RG_ENV, { ...golden, events });
+    const at = (id: string) => result.steps.find((step) => step.id === id);
+    expect(at('windows_open')?.credited).toBe(true);
+    expect(at('windows_open')?.enteredAt).toBe(events.length - 2);
+    expect(at('doors_open')?.credited).toBe(true);
+    expect(at('doors_open')?.enteredAt).toBe(events.length - 1);
+    // The golden's own verdict does not depend on the two optional rows.
+    expect(result.result).toBe(grade(fire, DA50RG_ENV, golden).result);
+    expect(result.reasons).toEqual(grade(fire, DA50RG_ENV, golden).reasons);
   });
 
   it('a handled fire recovers: the golden actions never escalate, however long the run lasts', () => {

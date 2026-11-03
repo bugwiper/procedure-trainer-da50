@@ -1,4 +1,4 @@
-# EMERGENCY LANDING (ENGINE OFF) (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist booklet, Edition 4.1 of 2022-10-05, page 9 (owner decisions 2026-10-23, 2026-10-27, 2026-10-28 and 2026-11-03: the booklet is binding): the heading, every item and action, the comment line On final / before touchdown: and the boxed table Approach speed KIAS as printed. The row marks are the numbers 1 to 15 as the booklet counts them; the table is typed as four boxed comment rows (the heading of the table, then the flap position at the left and the speed at the right). The page is graded on the panel where a control shows the desired state, and the other rows are plain lines the pilot ticks on the checklist sheet, which never reach the grade. Graded steps (the order of the rows does not matter, each row is its own unordered group as in the other booklet files): row 3 Power lever FLIGHT IDLE (FI) is the lever at the idle end (travel 10 percent or less; the panel marks no FI position and the engine is stopped, so this is an instructor-review value; standard); row 4 Engine master OFF (critical); row 9 Fuel valve OFF is the state off of the FUEL selector (critical); row 10 Emergency fuel pump OFF (standard); row 11 Fuel transfer pump OFF is the state off of the FUEL TRANS knob (standard); row 12 Doors UNLATCH is the state open of the door release lever (standard); row 14 Flaps T/O or LDG is the flap lever at T/O or LDG (standard); row 15 Electric master OFF (critical). Plain lines: row 1 Gliding speed 94 KIAS (the simulation has no control of the speed, the profile glides at the printed speed), row 2 ATC INFORM (the further actions MAYDAY and PAN PAN PAN stand in the footwell), row 5 Adjustable backrests, row 6 Safety harnesses, row 7 Sun visors, row 8 Keypad, row 13 Landing gear AS REQUIRED (no single right state). The situation text is own wording. The instructor-review values are the start of the pilot's restart attempt (the emergency fuel pump and the fuel transfer pump are switched on at the start, so rows 10 and 11 have something to switch off), the start height, the glide rate and the field sight; the engine is dead from the first frame, as in the 09-02 fixture.
+# EMERGENCY LANDING (ENGINE OFF) (format 1). The checklist is reproduced as printed in the DA50 C / RG Emergency Procedures checklist booklet, Edition 4.1 of 2022-10-05, page 9 (owner decisions 2026-10-23, 2026-10-27, 2026-10-28 and 2026-11-03: the booklet is binding): the heading, every item and action, the comment line On final / before touchdown: and the boxed table Approach speed KIAS as printed. The row marks are the numbers 1 to 15 as the booklet counts them; the table is typed as four boxed comment rows (the heading of the table, then the flap position at the left and the speed at the right). The page is graded on the panel where a control shows the desired state, and the other rows are plain lines the pilot ticks on the checklist sheet, which never reach the grade. Graded steps (the order of the rows does not matter, each row is its own unordered group as in the other booklet files): row 3 Power lever FLIGHT IDLE (FI) is the lever at the idle end (travel 10 percent or less; the panel marks no FI position and the engine is stopped, so this is an instructor-review value; standard); row 4 Engine master OFF (critical); row 9 Fuel valve OFF is the state off of the FUEL selector (critical); row 10 Emergency fuel pump OFF (standard); row 11 Fuel transfer pump OFF is the state off of the FUEL TRANS knob (standard, a confirm step: the pump is off in normal operation and the situation starts with it off, so the row is credited from the first frame while it stays off, uncredited when the pilot switches the pump on and leaves it on, and credited again when switched off; it never counts toward the critical steps that fail a do-nothing run, owner decision R-10 of 2026-11-03); row 12 Doors UNLATCH is the state open of the door release lever (standard); row 14 Flaps T/O or LDG is the flap lever at T/O or LDG (standard); row 15 Electric master OFF (critical). Plain lines: row 1 Gliding speed 94 KIAS (the simulation has no control of the speed, the profile glides at the printed speed), row 2 ATC INFORM (the further actions MAYDAY and PAN PAN PAN stand in the footwell), row 5 Adjustable backrests, row 6 Safety harnesses, row 7 Sun visors, row 8 Keypad, row 13 Landing gear AS REQUIRED (no single right state). The situation text is own wording. The instructor-review values are the start of the pilot's restart attempt (the emergency fuel pump is switched on at the start because the printed engine failure list switches it on in the restart attempt, so row 10 has something to switch off; the fuel transfer pump is off as in normal operation, so no FUEL TRANS message shows at the first frame), the start height, the glide rate and the field sight; the engine is dead from the first frame, as in the 09-02 fixture.
 format: 1
 id: landing-engine-off
 title: LANDING ENGINE OFF
@@ -14,7 +14,6 @@ briefing:
 initial:
   controls:
     sw.emerg_fuel_pump: "on"
-    sw.fuel_trans: "on"
   quantities:
     # The glide start (instructor-review values): 94 knots, 900 feet per minute down, 1500 feet above the terrain; the start values stand here and in the profile.
     airspeed_kt: 94
@@ -26,14 +25,12 @@ initial:
     oil_pressure_bar: 0
     fuel_flow_gph: 0
     fuel_pressure_bar: 0
-    # The transfer pump has been running since before the start, so its white advisory shows at the first frame.
-    fuel_trans_active: 1
 # The flight profile (in force from the first second at every level; instructor-review values): the engine is stopped and the glide regime applies at the printed gliding speed.
 profile:
   engine_stopped: 1
   glide_speed_kt: 94
   glide_vs_fpm: -900
-annunciations[2]: oil_pres,fuel_trans
+annunciations[1]: oil_pres
 checklist:
   form: table
   heading: EMERGENCY LANDING (ENGINE OFF)
@@ -121,6 +118,7 @@ procedure[20]:
     steps[1]:
       - id: fuel_trans_off
         severity: standard
+        confirm: true
         number: 11
         text: Fuel transfer pump
         action: "OFF"

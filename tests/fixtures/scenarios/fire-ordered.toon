@@ -74,12 +74,30 @@ procedure[9]:
           is: off
   - kind: line
     text: "Airspeed: as required"
-  - kind: line
-    text: "Emergency windows: open if required"
+  - kind: group
+    id: grp_windows
+    ordered: false
+    steps[1]:
+      - id: windows_open
+        severity: optional
+        text: "Emergency windows: open if required"
+        done:
+          check: state
+          control: sw.emerg_window
+          is: open
   - kind: line
     text: Emergency landing without engine power
-  - kind: line
-    text: "After the aircraft stops: doors open, evacuate"
+  - kind: group
+    id: grp_doors
+    ordered: false
+    steps[1]:
+      - id: doors_open
+        severity: optional
+        text: "After the aircraft stops: doors open, evacuate"
+        done:
+          check: state
+          control: lv.door_release
+          is: open
   - kind: group
     id: grp_xpdr_code
     ordered: false

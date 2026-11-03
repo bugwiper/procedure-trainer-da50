@@ -131,6 +131,15 @@ export const Step = z.strictObject({
   action: lineWords.optional(),
   marker,
   done: Predicate,
+  /**
+   * A step that must already hold in the initial state and says "keep it so" (Phase 9, plan 09-05,
+   * R-10): the printed row is graded, but nothing has to be done for it. Only the literal true is
+   * accepted. Grading is unchanged (a step that holds at the start is entered at the start and
+   * credited while it holds after the last action); only authoring changes: lint L5 does not report
+   * it, L35 reports a confirm step that is false at the start or in a scenario with an onset, and
+   * L11 does not count it toward the steps that make a do-nothing run fail.
+   */
+  confirm: z.literal(true).optional(),
 });
 
 const Line = z.strictObject({

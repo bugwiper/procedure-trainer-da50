@@ -10,7 +10,7 @@ source:
 disclaimer: training-aid
 scene: ditching
 briefing:
-  situation: "The engine is out and you are gliding low over open water with the gear extended. No airfield is within reach and you have decided to ditch. Prepare the aircraft for the touchdown on the water."
+  situation: "The engine is out and you are gliding low over open water. No airfield is within reach and you have decided to ditch. Prepare the aircraft for the touchdown on the water."
 initial:
   controls:
     lv.gear: down

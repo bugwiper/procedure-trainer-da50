@@ -52,6 +52,10 @@
 // predicate resolves (reported at finish.when), does not hold at the start of the Easy and Medium
 // run or of the Realistic run, and a run that does nothing reaches it within the 600 s bound of L26,
 // so a situation cannot hang until the 30-minute cap.
+// L35 (Phase 9, plan 09-05, R-10) keeps the confirm step honest: a step with `confirm: true` must hold
+// in the initial state (it says "keep it so", and L5 does not report it there), is refused in a scenario
+// with an onset (rule R12 would deny it credit), and is not counted by L11, so a run that does
+// nothing still fails.
 // checkScenario is the one check of the app and of `npm run validate`: it locates every issue in
 // the text.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
@@ -426,6 +430,7 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
   });
 
   checkChecklist(scenario, add);
+  checkConfirmSteps(scenario, add);
   checkVariantReferences(scenario, env, add);
 
   // L5 and L6 evaluate predicates, which needs every reference to resolve first. L19: a scenario
@@ -457,6 +462,49 @@ export function lintScenario(scenario: Scenario, env: AircraftEnv): LintIssue[] 
   }
   if (issues.length === 0 && scenario.variants.length > 0) checkVariantRuns(scenario, env, add);
   return issues;
+}
+
+/**
+ * L35, the part that needs no predicate: a scenario with an onset may not carry a confirm step,
+ * because rule R12 gives a step that already holds at the onset no credit until the pilot makes it
+ * false and true again, so the step could never be credited by "keep it so". Reported at the
+ * `confirm` key of every such step. (That a confirm step holds at the start is judged in
+ * checkInitialState, which evaluates predicates.)
+ */
+function checkConfirmSteps(
+  scenario: Scenario,
+  add: (segments: Segments, message: string) => void,
+): void {
+  if (scenario.onset === undefined) return;
+  const visit = (path: Segments, nodes: readonly ProcedureNode[]): void => {
+    nodes.forEach((node, i) => {
+      const here = [...path, i];
+      switch (node.kind) {
+        case 'line':
+        case 'comment':
+          return;
+        case 'group':
+          node.steps.forEach((step, j) => {
+            if (step.confirm === true) {
+              add(
+                [...here, 'steps', j, 'confirm'],
+                `step "${step.id}" is a confirm step in a scenario with an onset; the onset would deny it credit, so remove the key`,
+              );
+            }
+          });
+          return;
+        case 'branch':
+          visit([...here, 'nodes'], node.nodes);
+          return;
+        case 'decision':
+          node.branches.forEach((branch, j) => {
+            visit([...here, 'branches', j, 'nodes'], branch.nodes);
+          });
+          return;
+      }
+    });
+  };
+  visit(['procedure'], scenario.procedure);
 }
 
 /** The ids of every step in the procedure, in document order, with the path of each. */
@@ -643,7 +691,10 @@ function checkVariantRuns(
     const graded = new Set(
       nothing.steps.filter((step) => step.severity !== 'optional').map((step) => step.id),
     );
-    const steps = [...resolveSteps(easy)].filter((step) => graded.has(step.id));
+    // A confirm step holds at the start and needs no action (L35).
+    const steps = [...resolveSteps(easy)].filter(
+      (step) => graded.has(step.id) && step.confirm !== true,
+    );
     const actions: PanelAction[] = [];
     const accumulated = { ...baseline };
     let buildable = true;
@@ -1033,8 +1084,19 @@ function checkInitialState(
         case 'group':
           if (!applies) return;
           node.steps.forEach((step, j) => {
+            const holds = evaluatePredicate(step.done, ctx, env);
+            if (step.confirm === true) {
+              // L35: a confirm step states what is already true; L5 and L11 leave it alone.
+              if (!holds) {
+                add(
+                  [...here, 'steps', j, 'confirm'],
+                  `step "${step.id}" is a confirm step but does not hold in the initial state; a confirm step states what is already true, so remove the key`,
+                );
+              }
+              return;
+            }
             if (step.severity === 'critical') criticalAtStart++;
-            if (evaluatePredicate(step.done, ctx, env)) {
+            if (holds) {
               add(
                 [...here, 'steps', j, 'done'],
                 `step "${step.id}" is already satisfied in the initial state; a run that does nothing would be credited`,
