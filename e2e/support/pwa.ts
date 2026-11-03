@@ -185,3 +185,36 @@ export function acceptedStateFor(origin: string): {
     origins: [{ origin, localStorage: [{ name: ACK_STORAGE_KEY, value: String(ACK_VERSION) }] }],
   };
 }
+
+/** The width and height a PNG declares in its IHDR chunk (first 24 bytes), or null if it is no PNG. */
+export function pngSize(bytes: Uint8Array): { width: number; height: number } | null {
+  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (bytes.length < 24 || signature.some((value, index) => bytes[index] !== value)) return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
+}
+
+/** The web app manifest the page links, fetched over the network from the page's own origin. */
+export interface LinkedManifest {
+  /** Absolute URL of the manifest document. */
+  readonly url: string;
+  readonly status: number;
+  readonly contentType: string;
+  readonly json: Record<string, unknown>;
+}
+
+/** Reads `link[rel=manifest]` from the DOM and fetches it (not through a worker). */
+export async function linkedManifest(page: Page): Promise<LinkedManifest> {
+  const href = await page.evaluate(
+    () => document.querySelector<HTMLLinkElement>('link[rel="manifest"]')?.href ?? '',
+  );
+  expect(href, 'the page links a manifest').not.toBe('');
+  const response = await page.request.get(href);
+  const text = await response.text();
+  return {
+    url: href,
+    status: response.status(),
+    contentType: response.headers()['content-type'] ?? '',
+    json: JSON.parse(text) as Record<string, unknown>,
+  };
+}
