@@ -1,0 +1,4 @@
+# Phase 7 UAT: changes noted by the owner (2026-11-03), implement together with the walkthrough findings
+
+1. Footwell cluster: the three flight conduct buttons (Continue to destination, Alternate landing, Emergency landing) are separated from the other options by a line, so it is clear they belong together (static art on the plate, listed in PANEL-LABELS/PANEL-REVIEW if it carries text; none needed for a plain line).
+2. With the conduct "Emergency landing" selected, the Avoid actions Avoid NVFR and Avoid icing are greyed out and not pressable (a forced landing cannot avoid them, the situation is as it is); Avoid IMC stays available (while gliding down with a dead engine the pilot can still avoid clouds). The greyed state follows the selection, never any text change (G-0). Open question for the walkthrough: do picks made before switching to Emergency landing stay recorded (probably: grey out, ignore for the note, keep log) or are they cleared.
