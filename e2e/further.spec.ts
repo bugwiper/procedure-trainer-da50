@@ -371,9 +371,16 @@ test('the debrief shows the picks of the conduct in order and the final one coun
   await expect(page.getByTestId('debrief-further-picks')).toContainText(
     `${textOf(carryOn)}, then ${textOf(emergency)}`,
   );
-  // Engine fire leads into the landing (Phase 9): the button takes the place of the old note, which
-  // e2e/follow-on.spec.ts checks for a scenario without a follow-on.
-  await expect(page.getByTestId('debrief-follow-on')).toBeVisible();
+  // Engine fire leads into the landing situations (Phase 9): one button per target of the shipped
+  // file takes the place of the old note, which e2e/follow-on.spec.ts checks for a scenario without
+  // a follow-on.
+  const fire = parseScenario(
+    readFileSync(new URL('../scenarios/engine/eng-fire-in-flight.toon', import.meta.url), 'utf8'),
+  );
+  if (!fire.ok) throw new Error('the Engine Fire file does not parse');
+  const targets = fire.value.further?.follow_on?.[emergency] ?? [];
+  expect(targets.length).toBeGreaterThan(0);
+  await expect(page.getByTestId('debrief-follow-on')).toHaveCount(targets.length);
   await expect(page.getByTestId('debrief-further-note')).toHaveCount(0);
 });
 
