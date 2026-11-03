@@ -33,7 +33,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PNL-22**: The de-ice fluid quantity (tank 8.3 US gal) and its Norm and High endurance follow the de-ice mode (3 and 6 gal/h), the MAX run (0.4 gal per activation) and the WIND SHIELD spray (40 ml per activation), and ANNUN TEST on the ICE LIGHT switch lights the de-ice lamps
 - [x] **PNL-23**: Inside a situation the PFD airspeed, altitude, vertical speed, pitch and bank come from simulated quantities (a rolling horizon, sliding tapes, a vertical speed readout; heading stays static) while the free panel keeps its static readings
 - [x] **PNL-24**: Whenever PITOT/STALL HEAT is off the PFD shows two yellow messages, PITOT HEAT and STALL HEAT; on the ground the stall heat cuts out a few seconds after the heat is on and STALL HEAT returns, airborne it does not
-- [x] **PNL-25**: The PFD shows the active CAS messages in one vertical column at the lower right of the glass: black rows with thin level-coloured type, about half as wide as before, joined without a gap, the most severe on top (warning, caution, advisory), the column growing upward with each further message; texts and levels are unchanged
+- [x] **PNL-25**: The PFD shows the active CAS messages in one vertical column at the lower right of the glass: black rows with thin level-coloured type, about half as wide as before, joined without a gap, the most severe on top (warning, caution, advisory), the column growing upward with each further message; texts and levels are unchanged; the heat cautions read the printed tags PITOT HT OFF and STALL HT OFF (plan 07-06, 2026-11-02, pending the phase UAT)
 - [x] **PNL-26**: The PFD has synthetic vision under the whole glass (the sky and terrain of the situation's scene, a runway on the take-off roll and the apron on the parked scene) that follows pitch and bank, with translucent speed and altitude tapes over it and a plain compass over a translucent backing, without map and without deviation bar
 - [x] **PNL-27**: A narrow vertical speed scale (plus and minus 3000 fpm, ticks every 500, numerals 1, 2 and 3) stands right of the altitude tape in place of the VS box, with a moving black readout box that carries the bare number, and the barometer setting under the tape reads QNH in hPa in turquoise from a static display value that a situation may set
 
@@ -58,11 +58,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Session & Debrief
 
-- [x] **SES-01**: User can start a "new situation" (random or selected) with a short briefing
-- [x] **SES-02**: During a run the user can show the scenario checklist, with the steps done so far marked; on Realistic the user chooses the checklist from all available ones and a hint shows the situation
+- [x] **SES-01**: User can start a "new situation" (random or selected) with a short briefing; the selected list is the grouped chooser (the three printed groups of the booklet as tabs, three situations per page, in the order of the booklet) (reworked after the owner walkthrough 2026-11-02, plan 07-06, pending the phase UAT)
+- [x] **SES-02**: During a run the user can show the scenario checklist, with the steps done so far marked; on Realistic the user chooses the checklist from the three printed groups (every catalog entry, greyed where no situation exists), the rows the program does not check can be ticked, the chosen checklist is marked from the pilot's real actions (reworked after the owner walkthrough 2026-11-02, plan 07-06, pending the phase UAT) and a hint shows the situation
 - [x] **SES-03**: A run says nothing about the solution and the user ends it with "Procedure complete"
 - [x] **SES-04**: Debrief shows PASS/FAIL (a missed critical step fails), per-step verdicts, order violations and harmful actions
-- [x] **SES-05**: The optional further actions (inform ATC with MAYDAY or PAN PAN PAN, brief passengers, flight conduct) are toggle buttons in the pilot footwell, any combination; a scenario declares which are required, recommended, optional or harmful and which flight conduct is correct (or none, on the ground), and the selections are graded with the panel actions at Procedure complete and shown in the debrief (reworked after the owner walkthrough 2026-11-02, pending the phase UAT)
+- [x] **SES-05**: The optional further actions (inform ATC with MAYDAY or PAN PAN PAN, brief passengers, flight conduct) are toggle buttons in the pilot footwell, any combination, with three Avoid actions (Avoid IMC, Avoid NVFR, Avoid icing) that are never required and never fail and a debrief note outside the verdict (reworked again in plan 07-06, 2026-11-02); a scenario declares which are required, recommended, optional or harmful and which flight conduct is correct (or none, on the ground), and the selections are graded with the panel actions at Procedure complete and shown in the debrief (reworked after the owner walkthrough 2026-11-02, pending the phase UAT)
 - [x] **SES-06**: User can retry the scenario or move to the next situation
 - [x] **SES-07**: A running scenario survives a failing step listener (the error is shown and the run ends cleanly) and a run that reaches the 30-minute cap ends exactly as its replay does
 - [x] **SES-08**: CHOOSE SITUATION lists any number of situations in pages of four with a NEXT PAGE button
@@ -146,7 +146,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCN-07 | Phase 2 | Complete |
 | SCN-08 | Phase 2 | Complete |
 | PNL-03 | Phase 2 | Complete |
-| SES-01 | Phase 2 | Complete |
+| SES-01 | Phase 2 | Complete (grouped chooser reworked in plan 07-06, pending the phase UAT) |
 | SES-03 | Phase 2 | Complete |
 | SES-04 | Phase 2 | Complete |
 | PLT-03 | Phase 2 | Complete |
@@ -170,7 +170,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PNL-22 | Phase 6 | Complete |
 | PNL-23 | Phase 6 | Complete |
 | PNL-24 | Phase 6 | Complete |
-| PNL-25 | Phase 6.1 | Complete |
+| PNL-25 | Phase 6.1 | Complete (printed CAS tags reworked in plan 07-06, pending the phase UAT) |
 | PNL-26 | Phase 6.1 | Complete |
 | PNL-27 | Phase 6.1 | Complete |
 | SCN-14 | Phase 6 | Complete |
@@ -179,15 +179,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PNL-04 | Phase 3 | Complete |
 | PNL-07 | Phase 3 | Complete |
 | CNT-01 | Phase 3 | Complete |
-| SES-02 | Phase 7 | Complete (as built, reworked after the owner walkthrough 2026-11-02, pending the phase UAT) |
-| SES-05 | Phase 7 | Complete (as built, reworked after the owner walkthrough 2026-11-02, pending the phase UAT) |
+| SES-02 | Phase 7 | Complete (as built, reworked after the owner walkthrough 2026-11-02 and in plan 07-06, pending the phase UAT) |
+| SES-05 | Phase 7 | Complete (as built, reworked after the owner walkthrough 2026-11-02 and in plan 07-06, pending the phase UAT) |
 | SES-06 | Phase 7 | Complete (as built, pending the phase UAT) |
 | CNT-02 | Phase 7 | Complete (as built, pending the phase UAT) |
 | PLT-02 | Phase 8 | Pending |
 
 **Coverage:**
 - v1 requirements: 60 total (28 + PNL-08, PNL-09 added 2026-10-19; PNL-10..PNL-15 added 2026-10-20 for the full panel replica; SCN-09, SCN-10, SES-07 added 2026-10-23 for phase 3.1; SCN-11, PNL-16, CNT-04 added 2026-10-23 for phase 4; PNL-17, PNL-18, PNL-19, SCN-12 added 2026-10-27 for phase 5; PNL-20, SCN-13, SES-08, CNT-05 added 2026-10-27 for phase 5.1; PNL-21, PNL-22, PNL-23, PNL-24, SCN-14, SCN-15, SCN-16 added 2026-10-28 for phase 6; PNL-25, PNL-26, PNL-27 added 2026-11-01 for the inserted phase 6.1, PFD fidelity)
-- Mapped to phases: 60 (PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27; the seven requirements of phase 6 are complete as built by plans 06-01 to 06-04, 2026-10-29, pending the phase UAT; PNL-25 to PNL-27 complete as built by plans 06.1-01 to 06.1-03, 2026-11-01, pending the phase UAT; SES-02, SES-05, SES-06 and CNT-02 complete as built by plans 07-01 to 07-05 (07-04 and 07-05 rework SES-02, SES-03 and SES-05 after the owner walkthrough), 2026-11-02, pending the phase UAT; only PLT-02 is still pending, in phase 8)
+- Mapped to phases: 60 (PNL-20, SCN-13, SES-08 and CNT-05 complete in phase 5.1, 2026-10-27; the seven requirements of phase 6 are complete as built by plans 06-01 to 06-04, 2026-10-29, pending the phase UAT; PNL-25 to PNL-27 complete as built by plans 06.1-01 to 06.1-03, 2026-11-01, pending the phase UAT; SES-02, SES-05, SES-06 and CNT-02 complete as built by plans 07-01 to 07-06 (07-04 and 07-05 rework SES-02, SES-03 and SES-05 after the owner walkthrough, 07-06 reworks SES-01, SES-02, SES-05 and PNL-25 after his second round), 2026-11-02, pending the phase UAT; only PLT-02 is still pending, in phase 8)
 - Unmapped: 0 ✓
 
 ---

@@ -899,7 +899,8 @@ describe('phase 7 owner review (plan 07-03)', () => {
 
   it('shows the D-13 table with every role and accept list of the shipped situations', () => {
     for (const row of [
-      'ENG OIL TEMP, ALTN 1 FAIL, ALTN 2 FAIL',
+      'ENG OIL TEMP',
+      'ALTN 1 FAIL, ALTN 2 FAIL',
       'ICING CONDITIONS',
       'ENGINE FIRE (in flight), ELEC FIRE FLIGHT, T/O FIRE NO ABORT',
       'ENGINE FIRE GROUND, ELEC FIRE GROUND, T/O FIRE ABORT',
@@ -918,6 +919,46 @@ describe('phase 7 owner review (plan 07-03)', () => {
     ]) {
       expect(section, word).toContain(word);
     }
+  });
+
+  // Plan 07-06: the review list holds the catalog and the choosers, the accept-list table, the Avoid
+  // row with the note, the tappable rows with the marks from the real actions and the printed CAS tags.
+  it('lists the plan 07-06 items: catalog, choosers, accept lists, Avoid row, tappable rows, CAS tags', () => {
+    const lower = section.toLowerCase();
+    for (const point of [
+      'catalog',
+      'three tabs',
+      'greyed',
+      'accept lists, reviewed',
+      'continue to destination',
+      'avoid imc',
+      'conduct note',
+      'tappable rows',
+      'marks from the real actions',
+      'pitot ht off',
+      'stall ht off',
+      'oxy press lo',
+    ]) {
+      expect(lower, point).toContain(point);
+    }
+  });
+
+  it('shows the accept-list table with every shipped situation, kept or changed, with its printed reason', () => {
+    const table = section.slice(section.search(/^18\. /m), section.search(/^19\. /m));
+    for (const row of [
+      'ALTN 1 FAIL, ALTN 2 FAIL',
+      'ENG OIL TEMP',
+      'ICING CONDITIONS',
+      'ENGINE FIRE (in flight)',
+      'ELEC FIRE FLIGHT',
+      'T/O FIRE NO ABORT',
+      'ENGINE FIRE GROUND, ELEC FIRE GROUND, T/O FIRE ABORT',
+    ]) {
+      expect(table, row).toContain(row);
+    }
+    expect(table).toMatch(/changed/);
+    expect(table).toMatch(/kept/);
+    expect(table).toContain('conduct_destination');
   });
 
   it('names the results of the final gates in its last item', () => {

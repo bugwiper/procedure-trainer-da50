@@ -574,11 +574,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
 
 1. During a run the user can show the scenario checklist, with the steps already done marked in green; on Realistic the user chooses the checklist from all available ones and a HINT box shows the situation; no run says anything about the solution.
-2. Six toggle buttons in the pilot footwell (BRIEF PASSENGERS, MAYDAY, PAN PAN PAN and the three landings as a group) let the user make the non-panel decisions in any combination; a scenario declares which are required, recommended, optional or harmful and which conduct is right (the conduct buttons are absent on the ground), and the state of the buttons is graded with the panel actions at Procedure complete and shown in the debrief.
+2. Nine toggle buttons in the pilot footwell (Brief passengers, MAYDAY, PAN PAN PAN, the three landings as a group and the three Avoid actions) let the user make the non-panel decisions in any combination; a scenario declares which are required, recommended, optional or harmful and which conduct is right (the conduct buttons are absent on the ground), and the state of the buttons is graded with the panel actions at Procedure complete and shown in the debrief.
 3. From the debrief the user can retry the same scenario from a clean initial state or move straight to the next situation.
 4. Following only the authoring guide (a README section for developers), a developer can add a new scenario TOON file, validate it and play it in the app without any code change; its worked example is parsed and linted by a test.
 
-**Plans:** 5 plans (lean form, see WORKFLOW.md); decisions in 07-CONTEXT.md (the rework decisions R-01 to R-14 after the owner walkthrough of 2026-11-02 are at its end)
+**Plans:** 6 plans (lean form, see WORKFLOW.md); decisions in 07-CONTEXT.md (the rework decisions R-01 to R-14 and R-15 to R-26 after the owner walkthroughs of 2026-11-02 are at its end)
 **UI hint**: yes
 
 Plans:
@@ -599,6 +599,7 @@ Plans:
 
 - [x] 07-04 — No mode (the level card is the first card), the CHECKLIST sheet with live green marks, the Realistic CHOOSE CHECKLIST and HINT box, the slim run view of the pad with LEAVE
 - [x] 07-05 — The further actions as six toggle buttons in the pilot footwell with an on flag and `effectiveSelection`, graded at Procedure complete; the modal and the clock pause removed; documents and final gates incl. the Linux image
+- [x] 07-06 — The checklist catalog of the booklet in three groups (CHOOSE SITUATION with tabs, the Realistic chooser, lint L29 and L30), Continue to destination with reviewed accept lists, the Avoid row and the conduct note, tappable sheet rows with marks from the real actions, the printed CAS tags, documents and final gates incl. the Linux image
 
 ### Phase 8: Offline PWA and Real-Device Hardening
 
@@ -631,5 +632,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 5.1 Ground and takeoff emergencies                    | 4/3 | Complete    | 2026-10-28 |
 | 6. Fuel, tank and engine fidelity and the engine page | 4/4            | Executed, awaiting UAT | 2026-10-29 |
 | 6.1. PFD fidelity                                     | 3/3            | Complete    | 2026-11-01 |
-| 7. Training Mode, Further Actions and Repeat Loop     | 5/5            | Executed, awaiting UAT | 2026-11-02 |
+| 7. Training Mode, Further Actions and Repeat Loop     | 6/6            | Executed, awaiting UAT | 2026-11-02 |
 | 8. Offline PWA and Real-Device Hardening              | 0/TBD          | Not started | -          |

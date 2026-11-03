@@ -253,7 +253,8 @@ describe('checkCatalog (lint L29 and L30)', () => {
   });
 });
 
-describe('validateAll runs the catalog check once over the packs', () => {
+// validateAll lints every shipped scenario (about 2 s each run on a loaded machine): more than the default test timeout.
+describe('validateAll runs the catalog check once over the packs', { timeout: 60_000 }, () => {
   const read = (pack: string): PackInput => {
     const dir = join(root, 'scenarios', pack);
     const names = readdirSync(dir).filter((n) => n.endsWith('.toon'));
