@@ -108,7 +108,8 @@ const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {
   ),
   // Plan 07-06: the checklist catalog (printed headings, tab labels and tags) is aircraft data too.
   'catalog heading': DA50RG_ENV.catalog.groups.map((group) => group.heading),
-  'catalog tab label': DA50RG_ENV.catalog.groups.map((group) => group.tab),
+  // Since plan 09-05 a tab label has two lines: each line is a forbidden literal on its own.
+  'catalog tab label': unique(DA50RG_ENV.catalog.groups.flatMap((group) => group.tab.split('\n'))),
   'catalog tag': unique(DA50RG_ENV.catalog.groups.flatMap((g) => g.entries.map((e) => e.tag))),
   'CAS id': CAS_IDS,
   'CAS message': CAS_IDS.flatMap((id) => {

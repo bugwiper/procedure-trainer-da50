@@ -1,7 +1,7 @@
 // The checklist catalog of the booklet (Phase 7, plan 07-06, R-16), typed in by hand from the
 // owner's transcription of the contents pages (pages 1 and 27 of the booklet, edition 4.1) and
 // independent of src/aircraft/da50rg/checklist-catalog.ts. Three groups with their printed headings
-// and the short tab labels of the narrow pad, then one row per printed entry: [tag, detail or null,
+// and the short tab labels of the narrow pad (since plan 09-05, R-17, two lines each, a line feed breaks them), then one row per printed entry: [tag, detail or null,
 // link or null]. The link is "pack/scenario" of the shipped scenario; an entry without one is
 // shown greyed in the Realistic checklist chooser and is not listed on the pad. No count is typed:
 // the tests derive every number from these rows.
@@ -18,7 +18,7 @@ export const CATALOG_REFERENCE: readonly CatalogReferenceGroup[] = [
   {
     id: 'warnings',
     heading: 'ANNUNCIATED WARNINGS',
-    tab: 'WARNINGS',
+    tab: 'Annunciated\nWARNINGS',
     rows: [
       ['ALTN 1 AMPS / ALTN 2 AMPS', null, null],
       ['ALTN 1 FAIL AND ALTN 2 FAIL', null, null],
@@ -36,7 +36,7 @@ export const CATALOG_REFERENCE: readonly CatalogReferenceGroup[] = [
   {
     id: 'cautions',
     heading: 'ANNUNCIATED CAUTIONS',
-    tab: 'CAUTIONS',
+    tab: 'Annunciated\nCAUTIONS',
     rows: [
       ['ALTN 1 FAIL', null, 'electrical/elec-altn1-fail'],
       ['ALTN 2 FAIL', null, 'electrical/elec-altn2-fail'],
@@ -63,7 +63,7 @@ export const CATALOG_REFERENCE: readonly CatalogReferenceGroup[] = [
   {
     id: 'emergency',
     heading: 'NON-ANNUNCIATED EMERGENCY PROCEDURES',
-    tab: 'EMERGENCY',
+    tab: 'Non-annunciated\nEMERGENCIES',
     rows: [
       ['EMERGENCY LANDING (ENGINE OFF)', null, 'landing/landing-engine-off'],
       ['DITCHING', null, 'landing/ditching'],

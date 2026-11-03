@@ -376,7 +376,20 @@ describe('panel label table: round 2 rows (plan 31)', () => {
 describe('panel label table: the choose tabs (plan 07-06, R-16, R-18)', () => {
   it('lists the tab label of every catalog group of the aircraft', () => {
     for (const group of DA50RG_CATALOG.groups) {
-      expect(doc, group.tab).toContain(`| \`session.tab.${group.id}\` | ${group.tab} `);
+      // The footwell two-line rows are written with a slash between the lines.
+      const written = group.tab.split('\n').join(' / ');
+      expect(doc, group.tab).toContain(`| \`session.tab.${group.id}\` | ${written} `);
     }
+  });
+
+  it('writes every tab as two lines, joined by a slash in the document (R-17)', () => {
+    for (const group of DA50RG_CATALOG.groups) {
+      expect(group.tab.split('\n'), group.id).toHaveLength(2);
+    }
+    expect(DA50RG_CATALOG.groups.map((g) => g.tab.split('\n').join(' / '))).toEqual([
+      'Annunciated / WARNINGS',
+      'Annunciated / CAUTIONS',
+      'Non-annunciated / EMERGENCIES',
+    ]);
   });
 });

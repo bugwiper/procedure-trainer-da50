@@ -30,7 +30,10 @@ export interface CatalogGroup {
   readonly id: string;
   /** The printed heading of the group. */
   readonly heading: string;
-  /** The short static label of the group's tab on the narrow pad. */
+  /**
+   * The short static label of the group's tab on the narrow pad: one or two lines, a line feed
+   * breaks it (Phase 9, plan 09-05, R-17), drawn by the same mechanism as the footwell labels.
+   */
   readonly tab: string;
   readonly entries: readonly CatalogEntry[];
 }
@@ -70,6 +73,9 @@ export interface CatalogSet {
 
 export class CatalogError extends Error {}
 
+/** The most lines a tab label has (R-17). */
+export const MAX_TAB_LINES = 2;
+
 const slug = (text: string): string =>
   text
     .toLowerCase()
@@ -97,6 +103,15 @@ export function defineCatalog(definition: CatalogDefinition): CatalogSet {
     groupIds.add(group.id);
     if (group.heading === '') throw new CatalogError(`group "${group.id}" has an empty heading`);
     if (group.tab === '') throw new CatalogError(`group "${group.id}" has an empty tab label`);
+    const tabLines = group.tab.split('\n');
+    if (tabLines.length > MAX_TAB_LINES) {
+      throw new CatalogError(
+        `group "${group.id}" has a tab label of ${String(tabLines.length)} lines; at most ${String(MAX_TAB_LINES)}`,
+      );
+    }
+    if (tabLines.some((line) => line === '')) {
+      throw new CatalogError(`group "${group.id}" has an empty line in its tab label`);
+    }
     for (const entry of group.entries) {
       if (entry.tag === '')
         throw new CatalogError(`group "${group.id}" has an entry with an empty tag`);

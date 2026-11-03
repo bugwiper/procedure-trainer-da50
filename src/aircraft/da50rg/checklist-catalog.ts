@@ -4,7 +4,8 @@ import { defineCatalog } from '../../engine/catalog';
  * The checklist catalog of the DA50 RG (Phase 7, plan 07-06, R-16): the contents pages of the
  * emergency checklist booklet (edition 4.1) in its three printed groups. The tags are the printed
  * message tags as the owner typed them (checklist text policy, docs/CONTENT-POLICY.md section 2); the
- * short tab labels are own wording for the narrow pad. An entry links to a shipped scenario by `ref`;
+ * short tab labels are the owner's wording for the narrow pad (one or two lines, a line feed breaks them;
+ * since plan 09-05 they read Annunciated / WARNINGS, Annunciated / CAUTIONS and Non-annunciated / EMERGENCIES). An entry links to a shipped scenario by `ref`;
  * an entry without one is shown greyed in the Realistic checklist chooser and is not listed on the
  * pad. Group three holds the shipped procedures under the checklist headings of their files; the
  * printed procedures without a scenario are a todo until the owner names their exact headings. The
@@ -17,7 +18,7 @@ export const DA50RG_CATALOG = defineCatalog({
     {
       id: 'warnings',
       heading: 'ANNUNCIATED WARNINGS',
-      tab: 'WARNINGS',
+      tab: 'Annunciated\nWARNINGS',
       entries: [
         { tag: 'ALTN 1 AMPS / ALTN 2 AMPS' },
         { tag: 'ALTN 1 FAIL AND ALTN 2 FAIL' },
@@ -35,7 +36,7 @@ export const DA50RG_CATALOG = defineCatalog({
     {
       id: 'cautions',
       heading: 'ANNUNCIATED CAUTIONS',
-      tab: 'CAUTIONS',
+      tab: 'Annunciated\nCAUTIONS',
       entries: [
         { tag: 'ALTN 1 FAIL', ref: { pack: 'electrical', scenario: 'elec-altn1-fail' } },
         { tag: 'ALTN 2 FAIL', ref: { pack: 'electrical', scenario: 'elec-altn2-fail' } },
@@ -62,7 +63,7 @@ export const DA50RG_CATALOG = defineCatalog({
     {
       id: 'emergency',
       heading: 'NON-ANNUNCIATED EMERGENCY PROCEDURES',
-      tab: 'EMERGENCY',
+      tab: 'Non-annunciated\nEMERGENCIES',
       entries: [
         {
           tag: 'EMERGENCY LANDING (ENGINE OFF)',

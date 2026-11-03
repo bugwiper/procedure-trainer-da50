@@ -256,6 +256,62 @@ test('a tab press shows the first page of that tab and marks the tab selected, t
   }
 });
 
+// The two-line choose tabs (Phase 9, plan 09-05, R-17): in the open choose view, zoomed into the
+// session area, every tab keeps its hit box at least 44 px high and wide, shows the lines of the
+// independent reference, and the text lies inside the face of its tab, centred, with room at the rim.
+test('the choose tabs read in two lines that lie inside their tab, centred, with a hit box of at least 44 px', async ({
+  page,
+  hasTouch,
+}) => {
+  await zoomIntoRegion(page, hasTouch, AREA);
+  await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
+  await page.waitForTimeout(500);
+  const tabs = SESSION_LAYOUT.choose.tabs;
+  expect(tabs).toHaveLength(CATALOG_REFERENCE.length);
+  for (const [index, group] of CATALOG_REFERENCE.entries()) {
+    const unit = tabs[index];
+    if (unit === undefined) throw new Error(`no tab rectangle for ${group.id}`);
+    const button = page.locator(`[data-session-button="session.tab.${group.id}"]`);
+    const hit = await page.locator(`[data-session-hit="session.tab.${group.id}"]`).boundingBox();
+    const face = await button.locator('rect').first().boundingBox();
+    if (hit === null || face === null) throw new Error(`no box for the tab ${group.id}`);
+    expect(hit.width, `${group.id} wide`).toBeGreaterThanOrEqual(MIN_HIT_PX);
+    expect(hit.height, `${group.id} high`).toBeGreaterThanOrEqual(MIN_HIT_PX);
+    // Screen pixels per panel unit of this tab.
+    const scale = face.width / unit.w;
+    const lines = group.tab.split('\n');
+    const spans = button.locator('text tspan');
+    await expect(spans).toHaveCount(lines.length);
+    const boxes = [];
+    for (const [lineIndex, line] of lines.entries()) {
+      await expect(spans.nth(lineIndex)).toHaveText(line);
+      const box = await spans.nth(lineIndex).boundingBox();
+      if (box === null) throw new Error(`no box for ${line}`);
+      boxes.push(box);
+      // Inside the face with the margin of the glyph rule (6 units, a unit of slack for rounding).
+      expect(box.x - face.x, `${line} left room`).toBeGreaterThanOrEqual(5 * scale);
+      expect(
+        face.x + face.width - (box.x + box.width),
+        `${line} right room`,
+      ).toBeGreaterThanOrEqual(5 * scale);
+      // Each line is centred on the tab.
+      expect(
+        Math.abs(box.x + box.width / 2 - (face.x + face.width / 2)),
+        `${line} centred`,
+      ).toBeLessThan(1.5 * scale);
+    }
+    const top = Math.min(...boxes.map((b) => b.y));
+    const bottom = Math.max(...boxes.map((b) => b.y + b.height));
+    expect(top, `${group.id} top`).toBeGreaterThan(face.y);
+    expect(bottom, `${group.id} bottom`).toBeLessThan(face.y + face.height);
+    // The block of lines is centred on the tab (the text boxes include the line gap, so a few units of slack).
+    expect(
+      Math.abs((top + bottom) / 2 - (face.y + face.height / 2)),
+      `${group.id} block centred`,
+    ).toBeLessThan(5 * scale);
+  }
+});
+
 // RESET returns the panel to its original state: registry defaults, base quantities, no run, no
 // log. On the free panel it acts at once; during a run it goes through the leave-run confirm.
 const RESET = '[data-session-hit="session.reset"]';

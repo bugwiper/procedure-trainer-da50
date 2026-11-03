@@ -86,6 +86,7 @@ export function ScenarioAreaFrame({ session }: FrameProps) {
               id={id}
               rect={rect}
               label={entry.tab}
+              labelSize={SESSION_LAYOUT.choose.tabLabelSize}
               ariaLabel={entry.heading}
               selected={group === entry.id}
               ignoreUntil={ignoreUntil}

@@ -41,6 +41,13 @@ const TAB_COUNT = 3;
 const TAB_GAP = 10;
 const TAB_W = (BUTTON_W - (TAB_COUNT - 1) * TAB_GAP) / TAB_COUNT;
 const TAB_TOP = 110;
+/**
+ * The label size of the choose tabs (Phase 9, plan 09-05, R-17). The tabs read in two lines and the
+ * widest line has 15 characters: by the glyph rule of the panel (0.62 of the size per character)
+ * size 14 would need about 130 units and the tab is 116.67 wide, so the largest size in use on the
+ * panel that leaves at least 6 units on each side is taken (tests/session-button.test.ts).
+ */
+const TAB_LABEL_SIZE = 10;
 
 /** Row tops of the choose view, below the tabs; at most three situations are listed on a page. */
 const CHOOSE_ROW_TOPS = [200, 290, 380] as const;
@@ -71,6 +78,8 @@ export const SESSION_LAYOUT = {
       w: TAB_W,
       h: 80,
     })),
+    /** Label size of a tab (two static lines, centred); every other button keeps `label.size`. */
+    tabLabelSize: TAB_LABEL_SIZE,
     rows: CHOOSE_ROW_TOPS.map((y): LocalRect => ({ x: BUTTON_X, y, w: BUTTON_W, h: 80 })),
     maxRows: CHOOSE_ROW_TOPS.length,
   },
@@ -106,9 +115,27 @@ export function pageSlice<T>(items: readonly T[], page: number): readonly T[] {
   return items.slice(page * rows, page * rows + rows);
 }
 
-/** Baseline of a button label inside the rectangle r (label rule of SESSION_LAYOUT). */
-export function labelBaseline(r: LocalRect): number {
-  return r.y + r.h / 2 + SESSION_LAYOUT.label.baselineOffset;
+/**
+ * Baseline of a button label inside the rectangle r (label rule of SESSION_LAYOUT). A label of
+ * another size keeps the same proportion: the offset scales with the size (the default size gives
+ * the offset of the rule unchanged).
+ */
+export function labelBaseline(r: LocalRect, size: number = SESSION_LAYOUT.label.size): number {
+  const offset =
+    size === SESSION_LAYOUT.label.size
+      ? SESSION_LAYOUT.label.baselineOffset
+      : (SESSION_LAYOUT.label.baselineOffset * size) / SESSION_LAYOUT.label.size;
+  return r.y + r.h / 2 + offset;
+}
+
+/** Distance between the baselines of a two-line label of the default size (14). */
+export const LABEL_LINE_STEP = 18;
+
+/** The distance between the baselines of a label of this size: it scales with the size (18 at 14). */
+export function labelLineStep(size: number = SESSION_LAYOUT.label.size): number {
+  return size === SESSION_LAYOUT.label.size
+    ? LABEL_LINE_STEP
+    : (LABEL_LINE_STEP * size) / SESSION_LAYOUT.label.size;
 }
 
 /**

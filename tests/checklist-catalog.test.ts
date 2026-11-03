@@ -138,6 +138,11 @@ describe('defineCatalog', () => {
     expect(() => make([group('a', [{ tag: '' }])])).toThrow(/empty tag/);
     expect(() => make([{ ...group('a', []), heading: '' }])).toThrow(/empty heading/);
     expect(() => make([{ ...group('a', []), tab: '' }])).toThrow(/empty tab/);
+    // A tab is one or two lines (plan 09-05, R-17): an empty line or a third line is refused.
+    expect(() => make([{ ...group('a', []), tab: 'One\nTwo' }])).not.toThrow();
+    expect(() => make([{ ...group('a', []), tab: 'One\n' }])).toThrow(/empty line/);
+    expect(() => make([{ ...group('a', []), tab: '\nTwo' }])).toThrow(/empty line/);
+    expect(() => make([{ ...group('a', []), tab: 'One\nTwo\nThree' }])).toThrow(/3 lines/);
   });
 
   it('throws for a repeated entry key and for a ref used twice', () => {

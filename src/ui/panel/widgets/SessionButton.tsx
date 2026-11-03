@@ -1,5 +1,5 @@
 import { useSignal } from '@preact/signals';
-import { SESSION_LAYOUT, labelAnchorX, labelBaseline } from '../session-area';
+import { SESSION_LAYOUT, labelAnchorX, labelBaseline, labelLineStep } from '../session-area';
 import type { LocalRect } from '../session-area';
 import { registerPressTarget } from '../press-targets';
 import type { PressTarget } from '../press-targets';
@@ -12,8 +12,6 @@ const LABEL = '#e6e9ed';
 const FOCUS = '#8fb8e6';
 /** The dimming of a disabled button (the whole group: face, rim and label). */
 const DISABLED_OPACITY = 0.38;
-/** Distance between the baselines of a two-line label (size 14). */
-const LINE_STEP = 18;
 
 export interface SessionButtonProps {
   /** Region-local rectangle (SESSION_LAYOUT). */
@@ -23,6 +21,11 @@ export interface SessionButtonProps {
    * the two-line labels of the footwell cluster); the block of lines stays centred on the button.
    */
   readonly label: string;
+  /**
+   * The label size; absent: SESSION_LAYOUT.label.size (14), so every other button is unchanged. The
+   * line step and the baseline scale with it (the choose tabs use a smaller size, plan 09-05, R-17).
+   */
+  readonly labelSize?: number;
   readonly ariaLabel: string;
   /** Stable key of the hit element (data-session-hit). */
   readonly id: string;
@@ -72,6 +75,7 @@ export function makeSessionPress(
 export function SessionButton({
   rect,
   label,
+  labelSize = SESSION_LAYOUT.label.size,
   ariaLabel,
   id,
   onActivate,
@@ -126,9 +130,9 @@ export function SessionButton({
       />
       <text
         x={labelAnchorX(rect)}
-        y={labelBaseline(rect)}
+        y={labelBaseline(rect, labelSize)}
         text-anchor="middle"
-        font-size={SESSION_LAYOUT.label.size}
+        font-size={labelSize}
         fill={LABEL}
         pointer-events="none"
       >
@@ -138,7 +142,11 @@ export function SessionButton({
               <tspan
                 key={line}
                 x={labelAnchorX(rect)}
-                dy={index === 0 ? -((lines.length - 1) * LINE_STEP) / 2 : LINE_STEP}
+                dy={
+                  index === 0
+                    ? -((lines.length - 1) * labelLineStep(labelSize)) / 2
+                    : labelLineStep(labelSize)
+                }
               >
                 {line}
               </tspan>
