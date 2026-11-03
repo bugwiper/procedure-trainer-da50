@@ -27,6 +27,7 @@ import type { SheetBody } from './screens/RunChecklist';
 import { EmptyNotice, LeaveConfirm, LoadError } from './screens/Confirm';
 import { Debrief } from './screens/Debrief';
 import { parsePreviewFlags, parsePreviewQuantities } from './preview';
+import { offersRealistic } from '../engine/further';
 import { branchStatuses } from '../engine/grading';
 import { RUN_ERROR_PATH, createSession } from './session';
 import type { LoadFailure } from './session';
@@ -95,6 +96,7 @@ if (import.meta.env.VITE_TEST_HOOKS === '1') {
     now: () => session.clock.value?.now() ?? null,
     onset: () => session.onset.value,
     variant: () => session.variant.value,
+    followOn: () => session.followOn.value,
     recording: () => session.recording.value,
   };
 }
@@ -383,7 +385,11 @@ export function App() {
       {aboutOpen.value ? <About onClose={closeAbout} /> : null}
       {screen === 'briefing' && briefed !== null && !session.levelPicked.value ? (
         <LevelPick
-          realistic={briefed.scenario.onset !== undefined}
+          realistic={offersRealistic(
+            briefed.scenario,
+            DA50RG_ENV.further,
+            DA50RG_ENV.scenes.default,
+          )}
           onLevel={setLevel}
           onBack={backToPanel}
         />
@@ -410,6 +416,7 @@ export function App() {
           )}
           completedAt={session.recording.value?.completedAt ?? 0}
           endedByFinish={session.endedByFinish.value}
+          hadOnset={session.recording.value?.onset != null}
           onClose={closeDebrief}
           onRetry={() => {
             session.retry();
@@ -417,8 +424,8 @@ export function App() {
           onNext={() => {
             void session.nextSituation();
           }}
-          onFollowOn={() => {
-            void session.continueToFollowOn();
+          onFollowOn={(ref) => {
+            void session.continueToFollowOn(ref ?? undefined);
           }}
         />
       ) : null}

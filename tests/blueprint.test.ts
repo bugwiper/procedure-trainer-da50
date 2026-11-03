@@ -89,6 +89,13 @@ const SCENARIO_LITERALS: Readonly<Record<string, readonly string[]>> = {
   'further follow-on title': DA50RG_ENV.further.options.flatMap((option) =>
     option.followOn === undefined ? [] : [option.followOn.title],
   ),
+  // Plan 09-04 (R-08): the label and the title of each follow-on target are aircraft data too.
+  'further follow-on target label': DA50RG_ENV.further.options.flatMap((option) =>
+    (option.followOn?.targets ?? []).map((target) => target.label),
+  ),
+  'further follow-on target title': DA50RG_ENV.further.options.flatMap((option) =>
+    (option.followOn?.targets ?? []).map((target) => target.title),
+  ),
   // Plan 07-06: the checklist catalog (printed headings, tab labels and tags) is aircraft data too.
   'catalog heading': DA50RG_ENV.catalog.groups.map((group) => group.heading),
   'catalog tab label': DA50RG_ENV.catalog.groups.map((group) => group.tab),

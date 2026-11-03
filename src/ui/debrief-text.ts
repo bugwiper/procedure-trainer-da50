@@ -199,37 +199,64 @@ export function furtherRows(result: GradeResult, set: FurtherSet): FurtherRow[] 
 }
 
 /**
- * The follow-on button of the debrief (Phase 9, D-02, D-03, P-01): the situation the scenario names
- * for the conduct selected at the end of the run, with the label and the title the aircraft data
- * gives that conduct. One value for the button and the session, so they cannot disagree.
+ * The follow-on buttons of the debrief (Phase 9, D-02, D-03, R-04, R-08): the situations the
+ * scenario names for the conduct selected at the end of the run, with the labels and titles the
+ * aircraft data gives them. One value for the buttons and the session, so they cannot disagree.
+ * `ref` is the target on Easy and Medium and null on Realistic, where the session draws it.
  */
-export interface FollowOnOffer {
-  readonly ref: { readonly pack: string; readonly scenario: string };
+export interface FollowOnButton {
+  readonly ref: { readonly pack: string; readonly scenario: string } | null;
   readonly label: string;
   readonly title: string;
 }
 
+/** One declared target of the offer: the pack and scenario ids and the weight of the draw. */
+export interface FollowOnDeclared {
+  readonly pack: string;
+  readonly scenario: string;
+  readonly weight: number;
+}
+
 /**
- * The offer, or null: the conduct selected at the end (`result.further.conduct.last`, the value
- * `furtherNote` reads) is a key of the scenario's `follow_on` map and the aircraft gives that
- * conduct a button text. FAIL does not matter (the decision to land was made either way); a
- * scenario without the map offers nothing. Display only: PASS or FAIL never depends on it.
+ * The targets the scenario declares for the conduct selected at the end (`result.further.conduct.last`,
+ * the value `furtherNote` reads), in the order of the file; empty when the scenario names none or
+ * the aircraft gives that conduct no button text. FAIL does not matter (the decision to land was
+ * made either way). Display only: PASS or FAIL never depends on it.
+ */
+export function followOnTargets(
+  result: GradeResult,
+  section: FurtherSection | undefined,
+  set: FurtherSet,
+): readonly FollowOnDeclared[] {
+  const last = result.further?.conduct.last ?? null;
+  if (last === null) return [];
+  const targets = section?.follow_on?.[last];
+  if (targets === undefined || set.option(last)?.followOn === undefined) return [];
+  return targets;
+}
+
+/**
+ * The buttons of the offer (empty: no offer). On Easy and Medium one per target in the file's order
+ * with the aircraft's text for the target (the generic text where the aircraft has no entry; a
+ * target of weight 0 is offered too); on Realistic exactly one, with the generic text and no ref
+ * (the session draws the target by weight).
  */
 export function followOnOffer(
   result: GradeResult,
   section: FurtherSection | undefined,
   set: FurtherSet,
-): FollowOnOffer | null {
+  realistic: boolean,
+): readonly FollowOnButton[] {
+  const targets = followOnTargets(result, section, set);
   const last = result.further?.conduct.last ?? null;
-  if (last === null) return null;
-  const target = section?.follow_on?.[last];
-  const text = set.option(last)?.followOn;
-  if (target === undefined || text === undefined) return null;
-  return {
-    ref: { pack: target.pack, scenario: target.scenario },
-    label: text.label,
-    title: text.title,
-  };
+  const generic = last === null ? undefined : set.option(last)?.followOn;
+  if (targets.length === 0 || last === null || generic === undefined) return [];
+  if (realistic) return [{ ref: null, label: generic.label, title: generic.title }];
+  return targets.map((target) => {
+    const ref = { pack: target.pack, scenario: target.scenario };
+    const text = set.followOnTarget(last, ref) ?? generic;
+    return { ref, label: text.label, title: text.title };
+  });
 }
 
 /**
@@ -244,7 +271,7 @@ export function furtherNote(
 ): string | null {
   const last = result.further?.conduct.last ?? null;
   if (last === null) return null;
-  if (followOnOffer(result, section, set) !== null) return null;
+  if (followOnTargets(result, section, set).length > 0) return null;
   return set.option(last)?.debriefNote ?? null;
 }
 

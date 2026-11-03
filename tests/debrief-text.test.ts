@@ -13,6 +13,7 @@ import {
   conductNote,
   finishLine,
   followOnOffer,
+  followOnTargets,
   furtherNote,
   furtherRows,
   harmfulLine,
@@ -589,11 +590,18 @@ describe('Avoid picks under the emergency landing', () => {
   });
 });
 
-describe('followOnOffer (Phase 9, D-02, D-03, P-01)', () => {
+describe('followOnOffer (Phase 9, D-02, D-03, R-04, R-08)', () => {
   const SET = DA50RG_ENV.further;
   const [carryOn, , emergency] = SET.ids('conduct');
   if (carryOn === undefined || emergency === undefined) throw new Error('conduct options missing');
-  const target = { pack: 'engine', scenario: 'landing-fixture' };
+  const generic = SET.option(emergency)?.followOn;
+  if (generic === undefined) throw new Error('the emergency conduct has no follow-on text');
+  // A target the aircraft gives its own text, and two the aircraft knows nothing about (fixtures).
+  const known = SET.option(emergency)?.followOn?.targets?.[0];
+  if (known === undefined) throw new Error('the aircraft has no target entry');
+  const knownRef = { pack: known.pack, scenario: known.scenario };
+  const fixture = { pack: 'engine', scenario: 'landing-fixture' };
+  const second = { pack: 'engine', scenario: 'landing-fixture-off' };
   const section = (follow: FurtherSection['follow_on']): FurtherSection => ({
     actions: [],
     conduct: { accept: [emergency] },
@@ -612,45 +620,94 @@ describe('followOnOffer (Phase 9, D-02, D-03, P-01)', () => {
         },
       },
     });
+  const two = section({
+    [emergency]: [
+      { ...fixture, weight: 2 },
+      { ...second, weight: 0 },
+    ],
+  });
 
-  it('offers the ref with the label and title of the aircraft when the conduct at the end has an entry', () => {
-    const offer = followOnOffer(ended(emergency), section({ [emergency]: target }), SET);
-    expect(offer).toEqual({
-      ref: target,
-      label: SET.option(emergency)?.followOn?.label,
-      title: SET.option(emergency)?.followOn?.title,
-    });
+  it('on Easy and Medium offers one button per target in the file order, with the aircraft text of the target', () => {
+    const buttons = followOnOffer(
+      ended(emergency),
+      section({
+        [emergency]: [
+          { ...knownRef, weight: 2 },
+          { ...fixture, weight: 1 },
+        ],
+      }),
+      SET,
+      false,
+    );
+    expect(buttons).toEqual([
+      { ref: knownRef, label: known.label, title: known.title },
+      // A target without an entry falls back to the generic text (R-08).
+      { ref: fixture, label: generic.label, title: generic.title },
+    ]);
+  });
+
+  it('offers a target of weight 0 on Easy and Medium', () => {
+    expect(followOnOffer(ended(emergency), two, SET, false).map((b) => b.ref)).toEqual([
+      fixture,
+      second,
+    ]);
+  });
+
+  it('on Realistic offers exactly one button with the generic text and no ref', () => {
+    expect(followOnOffer(ended(emergency), two, SET, true)).toEqual([
+      { ref: null, label: generic.label, title: generic.title },
+    ]);
   });
 
   it('offers it after FAIL as well', () => {
-    expect(
-      followOnOffer(ended(emergency, 'wrong'), section({ [emergency]: target }), SET),
-    ).not.toBeNull();
+    expect(followOnOffer(ended(emergency, 'wrong'), two, SET, false)).toHaveLength(2);
   });
 
   it('offers nothing for another conduct at the end, without the map, or without a conduct', () => {
-    const map = section({ [emergency]: target });
-    expect(followOnOffer(ended(carryOn), map, SET)).toBeNull();
-    expect(followOnOffer(ended(emergency), section(undefined), SET)).toBeNull();
-    expect(followOnOffer(ended(emergency), undefined, SET)).toBeNull();
-    expect(followOnOffer(ended(null), map, SET)).toBeNull();
-    expect(followOnOffer(result({}), map, SET)).toBeNull();
+    for (const realistic of [false, true]) {
+      expect(followOnOffer(ended(carryOn), two, SET, realistic)).toEqual([]);
+      expect(followOnOffer(ended(emergency), section(undefined), SET, realistic)).toEqual([]);
+      expect(followOnOffer(ended(emergency), undefined, SET, realistic)).toEqual([]);
+      expect(followOnOffer(ended(null), two, SET, realistic)).toEqual([]);
+      expect(followOnOffer(result({}), two, SET, realistic)).toEqual([]);
+    }
   });
 
   it('offers nothing for a key the aircraft gives no button text', () => {
-    expect(followOnOffer(ended(carryOn), section({ [carryOn]: target }), SET)).toBeNull();
+    expect(
+      followOnOffer(
+        ended(carryOn),
+        section({ [carryOn]: [{ ...fixture, weight: 1 }] }),
+        SET,
+        false,
+      ),
+    ).toEqual([]);
   });
 
-  it('shows the old note only when no button is offered', () => {
-    const map = section({ [emergency]: target });
+  it('the declared targets are the list of the scenario for the conduct at the end', () => {
+    expect(followOnTargets(ended(emergency), two, SET)).toEqual([
+      { ...fixture, weight: 2 },
+      { ...second, weight: 0 },
+    ]);
+    expect(followOnTargets(ended(carryOn), two, SET)).toEqual([]);
+  });
+
+  it('shows the note of the conduct only when no button is offered', () => {
     const note = SET.option(emergency)?.debriefNote ?? null;
     expect(note).not.toBeNull();
     // Without a follow-on the note is unchanged (also with the old two-argument call).
     expect(furtherNote(ended(emergency), SET)).toBe(note);
     expect(furtherNote(ended(emergency), SET, section(undefined))).toBe(note);
-    // With a button the note is suppressed: one place decides.
-    expect(furtherNote(ended(emergency), SET, map)).toBeNull();
+    // With one or several targets the note is suppressed: one place decides.
+    expect(furtherNote(ended(emergency), SET, two)).toBeNull();
+    expect(
+      furtherNote(ended(emergency), SET, section({ [emergency]: [{ ...fixture, weight: 1 }] })),
+    ).toBeNull();
     // Another conduct at the end: no button, no note of that conduct either.
-    expect(furtherNote(ended(carryOn), SET, map)).toBeNull();
+    expect(furtherNote(ended(carryOn), SET, two)).toBeNull();
+  });
+
+  it('the note no longer claims the emergency landing is untrained', () => {
+    expect(SET.option(emergency)?.debriefNote).toBe('No landing situation follows from this one.');
   });
 });

@@ -82,32 +82,41 @@ describe('checkFollowOns (L34)', () => {
 describe('validateAll runs L34 beside L29 and L30', () => {
   const read = (name: string): string =>
     readFileSync(`${root}tests/fixtures/scenarios/${name}.toon`, 'utf8');
+  const titleOf = (id: string): string => /^title: (.*)$/m.exec(read(id))?.[1] ?? id;
   const manifest = (entries: readonly string[]): string =>
     `format: 1\ntitle: Landing\nfree: true\nscenarios[${String(entries.length)}]:\n${entries
-      .map((id) => `  - id: ${id}\n    title: ${id.toUpperCase().slice(0, 18)}\n    file: ${id}`)
+      .map((id) => `  - id: ${id}\n    title: ${titleOf(id)}\n    file: ${id}`)
       .join('\n')}\n`;
-  // The title of a manifest entry must equal the scenario title.
   const pack = (entries: readonly string[]) => ({
     dir: 'scenarios/engine',
     id: 'engine',
-    manifestText: manifest(entries)
-      .replace('LANDING-SOURCE', 'LANDING SOURCE')
-      .replace('LANDING-FIXTURE', 'LANDING FIXTURE'),
+    manifestText: manifest(entries),
     files: entries.map((id) => ({ name: id, text: read(id) })),
   });
 
   const l34 = (entries: readonly string[]) =>
     validateAll([pack(entries)]).filter((i) => i.message.startsWith('L34'));
 
-  it('is silent when the target is a manifest entry of the checked pack', () => {
-    expect(l34(['landing-source', 'landing-fixture'])).toEqual([]);
+  it('is silent when every target of the list is a manifest entry of the checked pack', () => {
+    expect(l34(['landing-source', 'landing-fixture', 'landing-fixture-off'])).toEqual([]);
   });
 
-  it('reports the source fixture when its target is not listed, with line and column', () => {
-    const issues = l34(['landing-source']);
-    expect(issues).toHaveLength(1);
-    expect(issues[0]?.file).toBe('scenarios/engine/landing-source.toon');
-    expect(issues[0]?.line).toBeGreaterThan(1);
-    expect(issues[0]?.message).toContain('"engine/landing-fixture"');
+  it('reports each missing target of the list at its own item, with line and column (R-04)', () => {
+    const both = l34(['landing-source']);
+    expect(both).toHaveLength(2);
+    expect(both[0]?.file).toBe('scenarios/engine/landing-source.toon');
+    expect(both[0]?.message).toContain('"engine/landing-fixture"');
+    expect(both[1]?.message).toContain('"engine/landing-fixture-off"');
+    // The two items stand on different lines, the second after the first.
+    expect(both[1]?.line).toBeGreaterThan(both[0]?.line ?? Number.POSITIVE_INFINITY);
+
+    const text = read('landing-source');
+    const lines = text.split('\n');
+    const second = lines.findIndex((l) => l.includes('landing-fixture-off'));
+    const one = l34(['landing-source', 'landing-fixture']);
+    expect(one).toHaveLength(1);
+    expect(one[0]?.message).toContain('"engine/landing-fixture-off"');
+    // The item starts on the dash line before its scenario line (the line of `- pack:`).
+    expect(one[0]?.line).toBe(second);
   });
 });

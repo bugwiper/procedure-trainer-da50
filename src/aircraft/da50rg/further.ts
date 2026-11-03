@@ -76,9 +76,23 @@ export const DA50RG_FURTHER = defineFurther({
       text: 'Initiate emergency landing',
       label: 'EMERGENCY\nLANDING',
       kind: 'conduct',
-      debriefNote: 'The emergency landing itself is not trained yet.',
-      // The debrief button that continues with the emergency-landing situation a scenario names (Phase 9, D-03).
-      followOn: { label: 'Emergency landing', title: 'Continue with emergency landing' },
+      // Shown only where the scenario names no follow-on for this conduct (Phase 9, owner review item 16).
+      debriefNote: 'No landing situation follows from this one.',
+      // The debrief buttons that continue with the emergency-landing situations a scenario names
+      // (Phase 9, D-03, R-04, R-08): the generic text is the one button of Realistic (the session
+      // draws the target) and the fallback of a target without an entry; each target has its own text.
+      followOn: {
+        label: 'Emergency landing',
+        title: 'Continue with emergency landing',
+        targets: [
+          {
+            pack: 'landing',
+            scenario: 'landing-engine-off',
+            label: 'Emergency landing',
+            title: 'Continue with the emergency landing, engine off',
+          },
+        ],
+      },
     },
   ],
   conductTitle: 'Choose further flight conduct',

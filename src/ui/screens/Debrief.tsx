@@ -24,7 +24,7 @@ import { Modal } from './Modal';
  * outline in its debrief form: decisions, branches with their condition labels, a severity tag and
  * a verdict word on every graded step, "Not graded" on the other lines, the branch that does not
  * apply muted (the table form and the printed heading follow the scenario, plan 03-14), an order line under every ordered group and the harmful actions in log order
- * (no time). It names the level of the run ("Level: Easy"), on a meta line before it, the scenario (D-05); a Realistic run adds "Checklist used: ..." naming the last checklist chosen (none when none was, R-03); a scenario with variants adds one line naming the cause that was drawn (V-08); a run the 30-minute cap ended adds the limit line after the level line (V-14); a scenario that names a follow-on for the conduct selected at the end adds the button with the aircraft's label between Retry and Next situation (Phase 9, D-02); a run that ended at the scenario's finish adds the file's finish text after it (Phase 9, D-09); a realistic run adds one line with the first action measured from the onset. No score, no timeline. It sits on the
+ * (no time). It names the level of the run ("Level: Easy"), on a meta line before it, the scenario (D-05); a Realistic run adds "Checklist used: ..." naming the last checklist chosen (none when none was, R-03); a scenario with variants adds one line naming the cause that was drawn (V-08); a run the 30-minute cap ended adds the limit line after the level line (V-14); a scenario that names follow-on targets for the conduct selected at the end adds one button per target with the aircraft's label between Retry and Next situation, or one generic button on Realistic (Phase 9, D-02, R-04); a run that ended at the scenario's finish adds the file's finish text after it (Phase 9, D-09); a realistic run that had an onset adds one line with the first action measured from the onset. No score, no timeline. It sits on the
  * shared modal shell: Escape is Back to panel, a tap on the backdrop does nothing.
  */
 export function Debrief({
@@ -36,6 +36,7 @@ export function Debrief({
   checklistNote,
   completedAt,
   endedByFinish = false,
+  hadOnset = true,
   onClose,
   onRetry,
   onNext,
@@ -54,13 +55,18 @@ export function Debrief({
   readonly completedAt: number;
   /** True when the run ended by itself at the scenario's finish (Phase 9, D-09). */
   readonly endedByFinish?: boolean;
+  /** False for a Realistic run that had no onset (a landing situation): the reaction-time line is left out. */
+  readonly hadOnset?: boolean;
   readonly onClose: () => void;
   /** Starts the same situation again (D-14). */
   readonly onRetry: () => void;
   /** Opens the next situation in listing order (D-14). */
   readonly onNext: () => void;
-  /** Continues with the situation the scenario names for the conduct selected at the end (Phase 9, D-02). */
-  readonly onFollowOn?: () => void;
+  /**
+   * Continues with a situation the scenario names for the conduct selected at the end (Phase 9,
+   * D-02, R-04): the chosen target on Easy and Medium, null on Realistic (the session draws it).
+   */
+  readonly onFollowOn?: (ref: { readonly pack: string; readonly scenario: string } | null) => void;
 }) {
   const outline = buildOutline(scenario, result.branches, 'debrief', result);
   const head = checklistHead(scenario);
@@ -70,7 +76,7 @@ export function Debrief({
   const limit = limitLine(completedAt);
   const finished = finishLine(scenario, endedByFinish);
   const furtherList = furtherRows(result, further);
-  const offer = followOnOffer(result, scenario.further, further);
+  const offers = followOnOffer(result, scenario.further, further, level === 'realistic');
   const note = furtherNote(result, further, scenario.further);
   const hint = conductNote(result, scenario.further, further);
 
@@ -92,18 +98,22 @@ export function Debrief({
           >
             Retry
           </button>
-          {offer === null ? null : (
+          {offers.map((offer) => (
             <button
+              key={offer.ref === null ? 'drawn' : `${offer.ref.pack}/${offer.ref.scenario}`}
               type="button"
               class="secondary-button"
               data-testid="debrief-follow-on"
+              {...(offer.ref === null
+                ? {}
+                : { 'data-follow-on': `${offer.ref.pack}/${offer.ref.scenario}` })}
               aria-label={offer.title}
               title={offer.title}
-              onClick={onFollowOn}
+              onClick={() => onFollowOn?.(offer.ref)}
             >
               {offer.label}
             </button>
-          )}
+          ))}
           <button
             type="button"
             class="secondary-button"
@@ -168,7 +178,7 @@ export function Debrief({
           {cause}
         </p>
       )}
-      {level === 'realistic' ? (
+      {level === 'realistic' && hadOnset ? (
         <p class="briefing-meta" data-testid="debrief-timing">
           {timingLine(result)}
         </p>

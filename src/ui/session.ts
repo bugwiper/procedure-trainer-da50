@@ -8,13 +8,19 @@
 // Medium or Realistic): display state chosen on the level card; grade never receives it. A run whose
 // simulation reaches a named outcome (D-06) completes itself: the step listener calls the same
 // completion as the debrief button. Realistic (D-05) is available for a scenario that declares an
-// onset: choosing it starts the run at once, with no briefing, from the Realistic start quantities
+// onset or whose scene is one of the aircraft's landing scenes (Phase 9, R-05, offersRealistic):
+// choosing it starts the run at once, with no briefing, from the Realistic start quantities
 // (the base quantities laid over by the scenario's onset quantities, C-61); the session
 // draws a seed with its injected rng, the engine turns it into the onset time (onsetFromSeed) and the
 // onset is recorded run data (the signal `onset`, then Recording.onset), so the run replays.
 // A scenario with variants (phase 3.1) draws one cause on every level with a second seed, taken
 // after the onset seed; the engine resolves it into the scenario the run uses (resolveVariant), the
 // draw is recorded (the signal `variant`, then Recording.variant) and only the debrief names it.
+// A landing situation has no onset: on Realistic it starts at once from the initial block, nothing
+// waits and no onset is drawn. A follow-on that names several targets (Phase 9, R-04 to R-06) shows
+// one button per target on Easy and Medium; on Realistic the one button draws the target by weight
+// with a seed of the injected rng, recorded with the run (the signal `followOn`, then
+// Recording.followOn) and kept by Retry.
 // Phase 7 adds the checklist sheet (toggleChecklist), a non-modal sheet that exists in every run:
 // it shows the scenario's own checklist and marks the steps already done from the grade of the
 // partial recording (checklistMarks, the same credit the debrief shows; grade never receives the
@@ -34,11 +40,13 @@ import { branchStatuses, grade } from '../engine/grading';
 import type {
   BranchVerdict,
   GradeResult,
+  RecordedFollowOn,
   RecordedOnset,
   RecordedVariant,
   Recording,
 } from '../engine/grading';
-import { effectiveSelection, offersConduct } from '../engine/further';
+import { followOnFromSeed } from '../engine/follow-on';
+import { effectiveSelection, offersConduct, offersRealistic } from '../engine/further';
 import type { FurtherSelection, RecordedDecision } from '../engine/further';
 import { initialQuantities, realisticQuantities } from '../engine/predicates';
 import { Run } from '../engine/run';
@@ -48,7 +56,7 @@ import { openScenario } from '../scenario/packs';
 import type { AccessPolicy, OpenResult, PackProvider, ScenarioRef } from '../scenario/packs';
 import type { Scenario } from '../scenario/schema';
 import type { PanelBridge } from './bridge';
-import { followOnOffer } from './debrief-text';
+import { followOnOffer, followOnTargets } from './debrief-text';
 import { checklistHead } from './outline';
 import { pageCount } from './panel/session-area';
 
@@ -135,6 +143,8 @@ export interface SessionTestHook {
   onset(): RecordedOnset | null;
   /** The variant drawn for the current or last run; null for a scenario without variants. */
   variant(): RecordedVariant | null;
+  /** The follow-on draw of the current or last run (Phase 9, R-06); null when the run was not started by a Realistic follow-on button. */
+  followOn(): RecordedFollowOn | null;
   /** The recording the last completed run was graded from; null until a run completes. */
   recording(): Recording | null;
 }
@@ -322,7 +332,8 @@ export interface Session {
   /**
    * Briefing only: sets the level. On any other screen it does nothing, so the level of a run
    * cannot change between Start run and its debrief. Realistic starts the run at once, with no
-   * briefing; for a scenario without an onset it does nothing.
+   * briefing; for a scenario that offers no Realistic start (offersRealistic: no onset and not a
+   * landing scene) it does nothing.
    */
   setLevel(level: Level): void;
   /**
@@ -380,19 +391,29 @@ export interface Session {
    */
   nextSituation(): Promise<void>;
   /**
-   * Debrief only, not while a load runs, and only where the debrief offers the follow-on button
-   * (Phase 9, D-02, D-03): opens the situation the graded scenario names for the conduct selected
-   * at the end, through the pack seam, as Next situation does (same level, nothing carried over
-   * from the graded run, which stays untouched until the open succeeds). A target that cannot be
-   * opened shows the load-failure state; its retry repeats this start.
+   * Debrief only, not while a load runs, and only where the debrief offers follow-on buttons
+   * (Phase 9, D-02, D-03, R-04): opens the situation the graded scenario names for the conduct
+   * selected at the end, through the pack seam, as Next situation does (same level, nothing carried
+   * over from the graded run, which stays untouched until the open succeeds). The offer is
+   * recomputed here from the session's own level and result and no argument is trusted: on Easy and
+   * Medium `ref` must be one of the offered targets (absent is taken only where one target is
+   * offered); on Realistic `ref` is ignored and the target is drawn by weight with a seed of the
+   * injected rng, recorded with the run (R-06). A target that cannot be opened shows the
+   * load-failure state; its retry repeats this start.
    */
-  continueToFollowOn(): Promise<void>;
+  continueToFollowOn(ref?: ScenarioRef): Promise<void>;
+  /** The follow-on draw of the current or last run (Realistic button); null for any other run. */
+  readonly followOn: ReadonlySignal<RecordedFollowOn | null>;
 }
 
-/** The two records a retry reuses: the onset of a Realistic run and the cause of a variant run. */
+/**
+ * The three records a retry reuses: the onset of a Realistic run, the cause of a variant run and the
+ * follow-on draw of a Realistic landing that a button started.
+ */
 export interface RetrySeeds {
   readonly onset: RecordedOnset | null;
   readonly variant: RecordedVariant | null;
+  readonly followOn: RecordedFollowOn | null;
 }
 
 /**
@@ -403,8 +424,9 @@ export interface RetrySeeds {
 export function retrySeeds(
   onset: RecordedOnset | null,
   variant: RecordedVariant | null,
+  followOn: RecordedFollowOn | null = null,
 ): RetrySeeds {
-  return { onset, variant };
+  return { onset, variant, followOn };
 }
 
 /** The item at min(n - 1, floor(rng() * n)); throws RangeError for an empty list. */
@@ -490,6 +512,7 @@ export function createSession(deps: SessionDeps): Session {
     recording.value = null;
     onset.value = null;
     variant.value = null;
+    followOn.value = null;
     clock.value = null;
     clearRunHelp();
     decisions.value = [];
@@ -521,6 +544,9 @@ export function createSession(deps: SessionDeps): Session {
   );
   const onset = signal<RecordedOnset | null>(null);
   const variant = signal<RecordedVariant | null>(null);
+  const followOn = signal<RecordedFollowOn | null>(null);
+  /** The draw of a Realistic follow-on press, handed to the start it opens; consumed by `start`. */
+  let pendingFollowOn: RecordedFollowOn | null = null;
   const recording = signal<Recording | null>(null);
   /** The entry the opened scenario came from: Next situation moves on from it. */
   const openedRef = signal<ScenarioRef | null>(null);
@@ -575,6 +601,7 @@ export function createSession(deps: SessionDeps): Session {
         .map((e) => ({ t: e.t, id: e.id, value: e.value })),
       ...(onset.peek() === null ? {} : { onset: onset.peek() }),
       ...(variant.peek() === null ? {} : { variant: variant.peek() }),
+      ...(followOn.peek() === null ? {} : { followOn: followOn.peek() }),
       ...(decisions.peek().length === 0 ? {} : { decisions: decisions.peek() }),
     };
   };
@@ -777,18 +804,59 @@ export function createSession(deps: SessionDeps): Session {
     });
   };
 
-  /** Debrief only, not busy: the follow-on the debrief offers opens its briefing (Phase 9, D-02). */
-  const runFollowOn = async (): Promise<void> => {
+  /**
+   * Debrief only, not busy: a follow-on the debrief offers opens its briefing (Phase 9, D-02, R-04
+   * to R-06). The offer is recomputed from this session's own level and graded result; the argument
+   * only picks among the offered targets on Easy and Medium and is ignored on Realistic, where the
+   * target is drawn by weight with a seed of the injected rng that goes with the run.
+   */
+  const runFollowOn = async (pick?: ScenarioRef): Promise<void> => {
     const graded = result.peek();
-    if (screen.peek() !== 'debrief' || busy.peek() || graded === null) return;
-    const offer = followOnOffer(graded, scenario.peek()?.further, env.further);
-    if (offer === null) return;
-    const ref = offer.ref;
+    const source = scenario.peek();
+    if (screen.peek() !== 'debrief' || busy.peek() || graded === null || source === null) return;
+    const realistic = level.peek() === 'realistic';
+    const buttons = followOnOffer(graded, source.further, env.further, realistic);
+    if (buttons.length === 0) return;
+    let ref: ScenarioRef;
+    let drawn: RecordedFollowOn | null = null;
+    if (realistic) {
+      const seed = Math.floor(rng() * SEED_RANGE);
+      try {
+        const target = followOnFromSeed(seed, followOnTargets(graded, source.further, env.further));
+        ref = { pack: target.pack, scenario: target.scenario };
+        drawn = { seed, from: source.id };
+      } catch (error) {
+        // Lint L33 prevents it in a shipped file: no silent default, the load failure of reason invalid.
+        toFreePanel();
+        loadFailure.value = failure(
+          'invalid',
+          error instanceof Error ? error.message : 'the follow-on could not be drawn',
+        );
+        return;
+      }
+    } else {
+      const offered = buttons.find(
+        (button) =>
+          button.ref !== null &&
+          (pick === undefined
+            ? buttons.length === 1
+            : button.ref.pack === pick.pack && button.ref.scenario === pick.scenario),
+      );
+      if (offered?.ref == null) return;
+      ref = { pack: offered.ref.pack, scenario: offered.ref.scenario };
+    }
+    const target = ref;
+    pendingFollowOn = drawn;
     await loading('session.follow_on', async () => {
-      await openBriefing(ref, true);
+      try {
+        await openBriefing(target, true);
+      } finally {
+        // A run that began took the draw; a card or a failure drops it.
+        pendingFollowOn = null;
+      }
       // A failure to load leaves the free panel with the message; Retry repeats this start.
       if (loadFailure.peek() !== null) {
-        lastRequest = { kind: 'chosen', ref, key: 'session.follow_on' };
+        lastRequest = { kind: 'chosen', ref: target, key: 'session.follow_on' };
       }
     });
   };
@@ -820,6 +888,9 @@ export function createSession(deps: SessionDeps): Session {
     const window = realistic ? opened.onset?.window_s : undefined;
     let drawn: RecordedOnset | null = null;
     let cause: RecordedVariant | null = null;
+    // The follow-on draw of the press that opened this run (a retry keeps the one it was given).
+    const fromDraw = seeds !== undefined ? seeds.followOn : pendingFollowOn;
+    pendingFollowOn = null;
     if (seeds !== undefined) {
       // A retry (D-14) takes the records it was given and draws nothing.
       drawn = window === undefined ? null : seeds.onset;
@@ -872,6 +943,7 @@ export function createSession(deps: SessionDeps): Session {
     choosePage.value = 0;
     onset.value = drawn;
     variant.value = cause;
+    followOn.value = realistic ? fromDraw : null;
     run.value = current;
     clock.value = current.clock;
     onRunStart();
@@ -918,8 +990,9 @@ export function createSession(deps: SessionDeps): Session {
   /**
    * Opens a scenario through the seam and shows its briefing; a failure is kept for the screens.
    * `keepPicks` (Next situation, D-14) leaves the debrief like RESET does and keeps the level, so
-   * its card is skipped: a Realistic level starts the run at once when the
-   * scenario has an onset and shows the level card when it has none.
+   * its card is skipped: a Realistic level starts the run at once where the scenario offers it
+   * (offersRealistic: an onset, or a landing scene, which starts from the initial block) and shows
+   * the level card where it does not.
    */
   const openBriefing = async (ref: ScenarioRef, keepPicks = false): Promise<void> => {
     const opened = await openScenario(packs, env, ref);
@@ -944,7 +1017,7 @@ export function createSession(deps: SessionDeps): Session {
       return;
     }
     const realistic = level.peek() === 'realistic';
-    if (realistic && opened.scenario.onset === undefined) {
+    if (realistic && !offersRealistic(opened.scenario, env.further, env.scenes.default)) {
       levelPicked.value = false;
       return;
     }
@@ -1175,8 +1248,13 @@ export function createSession(deps: SessionDeps): Session {
     setLevel(next) {
       const briefed = briefing.peek();
       if (screen.peek() !== 'briefing' || briefed === null) return;
-      // D-05: Realistic shows no briefing; a scenario without an onset does not offer the level.
-      if (next === 'realistic' && briefed.scenario.onset === undefined) return;
+      // D-05, R-05: Realistic shows no briefing; a scenario with neither an onset nor a landing scene does not offer the level.
+      if (
+        next === 'realistic' &&
+        !offersRealistic(briefed.scenario, env.further, env.scenes.default)
+      ) {
+        return;
+      }
       level.value = next;
       levelPicked.value = true;
       if (next === 'realistic') begin(briefed, true);
@@ -1277,6 +1355,7 @@ export function createSession(deps: SessionDeps): Session {
       const seeds = retrySeeds(
         onset.peek() ?? recording.peek()?.onset ?? null,
         variant.peek() ?? recording.peek()?.variant ?? null,
+        followOn.peek() ?? recording.peek()?.followOn ?? null,
       );
       endRun();
       clearRunHelp();
@@ -1298,5 +1377,6 @@ export function createSession(deps: SessionDeps): Session {
     },
     nextSituation: runNext,
     continueToFollowOn: runFollowOn,
+    followOn,
   };
 }

@@ -844,10 +844,12 @@ function checkFurther(
 }
 
 /**
- * L33 (Phase 9, D-03): every key of `further.follow_on` is a flight conduct the aircraft gives a
- * follow-on button, the scenario lists it in `accept`, and the scenario does not declare `conduct:
- * none` (no conduct is offered, so the debrief could never offer the button). Reported at the key.
- * The target itself is judged by the pack-level L34 (follow-on-check.ts).
+ * L33 (Phase 9, D-03, R-04): every key of `further.follow_on` is a flight conduct the aircraft gives
+ * a follow-on button, the scenario lists it in `accept`, and the scenario does not declare `conduct:
+ * none` (no conduct is offered, so the debrief could never offer the button). A list that names a
+ * target twice (same pack and scenario) or whose weights add up to 0 (no target could be drawn on
+ * Realistic) is reported too. All reported at the key. The target itself is judged by the pack-level
+ * L34 (follow-on-check.ts).
  */
 function checkFollowOn(
   section: NonNullable<Scenario['further']>,
@@ -858,7 +860,7 @@ function checkFollowOn(
   if (map === undefined) return;
   const known = set.ids('conduct').filter((id) => set.option(id)?.followOn !== undefined);
   const accepted = conductAccept(section) ?? [];
-  for (const key of Object.keys(map)) {
+  for (const [key, targets] of Object.entries(map)) {
     const at: Segments = ['further', 'follow_on', key];
     if (!known.includes(key)) {
       add(at, `L33: "${key}" is not a flight conduct with a follow-on; known: ${known.join(', ')}`);
@@ -866,6 +868,18 @@ function checkFollowOn(
       add(at, `L33: a follow-on needs conduct: accept; this scenario offers no conduct`);
     } else if (!accepted.includes(key)) {
       add(at, `L33: the follow-on for "${key}" needs accept to list "${key}"`);
+    }
+    const seen = new Set<string>();
+    for (const target of targets) {
+      const name = `${target.pack}/${target.scenario}`;
+      if (seen.has(name)) add(at, `L33: the follow-on for "${key}" names "${name}" twice`);
+      seen.add(name);
+    }
+    if (targets.reduce((total, target) => total + target.weight, 0) === 0) {
+      add(
+        at,
+        `L33: the weights of the follow-on for "${key}" add up to 0, so no target could be drawn on Realistic`,
+      );
     }
   }
 }

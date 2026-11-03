@@ -345,16 +345,20 @@ finish:
   text: The aircraft reached the field
 ```
 
-The situation that comes before a landing says where the debrief leads. `follow_on` sits inside `further` and maps a conduct option to a pack and a scenario; when that conduct is the one selected at the end of the run, the debrief offers a button that opens the target at the same level, and each situation is graded on its own (rules L33 and L34 check the declaration):
+The situation that comes before a landing says where the debrief leads. `follow_on` sits inside `further` and maps a conduct option to a list of one to four targets, each a pack, a scenario and an integer `weight` from 0 to 100; when that conduct is the one selected at the end of the run, the debrief offers one button per target on Easy and Medium (the pilot chooses) and one generic button on Realistic, where the session draws the target by weight with a seed that is recorded with the run (a target of weight 0 is offered on Easy and Medium and never drawn). The target opens at the same level, and each situation is graded on its own. A landing situation has no onset and starts at once on Realistic. Rules L33 (the key, no target twice, a weight total above 0) and L34 (every target exists, none is the scenario itself) check the declaration:
 
 ```toon fragment
 further:
   conduct:
     accept[1]: conduct_emergency
   follow_on:
-    conduct_emergency:
-      pack: landing
-      scenario: landing-engine-off
+    conduct_emergency[2]:
+      - pack: landing
+        scenario: landing-engine-off
+        weight: 2
+      - pack: landing
+        scenario: ditching
+        weight: 1
 ```
 
 ### 6. What the checklist sheet and the hint show

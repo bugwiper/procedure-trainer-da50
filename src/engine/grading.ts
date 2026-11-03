@@ -42,6 +42,16 @@ export interface RecordedVariant {
   readonly seed: number;
 }
 
+/**
+ * The follow-on draw a Realistic run came from (Phase 9, R-06): the seed the session drew and the
+ * id of the scenario whose debrief offered the button. Run data like the onset and the variant, so
+ * the draw can be reproduced from the seed and the source file; `grade` never reads it.
+ */
+export interface RecordedFollowOn {
+  readonly seed: number;
+  readonly from: string;
+}
+
 export type { RecordedDecision } from './further';
 
 export interface Recording {
@@ -59,6 +69,11 @@ export interface Recording {
    * keeps every recording written before variants exist grading as before.
    */
   readonly variant?: RecordedVariant | null;
+  /**
+   * The follow-on draw this run came from (Phase 9, R-06), recorded for a run that a Realistic
+   * debrief button started. grade ignores it: a recording with and without it grades alike.
+   */
+  readonly followOn?: RecordedFollowOn | null;
   /** In log order; never sorted by t. */
   readonly events: readonly RecordedEvent[];
   /**

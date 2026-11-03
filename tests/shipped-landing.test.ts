@@ -212,11 +212,9 @@ describe('the shipped landing situations (Phase 9)', () => {
 
   it('every follow-on target of every shipped scenario exists and is a landing situation', () => {
     const declared = ALL.flatMap(({ id, scenario }) =>
-      Object.entries(scenario.further?.follow_on ?? {}).map(([conduct, target]) => ({
-        id,
-        conduct,
-        target,
-      })),
+      Object.entries(scenario.further?.follow_on ?? {}).flatMap(([conduct, list]) =>
+        list.map((target) => ({ id, conduct, target })),
+      ),
     );
     expect(declared.length, 'at least one shipped scenario leads into a landing').toBeGreaterThan(
       0,

@@ -1,4 +1,4 @@
-# Test fixture, not a shipped scenario (Phase 9, plan 09-02): a synthetic situation in flight whose right flight conduct is the emergency landing and which names the landing fixture as the follow-on of that conduct, for the machinery tests of the debrief button. Its row is not printed checklist text and it carries no booklet wording; it lives under tests/ so that no pack lists it and the blueprint gate does not read it. The follow-on target uses the pack id of the in-memory test provider (engine).
+# Test fixture, not a shipped scenario (Phase 9, plan 09-02): a synthetic situation in flight whose right flight conduct is the emergency landing and which names the two landing fixtures (weights 2 and 1) as the follow-on of that conduct, for the machinery tests of the debrief button. Its row is not printed checklist text and it carries no booklet wording; it lives under tests/ so that no pack lists it and the blueprint gate does not read it. The follow-on target uses the pack id of the in-memory test provider (engine).
 format: 1
 id: landing-source
 title: LANDING SOURCE
@@ -35,6 +35,10 @@ further:
   conduct:
     accept[1]: conduct_emergency
   follow_on:
-    conduct_emergency:
-      pack: engine
-      scenario: landing-fixture
+    conduct_emergency[2]:
+      - pack: engine
+        scenario: landing-fixture
+        weight: 2
+      - pack: engine
+        scenario: landing-fixture-off
+        weight: 1

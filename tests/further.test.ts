@@ -8,6 +8,7 @@ import {
   defineFurther,
   effectiveSelection,
   gradeFurther,
+  offersRealistic,
 } from '../src/engine/further';
 import type { FurtherDefinition } from '../src/engine/further';
 import { grade } from '../src/engine/grading';
@@ -203,6 +204,77 @@ describe('defineFurther', () => {
     expect(set.option('c_one')?.followOn).toBeUndefined();
   });
 
+  it('keeps the targets of a follow-on and looks them up by pack and scenario (R-08)', () => {
+    const targets = [
+      { pack: 'p', scenario: 'a', label: 'A', title: 'Go to a' },
+      { pack: 'p', scenario: 'b', label: 'B', title: 'Go to b' },
+    ];
+    const set = defineFurther({
+      ...valid,
+      options: [
+        ...valid.options,
+        {
+          id: 'c_two',
+          text: 'x',
+          kind: 'conduct',
+          followOn: { label: 'Go', title: 'Go on', targets },
+        },
+      ],
+    });
+    expect(set.followOnTarget('c_two', { pack: 'p', scenario: 'b' })).toEqual(targets[1]);
+    expect(set.followOnTarget('c_two', { pack: 'p', scenario: 'z' })).toBeUndefined();
+    expect(set.followOnTarget('c_one', { pack: 'p', scenario: 'a' })).toBeUndefined();
+    expect(set.followOnTarget('nope', { pack: 'p', scenario: 'a' })).toBeUndefined();
+  });
+
+  it.each([
+    ['an empty target label', { pack: 'p', scenario: 'a', label: ' ', title: 'T' }],
+    ['an empty target title', { pack: 'p', scenario: 'a', label: 'L', title: '' }],
+  ])('rejects %s', (_name, target) => {
+    expect(() =>
+      defineFurther({
+        ...valid,
+        options: [
+          ...valid.options,
+          {
+            id: 'c_two',
+            text: 'x',
+            kind: 'conduct',
+            followOn: { label: 'L', title: 'T', targets: [target] },
+          },
+        ],
+      }),
+    ).toThrow(FurtherError);
+  });
+
+  it('rejects a target listed twice for one conduct', () => {
+    const target = { pack: 'p', scenario: 'a', label: 'L', title: 'T' };
+    expect(() =>
+      defineFurther({
+        ...valid,
+        options: [
+          ...valid.options,
+          {
+            id: 'c_two',
+            text: 'x',
+            kind: 'conduct',
+            followOn: { label: 'L', title: 'T', targets: [target, { ...target, label: 'M' }] },
+          },
+        ],
+      }),
+    ).toThrow(FurtherError);
+  });
+
+  it('the aircraft gives every follow-on target a label and a title of its own', () => {
+    const targets = SET.option(emergency)?.followOn?.targets ?? [];
+    expect(targets.length).toBeGreaterThan(0);
+    for (const target of targets) {
+      expect(target.label.trim()).not.toBe('');
+      expect(target.title.trim()).not.toBe('');
+      expect(SET.followOnTarget(emergency, target)).toBe(target);
+    }
+  });
+
   it('the aircraft gives the emergency landing a follow-on label and title in own words', () => {
     const texts = SET.ids('conduct').flatMap((id) => {
       const text = SET.option(id)?.followOn;
@@ -276,9 +348,7 @@ describe('defineFurther', () => {
       'conduct:conduct_precautionary',
       'conduct:conduct_emergency',
     ]);
-    expect(SET.option(emergency)?.debriefNote).toBe(
-      'The emergency landing itself is not trained yet.',
-    );
+    expect(SET.option(emergency)?.debriefNote).toBe('No landing situation follows from this one.');
     // The Avoid actions are unrated actions marked avoid, and the note speaks of continuing to the destination.
     expect(SET.avoidIds()).toEqual(['avoid_imc', 'avoid_nvfr', 'avoid_icing']);
     for (const id of SET.avoidIds()) {
@@ -667,5 +737,30 @@ describe('gradeFurther with toggles (R-08)', () => {
     });
     expect(done.reasons.some((r) => r.kind === 'further_missed')).toBe(false);
     expect(cleared.reasons).toContainEqual({ kind: 'further_missed', count: 1 });
+  });
+});
+
+describe('offersRealistic (Phase 9, R-05)', () => {
+  const none = { landingScenes: [] as readonly string[] };
+  const onset = { window_s: [5, 10] } as unknown as NonNullable<Scenario['onset']>;
+
+  it('is true for a scenario with an onset, whatever its scene', () => {
+    expect(offersRealistic({ onset }, SET, DA50RG_ENV.scenes.default)).toBe(true);
+    expect(offersRealistic({ onset, scene: 'anything' }, none, 'cruise')).toBe(true);
+  });
+
+  it('is true for a landing scene without an onset, also through the default scene', () => {
+    const [landing] = SET.landingScenes;
+    if (landing === undefined) throw new Error('the aircraft has no landing scene');
+    expect(offersRealistic({ scene: landing }, SET, DA50RG_ENV.scenes.default)).toBe(true);
+    expect(offersRealistic({}, SET, landing)).toBe(true);
+  });
+
+  it('is false for another scene without an onset (a non-landing scenario still ignores Realistic)', () => {
+    expect(offersRealistic({}, SET, DA50RG_ENV.scenes.default)).toBe(false);
+    expect(
+      offersRealistic({ scene: DA50RG_ENV.scenes.default }, SET, DA50RG_ENV.scenes.default),
+    ).toBe(false);
+    expect(offersRealistic({ scene: 'outlanding' }, none, 'cruise')).toBe(false);
   });
 });

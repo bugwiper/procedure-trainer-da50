@@ -7,9 +7,23 @@
 // id or a text; the engine only reads the set.
 // Pure TypeScript, no DOM, no framework, no clock (enforced by the ESLint boundary).
 
-import type { FurtherRole, FurtherSection } from '../scenario/schema';
+import type { FurtherRole, FurtherSection, Scenario } from '../scenario/schema';
 
 export const FURTHER_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
+
+/** The pack and scenario id of a follow-on target and the text of its debrief button (R-08). */
+export interface FollowOnTargetText {
+  readonly pack: string;
+  readonly scenario: string;
+  readonly label: string;
+  readonly title: string;
+}
+
+export interface FollowOnText {
+  readonly label: string;
+  readonly title: string;
+  readonly targets?: readonly FollowOnTargetText[];
+}
 
 /** An option is an action (graded by its role) or a flight conduct (graded by the accept list). */
 export type FurtherKind = 'action' | 'conduct';
@@ -37,10 +51,12 @@ export interface FurtherOption {
   /**
    * The text of the debrief button that continues with the situation a scenario names as the
    * follow-on of this conduct (Phase 9, D-03, P-03): the visible `label` and the `title` (aria-label
-   * and tooltip), own wording. Conduct options only; the button exists only where the scenario
-   * declares a follow-on for the option.
+   * and tooltip), own wording. This generic text is the one button of a Realistic debrief and the
+   * fallback of a target without an entry. `targets` gives each follow-on target its own label and
+   * title (R-08): the buttons of Easy and Medium, one per target the scenario lists. Conduct options
+   * only; the button exists only where the scenario declares a follow-on for the option.
    */
-  readonly followOn?: { readonly label: string; readonly title: string };
+  readonly followOn?: FollowOnText;
   /**
    * The conduct options that grey this action out (owner decision 2026-11-03: with the emergency
    * landing selected the pilot cannot avoid icing or night VFR any more). While the selected conduct
@@ -89,6 +105,11 @@ export interface FurtherSet extends FurtherDefinition {
   avoidIds(): readonly string[];
   /** True when the selected conduct (null: none) greys the option out (`blockedByConduct`). */
   isBlocked(id: string, conduct: string | null): boolean;
+  /** The button text the aircraft gives one follow-on target of a conduct, or undefined (R-08). */
+  followOnTarget(
+    conduct: string,
+    ref: { readonly pack: string; readonly scenario: string },
+  ): FollowOnTargetText | undefined;
 }
 
 export class FurtherError extends Error {}
@@ -119,6 +140,21 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
       }
       if (option.followOn.label.trim() === '' || option.followOn.title.trim() === '') {
         throw new FurtherError(`the follow-on of "${option.id}" needs a label and a title`);
+      }
+      const named = new Set<string>();
+      for (const target of option.followOn.targets ?? []) {
+        const name = `${target.pack}/${target.scenario}`;
+        if (target.label.trim() === '' || target.title.trim() === '') {
+          throw new FurtherError(
+            `the follow-on target "${name}" of "${option.id}" needs a label and a title`,
+          );
+        }
+        if (named.has(name)) {
+          throw new FurtherError(
+            `the follow-on of "${option.id}" lists the target "${name}" twice`,
+          );
+        }
+        named.add(name);
       }
     }
     if (option.blockedByConduct !== undefined && option.kind !== 'action') {
@@ -169,6 +205,12 @@ export function defineFurther(definition: FurtherDefinition): FurtherSet {
     avoidIds: () => definition.options.filter((option) => option.avoid === true).map((o) => o.id),
     isBlocked: (id: string, conduct: string | null) =>
       conduct !== null && (byId.get(id)?.blockedByConduct?.includes(conduct) ?? false),
+    followOnTarget: (conduct: string, ref: { readonly pack: string; readonly scenario: string }) =>
+      byId
+        .get(conduct)
+        ?.followOn?.targets?.find(
+          (target) => target.pack === ref.pack && target.scenario === ref.scenario,
+        ),
   });
 }
 
@@ -244,6 +286,21 @@ export function conductAccept(section: FurtherSection | undefined): readonly str
 /** True when a scenario offers a flight conduct decision (it declares `accept`). */
 export function offersConduct(section: FurtherSection | undefined): boolean {
   return conductAccept(section) !== null;
+}
+
+/**
+ * True where a Realistic start makes sense for a scenario (Phase 9, R-05): it has an onset (the
+ * failure begins by itself) or its scene is one of the aircraft's landing scenes (nothing waits:
+ * the run starts at once from the initial block). One predicate for the level card, `setLevel` and
+ * the Next-situation and follow-on starts. `defaultScene` is the aircraft's scene for a file
+ * that names none.
+ */
+export function offersRealistic(
+  scenario: Pick<Scenario, 'onset' | 'scene'>,
+  set: Pick<FurtherSet, 'landingScenes'>,
+  defaultScene: string,
+): boolean {
+  return scenario.onset !== undefined || set.landingScenes.includes(scenario.scene ?? defaultScene);
 }
 
 export interface FurtherActionVerdict {

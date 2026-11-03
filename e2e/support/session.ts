@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { DA50RG_ENV } from '../../src/aircraft/da50rg/aircraft';
+import { followOnFromSeed } from '../../src/engine/follow-on';
 import { variantFromSeed } from '../../src/engine/variants';
 import { parseManifest, parseScenario } from '../../src/scenario/parse';
 import { pageCount } from '../../src/ui/panel/session-area';
@@ -240,6 +241,60 @@ export async function forceVariant(page: Page, file: string, id: string): Promis
   }, seed);
   await page.reload();
   await expect(page.getByTestId('panel')).toBeVisible();
+}
+
+/**
+ * Forces the target a Realistic follow-on draws (Phase 9, plan 09-04, R-06): reads the shipped file
+ * `sourceFile` (under scenarios/, without `.toon`) in node, searches the first integer seed for which
+ * `followOnFromSeed` draws `targetId` from the list of `conduct`, stubs `Math.random` with that seed
+ * before any page script runs and reloads. Like forceVariant, the same value feeds every draw of the
+ * session (the onset of the source run and the follow-on). Call once per test, after the first `goto`.
+ */
+export async function forceFollowOn(
+  page: Page,
+  sourceFile: string,
+  conduct: string,
+  targetId: string,
+): Promise<void> {
+  const parsed = parseScenario(readFileSync(new URL(`${sourceFile}.toon`, SCENARIO_DIR), 'utf8'));
+  if (!parsed.ok) throw new Error(`${sourceFile} does not parse`);
+  const list = parsed.value.further?.follow_on?.[conduct];
+  if (list === undefined) throw new Error(`${sourceFile} names no follow-on for "${conduct}"`);
+  let seed = 0;
+  while (followOnFromSeed(seed, list).scenario !== targetId) {
+    seed += 1;
+    if (seed > 100_000) throw new Error(`no seed draws the target "${targetId}" in ${sourceFile}`);
+  }
+  await page.addInitScript((value: number) => {
+    Math.random = () => value / 4_294_967_296;
+  }, seed);
+  await page.reload();
+  await expect(page.getByTestId('panel')).toBeVisible();
+}
+
+/**
+ * The follow-on buttons of the debrief (Phase 9, R-04): with a target ("pack/scenario") the Easy and
+ * Medium button of that target, without one every follow-on button.
+ */
+export const followOnButton = (page: Page, target?: string) =>
+  target === undefined
+    ? page.getByTestId('debrief-follow-on')
+    : page.locator(`[data-testid="debrief-follow-on"][data-follow-on="${target}"]`);
+
+/** Waits until a Realistic run's clock has passed its onset, so presses count (needs the e2e hook). */
+export async function waitForOnset(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const hook = window.__panelSession;
+          const onset = hook?.onset() ?? null;
+          const now = hook?.now() ?? null;
+          return onset !== null && now !== null && now >= onset.at;
+        }),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
 }
 
 /** The hit rectangle of the footwell button of a further option (Phase 7, plan 07-05). */

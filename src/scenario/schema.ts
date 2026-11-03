@@ -309,6 +309,20 @@ export const FurtherAction = z.strictObject({
   fails_run: z.boolean().default(false),
 });
 
+/** The most targets one follow-on list names (Phase 9, R-04). */
+export const MAX_FOLLOW_ON_TARGETS = 4;
+
+/**
+ * One follow-on target (Phase 9, R-04): the pack and manifest entry the debrief opens and the
+ * integer weight of the Realistic draw (0 to MAX_WEIGHT; a target of weight 0 is offered on Easy and
+ * Medium and never drawn). Whether it exists is the pack-level check L34.
+ */
+export const FollowOnTarget = z.strictObject({
+  pack: scenarioId,
+  scenario: scenarioId,
+  weight: z.number().int().min(0).max(MAX_WEIGHT),
+});
+
 /**
  * The further actions of a scenario (Phase 7, D-08 to D-10): the role of each action and the flight
  * conduct. `conduct` is required inside the section: the literal `none` (no conduct decision exists,
@@ -324,14 +338,13 @@ export const Further = z.strictObject({
    */
   conduct_note: wordsBetween(1, 50).optional(),
   /**
-   * The follow-on situations (Phase 9, D-02, D-03): a map from a flight conduct option id to the
-   * scenario the debrief opens when that conduct is the one selected at the end of the run. The
-   * target is two ids (a pack and a manifest entry), opened only through the pack seam; lint L33 and
-   * the pack-level check L34 judge what they name.
+   * The follow-on situations (Phase 9, D-02, D-03, R-04): a map from a flight conduct option id to
+   * the one to four scenarios the debrief can open when that conduct is the one selected at the end
+   * of the run (a button per target on Easy and Medium, one drawn by weight on Realistic). A target
+   * is two ids (a pack and a manifest entry) and a weight, opened only through the pack seam; lint
+   * L33 and the pack-level check L34 judge what they name.
    */
-  follow_on: z
-    .record(nodeId, z.strictObject({ pack: scenarioId, scenario: scenarioId }))
-    .optional(),
+  follow_on: z.record(nodeId, z.array(FollowOnTarget).min(1).max(MAX_FOLLOW_ON_TARGETS)).optional(),
 });
 
 /** The printed form of a checklist and its heading and message tag (all optional, plan 03-13). */

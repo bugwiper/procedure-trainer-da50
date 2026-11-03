@@ -2087,7 +2087,7 @@ describe('L33: the follow-on of a flight conduct (Phase 9, plan 09-02)', () => {
   const SET = DA50RG_ENV.further;
   const withFollowOn = SET.ids('conduct').filter((id) => SET.option(id)?.followOn !== undefined);
   const withoutFollowOn = SET.ids('conduct').filter((id) => SET.option(id)?.followOn === undefined);
-  const KEY = '    conduct_emergency:\n      pack: engine';
+  const KEY = '    conduct_emergency[2]:\n      - pack: engine';
 
   it('passes the source fixture', () => {
     expect(checkScenario(SOURCE, DA50RG_ENV).ok).toBe(true);
@@ -2101,7 +2101,7 @@ describe('L33: the follow-on of a flight conduct (Phase 9, plan 09-02)', () => {
     expect(hits).toHaveLength(1);
     expect(hits[0]).toMatchObject({
       path: `further.follow_on.${other}`,
-      line: lineOf(text, `    ${other}:`),
+      line: lineOf(text, `    ${other}[2]:`),
     });
     expect(hits[0]?.message).toContain(`known: ${withFollowOn.join(', ')}`);
   });
@@ -2129,11 +2129,63 @@ describe('L33: the follow-on of a flight conduct (Phase 9, plan 09-02)', () => {
     expect(hits[0]?.message).toContain('offers no conduct');
   });
 
+  it('rejects a target listed twice and a weight total of 0, at the key (R-04)', () => {
+    const twice = swap(SOURCE, 'scenario: landing-fixture-off', 'scenario: landing-fixture');
+    const [dup] = issuesOf(twice).filter((i) => i.message.startsWith('L33'));
+    expect(dup).toMatchObject({
+      path: 'further.follow_on.conduct_emergency',
+      line: lineOf(twice, '    conduct_emergency[2]:'),
+    });
+    expect(dup?.message).toContain('"engine/landing-fixture" twice');
+
+    const zero = swap(swap(SOURCE, 'weight: 2', 'weight: 0'), 'weight: 1', 'weight: 0');
+    const hits = issuesOf(zero).filter((i) => i.message.startsWith('L33'));
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.path).toBe('further.follow_on.conduct_emergency');
+    expect(hits[0]?.message).toContain('add up to 0');
+    expect(hits[0]?.message).toContain('Realistic');
+
+    // One target of weight 0 next to a positive one is fine (offered on Easy and Medium, never drawn).
+    expect(checkScenario(swap(SOURCE, 'weight: 1', 'weight: 0'), DA50RG_ENV).ok).toBe(true);
+  });
+
+  it('the schema takes one to four targets and a weight from 0 to 100 and nothing else', () => {
+    const entry = (n: number): string =>
+      `      - pack: engine\n        scenario: landing-fixture-${String(n)}\n        weight: 1\n`;
+    const head = swap(SOURCE, /\n {2}follow_on:[\s\S]*$/.exec(SOURCE)?.[0] ?? '', '\n');
+    const withList = (count: number, extra = ''): string =>
+      `${head.trimEnd()}\n  follow_on:\n    conduct_emergency[${String(count)}]:\n${Array.from({ length: count }, (_, i) => entry(i)).join('')}${extra}`;
+    expect(checkScenario(withList(4), DA50RG_ENV).ok).toBe(true);
+    const five = checkScenario(withList(5), DA50RG_ENV);
+    expect(five.ok).toBe(false);
+    if (!five.ok) expect(five.issues[0]?.path).toBe('further.follow_on.conduct_emergency');
+    for (const weight of ['-1', '101', '1.5']) {
+      const bad = checkScenario(swap(SOURCE, 'weight: 2', `weight: ${weight}`), DA50RG_ENV);
+      expect(bad.ok, weight).toBe(false);
+    }
+    // The 09-02 object form is gone: one shape only.
+    const old = swap(
+      SOURCE,
+      /\n {2}follow_on:[\s\S]*$/.exec(SOURCE)?.[0] ?? '',
+      '\n  follow_on:\n    conduct_emergency:\n      pack: engine\n      scenario: landing-fixture\n',
+    );
+    expect(checkScenario(old, DA50RG_ENV).ok).toBe(false);
+  });
+
   it('the schema refuses a target without both ids and an id that is no id', () => {
     for (const text of [
-      swap(SOURCE, '      pack: engine\n', ''),
-      swap(SOURCE, 'pack: engine', 'pack: ../engine'),
-      swap(SOURCE, 'scenario: landing-fixture', 'scenario: Landing_Fixture'),
+      swap(
+        SOURCE,
+        '      - pack: engine\n        scenario: landing-fixture\n',
+        '      - scenario: landing-fixture\n',
+      ),
+      swap(SOURCE, '        weight: 2\n', ''),
+      swap(
+        SOURCE,
+        '      - pack: engine\n        scenario: landing-fixture\n',
+        '      - pack: ../engine\n        scenario: landing-fixture\n',
+      ),
+      swap(SOURCE, 'scenario: landing-fixture\n', 'scenario: Landing_Fixture\n'),
     ]) {
       const result = checkScenario(text, DA50RG_ENV);
       expect(result.ok).toBe(false);

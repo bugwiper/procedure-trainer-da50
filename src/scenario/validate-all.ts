@@ -106,13 +106,13 @@ function validatePack(pack: PackInput, env: AircraftEnv): PackResult {
       idAt: locate(index, ['id']),
       heading: heading ?? result.scenario.title,
       headingAt: locate(index, heading === undefined ? ['title'] : ['checklist', 'heading']),
-      targets: Object.entries(result.scenario.further?.follow_on ?? {}).map(
-        ([conduct, target]) => ({
+      targets: Object.entries(result.scenario.further?.follow_on ?? {}).flatMap(([conduct, list]) =>
+        list.map((target, item) => ({
           conduct,
           pack: target.pack,
           scenario: target.scenario,
-          ...locate(index, ['further', 'follow_on', conduct]),
-        }),
+          ...locate(index, ['further', 'follow_on', conduct, item]),
+        })),
       ),
     });
   }

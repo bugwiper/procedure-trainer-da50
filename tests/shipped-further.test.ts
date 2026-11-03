@@ -22,8 +22,11 @@ interface Declared {
   readonly conduct: readonly string[] | 'none';
   /** True when the scenario carries a `conduct_note` (plan 07-06, R-22). */
   readonly note: boolean;
-  /** The follow-on of each conduct, as "pack/scenario" (Phase 9); absent means no follow-on. */
-  readonly followOn?: Readonly<Record<string, string>>;
+  /**
+   * The follow-on of each conduct, as "pack/scenario:weight" in the order of the file (Phase 9,
+   * R-04); absent means no follow-on.
+   */
+  readonly followOn?: Readonly<Record<string, readonly string[]>>;
 }
 
 // The review of plan 07-06 (R-20), row by row against the printed comment rows and branches: ENG OIL TEMP
@@ -46,7 +49,7 @@ const FIRE_ENGINE_OFF: Declared = {
   roles: ['required', 'optional', 'recommended'],
   conduct: ['conduct_emergency'],
   note: false,
-  followOn: { conduct_emergency: 'landing/landing-engine-off' },
+  followOn: { conduct_emergency: ['landing/landing-engine-off:2'] },
 };
 // ELEC FIRE FLIGHT: the engine keeps running, so the right decision is the precautionary (alternate)
 // landing and no follow-on exists (owner answer 2026-11-03: "with engine power this is rather an
@@ -121,9 +124,9 @@ describe('the further declarations of the shipped scenarios (D-10, D-13)', () =>
       expect(section?.conduct_note !== undefined, 'conduct_note').toBe(expected.note);
       // Phase 9: the follow-on map of the file is the one of the table.
       const followOn = Object.fromEntries(
-        Object.entries(section?.follow_on ?? {}).map(([conduct, t]) => [
+        Object.entries(section?.follow_on ?? {}).map(([conduct, list]) => [
           conduct,
-          `${t.pack}/${t.scenario}`,
+          list.map((t) => `${t.pack}/${t.scenario}:${String(t.weight)}`),
         ]),
       );
       expect(followOn).toEqual(expected.followOn ?? {});

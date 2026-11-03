@@ -5,13 +5,18 @@ import { DA50RG_ENV } from '../src/aircraft/da50rg/aircraft';
 import { TERRAIN_HEIGHT_FT } from '../src/aircraft/da50rg/quantities';
 import { parseScenario } from '../src/scenario/parse';
 import type { Scenario } from '../src/scenario/schema';
+import { followOnFromSeed } from '../src/engine/follow-on';
 import {
+  followOnButton,
+  forceFollowOn,
   furtherButton,
   furtherHit,
   pickFurther,
   quantityOf,
   shippedScenarios,
+  startRealistic,
   startScenario,
+  waitForOnset,
 } from './support/session';
 import { activate, activateAt, afterPairWindow, leaveZoom, zoomIntoRegion } from './support/zoom';
 
@@ -50,15 +55,17 @@ const ALL = shippedScenarios();
 const LANDINGS = ALL.filter((entry) =>
   DA50RG_ENV.further.landingScenes.includes(scenarioOf(entry).scene ?? ''),
 );
-const LANDING = LANDINGS[0];
-if (LANDING === undefined) throw new Error('no landing situation is shipped');
+// The engine-off landing (booklet page 9) is the one the flows below walk through.
+const LANDING = LANDINGS.find((entry) => entry.id === 'landing-engine-off');
+if (LANDING === undefined) throw new Error('the engine-off landing is not shipped');
 const LANDING_SCENARIO = scenarioOf(LANDING);
+const LANDING_NAME = `${LANDING.pack}/${LANDING.id}`;
 
 /** The rows that lead into the landing through a follow-on, from the shipped files. */
 const SOURCES = ALL.filter((entry) =>
-  Object.values(scenarioOf(entry).further?.follow_on ?? {}).some(
-    (target) => target.pack === LANDING.pack && target.scenario === LANDING.id,
-  ),
+  Object.values(scenarioOf(entry).further?.follow_on ?? {})
+    .flat()
+    .some((target) => target.pack === LANDING.pack && target.scenario === LANDING.id),
 );
 const ENGINE_FIRE = SOURCES.find((entry) => entry.id === 'eng-fire-in-flight');
 const NO_ABORT = SOURCES.find((entry) => entry.id === 'takeoff-fire-no-abort');
@@ -138,10 +145,10 @@ async function complete(page: Page, hasTouch: boolean): Promise<void> {
   await expect(page.getByTestId('debrief')).toBeVisible();
 }
 
-/** Presses the follow-on button of a debrief and starts the landing run (the level is kept). */
+/** Presses the follow-on button of the engine-off landing and starts the run (the level is kept). */
 async function continueIntoLanding(page: Page, hasTouch: boolean): Promise<void> {
   await page.waitForTimeout(SHIELD_WAIT_MS);
-  await activate(page.getByTestId('debrief-follow-on'), hasTouch);
+  await activate(followOnButton(page, LANDING_NAME), hasTouch);
   await expect(page.getByTestId('briefing')).toBeVisible();
   await expect(page.getByTestId('briefing').getByRole('heading', { level: 2 })).toHaveText(
     LANDING_SCENARIO.title,
@@ -161,7 +168,7 @@ test('@hooks ENGINE FIRE IN FLIGHT leads into the landing situation: the field, 
   await complete(page, hasTouch);
   // The first situation is graded on its own and keeps its verdict.
   await expect(page.getByTestId('debrief-result')).toHaveText('PASS');
-  await expect(page.getByTestId('debrief-follow-on')).toBeVisible();
+  await expect(followOnButton(page, LANDING_NAME)).toBeVisible();
 
   await continueIntoLanding(page, hasTouch);
   expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(LANDING.id);
@@ -262,4 +269,132 @@ test('ELEC FIRE FLIGHT accepts the precautionary landing and offers no follow-on
   await complete(page, hasTouch);
   await expect(page.getByTestId('debrief-follow-on')).toHaveCount(0);
   await expect(page.getByTestId('debrief-retry')).toBeVisible();
+});
+
+/** The entry of a shipped row and the targets it names for the emergency landing, from the file. */
+const targetsOf = (entry: { pack: string; file: string }) => {
+  const list = scenarioOf(entry).further?.follow_on?.[emergency];
+  if (list === undefined) throw new Error(`${entry.file} names no follow-on`);
+  return list;
+};
+const entryOf = (target: { pack: string; scenario: string }) => {
+  const found = ALL.find((entry) => entry.pack === target.pack && entry.id === target.scenario);
+  if (found === undefined) throw new Error(`${target.pack}/${target.scenario} is not shipped`);
+  return found;
+};
+const OFFER = SET.option(emergency)?.followOn;
+if (OFFER === undefined) throw new Error('the aircraft gives the emergency landing no follow-on');
+
+for (const source of [ENGINE_FIRE, NO_ABORT]) {
+  test(`@hooks ${source.id}: one button per target on Easy, each opens the briefing of its own target, Retry repeats it`, async ({
+    page,
+    hasTouch,
+  }) => {
+    test.slow();
+    const targets = targetsOf(source);
+    for (const target of targets) {
+      const name = `${target.pack}/${target.scenario}`;
+      await startScenario(page, hasTouch, `${source.pack}.${source.id}`, 'easy');
+      await pickFurther(page, hasTouch, [emergency]);
+      await complete(page, hasTouch);
+      const firstResult = await page.getByTestId('debrief-result').textContent();
+      // Exactly the targets of the file, each with the label of the aircraft table.
+      await expect(followOnButton(page)).toHaveCount(targets.length);
+      for (const [index, entry] of targets.entries()) {
+        const text = SET.followOnTarget(emergency, entry);
+        if (text === undefined) throw new Error(`no aircraft entry for ${entry.scenario}`);
+        await expect(followOnButton(page).nth(index)).toHaveText(text.label);
+        await expect(followOnButton(page).nth(index)).toHaveAttribute('aria-label', text.title);
+      }
+      await page.waitForTimeout(SHIELD_WAIT_MS);
+      await activate(followOnButton(page, name), hasTouch);
+      await expect(page.getByTestId('briefing')).toBeVisible();
+      await expect(page.getByTestId('briefing').getByRole('heading', { level: 2 })).toHaveText(
+        scenarioOf(entryOf(target)).title,
+      );
+      await expect(page.getByTestId('level-pick')).toHaveCount(0);
+      await activate(page.getByTestId('briefing-start'), hasTouch);
+      await expect(page.getByTestId('procedure-complete')).toBeVisible();
+      expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(
+        target.scenario,
+      );
+      await expect(page.locator(scene(scenarioOf(entryOf(target)).scene ?? ''))).toHaveCount(1);
+      await complete(page, hasTouch);
+      // Retry inside the follow-on repeats the same target.
+      await page.waitForTimeout(SHIELD_WAIT_MS);
+      await activate(page.getByTestId('debrief-retry'), hasTouch);
+      await expect(page.getByTestId('procedure-complete')).toBeVisible();
+      expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(
+        target.scenario,
+      );
+      // The first run kept its own verdict.
+      expect(firstResult).toBe('FAIL');
+      await page.reload();
+      await expect(page.getByTestId('panel')).toBeVisible();
+    }
+  });
+}
+
+for (const source of [ENGINE_FIRE, NO_ABORT]) {
+  for (const target of targetsOf(source)) {
+    test(`@hooks ${source.id} on Realistic: one generic button draws ${target.scenario} by a recorded seed and starts it at once`, async ({
+      page,
+      hasTouch,
+    }) => {
+      test.slow();
+      const list = targetsOf(source);
+      const found = entryOf(target);
+      await forceFollowOn(page, `${source.pack}/${source.file}`, emergency, target.scenario);
+      await startRealistic(page, hasTouch, `${source.pack}.${source.id}`);
+      await waitForOnset(page);
+      await pickFurther(page, hasTouch, [emergency]);
+      await complete(page, hasTouch);
+      // One generic button, no per-target attribute.
+      await expect(followOnButton(page)).toHaveCount(1);
+      await expect(followOnButton(page)).toHaveText(OFFER.label);
+      await expect(followOnButton(page)).toHaveAttribute('aria-label', OFFER.title);
+      await expect(followOnButton(page)).not.toHaveAttribute('data-follow-on', /.*/);
+      await page.waitForTimeout(SHIELD_WAIT_MS);
+      await activate(followOnButton(page), hasTouch);
+      // No briefing and no level card: the landing runs at once, on the scene of the drawn target.
+      await expect(page.getByTestId('procedure-complete')).toBeVisible();
+      await expect(page.getByTestId('briefing')).toHaveCount(0);
+      await expect(page.getByTestId('level-pick')).toHaveCount(0);
+      expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(
+        target.scenario,
+      );
+      await expect(page.locator(scene(scenarioOf(found).scene ?? ''))).toHaveCount(1);
+      // The seed is recorded, names the source run, draws this target from the source file, and no onset is drawn.
+      const drawn = await page.evaluate(() => window.__panelSession?.followOn() ?? null);
+      expect(drawn?.from).toBe(source.id);
+      expect(followOnFromSeed(drawn?.seed ?? -1, list).scenario).toBe(target.scenario);
+      expect(await page.evaluate(() => window.__panelSession?.onset() ?? null)).toBeNull();
+
+      await complete(page, hasTouch);
+      await expect(page.getByTestId('debrief-scenario')).toHaveText(scenarioOf(found).title);
+      await expect(page.getByTestId('debrief-level')).toHaveText('Level: Realistic');
+      // The reaction-time line belongs to a run with an onset.
+      await expect(page.getByTestId('debrief-timing')).toHaveCount(0);
+      // Retry repeats the same target and seed.
+      await page.waitForTimeout(SHIELD_WAIT_MS);
+      await activate(page.getByTestId('debrief-retry'), hasTouch);
+      await expect(page.getByTestId('procedure-complete')).toBeVisible();
+      expect(await page.evaluate(() => window.__panelSession?.scenarioId() ?? null)).toBe(
+        target.scenario,
+      );
+      expect(await page.evaluate(() => window.__panelSession?.followOn() ?? null)).toEqual(drawn);
+    });
+  }
+}
+
+test('a landing chosen from the chooser on Realistic starts at once, from the initial block, with no onset', async ({
+  page,
+  hasTouch,
+}) => {
+  await startRealistic(page, hasTouch, `${LANDING.pack}.${LANDING.id}`);
+  await expect(page.getByTestId('briefing')).toHaveCount(0);
+  await expect(page.locator(scene(LANDING_SCENARIO.scene ?? ''))).toHaveCount(1);
+  // The initial block of the file, with the dead engine, from the first frame.
+  expect(await quantityOf(page, 'rpm')).toBe(0);
+  expect(await quantityOf(page, 'altitude_ft')).toBeGreaterThan(TERRAIN_HEIGHT_FT);
 });
