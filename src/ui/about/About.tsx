@@ -1,4 +1,6 @@
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { readOfflineVersion } from '../pwa/register';
+import { offlineLine } from '../pwa/update';
 import policy from '../../../docs/CONTENT-POLICY.md?raw';
 
 /**
@@ -7,6 +9,19 @@ import policy from '../../../docs/CONTENT-POLICY.md?raw';
  */
 export function About({ onClose }: { readonly onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  // The active worker's build id, read once when the dialog opens: undefined while the worker has
+  // not answered, null when none controls the page (a static line either way, D-13).
+  const [version, setVersion] = useState<string | null | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    let open = true;
+    void readOfflineVersion().then((id) => {
+      if (open) setVersion(id);
+    });
+    return () => {
+      open = false;
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -35,6 +50,7 @@ export function About({ onClose }: { readonly onClose: () => void }) {
         G1000 NXi belong to Garmin Ltd. or its subsidiaries. They are used here only to say which
         aircraft and equipment this panel imitates; every trademark stays with its owner.
       </p>
+      <p data-testid="about-offline">{version === undefined ? '' : offlineLine(version)}</p>
       <button
         ref={closeRef}
         type="button"

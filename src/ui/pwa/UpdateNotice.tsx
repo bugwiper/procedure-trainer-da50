@@ -3,25 +3,14 @@ import { UPDATE_BUTTON_LABEL, UPDATE_NOTICE_TEXT, updateNoticeShown } from './up
 import type { Screen } from '../session';
 
 /**
- * The calm update notice (D-05, L-04): a static sentence and one button, at the bottom edge of the
- * panel area, only on the free panel. No animation, no timer, no sound; the tap reloads once.
- * `lifted` keeps it above the Full panel button, which can sit in the bottom corners.
+ * The calm update notice (D-05, L-04): a static sentence and one button over the windscreen at the
+ * top centre of the panel area, only on the free panel. No animation, no timer, no sound; the tap
+ * reloads once. The placement is in stage.css.
  */
-export function UpdateNotice({
-  screen,
-  lifted,
-}: {
-  readonly screen: Screen;
-  readonly lifted: boolean;
-}) {
+export function UpdateNotice({ screen }: { readonly screen: Screen }) {
   if (!updateNoticeShown(updateAvailable.value, screen)) return null;
   return (
-    <div
-      class="update-notice"
-      data-testid="update-notice"
-      data-lifted={lifted ? 'true' : undefined}
-      role="status"
-    >
+    <div class="update-notice" data-testid="update-notice" role="status">
       <span>{UPDATE_NOTICE_TEXT}</span>
       <button type="button" data-testid="update-apply" onClick={applyUpdate}>
         {UPDATE_BUTTON_LABEL}

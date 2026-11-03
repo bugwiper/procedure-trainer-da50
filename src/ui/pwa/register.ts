@@ -102,3 +102,25 @@ export async function registerServiceWorker(): Promise<void> {
     // No worker (private mode, insecure origin, a refused script): the app runs online as before.
   }
 }
+
+/** The id the worker that controls this page was built with, or null (D-13). */
+export function readOfflineVersion(timeoutMs = 1500): Promise<string | null> {
+  if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+  const controller = navigator.serviceWorker.controller;
+  if (controller === null) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const timer = setTimeout(() => {
+      channel.port1.close();
+      resolve(null);
+    }, timeoutMs);
+    channel.port1.onmessage = (event: MessageEvent<unknown>) => {
+      clearTimeout(timer);
+      channel.port1.close();
+      const data = event.data as { type?: unknown; id?: unknown } | null;
+      const id = data?.type === 'VERSION' && typeof data.id === 'string' ? data.id : null;
+      resolve(id !== null && /^[\w.-]{1,40}$/.test(id) ? id : null);
+    };
+    controller.postMessage({ type: 'VERSION' }, [channel.port2]);
+  });
+}

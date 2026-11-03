@@ -202,14 +202,43 @@ describe('worker routing', () => {
     expect(answered(fakeFetch('https://example.org/', 'navigate'))).toBe(false);
   });
 
-  it('skips waiting only on the message, never by itself', () => {
+  const message = (event: unknown): void => {
+    const handler = worker.handlers['message'];
+    if (handler === undefined) throw new Error('the worker registers no message handler');
+    handler(event);
+  };
+  const windowClient = { type: 'window', url: `${scope}index.html?x=1` };
+
+  it('skips waiting only on the message of a window of its scope, never by itself', () => {
     expect(worker.skipped.count).toBe(0);
-    const message = worker.handlers['message'];
-    if (message === undefined) throw new Error('the worker registers no message handler');
-    message({ data: { type: 'OTHER' } });
+    message({ data: { type: 'OTHER' }, source: windowClient });
     expect(worker.skipped.count).toBe(0);
-    message({ data: { type: 'SKIP_WAITING' } });
+    message({ data: { type: 'SKIP_WAITING' }, source: windowClient });
     expect(worker.skipped.count).toBe(1);
+  });
+
+  it('ignores a message with no source, from a worker, or from a window outside the scope', () => {
+    const before = worker.skipped.count;
+    message({ data: { type: 'SKIP_WAITING' } });
+    message({ data: { type: 'SKIP_WAITING' }, source: { type: 'worker', url: scope } });
+    message({
+      data: { type: 'SKIP_WAITING' },
+      source: { type: 'window', url: 'https://example.org/elsewhere/' },
+    });
+    message({ data: null, source: windowClient });
+    message({ data: 'SKIP_WAITING', source: windowClient });
+    expect(worker.skipped.count).toBe(before);
+  });
+
+  it('answers VERSION on the message port with its build id, and only to the same sources', () => {
+    const sent: unknown[] = [];
+    const port = { postMessage: (value: unknown) => sent.push(value) };
+    message({ data: { type: 'VERSION' }, source: windowClient, ports: [port] });
+    expect(sent).toEqual([{ type: 'VERSION', id: 'testid000000' }]);
+    message({ data: { type: 'VERSION' }, source: { type: 'worker', url: scope }, ports: [port] });
+    message({ data: { type: 'VERSION' }, source: windowClient, ports: [] });
+    message({ data: { type: 'VERSION' }, source: windowClient });
+    expect(sent).toHaveLength(1);
   });
 });
 

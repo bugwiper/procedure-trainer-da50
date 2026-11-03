@@ -9,7 +9,13 @@ import {
 } from './support/pwa';
 import { startPrivateServer } from './support/pwa-server';
 import type { PrivateServer } from './support/pwa-server';
-import { UPDATE_BUTTON_LABEL, UPDATE_NOTICE_TEXT } from '../src/ui/pwa/update';
+import {
+  OFFLINE_READY_PREFIX,
+  OFFLINE_UNAVAILABLE,
+  UPDATE_BUTTON_LABEL,
+  UPDATE_NOTICE_TEXT,
+} from '../src/ui/pwa/update';
+import { chooseScenario, shippedScenarios } from './support/session';
 import { activate } from './support/zoom';
 
 // PLT-02, ROADMAP criterion 3 and D-05: a new deploy installs and waits, the free panel shows a
@@ -142,4 +148,224 @@ test('a new deploy waits, the free panel shows a calm notice and one tap reloads
   await expect(page.getByTestId('panel')).toBeVisible();
   expect(await hasMarker(page, next.marker)).toBe(true);
   expect(log.outside(server.baseURL)).toEqual([]);
+});
+
+// Workers are blocked by default (D-09); the cases on the main preview server opt in. The cases that
+// use the `site` fixture bring their own context, which allows workers.
+test.use({ serviceWorkers: 'allow' });
+
+// The notice is a calm, static element: the same on every project, never in the way of a run.
+const noticeOf = (page: Page) => page.getByTestId('update-notice');
+
+/** The screen the app is on, from the e2e window hook (these cases need the e2e build anyway). */
+const screenOf = (page: Page): Promise<string | undefined> =>
+  page.evaluate(() => window.__panelSession?.screen());
+
+/** Waits until the registration has a worker that installed and waits (a deploy was found). */
+async function expectWaitingWorker(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        async () => (await navigator.serviceWorker.getRegistration())?.waiting?.state ?? 'none',
+      ),
+    )
+    .toBe('installed');
+}
+
+function firstScenario() {
+  const first = shippedScenarios()[0];
+  if (first === undefined) throw new Error('no shipped scenario');
+  return first;
+}
+
+test('a waiting worker alone never reloads the page, however long it waits @local', async ({
+  site,
+}) => {
+  const page = await site.open();
+  await markPage(page);
+  const navigations = countNavigations(page);
+  site.server.deployNewVersion();
+  await checkNow(page);
+  await expect(noticeOf(page)).toBeVisible();
+  await page.waitForTimeout(2000);
+  expect(await stayedLoaded(page)).toBe(true);
+  expect(navigations.count()).toBe(0);
+  await expect(noticeOf(page)).toBeVisible();
+});
+
+test('the notice is there on the free panel and gone in the chooser @local', async ({ site }) => {
+  const { server, hasTouch } = site;
+  const page = await site.open();
+  await markPage(page);
+  const navigations = countNavigations(page);
+  server.deployNewVersion();
+  await checkNow(page);
+  await expect(noticeOf(page)).toBeVisible();
+
+  await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
+  await expect.poll(() => screenOf(page)).toBe('choosing');
+  await expect(noticeOf(page)).toHaveCount(0);
+  expect(await stayedLoaded(page)).toBe(true);
+  expect(navigations.count()).toBe(0);
+});
+
+test('an update found during the level card, the briefing, the run and the debrief waits until the free panel @local', async ({
+  site,
+}) => {
+  test.setTimeout(90_000);
+  const { server, hasTouch } = site;
+  const page = await site.open();
+  await markPage(page);
+  const navigations = countNavigations(page);
+  const log = collectRequests(page, site.context);
+
+  // The level card (screen "briefing"): the deploy is found while the user is deciding.
+  await chooseScenario(page, hasTouch, firstScenario().row);
+  expect(await screenOf(page)).toBe('briefing');
+  server.deployNewVersion();
+  await checkNow(page);
+  await expectWaitingWorker(page);
+  await expect(noticeOf(page)).toHaveCount(0);
+
+  // The briefing card.
+  await page.waitForTimeout(450);
+  await activate(page.getByTestId('level-pick-easy'), hasTouch);
+  await expect(page.getByTestId('briefing')).toBeVisible();
+  await expect(noticeOf(page)).toHaveCount(0);
+
+  // The run: the clock keeps going, nothing reloads, Procedure complete still works.
+  await activate(page.getByTestId('briefing-start'), hasTouch);
+  await expect(page.getByTestId('procedure-complete')).toBeVisible();
+  expect(await screenOf(page)).toBe('running');
+  const started = await page.evaluate(() => window.__panelSession?.now() ?? 0);
+  await expect
+    .poll(() => page.evaluate(() => window.__panelSession?.now() ?? 0))
+    .toBeGreaterThan(started);
+  await expect(noticeOf(page)).toHaveCount(0);
+  expect(await stayedLoaded(page)).toBe(true);
+
+  // The debrief.
+  await activate(page.getByTestId('procedure-complete'), hasTouch);
+  await expect(page.getByTestId('debrief-result')).toBeVisible();
+  expect(await screenOf(page)).toBe('debrief');
+  await expect(noticeOf(page)).toHaveCount(0);
+
+  // Back on the free panel the notice appears; the page never reloaded on the way.
+  await expect(page.getByTestId('debrief-modal')).not.toHaveAttribute('data-shield', 'on');
+  await activate(page.getByTestId('debrief-back'), hasTouch);
+  expect(await screenOf(page)).toBe('free');
+  await expect(noticeOf(page)).toBeVisible();
+  await expect(noticeOf(page)).toContainText(UPDATE_NOTICE_TEXT);
+  expect(await stayedLoaded(page)).toBe(true);
+  expect(navigations.count()).toBe(0);
+  expect(log.consoleErrors).toEqual([]);
+});
+
+test('with two tabs one tap updates one tab, the other shows the notice and reloads only on its own tap @local', async ({
+  site,
+}) => {
+  const { server, hasTouch } = site;
+  const first = await site.open();
+  const second = await site.open();
+  await markPage(first);
+  await markPage(second);
+  const firstNavigations = countNavigations(first);
+  const secondNavigations = countNavigations(second);
+  const next = server.deployNewVersion();
+  await checkNow(first);
+  await expect(noticeOf(first)).toBeVisible();
+  await expect(noticeOf(second)).toBeVisible();
+
+  await Promise.all([
+    first.waitForEvent('load'),
+    activate(first.getByTestId('update-apply'), hasTouch),
+  ]);
+  await expect(first.getByTestId('panel')).toBeVisible();
+  expect(await hasMarker(first, next.marker)).toBe(true);
+
+  // The second tab saw the controller change: it keeps the notice and does not reload by itself.
+  await expect(noticeOf(second)).toBeVisible();
+  await second.waitForTimeout(1500);
+  expect(await stayedLoaded(second)).toBe(true);
+  expect(secondNavigations.count()).toBe(0);
+  expect(await hasMarker(second, next.marker)).toBe(false);
+
+  // Its own tap reloads it, once.
+  await Promise.all([
+    second.waitForEvent('load'),
+    activate(second.getByTestId('update-apply'), hasTouch),
+  ]);
+  await expect(second.getByTestId('panel')).toBeVisible();
+  expect(await stayedLoaded(second)).toBe(false);
+  expect(await hasMarker(second, next.marker)).toBe(true);
+  await expect(noticeOf(second)).toHaveCount(0);
+  await second.waitForTimeout(500);
+  expect(secondNavigations.count()).toBe(1);
+  expect(firstNavigations.count()).toBe(1);
+  await expect.poll(() => cacheNames(first)).toEqual([`da50-precache-${next.id}`]);
+});
+
+test('a plain reload after a deploy finds the new worker and shows the notice @local', async ({
+  site,
+}) => {
+  const page = await site.open();
+  const next = site.server.deployNewVersion();
+  await page.reload();
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await expect(noticeOf(page)).toBeVisible();
+  // Still the old version in front of the user: the new one waits.
+  expect(await hasMarker(page, next.marker)).toBe(false);
+});
+
+test('About names the version of the worker that controls the page', async ({
+  page,
+  hasTouch,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('baseURL missing');
+  await page.goto('./');
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await waitForControl(page);
+  const stamp = await workerStamp(page, baseURL);
+  await activate(page.getByTestId('about-open'), hasTouch);
+  await expect(page.getByTestId('about-offline')).toHaveText(`${OFFLINE_READY_PREFIX}${stamp.id}`);
+});
+
+test('About shows the new version after the update @local', async ({ site }) => {
+  const { server, hasTouch } = site;
+  const page = await site.open();
+  const before = await workerStamp(page, server.baseURL);
+  await activate(page.getByTestId('about-open'), hasTouch);
+  await expect(page.getByTestId('about-offline')).toHaveText(`${OFFLINE_READY_PREFIX}${before.id}`);
+  await activate(page.getByTestId('about-close'), hasTouch);
+
+  const next = server.deployNewVersion();
+  await checkNow(page);
+  await expect(noticeOf(page)).toBeVisible();
+  // The old worker still controls the page until the tap.
+  await activate(page.getByTestId('about-open'), hasTouch);
+  await expect(page.getByTestId('about-offline')).toHaveText(`${OFFLINE_READY_PREFIX}${before.id}`);
+  await activate(page.getByTestId('about-close'), hasTouch);
+
+  await Promise.all([
+    page.waitForEvent('load'),
+    activate(noticeOf(page).getByRole('button'), hasTouch),
+  ]);
+  await expect(page.getByTestId('panel')).toBeVisible();
+  await waitForControl(page);
+  await activate(page.getByTestId('about-open'), hasTouch);
+  await expect(page.getByTestId('about-offline')).toHaveText(`${OFFLINE_READY_PREFIX}${next.id}`);
+  expect(next.id).not.toBe(before.id);
+});
+
+test.describe('with the worker blocked (the config default)', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('About says offline is not available and no notice shows', async ({ page, hasTouch }) => {
+    await page.goto('./');
+    await expect(page.getByTestId('panel')).toBeVisible();
+    await activate(page.getByTestId('about-open'), hasTouch);
+    await expect(page.getByTestId('about-offline')).toHaveText(OFFLINE_UNAVAILABLE);
+    await expect(noticeOf(page)).toHaveCount(0);
+  });
 });

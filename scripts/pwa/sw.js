@@ -75,6 +75,22 @@ self.addEventListener('fetch', (event) => {
   if (precachedHrefs().has(url.href)) event.respondWith(cached(request, url.href));
 });
 
+/** Whether a message comes from a window of this worker's own scope (T-08-07). */
+const fromOwnWindow = (event) =>
+  Boolean(event.source) &&
+  event.source.type === 'window' &&
+  typeof event.source.url === 'string' &&
+  event.source.url.startsWith(self.registration.scope);
+
+// Two known messages, nothing else: SKIP_WAITING after the user's tap (never by itself) and
+// VERSION, answered on the message port with the build id of this worker.
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') void self.skipWaiting();
+  const data = event.data;
+  if (!data || typeof data.type !== 'string' || !fromOwnWindow(event)) return;
+  if (data.type === 'SKIP_WAITING') {
+    void self.skipWaiting();
+  } else if (data.type === 'VERSION') {
+    const port = event.ports && event.ports[0];
+    if (port) port.postMessage({ type: 'VERSION', id: BUILD_ID });
+  }
 });

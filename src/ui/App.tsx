@@ -319,7 +319,7 @@ export function App() {
             Full panel
           </button>
         ) : null}
-        <UpdateNotice screen={screen} lifted={isZoomed.value} />
+        <UpdateNotice screen={screen} />
         {sheetShown && scenario !== null ? (
           <RunChecklist
             body={sheetBody(scenario)}
