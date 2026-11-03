@@ -36,11 +36,13 @@ test('@hooks CHOOSE SITUATION lists every shipped scenario, tab by tab and page 
 
   await activate(page.locator('[data-session-hit="session.choose"]'), hasTouch);
   await page.waitForTimeout(SHIELD_WAIT_MS);
-  // One tab per catalog group of the independent reference, each with its static label.
+  // One tab per catalog group of the independent reference, each with its static label: since plan
+  // 09-05 two lines, so each line of the reference is looked for in its own tspan.
   for (const group of CATALOG_REFERENCE) {
-    await expect(page.locator(`[data-session-button="session.tab.${group.id}"]`)).toContainText(
-      group.tab,
-    );
+    const lines = group.tab.split('\n');
+    const spans = page.locator(`[data-session-button="session.tab.${group.id}"] text tspan`);
+    await expect(spans).toHaveCount(lines.length);
+    for (const [index, line] of lines.entries()) await expect(spans.nth(index)).toHaveText(line);
     await expect(page.getByRole('button', { name: group.heading, exact: true })).toHaveCount(1);
   }
   const seen: string[] = [];
