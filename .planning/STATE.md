@@ -29,18 +29,18 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 9 — Emergency landing situations
-Current Plan: 09-04 complete (plans 09-01 to 09-04 executed, 2026-11-03); plan 09-05 (carried panel state, follow-on offer, walkthrough fixes) is planned
-Total Plans in Phase: 4 executed (plus 09-05 planned)
-Status: Phase 9 plans 09-01 to 09-04 executed, awaiting UAT after 09-05; Phases 7 and 8 await UAT as well (Phase 8 also the owner's device round, `docs/DEVICE-CHECKLIST.md`)
+Current Plan: 09-05 complete (plans 09-01 to 09-05 executed, 2026-11-04)
+Total Plans in Phase: 5 executed
+Status: Phase 9 plans 09-01 to 09-05 executed, awaiting UAT; Phases 7 and 8 await UAT as well (Phase 8 also the owner's device round, `docs/DEVICE-CHECKLIST.md`)
 Phases 1, 1.1 (41 plans plus a quick fix) and 1.2 (9 plans) are complete, verified, owner-accepted (UAT) and deployed; the open review warnings and deferred follow-ups are in the todos (`.planning/todos/pending/`).
-Last activity: 2026-11-03 — plan 09-04: the ditching (booklet page 10), the two-target follow-on (buttons on Easy and Medium, a seeded recorded draw on Realistic, a landing starts at once on Realistic); awaiting UAT after 09-05
+Last activity: 2026-11-04 — plan 09-05: the follow-on offered whenever declared and started with the panel the run left (`Recording.carry`), the transfer pump off with a confirm step (L35), doors and window of ENGINE FIRE IN FLIGHT as steps, two-line choose tabs; awaiting UAT
 
 Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 102
+- Total plans completed: 103
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -270,5 +270,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-23T10:34:20.154Z
-Stopped at: Completed 09-04-PLAN.md (plans 09-01 to 09-04 executed, 09-05 planned, awaiting UAT)
+Stopped at: Completed 09-05-PLAN.md (plans 09-01 to 09-05 executed, awaiting UAT)
 Resume file: None

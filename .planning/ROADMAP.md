@@ -669,7 +669,7 @@ Plans:
 
 **Wave 5** _(after Wave 4; owner walkthrough of the emergency landing, 2026-11-03)_
 
-- [ ] 09-05 — Tracer: the follow-on offered whenever a scenario declares it and started with the panel the run left (`Recording.carry`, grade, replay and Retry from it, forgotten items stay forgotten); the fuel transfer pump starts off with its row as a confirm step (lint L35) and no FUEL TRANS at the first frame; ENGINE FIRE IN FLIGHT credits the emergency window and the door (a table and a scan over every shipped file); the two-line choose tabs; documents, requirements and the final gates incl. the Linux image
+- [x] 09-05 — Tracer: the follow-on offered whenever a scenario declares it and started with the panel the run left (`Recording.carry`, grade, replay and Retry from it, forgotten items stay forgotten); the fuel transfer pump starts off with its row as a confirm step (lint L35) and no FUEL TRANS at the first frame; ENGINE FIRE IN FLIGHT credits the emergency window and the door (a table and a scan over every shipped file); the two-line choose tabs; documents, requirements and the final gates incl. the Linux image
 
 ## Progress
 
@@ -689,4 +689,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5 → 6 → 7 �
 | 6.1. PFD fidelity                                     | 3/3            | Complete    | 2026-11-01 |
 | 7. Training Mode, Further Actions and Repeat Loop     | 6/6            | Executed, awaiting UAT | 2026-11-02 |
 | 8. Offline PWA and Real-Device Hardening              | 3/3            | Executed, awaiting UAT | 2026-11-03 |
-| 9. Emergency landing situations                       | 4/5            | Executed 09-01 to 09-04, awaiting UAT (09-05 planned) | 2026-11-03 |
+| 9. Emergency landing situations                       | 5/5            | Executed, awaiting UAT | 2026-11-04 |
