@@ -2807,9 +2807,12 @@ scenarios[1]:
   },
 );
 
-describe('the marks of a long run are coalesced (phase 07, plan 04, S-02)', { timeout: 30_000 }, () => {
-  const SLOW = readFileSync(join(root, 'scenarios/electrical/elec-altn2-fail.toon'), 'utf8');
-  const MANIFEST_SLOW = `format: 1
+describe(
+  'the marks of a long run are coalesced (phase 07, plan 04, S-02)',
+  { timeout: 30_000 },
+  () => {
+    const SLOW = readFileSync(join(root, 'scenarios/electrical/elec-altn2-fail.toon'), 'utf8');
+    const MANIFEST_SLOW = `format: 1
 title: Engine
 free: true
 scenarios[1]:
@@ -2818,51 +2821,52 @@ scenarios[1]:
     file: elec-altn2-fail
 `;
 
-  it('refreshes at once while a grade is cheap and trailing, once, after a slow one', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    try {
-      const r = rig({ manifest: MANIFEST_SLOW, files: { 'elec-altn2-fail': SLOW } });
-      await r.session.newSituation();
-      r.session.setLevel('easy');
-      r.session.startRun();
-      const clock = r.session.clock.value;
-      if (clock === null) throw new Error('no clock');
-      // 28 minutes into the run a grade replays the whole log: far above 30 ms on this scenario.
-      clock.advance(28 * 60_000);
-      r.session.toggleChecklist();
-      const shown = r.session.checklistMarks.value;
-      expect(shown).not.toBeNull();
+    it('refreshes at once while a grade is cheap and trailing, once, after a slow one', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        const r = rig({ manifest: MANIFEST_SLOW, files: { 'elec-altn2-fail': SLOW } });
+        await r.session.newSituation();
+        r.session.setLevel('easy');
+        r.session.startRun();
+        const clock = r.session.clock.value;
+        if (clock === null) throw new Error('no clock');
+        // 28 minutes into the run a grade replays the whole log: far above 30 ms on this scenario.
+        clock.advance(28 * 60_000);
+        r.session.toggleChecklist();
+        const shown = r.session.checklistMarks.value;
+        expect(shown).not.toBeNull();
 
-      // The first event after the slow call is not graded at once ...
-      r.bridge.actuate('lv.power', 'p50');
-      r.bridge.actuate('lv.cowl_flap', 'open');
-      expect(r.session.checklistMarks.value).toBe(shown);
-      // ... but once, after the wait, from the log as it stands then.
-      vi.advanceTimersByTime(1000);
-      const later = r.session.checklistMarks.value;
-      expect(later).not.toBe(shown);
-      expect(later).not.toBeNull();
-      expect(later?.steps).toEqual(
-        grade(r.session.scenario.value as Scenario, DA50RG_ENV, {
-          scenarioId: 'elec-altn2-fail',
-          completedAt: clock.now(),
-          events: r.bridge.store
-            .events()
-            .filter((e) => e.source === 'user')
-            .map((e) => ({ t: e.t, id: e.id, value: e.value })),
-        }).steps,
-      );
+        // The first event after the slow call is not graded at once ...
+        r.bridge.actuate('lv.power', 'p50');
+        r.bridge.actuate('lv.cowl_flap', 'open');
+        expect(r.session.checklistMarks.value).toBe(shown);
+        // ... but once, after the wait, from the log as it stands then.
+        vi.advanceTimersByTime(1000);
+        const later = r.session.checklistMarks.value;
+        expect(later).not.toBe(shown);
+        expect(later).not.toBeNull();
+        expect(later?.steps).toEqual(
+          grade(r.session.scenario.value as Scenario, DA50RG_ENV, {
+            scenarioId: 'elec-altn2-fail',
+            completedAt: clock.now(),
+            events: r.bridge.store
+              .events()
+              .filter((e) => e.source === 'user')
+              .map((e) => ({ t: e.t, id: e.id, value: e.value })),
+          }).steps,
+        );
 
-      // Leaving the run drops a waiting refresh.
-      r.bridge.actuate('lv.power', 'p100');
-      r.session.complete();
-      vi.advanceTimersByTime(1000);
-      expect(r.session.checklistMarks.value).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-});
+        // Leaving the run drops a waiting refresh.
+        r.bridge.actuate('lv.power', 'p100');
+        r.session.complete();
+        vi.advanceTimersByTime(1000);
+        expect(r.session.checklistMarks.value).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  },
+);
 
 describe('grading ignores the level and the sheet (phase 07, plan 04, R-02)', () => {
   /** One scripted run at a level, with the sheet shown or hidden throughout; returns the result JSON. */
