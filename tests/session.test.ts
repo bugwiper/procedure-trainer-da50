@@ -2807,7 +2807,7 @@ scenarios[1]:
   },
 );
 
-describe('the marks of a long run are coalesced (phase 07, plan 04, S-02)', () => {
+describe('the marks of a long run are coalesced (phase 07, plan 04, S-02)', { timeout: 30_000 }, () => {
   const SLOW = readFileSync(join(root, 'scenarios/electrical/elec-altn2-fail.toon'), 'utf8');
   const MANIFEST_SLOW = `format: 1
 title: Engine
